@@ -1,0 +1,102 @@
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  height: var(--header-height);
+  flex-shrink: 0;
+  padding: 0 24px 0 36px;
+  background: var(--color-bg-header);
+}
+
+.app-logo {
+  font-size: 21px;
+  font-weight: 900;
+  color: #000;
+  letter-spacing: 0.5px;
+}
+
+/* ≤1440：收紧顶栏内边距，适配 1440 及以下屏幕 */
+@media (max-width: 1440px) {
+  .app-header {
+    padding: 0 20px 0 28px;
+  }
+}
+
+/* <768 极窄断点：收紧顶栏内边距 */
+@media (max-width: 767px) {
+  .app-header {
+    padding: 0 16px;
+  }
+}
+
+/* 顶栏右侧：头像 + 用户名 + 窗口控制点 */
+.app-header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid #f08c1a;
+  background: linear-gradient(135deg, #ffd9a0, #f2a35c);
+}
+
+.app-username {
+  font-size: 14px;
+  color: #333;
+}
+
+.app-window-dots {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 12px;
+}
+
+.app-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  font-size: 9px;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+}
+
+.app-dot.minimize {
+  background: #f5b50a;
+}
+
+.app-dot.maximize {
+  background: #2ec84e;
+}
+
+.app-dot.close {
+  background: #f0413a;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.app-content {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--color-bg);
+}

@@ -1,0 +1,93 @@
+/* 全局统一白底气泡下拉（替代原生 select 弹层） */
+.bselect {
+  position: relative;
+  min-width: 0;
+}
+.bselect .bselect-trigger {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  /* 筛选控件字号全局统一，不随页面继承字号漂移 */
+  font-size: 13px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+}
+.bselect .bselect-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 功能标题占位（非选择项）灰色展示 */
+.bselect .bselect-text.ph {
+  color: #98a0b3;
+}
+.bselect .bselect-arrow {
+  flex: none;
+  color: #8b92a1;
+  transition: transform 0.15s;
+}
+.bselect.open .bselect-arrow {
+  transform: rotate(180deg);
+}
+.bselect.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.bselect.disabled .bselect-trigger {
+  cursor: not-allowed;
+}
+
+/* 白底气泡菜单 */
+.bselect .bselect-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 100%;
+  max-height: 264px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #e8ebf1;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(26, 34, 56, 0.12);
+  padding: 6px;
+  z-index: 80;
+}
+.bselect .bselect-opt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #445066;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.bselect .bselect-opt:hover {
+  background: #f5f8ff;
+}
+.bselect .bselect-opt.selected {
+  color: #4f7cff;
+  font-weight: 600;
+}
+.bselect .bselect-check {
+  width: 14px;
+  flex: none;
+  font-size: 12px;
+}
+.bselect .bselect-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

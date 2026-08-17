@@ -1,0 +1,66 @@
+:root {
+  /* 主题色 */
+  --color-primary: #2e7cf6;
+
+  /* 背景与边框 */
+  --color-bg: #f4f5f9;
+  --color-bg-header: #ececf4;
+  --color-bg-sidebar: #fafafc;
+  --color-border: #e4e5eb;
+
+  /* 布局尺寸 */
+  --header-height: 60px;
+  --sidebar-width: 138px;
+
+  font-family: 'PingFang SC', 'Helvetica Neue', Helvetica, 'Segoe UI', Arial,
+    sans-serif;
+  color: var(--color-text);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* 全局通用：单行省略 + 悬浮白色气泡展示完整内容（Ellipsis 组件） */
+.ell-wrap {
+  display: inline-block;
+  max-width: 100%;
+  min-width: 0;
+  position: relative;
+  vertical-align: bottom;
+}
+.ell-inner {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ell-tip {
+  position: fixed;
+  background: #fff;
+  border: 1px solid #e8ebf1;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(26, 34, 56, 0.12);
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #445066;
+  white-space: normal;
+  width: max-content;
+  max-width: 360px;
+  line-height: 1.6;
+  z-index: 999;
+  pointer-events: none;
+}
