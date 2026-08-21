@@ -1,4 +1,6 @@
-# React + TypeScript + Vite
+# Funion
+
+基于 React + TypeScript + Vite 构建。
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
