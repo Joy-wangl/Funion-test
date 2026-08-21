@@ -100,7 +100,15 @@ export const INITIAL_MEMBERS: Member[] = [
   { id: 'm5', name: '黄亚芳', account: 'huangyf', phone: '186****6677', status: 'normal', dept: '视频号/黄亚芳大组', deptId: 'd2-1', roles: ['r2', 'r4'], addBy: '李四', addAt: '2026/02/16 15:20:00' },
   { id: 'm6', name: '孙倩', account: 'sunqian', phone: '133****5432', status: 'normal', dept: '淘宝/绿佳华大组', deptId: 'd2-2', roles: ['r3'], addBy: '系统同步', addAt: '2026/02/15 11:10:00' },
   { id: 'm7', name: '周杰', account: 'zhoujie', phone: '150****9080', status: 'frozen', dept: '拼多多/推广模版', deptId: 'd4-1', roles: ['r5'], addBy: '赵六', addAt: '2026/02/14 18:45:00' },
-  { id: 'm8', name: '吴敏', account: 'wumin', phone: '177****3322', status: 'normal', dept: '一级部门/二级部门', deptId: 'd3', roles: ['r7'], addBy: '系统同步', addAt: '2026/02/13 08:00:00' }
+  { id: 'm8', name: '吴敏', account: 'wumin', phone: '177****3322', status: 'normal', dept: '一级部门/二级部门', deptId: 'd3', roles: ['r7'], addBy: '系统同步', addAt: '2026/02/13 08:00:00' },
+  { id: 'm9', name: '徐佳华', account: 'xujh', phone: '189****4521', status: 'normal', dept: '江西南昌分公司/运营组', deptId: 'd2-1', roles: ['r2'], addBy: '系统同步', addAt: '2026/02/12 10:00:00' },
+  { id: 'm10', name: '郑婷', account: 'zhengting', phone: '137****6620', status: 'normal', dept: '江西南昌分公司/运营组', deptId: 'd2-1', roles: ['r3'], addBy: '黄亚芳', addAt: '2026/02/12 09:30:00' },
+  { id: 'm11', name: '刘洋', account: 'liuyang', phone: '158****7743', status: 'normal', dept: '江西南昌分公司/客服组', deptId: 'd2-2', roles: ['r3'], addBy: '系统同步', addAt: '2026/02/11 16:40:00' },
+  { id: 'm12', name: '陈晓', account: 'chenxiao', phone: '136****9081', status: 'normal', dept: '浙江杭州分公司', deptId: 'd3', roles: [], addBy: '系统同步', addAt: '2026/02/11 11:20:00' },
+  { id: 'm13', name: '杨帆', account: 'yangfan', phone: '155****3358', status: 'normal', dept: '湖南长沙分公司/直播组', deptId: 'd4-1', roles: ['r3'], addBy: '徐佳华', addAt: '2026/02/10 15:00:00' },
+  { id: 'm14', name: '何静', account: 'hejing', phone: '132****2247', status: 'normal', dept: '默认部门/子部门A', deptId: 'd1-1', roles: [], addBy: '系统同步', addAt: '2026/02/10 10:10:00' },
+  { id: 'm15', name: '罗彬', account: 'luobin', phone: '151****8873', status: 'normal', dept: '江西南昌分公司/客服组', deptId: 'd2-2', roles: [], addBy: '系统同步', addAt: '2026/02/09 14:25:00' },
+  { id: 'm16', name: '高翔', account: 'gaoxiang', phone: '186****5190', status: 'normal', dept: '浙江杭州分公司', deptId: 'd3', roles: [], addBy: '系统同步', addAt: '2026/02/09 09:00:00' }
 ];
 
 // 成员操作日志

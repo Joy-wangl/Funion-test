@@ -335,7 +335,7 @@ export const PLATFORM_LOGO: Record<string, string> = {
   快手: '/logos/kuaishou.png',
 };
 
-/* ---------- 商品创建（淘宝 / 视频号） ---------- */
+/* ---------- 商品创建（淘宝） ---------- */
 const createThumb = (bg: string, text: string) =>
   "data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2752%27%20height%3D%2752%27%20viewBox%3D%270%200%2052%2052%27%3E%3Crect%20width%3D%2752%27%20height%3D%2752%27%20rx%3D%2710%27%20fill%3D%27" +
   encodeURIComponent(bg).replace(/'/g, '%27') +
@@ -410,63 +410,6 @@ export const createTaobaoRows: CreateRow[] = [
   },
 ];
 
-export const createVideoRows: CreateRow[] = [
-  {
-    thumb: createThumb('#ffd9cf', '耳钉'),
-    platformBadge: '视频号',
-    title: '玫瑰小众轻奢复古耳钉，法式通勤百搭精致耳饰',
-    link: 'https://channels.weixin.qq.com/shop/goods?id=100871029607&template=V20260813-01',
-    store: '视频号店铺A',
-    person: '刘晴',
-    time: '2026-08-13 18:24:10',
-  },
-  {
-    thumb: createThumb('#fff0c9', '耳夹'),
-    platformBadge: '视频号',
-    title: '法式复古设计不对称方块流苏耳环，轻奢个性耳饰',
-    link: 'https://channels.weixin.qq.com/shop/goods?id=100439001798&template=V20260813-02',
-    store: '视频号店铺A',
-    person: '刘晴',
-    time: '2026-08-13 18:24:02',
-  },
-  {
-    thumb: createThumb('#d9f4e7', '项链'),
-    platformBadge: '视频号',
-    title: '双面可戴微镶满钻花朵珍珠耳环，少女心设计耳钉',
-    link: 'https://channels.weixin.qq.com/shop/goods?id=100073036521&template=V20260813-03',
-    store: '视频号店铺B',
-    person: '刘晴',
-    time: '2026-08-13 18:23:54',
-  },
-  {
-    thumb: createThumb('#dfe8ff', '手链'),
-    platformBadge: '视频号',
-    title: '手作新中古天然石串珠耳环，复古文艺耳饰套装',
-    link: 'https://channels.weixin.qq.com/shop/goods?id=100730773601&template=V20260813-04',
-    store: '视频号店铺B',
-    person: '陈婧',
-    time: '2026-08-13 18:23:47',
-  },
-  {
-    thumb: createThumb('#ffe1eb', '耳饰'),
-    platformBadge: '视频号',
-    title: '高级感小珍珠耳圈耳环，轻奢气质小众设计感耳饰',
-    link: 'https://channels.weixin.qq.com/shop/goods?id=100181170343&template=V20260813-05',
-    store: '视频号店铺C',
-    person: '陈婧',
-    time: '2026-08-13 18:23:40',
-  },
-  {
-    thumb: createThumb('#e6f0ff', '挂件'),
-    platformBadge: '视频号',
-    title: '家用门把手免打孔挂钩，厨房浴室收纳神器',
-    link: 'https://channels.weixin.qq.com/shop/goods?id=100164978734&template=V20260813-06',
-    store: '视频号店铺C',
-    person: '陈婧',
-    time: '2026-08-13 18:05:52',
-  },
-];
-
 /* ---------- 任务中心 ---------- */
 const taskThumb = (bg: string, text: string) =>
   "data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2748%27%20height%3D%2748%27%3E%0A%20%20%20%20%3Crect%20width%3D%2748%27%20height%3D%2748%27%20rx%3D%279%27%20fill%3D%27" +
@@ -489,6 +432,8 @@ export interface SubTask {
   status: SubStatus;
   /** 失败原因（失败tab筛选 chips：发品超限/库存不足/其它） */
   reason: string;
+  /** 失败节点（0 起）：该节点及其后续节点均失败 */
+  failStep?: number;
   retried: boolean;
   startTime: string;
   endTime: string;
@@ -500,6 +445,8 @@ export interface ParentTask {
   createTime: string;
   type: string;
   status: ParentStatus;
+  /** 渠道：智能 / 蜂联 */
+  channel: string;
   shops: number;
   links: number;
   success: number;
@@ -534,6 +481,7 @@ function buildSubs(seed: number, status: ParentStatus): SubTask[] {
     shop: '小二的店铺',
     status: st,
     reason: st === 'failed' ? failReasons[(seed + i) % 3] : '',
+    failStep: st === 'failed' ? (seed + i) % 3 : undefined,
     retried: st === 'failed' && (seed + i) % 2 === 0,
     startTime: st === 'queued' ? '' : '2026-04-04 12:01:00',
     endTime: st === 'success' || st === 'failed' ? '2026-04-04 12:04:00' : '',
@@ -547,6 +495,7 @@ function buildParent(id: number, status: ParentStatus): ParentTask {
     createTime: `2026-04-0${(id % 9) + 1} 12:00:00`,
     type: '快速铺货',
     status,
+    channel: id % 2 === 0 ? '蜂联' : '智能',
     shops: 56,
     links: 560,
     /* 队列中=全部子任务未执行，成功/失败/执行中均为 0 */
@@ -576,3 +525,58 @@ export const parentTasks: ParentTask[] = [
     for (let k = 0; k < n; k++) parentTasks.push(buildParent(nextId++, st));
   }
 }
+
+/* ================= 商品创建详情（静态素材，淘宝/视频号列表共用） ================= */
+export const createDetail = {
+  category: ['一级类目', '二级类目', '三级类目'],
+  checkStatus: '未核验',
+  thumbs: ['/products/main.png', '/products/main.png', '/products/main.png', '/products/main.png', '/products/main.png', '/products/main.png'],
+  specs: [
+    { name: '颜色分类', values: ['黑色', '白色'] },
+    { name: '款式', values: ['a款', 'b款'] },
+  ],
+  skus: [
+    { color: '黑色', style: 'a款', name: '黑a款', code: 'JSUZJDAO-001*2', series: '编码A', cost: '99.00', other: '20', price: '2026.00', profit: '2026.00', rate: '10' },
+    { color: '黑色', style: 'b款', name: '黑b款', code: 'ZH-ZJDAO-007*1', series: '编码B', cost: '99.00', other: '20', price: '2026.00', profit: '2026.00', rate: '10' },
+    { color: '白色', style: 'a款', name: '白a款', code: 'JSUZJDAO-001*2', series: '编码C', cost: '99.00', other: '20', price: '2026.00', profit: '2026.00', rate: '10' },
+    { color: '白色', style: 'b款', name: '白b款', code: 'JSUZJDAO-003*2', series: '编码D', cost: '99.00', other: '20', price: '2026.00', profit: '', rate: '10' },
+  ],
+  price: '2026',
+  mainImgs: ['/products/serum.png', '/products/main.png', '/products/serum.png', '/products/main.png'],
+  detailImgs: [
+    '/products/serum.png', '/products/main.png', '/products/serum.png', '/products/main.png',
+    '/products/serum.png', '/products/main.png', '/products/serum.png', '/products/main.png',
+  ],
+  videos: ['/products/serum.png', '/products/main.png', '/products/serum.png'],
+  whiteImg: '/products/serum.png',
+  sceneImg: '/products/serum.png',
+};
+
+/* ================= 选择版本（详情页版本选择全屏页静态素材） ================= */
+export interface CreateVersion {
+  id: string;
+  title: string;
+  thumb: string;
+  versionNo: string;
+  /** 商品模板平台标签 */
+  platform: '淘宝' | '视频号';
+  verName: string;
+  verDesc: string;
+  pubPlatform: '淘宝' | '视频号';
+  person: string;
+  time: string;
+  current?: boolean;
+}
+
+const VER_TITLE = '迷你随身小钢炮音响强劲无线蓝牙便携式重低音炮全向通用音响小型';
+const verDescOf = (person: string, time: string) => `由 ${person} 于 ${time} 发布自动生成`;
+
+export const createVersions: CreateVersion[] = [
+  { id: 'v1', title: VER_TITLE, thumb: '/products/main.png', versionNo: '1787207508609', platform: '视频号', verName: '肖桃-20260820143133', verDesc: verDescOf('肖桃', '2026-08-20 14:31:33'), pubPlatform: '视频号', person: '肖桃', time: '2026-08-20 14:31:48' },
+  { id: 'v2', title: VER_TITLE, thumb: '/products/main.png', versionNo: '1787207504637', platform: '视频号', verName: '肖桃-20260820143133', verDesc: verDescOf('肖桃', '2026-08-20 14:31:33'), pubPlatform: '视频号', person: '肖桃', time: '2026-08-20 14:31:44' },
+  { id: 'v3', title: VER_TITLE, thumb: '/products/main.png', versionNo: '1787207496149', platform: '视频号', verName: '肖桃-20260820143133', verDesc: verDescOf('肖桃', '2026-08-20 14:31:33'), pubPlatform: '视频号', person: '肖桃', time: '2026-08-20 14:31:36' },
+  { id: 'v4', title: VER_TITLE, thumb: '/products/main.png', versionNo: '1787206182732', platform: '淘宝', verName: '王龙 20260820140932', verDesc: '—', pubPlatform: '淘宝', person: '王龙', time: '2026-08-20 14:09:42', current: true },
+  { id: 'v5', title: VER_TITLE, thumb: '/products/main.png', versionNo: '1787205281874', platform: '视频号', verName: '吴安雄-20260820135440', verDesc: verDescOf('吴安雄', '2026-08-20 13:54:40'), pubPlatform: '视频号', person: '吴安雄', time: '2026-08-20 13:54:41' },
+  { id: 'v6', title: VER_TITLE, thumb: '/products/main.png', versionNo: '1787118716626', platform: '淘宝', verName: '叶润柱-20260819135154', verDesc: verDescOf('叶润柱', '2026-08-19 13:51:54'), pubPlatform: '淘宝', person: '叶润柱', time: '2026-08-19 13:51:56' },
+  { id: 'v7', title: VER_TITLE, thumb: '/products/main.png', versionNo: '1787118715818', platform: '淘宝', verName: '叶润柱-20260819135153', verDesc: verDescOf('叶润柱', '2026-08-19 13:51:53'), pubPlatform: '淘宝', person: '叶润柱', time: '2026-08-19 13:51:55' },
+];

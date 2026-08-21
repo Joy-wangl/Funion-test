@@ -34,6 +34,13 @@
   background: #fff;
   border-right: 1px solid #e8ebf1;
   padding: 14px 12px;
+  transition: width 0.2s, padding 0.2s, border 0.2s;
+}
+.qc-page .qc-side.collapsed {
+  width: 0;
+  padding: 0;
+  border-right: none;
+  overflow: hidden;
 }
 .qc-side-brand { font-size: 17px; font-weight: 800; color: #202532; padding: 6px 10px 2px; line-height: 1.2; }
 .qc-side-brand span { display: block; font-size: 12px; color: #9aa1ae; font-weight: 400; margin-top: 4px; }
@@ -204,6 +211,9 @@
 }
 .qc-page .plat-chip.off { color: var(--text-4); background: transparent; }
 .qc-page .platform-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+/* 平台官方图标（替代彩色圆点；off = 未覆盖/无数据置灰） */
+.qc-page .plat-logo { width: 16px; height: 16px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
+.qc-page .plat-logo.off { filter: grayscale(1); opacity: 0.45; }
 
 /* ---------- 展开行 ---------- */
 .qc-page .expand-row > td { background: var(--fill-1); padding: 12px 16px; }
@@ -214,18 +224,38 @@
 }
 .qc-page .sub-codes { display: flex; flex-wrap: wrap; gap: 6px; }
 
+/* 系列展开：下属商品编码明细 */
+.qc-page .qc-subtable {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--white);
+  border: 1px solid #e8ebf1;
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 12px;
+}
+.qc-page .qc-subtable th,
+.qc-page .qc-subtable td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid #f0f3f7;
+  vertical-align: top;
+}
+.qc-page .qc-subtable th { background: #fbfcfe; color: var(--text-2); font-weight: 500; }
+.qc-page .qc-subtable tr:last-child td { border-bottom: none; }
+
 /* 平台数据矩阵（子表） */
 .qc-page .matrix { width: 100%; border-collapse: collapse; background: var(--white); border: 1px solid #e8ebf1; border-radius: 10px; overflow: hidden; }
 .qc-page .matrix th,
 .qc-page .matrix td { padding: 8px 10px; font-size: 12px; text-align: left; border-bottom: 1px solid #f0f3f7; }
-.qc-page .matrix th { background: #fbfcfe; color: #5d6678; font-weight: 700; }
+.qc-page .matrix th { background: #fbfcfe; color: #5d6678; font-weight: 700; white-space: nowrap; }
 .qc-page .matrix tr.off td { color: var(--text-4); }
 .qc-page .matrix tr:last-child td { border-bottom: none; }
 
 /* ---------- 售后类型命中条 ---------- */
 .qc-page .type-bars { display: flex; flex-direction: column; gap: 8px; }
 .qc-page .tb-row { display: flex; align-items: center; gap: 10px; font-size: 12px; margin-bottom: 6px; }
-.qc-page .tb-row .tag { flex: none; }
+.qc-page .tb-row .tag { flex: none; width: 112px; justify-content: center; }
 .qc-page .tb-bar { flex: 1; height: 6px; background: var(--fill-2); border-radius: 3px; overflow: hidden; }
 .qc-page .tb-bar i { display: block; height: 100%; border-radius: 3px; background: var(--primary); }
 .qc-page .tb-cnt { width: 56px; text-align: right; color: var(--text-2); flex-shrink: 0; }
@@ -263,6 +293,11 @@
 .qc-page .rv-cell.red .n { color: var(--danger); }
 .qc-page .rv-cell.blue { background: var(--primary-light); }
 .qc-page .rv-cell.blue .n { color: var(--primary); }
+
+/* ---------- 问题类型趋势图例 ---------- */
+.qc-page .type-trend-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; }
+.qc-page .ttl-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #5b6475; }
+.qc-page .ttl-item i { width: 10px; height: 3px; border-radius: 2px; display: inline-block; }
 
 /* ---------- 图表：趋势图 / 环形图 ---------- */
 .qc-page .trend-svg { width: 100%; height: auto; display: block; }
@@ -351,7 +386,14 @@
 .qc-page .s-time { color: var(--text-3); }
 .qc-page .s-msgs { color: var(--text-3); }
 .qc-page .s-hits { display: inline-flex; gap: 4px; }
-.qc-page .s-orders { margin-left: auto; color: var(--primary); }
+.qc-page .s-orders { color: var(--primary); }
+.qc-page .s-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
 
 .qc-page .session-bubbles {
   border-top: 1px solid #f0f3f7;
@@ -360,6 +402,8 @@
   flex-direction: column;
   gap: 10px;
   background: #fbfcfe;
+  max-height: 280px;
+  overflow-y: auto;
 }
 .qc-page .bubble-row { display: flex; gap: 8px; max-width: 80%; }
 .qc-page .bubble-row.support { margin-left: auto; flex-direction: row-reverse; }
@@ -375,7 +419,10 @@
   background: var(--primary-light);
   color: var(--primary);
 }
-.qc-page .bubble-row.support .b-av { background: var(--success-light); color: var(--success); }
+.qc-page .bubble-row.support .b-av { background: var(--primary-light); color: var(--primary); }
+/* AI 回复：浅绿气泡 + 绿色 AI 头像，与客服浅蓝区分（权重高于 .support 规则避免被覆盖） */
+.qc-page .bubble-row.support.ai .b-av { background: var(--success-light); color: var(--success); font-size: 10px; font-weight: 700; }
+.qc-page .bubble-row.support.ai .b-text { background: var(--success-light); border-color: transparent; }
 .qc-page .b-main { min-width: 0; }
 .qc-page .b-meta { font-size: 11px; color: var(--text-4); margin-bottom: 3px; }
 .qc-page .bubble-row.support .b-meta { text-align: right; }
@@ -391,6 +438,146 @@
 }
 .qc-page .bubble-row.support .b-text { background: var(--primary-light); border-color: transparent; }
 .qc-page .drawer-sessions .session-bubbles { background: var(--fill-1); }
+
+/* 会话头部“全屏”按钮 */
+.qc-page .s-expand {
+  color: var(--primary);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.qc-page .s-expand:hover { text-decoration: underline; }
+
+/* 全屏聊天模态 */
+.chat-modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(29, 33, 41, 0.45);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.chat-modal {
+  width: 680px;
+  max-width: 90vw;
+  height: 80vh;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.chat-modal-head {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e8ebf1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.chat-modal-head .d-title {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-1);
+}
+.chat-modal-head .x {
+  margin-left: auto;
+  cursor: pointer;
+  color: var(--text-3);
+  display: flex;
+}
+.chat-modal-head .x:hover { color: var(--text-1); }
+.chat-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #fbfcfe;
+}
+/* 模态框内会话气泡不限高 */
+.chat-modal-body .session-bubbles {
+  max-height: none;
+  overflow-y: visible;
+}
+
+/* 全屏弹窗头部：字段标签化（平台/店铺/会话编号…）让用户感知信息含义 */
+.qc-page .chat-modal-head { padding: 12px 16px; font-size: 12px; gap: 8px 14px; }
+.qc-page .chat-modal-head .s-meta,
+.qc-page .s-head .s-meta { display: inline-flex; align-items: center; gap: 5px; color: var(--text-2); }
+.qc-page .chat-modal-head .s-meta > i,
+.qc-page .s-head .s-meta > i { font-style: normal; color: var(--text-4); }
+.qc-page .chat-modal-head .s-meta > i::after,
+.qc-page .s-head .s-meta > i::after { content: '：'; }
+.qc-page .chat-modal-head .s-id { font-size: 13px; }
+.qc-page .chat-modal-head .x { margin-left: auto; }
+/* 底部操作栏：上一个/下一个会话切换按钮 */
+.qc-page .chat-modal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 10px 16px;
+  border-top: 1px solid #e8ebf1;
+  background: #fff;
+}
+.qc-page .cm-nav { display: inline-flex; align-items: center; gap: 8px; }
+.qc-page .cm-nav button {
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text-2);
+  font-size: 12px;
+  cursor: pointer;
+}
+.qc-page .cm-nav button:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+.qc-page .cm-nav button:disabled { opacity: 0.45; cursor: not-allowed; }
+.qc-page .cm-idx { min-width: 44px; text-align: center; color: var(--text-3); font-size: 12px; }
+
+/* 命中问题类型编辑条 */
+.qc-page .cm-hits {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #e8ebf1;
+  background: #fff;
+  font-size: 12px;
+}
+.qc-page .cm-hits-label { color: var(--text-3); }
+.qc-page .cm-hits .tag { display: inline-flex; align-items: center; gap: 5px; }
+.qc-page .cm-x { font-style: normal; cursor: pointer; opacity: 0.65; }
+.qc-page .cm-x:hover { opacity: 1; }
+.qc-page .cm-add { position: relative; display: inline-flex; }
+.qc-page .cm-add > a { color: var(--primary); cursor: pointer; }
+.qc-page .cm-add > a:hover { text-decoration: underline; }
+.qc-page .cm-add-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 150px;
+  max-height: 240px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #e8ebf1;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(26, 34, 56, 0.12);
+  padding: 6px;
+}
+.qc-page .cm-add-pop a { padding: 6px 10px; border-radius: 7px; font-size: 12px; color: #445066; cursor: pointer; white-space: nowrap; }
+.qc-page .cm-add-pop a:hover { background: #f5f8ff; color: var(--primary); }
+.qc-page .cm-add-pop .cm-none { padding: 6px 10px; font-size: 12px; color: var(--text-4); }
 
 /* 命中短语高亮 */
 .qc-page .b-text mark,
@@ -426,6 +613,30 @@
 
 /* ---------- 问题类型标签（表格列） ---------- */
 .qc-page .prob-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* 命中类型折叠：默认 Top3，超出 +N，悬浮气泡展示全部 */
+.qc-page .prob-tags .prob-more { position: relative; cursor: default; color: var(--text-3); }
+.qc-page .prob-tags .prob-more:hover { color: var(--primary); }
+.qc-page .prob-bubble {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 70;
+  flex-wrap: wrap;
+  gap: 4px;
+  width: max-content;
+  max-width: 260px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #e8ebf1;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(26, 34, 56, 0.12);
+}
+.qc-page .prob-tags .prob-more:hover .prob-bubble { display: flex; }
+
+/* 系列详情抽屉加宽（平台矩阵列较多） */
+.qc-page.qc-center-page .drawer { width: 960px; }
 
 /* ---------- 问题诊断与优化建议 ---------- */
 .qc-page .prob-item {
@@ -505,3 +716,6 @@
 .qc-page .b-toggle a:hover { opacity: .8; }
 /* 长会话内部滚动，避免擑爆页面 */
 .qc-page .b-list { max-height: 340px; overflow-y: auto; padding-right: 4px; }
+
+/* 聊天记录核查：商品编码展开后的会话卡片列表 */
+.qc-page .chat-code-sessions { display: flex; flex-direction: column; gap: 10px; }

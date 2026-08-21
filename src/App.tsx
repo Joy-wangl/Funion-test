@@ -1,14 +1,26 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { navigation } from './config/navigation';
 import TopTabs from './components/TopTabs';
 import Sidebar, { findFirstLeaf } from './components/Sidebar';
-import QualityControlCenter from './pages/quality/QualityControlCenter';
+import QualityCenter from './pages/quality/QualityCenter';
 import OpsCenter from './pages/ops-center/OpsCenter';
 import './App.css';
 
 export default function App() {
   const [activeTabKey, setActiveTabKey] = useState('ops-center');
   const [activeMenuKey, setActiveMenuKey] = useState('');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('funion:sidebarCollapsed') === 'true'; }
+    catch { return false; }
+  });
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed((v) => {
+      const next = !v;
+      try { localStorage.setItem('funion:sidebarCollapsed', String(next)); } catch {}
+      return next;
+    });
+  }, []);
 
   const activeTab = useMemo(
     () => navigation.find((tab) => tab.key === activeTabKey) ?? navigation[0],
@@ -50,11 +62,11 @@ export default function App() {
       <div className="app-body">
         {activeTabKey === 'ops-center' ? (
           <main className="app-content">
-            <OpsCenter />
+            <OpsCenter sidebarCollapsed={sidebarCollapsed} onToggleSidebar={toggleSidebar} />
           </main>
-        ) : activeTabKey === 'qc' ? (
+        ) : activeTabKey === 'qc-center' ? (
           <main className="app-content qc-standalone">
-            <QualityControlCenter />
+            <QualityCenter sidebarCollapsed={sidebarCollapsed} />
           </main>
         ) : (
           <>
@@ -62,6 +74,7 @@ export default function App() {
               menus={activeTab.menus}
               activeKey={activeMenuKey}
               onSelect={setActiveMenuKey}
+              className={sidebarCollapsed ? 'collapsed' : ''}
             />
             <main className="app-content" />
           </>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 export interface MoreActionItem {
@@ -10,8 +10,9 @@ export interface MoreActionItem {
 
 /**
  * 操作列全局规范：最多直出两个操作，超出项收进「更多」，点击气泡展开。
+ * trigger：可选自定义触发器（如「⋯」图标），不传时默认渲染「更多」文字链接。
  */
-export default function MoreActions({ items }: { items: MoreActionItem[] }) {
+export default function MoreActions({ items, trigger }: { items: MoreActionItem[]; trigger?: ReactNode }) {
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -21,19 +22,36 @@ export default function MoreActions({ items }: { items: MoreActionItem[] }) {
     return () => document.removeEventListener('mousedown', close);
   }, [pos]);
 
+  const openAt = (el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    setPos({ x: Math.max(8, Math.min(r.left, window.innerWidth - 130)), y: r.bottom + 6 });
+  };
+
   return (
     <>
-      <a
-        href="#"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-          setPos({ x: Math.max(8, Math.min(r.left, window.innerWidth - 130)), y: r.bottom + 6 });
-        }}
-      >
-        更多
-      </a>
+      {trigger !== undefined ? (
+        <span
+          style={{ display: 'inline-flex', cursor: 'pointer' }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openAt(e.currentTarget);
+          }}
+        >
+          {trigger}
+        </span>
+      ) : (
+        <a
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openAt(e.currentTarget);
+          }}
+        >
+          更多
+        </a>
+      )}
       {pos &&
         createPortal(
           <div className="add-pop" style={{ left: pos.x, top: pos.y }} onMouseDown={(e) => e.stopPropagation()}>

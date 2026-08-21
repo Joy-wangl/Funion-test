@@ -12,7 +12,8 @@ dist
 dist-ssr
 *.local
 
-# Editor directories and files
+# Editor / IDE directories and files
+.qoder/
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -25,4 +26,9 @@ dist-ssr
 
 # 本地生成的分享页与验证截图
 Funion-预览.html
+/Funion-品控中心.html
 funion-*.png
+/qc-*.png
+/quality_center_tab.png
+/series_code_list.png
+dist-share

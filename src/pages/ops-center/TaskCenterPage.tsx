@@ -4,6 +4,7 @@ import BubbleSelect from '../../components/BubbleSelect';
 
 const platformOptions = ['发布平台', '淘宝', '天猫', '拼多多', '抖音', '快手', '京东', '阿里巴巴', '微信视频号小店'];
 const typeOptions = ['任务类型', '快速铺货', '商品铺货', '商品发布', '批量上架', '自动定价', '自动换图'];
+const channelOptions = ['全部', '智能', '蜂联'];
 
 /** 时间区间（开始 → 结束） */
 function Range() {
@@ -51,15 +52,17 @@ function TaskRing({ p }: { p: ParentTask }) {
 interface ListFilter {
   tab: string;
   platform: string;
+  channel: string;
   creator: string;
   type: string;
   shop: string;
 }
-const defaultListFilter: ListFilter = { tab: 'all', platform: '发布平台', creator: '', type: '任务类型', shop: '' };
+const defaultListFilter: ListFilter = { tab: 'all', platform: '发布平台', channel: '全部', creator: '', type: '任务类型', shop: '' };
 
 function ParentList({ onDetail }: { onDetail: (p: ParentTask) => void }) {
   const [tab, setTab] = useState('all');
   const [platform, setPlatform] = useState('发布平台');
+  const [channel, setChannel] = useState('全部');
   const [creator, setCreator] = useState('');
   const [type, setType] = useState('任务类型');
   const [shop, setShop] = useState('');
@@ -76,6 +79,7 @@ function ParentList({ onDetail }: { onDetail: (p: ParentTask) => void }) {
   const snapshot = (nextTab: string): ListFilter => ({
     tab: nextTab,
     platform,
+    channel,
     creator: creator.trim(),
     type,
     shop: shop.trim(),
@@ -87,6 +91,7 @@ function ParentList({ onDetail }: { onDetail: (p: ParentTask) => void }) {
   const onSearch = () => setApplied(snapshot(tab));
   const onReset = () => {
     setPlatform('发布平台');
+    setChannel('全部');
     setCreator('');
     setType('任务类型');
     setShop('');
@@ -97,10 +102,11 @@ function ParentList({ onDetail }: { onDetail: (p: ParentTask) => void }) {
   const visible = parentTasks.filter((p) => {
     const okTab = applied.tab === 'all' || p.status === applied.tab;
     const okPlatform = applied.platform === '发布平台' || p.subs.some((s) => s.platform === applied.platform);
+    const okChannel = applied.channel === '全部' || p.channel === applied.channel;
     const okCreator = !applied.creator || p.creator.indexOf(applied.creator) > -1;
     const okType = applied.type === '任务类型' || p.type === applied.type;
     const okShop = !applied.shop || p.subs.some((s) => s.shop.indexOf(applied.shop) > -1);
-    return okTab && okPlatform && okCreator && okType && okShop;
+    return okTab && okPlatform && okChannel && okCreator && okType && okShop;
   });
 
   return (
@@ -120,6 +126,10 @@ function ParentList({ onDetail }: { onDetail: (p: ParentTask) => void }) {
             <BubbleSelect className="sg-select" value={platform} onChange={setPlatform} options={platformOptions} />
           </div>
           <div className="sg-field">
+            <label>渠道</label>
+            <BubbleSelect className="sg-select" value={channel} onChange={setChannel} options={channelOptions} />
+          </div>
+          <div className="sg-field">
             <label>创建人</label>
             <input className="sg-input" placeholder="请输入创建人" value={creator} onChange={(e) => setCreator(e.target.value)} />
           </div>
@@ -135,10 +145,7 @@ function ParentList({ onDetail }: { onDetail: (p: ParentTask) => void }) {
             <label>发布店铺名称</label>
             <input className="sg-input" placeholder="请输入发布店铺名称" value={shop} onChange={(e) => setShop(e.target.value)} />
           </div>
-        </div>
-        <div className="sg-actions">
-          <div className="sg-mini"></div>
-          <div className="sg-rightacts">
+          <div className="sg-actions">
             <button className="sg-btn" onClick={onReset}>
               重置
             </button>
@@ -162,6 +169,7 @@ function ParentList({ onDetail }: { onDetail: (p: ParentTask) => void }) {
                 <th>任务状态</th>
                 <th>发布信息</th>
                 <th>执行信息</th>
+                <th>渠道</th>
                 <th>
                   执行起止时间 <span className="tc-sort">⇅</span>
                 </th>
@@ -195,6 +203,7 @@ function ParentList({ onDetail }: { onDetail: (p: ParentTask) => void }) {
                       <div>执行中：{p.running}</div>
                     </div>
                   </td>
+                  <td>{p.channel}</td>
                   <td>
                     <div className="tc-cell-lines">
                       <div>起：{p.startTime || '–'}</div>
@@ -236,15 +245,18 @@ const defaultDetailFilter: DetailFilter = {
   retried: '是否重试',
 };
 
-/** 子任务三节点状态（获取链接信息/定价策略计算/商品发布店铺） */
+/** 子任务三节点状态（获取链接信息/定价策略计算/商品发布店铺），由任务状态推导 */
 function stepsOf(s: SubTask) {
   const ok = { dot: 'ok', v: '成功', cls: '' };
-  if (s.status === 'queued') {
-    return [0, 1, 2].map(() => ({ dot: 'wait', v: '–', cls: 'wait' }));
-  }
+  const dash = { dot: 'wait', v: '–', cls: 'wait' };
+  /* 队列中：首节点待执行，后续未触及 */
+  if (s.status === 'queued') return [{ dot: 'wait', v: '待执行', cls: 'wait' }, dash, dash];
   if (s.status === 'running') return [ok, ok, { dot: 'ok', v: '执行中', cls: '' }];
+  /* 已完成：三节点全部通过 */
   if (s.status === 'success') return [ok, ok, ok];
-  return [ok, ok, { dot: 'fail', v: '执行失败', cls: '' }];
+  /* 执行失败：失败节点及其后续节点均失败 */
+  const f = s.failStep ?? 2;
+  return [0, 1, 2].map((i) => (i < f ? ok : { dot: 'fail', v: '执行失败', cls: 'fail' }));
 }
 const stepLabels = ['获取链接信息', '定价策略计算', '商品发布店铺'];
 
@@ -511,6 +523,7 @@ interface FlatFilter {
   chip: string;
   creator: string;
   platform: string;
+  channel: string;
   type: string;
   shop: string;
   retried: string;
@@ -520,6 +533,7 @@ const defaultFlatFilter: FlatFilter = {
   chip: '全部',
   creator: '',
   platform: '发布平台',
+  channel: '全部',
   type: '任务类型',
   shop: '',
   retried: '是否重试',
@@ -530,6 +544,7 @@ function SubFlatList() {
   const [chip, setChip] = useState('全部');
   const [creator, setCreator] = useState('');
   const [platform, setPlatform] = useState('发布平台');
+  const [channel, setChannel] = useState('全部');
   const [type, setType] = useState('任务类型');
   const [shop, setShop] = useState('');
   const [retried, setRetried] = useState('是否重试');
@@ -550,6 +565,7 @@ function SubFlatList() {
     chip: nextChip ?? chip,
     creator: creator.trim(),
     platform,
+    channel,
     type,
     shop: shop.trim(),
     retried,
@@ -569,6 +585,7 @@ function SubFlatList() {
     setChip('全部');
     setCreator('');
     setPlatform('发布平台');
+    setChannel('全部');
     setType('任务类型');
     setShop('');
     setRetried('是否重试');
@@ -591,10 +608,11 @@ function SubFlatList() {
     const okChip = applied.tab !== 'failed' || applied.chip === '全部' || r.sub.reason === applied.chip;
     const okCreator = !applied.creator || r.parent.creator.indexOf(applied.creator) > -1;
     const okPlatform = applied.platform === '发布平台' || r.sub.platform === applied.platform;
+    const okChannel = applied.channel === '全部' || r.parent.channel === applied.channel;
     const okType = applied.type === '任务类型' || r.parent.type === applied.type;
     const okShop = !applied.shop || r.sub.shop.indexOf(applied.shop) > -1;
     const okRetried = applied.retried === '是否重试' || (applied.retried === '是') === r.sub.retried;
-    return okTab && okChip && okCreator && okPlatform && okType && okShop && okRetried;
+    return okTab && okChip && okCreator && okPlatform && okChannel && okType && okShop && okRetried;
   });
 
   const isFailed = tab === 'failed';
@@ -630,6 +648,10 @@ function SubFlatList() {
           <div className="sg-field">
             <label>发布平台</label>
             <BubbleSelect className="sg-select" value={platform} onChange={setPlatform} options={platformOptions} />
+          </div>
+          <div className="sg-field">
+            <label>渠道</label>
+            <BubbleSelect className="sg-select" value={channel} onChange={setChannel} options={channelOptions} />
           </div>
           <div className="sg-field">
             <label>任务类型</label>
@@ -689,10 +711,12 @@ function SubFlatList() {
                 )}
                 <th style={{ width: 64 }}>序号</th>
                 <th>商品信息</th>
-                <th>创建人</th>
                 <th>任务类型</th>
-                <th>平台/店铺</th>
+                <th>节点状态</th>
                 <th>任务状态</th>
+                <th>平台/店铺</th>
+                <th>创建人</th>
+                <th>渠道</th>
                 <th>
                   执行起止时间 <span className="tc-sort">⇅</span>
                 </th>
@@ -722,17 +746,16 @@ function SubFlatList() {
                       </div>
                     </div>
                   </td>
-                  <td>
-                    <div className="tc-cell-lines">
-                      <div>{r.parent.creator}</div>
-                      <div>{r.parent.createTime}</div>
-                    </div>
-                  </td>
                   <td>{r.parent.type}</td>
                   <td>
-                    <div className="tc-cell-lines">
-                      <div>{r.sub.platform}</div>
-                      <div>{r.sub.shop}</div>
+                    <div className={`tc-steps ${r.sub.status === 'queued' ? 'gray' : ''}`}>
+                      {stepsOf(r.sub).map((st, si) => (
+                        <div className="tc-step" key={stepLabels[si]}>
+                          <i className={st.dot} />
+                          <span>{stepLabels[si]}：</span>
+                          <span className={`v ${st.cls}`}>{st.v}</span>
+                        </div>
+                      ))}
                     </div>
                   </td>
                   <td>
@@ -741,6 +764,19 @@ function SubFlatList() {
                       {subStatusText[r.sub.status]}
                     </span>
                   </td>
+                  <td>
+                    <div className="tc-cell-lines">
+                      <div>{r.sub.platform}</div>
+                      <div>{r.sub.shop}</div>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="tc-cell-lines">
+                      <div>{r.parent.creator}</div>
+                      <div>{r.parent.createTime}</div>
+                    </div>
+                  </td>
+                  <td>{r.parent.channel}</td>
                   <td>
                     <div className="tc-cell-lines">
                       <div>起：{r.sub.startTime || '–'}</div>

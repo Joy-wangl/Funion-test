@@ -225,6 +225,25 @@ export function mergeByPlatform(lists: PlatformStat[][]): PlatformStat[] {
   }).filter((x): x is PlatformStat => x !== null);
 }
 
+/** 平台维度：按订单占比分摊聚合各问题类型命中次数（降序） */
+export function platformProblemHits(codes: ProductCodeRow[]): Partial<Record<Platform, [string, number][]>> {
+  const acc = new Map<Platform, Map<string, number>>();
+  for (const c of codes) {
+    const total = c.platforms.reduce((s, p) => s + p.orders, 0) || 1;
+    for (const p of c.platforms) {
+      let m = acc.get(p.platform);
+      if (!m) { m = new Map(); acc.set(p.platform, m); }
+      for (const [t, n] of c.afterSalesTypes) {
+        const add = Math.round((n * p.orders) / total);
+        if (add > 0) m.set(t, (m.get(t) ?? 0) + add);
+      }
+    }
+  }
+  const out: Partial<Record<Platform, [string, number][]>> = {};
+  for (const [plat, m] of acc) out[plat] = [...m.entries()].sort((a, b) => b[1] - a[1]);
+  return out;
+}
+
 export type JunkStatus = 'junk' | 'suspect' | 'normal';
 
 export interface TypeMetrics {
@@ -343,7 +362,8 @@ export const INITIAL_TASKS: OptTask[] = [
    ========================================================= */
 
 export interface ChatMessage {
-  role: 'buyer' | 'support';
+  /** 回复角色：买家 / 人工客服 / AI 回复 */
+  role: 'buyer' | 'support' | 'ai';
   time: string;
   text: string;
 }
@@ -371,7 +391,7 @@ export const CHAT_SESSIONS: ChatSession[] = [
     id: 'CS-0812-01', code: 'SP-20103', platform: '拼多多', startedAt: '2026-08-12 14:20', orderId: 'SO-0812-3385',
     messages: [
       { role: 'buyer', time: '2026-08-12 14:20', text: '在吗？儿童水壶的吸管咬几下就裂了，这是什么劣质品，要求退款！' },
-      { role: 'support', time: '2026-08-12 14:24', text: '抱歉给您带来困扰，请问方便拍一下吸管开裂的照片吗？' },
+      { role: 'ai', time: '2026-08-12 14:24', text: '抱歉给您带来困扰，请问方便拍一下吸管开裂的照片吗？' },
       { role: 'buyer', time: '2026-08-12 14:27', text: '照片发了，而且容量比页面标注少很多，最多 300ml，你们标 500ml。' },
       { role: 'support', time: '2026-08-12 14:33', text: '已登记质量问题与描述差异，为您办理仅退款，无需退货。' },
     ],
@@ -384,7 +404,7 @@ export const CHAT_SESSIONS: ChatSession[] = [
     id: 'CS-0811-02', code: 'SP-20103', platform: '快手', startedAt: '2026-08-11 20:01', orderId: 'SO-0809-2210',
     messages: [
       { role: 'buyer', time: '2026-08-11 20:01', text: '实物和直播间介绍的完全不一样，容量差太多了' },
-      { role: 'support', time: '2026-08-11 20:06', text: '亲，直播间展示的是 500ml 款，您拍的是 350ml 款哦。' },
+      { role: 'ai', time: '2026-08-11 20:06', text: '亲，直播间展示的是 500ml 款，您拍的是 350ml 款哦。' },
       { role: 'buyer', time: '2026-08-11 20:09', text: '链接标题写的就是 500ml，你们这是虚假宣传，我要投诉。' },
     ],
     hits: [{ type: '描述不符', phrase: '和直播间介绍的完全不一样' }],
@@ -393,7 +413,7 @@ export const CHAT_SESSIONS: ChatSession[] = [
     id: 'CS-0813-03', code: 'SP-20201', platform: '拼多多', startedAt: '2026-08-13 09:38', orderId: 'SO-0811-4502',
     messages: [
       { role: 'buyer', time: '2026-08-13 09:38', text: '掉毛严重，孩子摸一手毛，什么垃圾玩意，退钱！' },
-      { role: 'support', time: '2026-08-13 09:45', text: '非常抱歉，毛绒类商品轻微浮毛属正常现象，您先拍打通风试试？' },
+      { role: 'ai', time: '2026-08-13 09:45', text: '非常抱歉，毛绒类商品轻微浮毛属正常现象，您先拍打通风试试？' },
       { role: 'buyer', time: '2026-08-13 09:49', text: '不是浮毛，是一揪掉一把，缝线也是开的，这品控太离谱了。' },
       { role: 'support', time: '2026-08-13 09:57', text: '已为您申请退货退款并承担运费，同时反馈品控部门抽检。' },
     ],
@@ -406,7 +426,7 @@ export const CHAT_SESSIONS: ChatSession[] = [
     id: 'CS-0812-04', code: 'SP-20201', platform: '抖音', startedAt: '2026-08-12 22:12', orderId: 'SO-0810-1873',
     messages: [
       { role: 'buyer', time: '2026-08-12 22:12', text: '味道太大刺鼻，质检肯定不达标，不敢给小孩玩' },
-      { role: 'support', time: '2026-08-12 22:18', text: '新品出厂包装味通风 2-3 天会消散，介意的话支持七天无理由。' },
+      { role: 'ai', time: '2026-08-12 22:18', text: '新品出厂包装味通风 2-3 天会消散，介意的话支持七天无理由。' },
       { role: 'buyer', time: '2026-08-12 22:23', text: '通风三天还是刺鼻，这根本不是味道问题，是材质问题。' },
     ],
     hits: [{ type: '质量问题', phrase: '味道太大刺鼻' }],
@@ -415,7 +435,7 @@ export const CHAT_SESSIONS: ChatSession[] = [
     id: 'CS-0812-05', code: 'SP-20201', platform: '抖音', startedAt: '2026-08-12 18:35', orderId: 'SO-0809-3327',
     messages: [
       { role: 'buyer', time: '2026-08-12 18:35', text: '实物和视频里差太多了，小了一整圈，脸还是歪的' },
-      { role: 'support', time: '2026-08-12 18:41', text: '手工缝制存在 1-2cm 误差，脸型问题可为您换货一个。' },
+      { role: 'ai', time: '2026-08-12 18:41', text: '手工缝制存在 1-2cm 误差，脸型问题可为您换货一个。' },
       { role: 'buyer', time: '2026-08-12 18:46', text: '换货可以，但你们详情页尺寸写 40cm，实测 34cm，这算欺诈吧？' },
     ],
     hits: [
@@ -445,7 +465,7 @@ export const CHAT_SESSIONS: ChatSession[] = [
     id: 'CS-0812-08', code: 'SP-20303', platform: '拼多多', startedAt: '2026-08-12 21:10', orderId: 'SO-0810-4419',
     messages: [
       { role: 'buyer', time: '2026-08-12 21:10', text: '挂钩一点都不粘，贴一晚上全掉了，墙上还留胶' },
-      { role: 'support', time: '2026-08-12 21:16', text: '建议粘贴后静置 12 小时再挂重物，墙面材质也会影响粘性。' },
+      { role: 'ai', time: '2026-08-12 21:16', text: '建议粘贴后静置 12 小时再挂重物，墙面材质也会影响粘性。' },
       { role: 'buyer', time: '2026-08-12 21:21', text: '完全按说明操作的，瓷砖墙面，空钩子都挂不住，别找借口。' },
     ],
     hits: [{ type: '质量问题', phrase: '一点都不粘，贴一晚上全掉了' }],
@@ -454,7 +474,7 @@ export const CHAT_SESSIONS: ChatSession[] = [
     id: 'CS-0813-09', code: 'SP-20401', platform: '淘宝', startedAt: '2026-08-13 10:05', orderId: 'SO-0812-1050',
     messages: [
       { role: 'buyer', time: '2026-08-13 10:05', text: '请问这款支架支持折叠屏手机吗？' },
-      { role: 'support', time: '2026-08-13 10:09', text: '支持的，夹臂最大开合 9cm，折叠屏展开状态也可以使用。' },
+      { role: 'ai', time: '2026-08-13 10:09', text: '支持的，夹臂最大开合 9cm，折叠屏展开状态也可以使用。' },
       { role: 'buyer', time: '2026-08-13 10:12', text: '好的，谢谢。' },
     ],
     hits: [],
@@ -649,3 +669,30 @@ export const REFUND_TREND: TrendPoint[] = (() => {
   }
   return out;
 })();
+
+/* =========================================================
+   v2 · 近30天各问题类型命中趋势（确定性 mock，供问题类型趋势图）
+   ========================================================= */
+
+export interface TypeTrendSeries {
+  type: string;
+  total: number;
+  points: { date: string; count: number }[];
+}
+
+export function problemTypeTrend(types?: string[]): TypeTrendSeries[] {
+  return typeHitRanking(types).map((r, idx) => {
+    const points: { date: string; count: number }[] = [];
+    const base = r.count / 30;
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(2026, 7, 13);
+      d.setDate(d.getDate() - i);
+      const t = 29 - i;
+      const seed = Math.sin((idx + 1) * 12.9898 + t * 78.233) * 43758.5453;
+      const frac = seed - Math.floor(seed);
+      const count = Math.max(0, Math.round(base * (0.3 + frac * 1.6)));
+      points.push({ date: `${d.getMonth() + 1}/${d.getDate()}`, count });
+    }
+    return { type: r.type, total: r.count, points };
+  });
+}

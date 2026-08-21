@@ -1,8 +1,9 @@
 /* =========================================================
    Funion 权限管理 · 部门管理（移植自原型 department.html）
+   部门成员来源于成员管理同步，本页只做归属与运营组绑定
    ========================================================= */
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { DP_TREE, DP_MEMBERS, findDpNode, renameDpNode, type DpTreeNode } from './data';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { DP_TREE, DP_MEMBERS, INITIAL_MEMBERS, findDpNode, renameDpNode, roleById, type DpTreeNode, type Member } from './data';
 import {
   AddMemberModal,
   Modal,
@@ -13,13 +14,39 @@ import {
   IconSearch,
   IconWarn,
 } from './shared';
+import {
+  INITIAL_OPS_GROUPS,
+  INITIAL_OPS_MEMBERS,
+  OPS_CHANNELS,
+  OPS_ROLE_LABEL,
+  getMemberAllAssignments,
+  nowStamp,
+  opsMemberSource,
+  type OpsChannel,
+  type OpsChannelGroups,
+  type OpsChannelMembers,
+  type OpsRole,
+} from './opsGroupData';
+import BubbleSelect from '../../components/BubbleSelect';
 import './style.css';
 
 /* ---------- 弹窗状态 ---------- */
 type ModalState =
   | { kind: 'deptForm'; title: string; value: string; onOk: (v: string) => void }
   | { kind: 'confirm'; title: string; msg: ReactNode; okText: string; danger?: boolean; onOk: () => void }
-  | { kind: 'addMember' };
+  | { kind: 'addMember' }
+  | { kind: 'editOps'; memberId: string };
+
+export interface DeptMember {
+  id: string;
+  name: string;
+  roles: string[];
+  adder: string;
+  at: string;
+}
+
+/** 部门成员池：同步自成员管理，添加时从该池选择 */
+const SOURCE_MEMBERS: Member[] = INITIAL_MEMBERS;
 
 /** 搜索过滤（保留命中节点及其祖先，命中节点保留原 children） */
 function filterTree(nodes: DpTreeNode[], dq: string): DpTreeNode[] {
@@ -43,8 +70,16 @@ export default function DepartmentManagement() {
   const [ctx, setCtx] = useState<{ x: number; y: number; id: string; name: string } | null>(null);
   const [addCtx, setAddCtx] = useState<{ x: number; y: number } | null>(null);
   const [modal, setModal] = useState<ModalState | null>(null);
-  const { toasts, pushToast } = useToasts();
+  /* 部门成员列表（本地维护，添加成员时从 SOURCE_MEMBERS 选择） */
+  const [deptMembers, setDeptMembers] = useState<DeptMember[]>(() =>
+    DP_MEMBERS.map((m, i) => ({ ...m, id: `m${i + 1}` })),
+  );
 
+  /* 运营组数据（作为全局状态提升，后续可抽离到上层 context） */
+  const [opsGroups, setOpsGroups] = useState<OpsChannelGroups>(INITIAL_OPS_GROUPS);
+  const [opsMembers, setOpsMembers] = useState<OpsChannelMembers>(INITIAL_OPS_MEMBERS);
+
+  const { toasts, pushToast } = useToasts();
   const curDept = findDpNode(curDeptId, tree);
 
   /* 菜单外点击关闭 */
@@ -126,7 +161,6 @@ export default function DepartmentManagement() {
   };
 
   const filtered = filterTree(tree, dq.trim());
-
   const closeModal = () => setModal(null);
 
   return (
@@ -168,11 +202,18 @@ export default function DepartmentManagement() {
           <div className="content-body">
             <table className="table">
               <thead>
-                <tr><th>姓名</th><th>角色</th><th>添加人</th><th>添加时间</th><th style={{ width: 100 }}>操作</th></tr>
+                <tr>
+                  <th>姓名</th>
+                  <th>角色</th>
+                  <th>运营归属</th>
+                  <th>添加人</th>
+                  <th>添加时间</th>
+                  <th style={{ width: 120 }}>操作</th>
+                </tr>
               </thead>
               <tbody>
-                {DP_MEMBERS.map((m, i) => (
-                  <tr key={i}>
+                {deptMembers.map((m) => (
+                  <tr key={m.id}>
                     <td className="col-name">{m.name}</td>
                     <td>
                       {m.roles.length ? (
@@ -184,9 +225,21 @@ export default function DepartmentManagement() {
                         <span style={{ color: 'var(--text-4)' }}>-</span>
                       )}
                     </td>
+                    <td>
+                      <OpsAssignmentCell
+                        memberId={m.id}
+                        opsGroups={opsGroups}
+                        opsMembers={opsMembers}
+                      />
+                    </td>
                     <td>{m.adder}</td>
                     <td style={{ color: 'var(--text-3)' }}>{m.at}</td>
-                    <td><div className="op"><a className="danger" onClick={() => pushToast('已移除')}>移除</a></div></td>
+                    <td>
+                      <div className="op">
+                        <a onClick={() => setModal({ kind: 'editOps', memberId: m.id })}>编辑归属</a>
+                        <a className="danger" onClick={() => pushToast('已移除')}>移除</a>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -235,9 +288,38 @@ export default function DepartmentManagement() {
       )}
       {modal?.kind === 'addMember' && (
         <AddMemberModal
+          opsGroups={opsGroups}
+          opsMembers={opsMembers}
+          sourceMembers={SOURCE_MEMBERS}
           onClose={closeModal}
           notify={pushToast}
-          onConfirm={(depts) => pushToast(`已添加成员，分配 ${depts.length} 个部门`)}
+          onConfirm={(members, roles, opsPatch) => {
+            if (opsPatch) {
+              setOpsGroups(opsPatch.groups);
+              setOpsMembers(opsPatch.members);
+            }
+            setDeptMembers((prev) => [
+              ...prev,
+              ...members.map((member) => ({
+                id: member.id,
+                name: member.name,
+                roles: roles.map((rid) => roleById(rid)?.name ?? rid),
+                adder: '管理员',
+                at: nowStamp(),
+              })),
+            ]);
+            pushToast(`已添加 ${members.length} 名成员到当前部门`);
+          }}
+        />
+      )}
+      {modal?.kind === 'editOps' && (
+        <EditOpsAssignmentModal
+          memberId={modal.memberId}
+          opsGroups={opsGroups}
+          opsMembers={opsMembers}
+          onChange={(nextGroups, nextMembers) => { setOpsGroups(nextGroups); setOpsMembers(nextMembers); }}
+          onClose={closeModal}
+          notify={pushToast}
         />
       )}
 
@@ -247,7 +329,211 @@ export default function DepartmentManagement() {
   );
 }
 
-/* ---------- 添加/编辑部门弹窗（0/10 计数） ---------- */
+/* =========================================================
+   运营归属展示单元格：每个平台单独一行
+   ========================================================= */
+function OpsAssignmentCell({ memberId, opsGroups, opsMembers }: {
+  memberId: string;
+  opsGroups: OpsChannelGroups;
+  opsMembers: OpsChannelMembers;
+}) {
+  const list = useMemo(() => getMemberAllAssignments(memberId, opsGroups, opsMembers), [memberId, opsGroups, opsMembers]);
+  if (!list.length) return <span style={{ color: 'var(--text-4)' }}>未配置</span>;
+  return (
+    <div className="og-assign-cell">
+      {list.map((a) => (
+        <div key={a.channel} className="og-assign-row">
+          <span className="og-assign-channel">{a.channelLabel}</span>
+          <span className="og-assign-group">{a.group.name}</span>
+          <span className="og-assign-role">{OPS_ROLE_LABEL[a.role]}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* =========================================================
+   编辑成员运营归属弹窗
+   ========================================================= */
+function EditOpsAssignmentModal({ memberId, opsGroups, opsMembers, onChange, onClose, notify }: {
+  memberId: string;
+  opsGroups: OpsChannelGroups;
+  opsMembers: OpsChannelMembers;
+  onChange: (groups: OpsChannelGroups, members: OpsChannelMembers) => void;
+  onClose: () => void;
+  notify: (msg: string, type?: 'success' | 'error') => void;
+}) {
+  const [channel, setChannel] = useState<OpsChannel>('taobao');
+  const [role, setRole] = useState<OpsRole | ''>('');
+  const [groupId, setGroupId] = useState<string>('');
+  const [parentId, setParentId] = useState<string>('');
+
+  const currentGroups = opsGroups[channel];
+  const currentMembers = opsMembers[channel];
+  const existing = currentMembers.find((m) => m.memberId === memberId);
+
+  /* 初始化选择 */
+  useEffect(() => {
+    if (existing) {
+      setRole(existing.role);
+      setGroupId(existing.groupId);
+      setParentId(existing.parentId ?? '');
+    } else {
+      setRole('');
+      setGroupId('');
+      setParentId('');
+    }
+  }, [channel, existing]);
+
+  const leaderOptions = currentMembers.filter((m) => m.role === 'leader' && m.memberId !== memberId);
+  const specialistOptions = currentMembers.filter((m) => m.role === 'specialist' && m.groupId === groupId && m.memberId !== memberId);
+
+  const save = () => {
+    if (!role) { notify('请选择职位', 'error'); return; }
+    if (role !== 'leader' && !parentId) { notify('请选择挂靠上级', 'error'); return; }
+    if (role === 'leader' && !groupId) { notify('请选择目标运营组', 'error'); return; }
+
+    // 限制：组长必须先转交才能变更角色
+    if (existing?.role === 'leader' && role !== 'leader') {
+      notify('组长请先至「运营组管理」进行转交', 'error');
+      return;
+    }
+    // 限制：专员名下有助理时不能降为助理
+    if (existing?.role === 'specialist' && role === 'assistant') {
+      const hasAssist = currentMembers.some((m) => m.role === 'assistant' && m.parentId === memberId);
+      if (hasAssist) { notify('该专员名下仍有助理，不能降为助理', 'error'); return; }
+    }
+
+    const nextGroups: OpsChannelGroups = { ...opsGroups, [channel]: [...opsGroups[channel]] };
+    const nextMembers: OpsChannelMembers = { ...opsMembers, [channel]: [...opsMembers[channel]] };
+    const srcName = opsMemberSource(memberId)?.name ?? '';
+
+    if (role === 'leader') {
+      const group = nextGroups[channel].find((g) => g.id === groupId);
+      if (!group) { notify('运营组不存在', 'error'); return; }
+      const oldLeaderId = group.leaderId;
+      if (oldLeaderId && oldLeaderId !== memberId) {
+        const oldLeaderIdx = nextMembers[channel].findIndex((m) => m.memberId === oldLeaderId);
+        if (oldLeaderIdx >= 0) {
+          nextMembers[channel][oldLeaderIdx] = {
+            ...nextMembers[channel][oldLeaderIdx],
+            role: 'specialist',
+            parentId: memberId,
+          };
+        }
+      }
+      nextGroups[channel] = nextGroups[channel].map((g) => (g.id === groupId ? { ...g, leaderId: memberId } : g));
+      nextMembers[channel] = nextMembers[channel].filter((m) => m.memberId !== memberId);
+      nextMembers[channel].push({
+        memberId, name: srcName, role: 'leader', groupId, parentId: null, addedBy: '管理员', addedAt: nowStamp(),
+      });
+    } else {
+      nextMembers[channel] = nextMembers[channel].filter((m) => m.memberId !== memberId);
+      nextMembers[channel].push({
+        memberId, name: srcName, role, groupId, parentId, addedBy: '管理员', addedAt: nowStamp(),
+      });
+    }
+
+    onChange(nextGroups, nextMembers);
+    notify('已更新运营归属');
+    onClose();
+  };
+
+  return (
+    <Modal title="编辑运营归属" sub="修改该成员在各平台的运营组归属" size="md" onClose={onClose} foot={
+      <>
+        <button className="btn" onClick={onClose}>取消</button>
+        <button className="btn primary" onClick={save}>保存</button>
+      </>
+    }>
+      <div className="og-tabs og-edit-tabs">
+        {OPS_CHANNELS.map((c) => (
+          <button key={c.key} type="button" className={`og-tab ${channel === c.key ? 'active' : ''}`} onClick={() => setChannel(c.key)}>{c.label}</button>
+        ))}
+      </div>
+
+      <div className="form-item">
+        <label>职位</label>
+        <BubbleSelect
+          className="input"
+          value={role || '请选择'}
+          onChange={(v) => setRole(v as OpsRole | '')}
+          options={[
+            { value: 'leader', label: '运营组长', disabled: existing?.role === 'leader' },
+            { value: 'specialist', label: '运营专员', disabled: existing?.role === 'leader' },
+            { value: 'assistant', label: '运营助理', disabled: existing?.role === 'leader' || existing?.role === 'specialist' },
+          ]}
+        />
+        {existing?.role === 'leader' && (
+          <div className="form-tip" style={{ marginTop: 6 }}>组长变更请前往「运营组管理」使用转交功能。</div>
+        )}
+      </div>
+
+      {role === 'leader' && (
+        <div className="form-item">
+          <label>目标运营组</label>
+          <BubbleSelect
+            className="input"
+            value={groupId || '请选择要转交为组长的组'}
+            onChange={(v) => setGroupId(v)}
+            options={currentGroups.map((g) => ({
+              value: g.id,
+              label: `${g.name}（当前组长：${currentMembers.find((m) => m.memberId === g.leaderId)?.name ?? '未指定'}）`,
+            }))}
+          />
+        </div>
+      )}
+
+      {role === 'specialist' && (
+        <>
+          <div className="form-item">
+            <label>运营组</label>
+            <BubbleSelect
+              className="input"
+              value={groupId || '请选择'}
+              onChange={(v) => { setGroupId(v); setParentId(''); }}
+              options={currentGroups.map((g) => ({ value: g.id, label: g.name }))}
+            />
+          </div>
+          <div className="form-item">
+            <label>挂靠组长</label>
+            <BubbleSelect
+              className="input"
+              value={parentId || '请选择'}
+              onChange={(v) => setParentId(v)}
+              options={leaderOptions.map((m) => ({ value: m.memberId, label: m.name }))}
+            />
+          </div>
+        </>
+      )}
+
+      {role === 'assistant' && (
+        <>
+          <div className="form-item">
+            <label>运营组</label>
+            <BubbleSelect
+              className="input"
+              value={groupId || '请选择'}
+              onChange={(v) => { setGroupId(v); setParentId(''); }}
+              options={currentGroups.map((g) => ({ value: g.id, label: g.name }))}
+            />
+          </div>
+          <div className="form-item">
+            <label>挂靠专员</label>
+            <BubbleSelect
+              className="input"
+              value={parentId || '请选择'}
+              onChange={(v) => setParentId(v)}
+              options={specialistOptions.map((m) => ({ value: m.memberId, label: m.name }))}
+            />
+          </div>
+        </>
+      )}
+    </Modal>
+  );
+}
+
+/* ---------- 添加/编辑部门弹窗 ---------- */
 function DeptFormModal({ title, value, onOk, onClose }: {
   title: string;
   value: string;

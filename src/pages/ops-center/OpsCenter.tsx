@@ -12,6 +12,7 @@ import AiAssistantPage from './AiAssistantPage';
 import MemberManagement from '../permission/MemberManagement';
 import DepartmentManagement from '../permission/DepartmentManagement';
 import RolePermission from '../permission/RolePermission';
+import OpsGroupManagement from '../permission/OpsGroupManagement';
 
 type PageKey =
   | 'dashboard'
@@ -26,10 +27,14 @@ type PageKey =
   | 'permMember'
   | 'permDept'
   | 'permRole'
+  | 'permOpsGroup'
   | 'aiAssistant';
 
 /** 智能运营中心外壳：侧边栏 + 顶栏 + 页面切换（与 preview.html 行为一致） */
-export default function OpsCenter() {
+export default function OpsCenter({ sidebarCollapsed, onToggleSidebar }: {
+  sidebarCollapsed: boolean;
+  onToggleSidebar: () => void;
+}) {
   /* 默认展示内部商机（原版末尾 showPage('internal')） */
   const [page, setPage] = useState<PageKey>('internal');
   /* 高亮：顶栏 nav 与子级 subnav 共用，全局唯一 */
@@ -40,8 +45,8 @@ export default function OpsCenter() {
   const [permissionOpen, setPermissionOpen] = useState(false);
 
   /* 切到商品创建子页时自动展开菜单（原版 showCreateTaobao / showCreateVideo） */
-  const showCreate = (variant: 'createTaobao' | 'createVideo') => {
-    setPage(variant);
+  const showCreate = (key: 'createTaobao' | 'createVideo') => {
+    setPage(key);
     setCreateOpen(true);
   };
 
@@ -54,19 +59,29 @@ export default function OpsCenter() {
   const pageCls = (key: PageKey) => `page ${page === key ? 'show' : ''}`;
 
   return (
-    <div className="ops-center app">
+    <div className={`ops-center app ${sidebarCollapsed ? 'side-collapsed' : ''}`}>
       <div className="ops-topbar">
         <div className="ops-brand">
           <img className="ops-brand-logo" src="/logos/ops-logo.png" alt="" />
           <span className="ops-brand-name">智能运营中心</span>
         </div>
+        <button
+          type="button"
+          className={`ops-side-toggle ${sidebarCollapsed ? 'is-collapsed' : ''}`}
+          onClick={onToggleSidebar}
+          title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <path d="M15 6l-6 6 6 6" />
+          </svg>
+        </button>
         <div className="ops-topbar-right">
           <button className="ops-bell" title="通知">🔔</button>
           <span className="ops-avatar">管</span>
         </div>
       </div>
       <div className="ops-body">
-      <aside className="side">
+      <aside className={`side ${sidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="side-scroll">
         <div className={navCls('dashboard')} onClick={() => onSubnav('dashboard', 'dashboard')}>
           <span className="nav-ico">▦</span>
@@ -194,6 +209,7 @@ export default function OpsCenter() {
               { name: '成员管理', target: 'permMember' },
               { name: '部门管理', target: 'permDept' },
               { name: '角色管理', target: 'permRole' },
+              { name: '运营组管理', target: 'permOpsGroup' },
             ] as { name: string; target?: PageKey }[]
           ).map((item) => (
             <div
@@ -233,10 +249,10 @@ export default function OpsCenter() {
             <ShopGoodsPage />
           </section>
           <section className={pageCls('createTaobao')}>
-            <CreateProductPage variant="taobao" />
+            <CreateProductPage />
           </section>
           <section className={pageCls('createVideo')}>
-            <CreateProductPage variant="video" />
+            <CreateProductPage />
           </section>
           <section className={pageCls('aiAssistant')}>
             <AiAssistantPage />
@@ -272,6 +288,11 @@ export default function OpsCenter() {
             </div>
             <div className="pm-page pm-embed">
               <RolePermission />
+            </div>
+          </section>
+          <section className={pageCls('permOpsGroup')}>
+            <div className="pm-page pm-embed">
+              <OpsGroupManagement />
             </div>
           </section>
         </div>

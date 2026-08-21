@@ -22,15 +22,7 @@ export interface TabConfig {
 }
 
 export const navigation: TabConfig[] = [
-  { key: 'home', label: '首页', menus: [] },
   { key: 'app-center', label: '应用中心', menus: [] },
-  {
-    key: 'product',
-    label: '商品管理',
-    menus: [],
-  },
   { key: 'ops-center', label: '智能运营中心', menus: [] },
-  { key: 'qc', label: '品控管理', menus: [] },
-  { key: 'contacts', label: '通讯录', menus: [] },
-  { key: 'fgent', label: 'Fgent', menus: [] },
+  { key: 'qc-center', label: '品控中心', menus: [] },
 ];

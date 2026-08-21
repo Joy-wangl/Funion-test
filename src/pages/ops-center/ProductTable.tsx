@@ -14,10 +14,12 @@ interface ProductTableProps {
   /** 行勾选状态（受控）；不传则为非受控原生 checkbox */
   checked?: boolean[];
   onCheckChange?: (index: number, checked: boolean) => void;
+  /** 操作列「详情」回调；不传时详情链接不响应 */
+  onDetail?: (row: ProductRow) => void;
 }
 
 /** 内部商机 / 运营管理共用的 15 列商品表格 + 分页（与 preview.html 一致） */
-export default function ProductTable({ rows, checkWidth, indexWidth, checked, onCheckChange }: ProductTableProps) {
+export default function ProductTable({ rows, checkWidth, indexWidth, checked, onCheckChange, onDetail }: ProductTableProps) {
   /* 添加到：点击后气泡展示平台选项 */
   const [addTip, setAddTip] = useState<{ x: number; y: number } | null>(null);
   useEffect(() => {
@@ -100,7 +102,15 @@ export default function ProductTable({ rows, checkWidth, indexWidth, checked, on
                   <span className="badge-green">在售</span>
                 </td>
                 <td className="actions-col">
-                  <a href="#">详情</a>
+                  <a
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (onDetail) onDetail(row);
+                    }}
+                  >
+                    详情
+                  </a>
                   <a
                     href="#"
                     onClick={(e) => {

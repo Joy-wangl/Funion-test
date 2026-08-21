@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import BubbleSelect from '../../components/BubbleSelect';
 import Ellipsis from '../../components/Ellipsis';
+import { Modal, ToastWrap, useToasts } from '../permission/shared';
 import { PLATFORM_LOGO } from './data';
 import { sgProducts, sgDetail, SG_CHIPS, SG_STATUS_META } from './shopGoodsData';
 import type { SgProduct } from './shopGoodsData';
 
-type Tab = '视频号' | '淘宝';
+type Tab = '视频号' | '淘宝' | '京喜' | '得物';
 
 const copy = (text: string) => {
   navigator.clipboard?.writeText(text).catch(() => undefined);
@@ -43,11 +44,106 @@ function footAction(p: SgProduct): { text: string; cls: string } {
   }
 }
 
+/* ================= 批量调价 / 批量涨价弹窗 ================= */
+type BpMode = 'adjust' | 'raise';
+type BpMethod = 'rate' | 'profit';
+
+/** 校验边界：利润 -5 ~ 999；利润率 -20% ~ 80% */
+const BP_LIMIT: Record<BpMethod, { min: number; max: number }> = {
+  rate: { min: -20, max: 80 },
+  profit: { min: -5, max: 999 },
+};
+
+function BatchPriceModal({ count, onClose, onOk }: {
+  count: number;
+  onClose: () => void;
+  onOk: (msg: string) => void;
+}) {
+  const [mode, setMode] = useState<BpMode>('adjust');
+  const [method, setMethod] = useState<BpMethod>('rate');
+  const [value, setValue] = useState('');
+  const [err, setErr] = useState('');
+
+  const modeText = mode === 'adjust' ? '批量调价' : '批量涨价';
+  const methodLabel = mode === 'adjust' ? '调价方式' : '涨价方式';
+  const limit = BP_LIMIT[method];
+
+  const confirm = () => {
+    const t = value.trim();
+    if (!t) { setErr('请输入数值'); return; }
+    const v = Number(t);
+    if (!Number.isFinite(v)) { setErr('请输入有效数字'); return; }
+    if (v < limit.min || v > limit.max) {
+      setErr(
+        method === 'rate'
+          ? `利润率超出范围：最小 ${limit.min}%，最大 ${limit.max}%`
+          : `利润超出范围：最小 ${limit.min}，最大 ${limit.max}`,
+      );
+      return;
+    }
+    onOk(`${modeText}成功：已对 ${count} 件出售中商品生效（${method === 'rate' ? `${t}%` : `${t} 元`}）`);
+    onClose();
+  };
+
+  return (
+    <Modal
+      title={modeText}
+      sub={`将对 ${count} 件出售中商品生效`}
+      onClose={onClose}
+      foot={
+        <>
+          <button className="btn" onClick={onClose}>取消</button>
+          <button className="btn primary" onClick={confirm}>确定</button>
+        </>
+      }
+    >
+      <div className="bp-rows">
+        <div className="bp-row">
+          <span className="bp-label">模式</span>
+          <div className="bp-opts">
+            <span className={`bp-opt ${mode === 'adjust' ? 'on' : ''}`} onClick={() => { setMode('adjust'); setErr(''); }}>批量调价</span>
+            <span className="bp-sep">/</span>
+            <span className={`bp-opt ${mode === 'raise' ? 'on' : ''}`} onClick={() => { setMode('raise'); setErr(''); }}>批量涨价</span>
+          </div>
+        </div>
+        <div className="bp-row">
+          <span className="bp-label">{methodLabel}</span>
+          <div className="bp-opts">
+            <span className={`bp-opt ${method === 'rate' ? 'on' : ''}`} onClick={() => { setMethod('rate'); setErr(''); }}>
+              {mode === 'adjust' ? '调整利润率' : '涨利润率'}
+            </span>
+            <span className="bp-sep">/</span>
+            <span className={`bp-opt ${method === 'profit' ? 'on' : ''}`} onClick={() => { setMethod('profit'); setErr(''); }}>
+              {mode === 'adjust' ? '调整利润' : '涨利润'}
+            </span>
+          </div>
+        </div>
+        <div className="bp-row">
+          <span className="bp-label">{method === 'rate' ? '利润率' : '利润'}</span>
+          <input
+            className="sg-input bp-input"
+            placeholder={method === 'rate' ? '如 8' : '如 5'}
+            value={value}
+            onChange={(e) => { setValue(e.target.value); setErr(''); }}
+          />
+          <span className="bp-unit">{method === 'rate' ? '%' : '元'}</span>
+          <span className="bp-hint">{method === 'rate' ? '范围 -20% ~ 80%' : '范围 -5 ~ 999'}</span>
+        </div>
+        {err && <div className="bp-err">{err}</div>}
+      </div>
+    </Modal>
+  );
+}
+
 export default function ShopGoodsPage() {
   const [tab, setTab] = useState<Tab>('视频号');
   const [chip, setChip] = useState('all');
   const [collapsed, setCollapsed] = useState(false);
   const [detail, setDetail] = useState<SgProduct | null>(null);
+  /* 批量调价：勾选 + 弹窗 + toast */
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [bpOpen, setBpOpen] = useState(false);
+  const { toasts, pushToast } = useToasts();
 
   /* 筛选 */
   const emptyFilter = { store: '', title: '', goodsId: '', sku: '', tpl: '', linkId: '', source: '全部来源', publisher: '', strategy: '全部策略' };
@@ -73,6 +169,22 @@ export default function ShopGoodsPage() {
     const def = SG_CHIPS.find((c) => c.key === key)!;
     return sgProducts[tab].filter((p) => def.match(p.status)).length;
   };
+
+  /* 批量调价除淘宝外各 TAB 提供，且仅「销售中」状态商品可勾选调价 */
+  const canPrice = tab !== '淘宝';
+  const sellingSel = sgProducts[tab].filter((p) => checked.has(p.id) && p.status === 'selling').length;
+  const sellRows = rows.filter((p) => p.status === 'selling');
+  const allChecked = sellRows.length > 0 && sellRows.every((p) => checked.has(p.id));
+  const toggleCheck = (id: string) => setChecked((prev) => {
+    const n = new Set(prev);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
+  const toggleAll = () => setChecked((prev) => {
+    const n = new Set(prev);
+    sellRows.forEach((p) => { if (allChecked) n.delete(p.id); else n.add(p.id); });
+    return n;
+  });
 
   if (detail) return <SgDetailPage product={detail} onBack={() => setDetail(null)} />;
 
@@ -140,8 +252,8 @@ export default function ShopGoodsPage() {
   return (
     <div className="sg-page">
       <div className="sg-tabs">
-        {(['视频号', '淘宝'] as Tab[]).map((t) => (
-          <button key={t} className={`sg-tab ${tab === t ? 'active' : ''}`} onClick={() => { setTab(t); setChip('all'); }}>
+        {(['视频号', '淘宝', '京喜', '得物'] as Tab[]).map((t) => (
+          <button key={t} className={`sg-tab ${tab === t ? 'active' : ''}`} onClick={() => { setTab(t); setChip('all'); setChecked(new Set()); }}>
             {t}
           </button>
         ))}
@@ -156,10 +268,22 @@ export default function ShopGoodsPage() {
       </div>
 
       <div className="sg-filter">
-        <div className="sg-grid">{fields}</div>
-        <div className="sg-actions">
-          <div className="sg-mini"></div>
-          <div className="sg-rightacts">
+        <div className="sg-grid">
+          {fields}
+          <div className="sg-actions">
+            {canPrice && sellingSel > 0 && (
+              <div className="sg-mini">已选 <b style={{ color: '#4f7cff' }}>{sellingSel}</b> 件出售中商品</div>
+            )}
+            {canPrice && (
+              <button
+                className="sg-btn primary"
+                disabled={sellingSel === 0}
+                title={sellingSel === 0 ? '请先勾选出售中的商品' : '对勾选的出售中商品批量调价'}
+                onClick={() => setBpOpen(true)}
+              >
+                批量调价
+              </button>
+            )}
             <button className="sg-btn" onClick={() => setCollapsed((v) => !v)}>
               {collapsed ? '展开 ∨' : '收起 ∧'}
             </button>
@@ -178,7 +302,9 @@ export default function ShopGoodsPage() {
           <table className="sg-table">
             <thead>
               <tr>
-                <th style={{ width: 44 }}><input type="checkbox" /></th>
+                {canPrice && (
+                  <th style={{ width: 44 }}><input type="checkbox" checked={allChecked} onChange={toggleAll} /></th>
+                )}
                 <th>商品信息</th>
                 <th style={{ width: 130 }}>商品状态</th>
                 <th style={{ width: 120 }}>商品策略</th>
@@ -192,7 +318,13 @@ export default function ShopGoodsPage() {
                 const meta = SG_STATUS_META[p.status];
                 return (
                   <tr key={p.id}>
-                    <td><input type="checkbox" /></td>
+                    {canPrice && (
+                      <td>
+                        {p.status === 'selling' && (
+                          <input type="checkbox" checked={checked.has(p.id)} onChange={() => toggleCheck(p.id)} />
+                        )}
+                      </td>
+                    )}
                     <td>
                       <div className="sg-goods">
                         <img className="sg-thumb" src={p.img} alt="" />
@@ -263,16 +395,30 @@ export default function ShopGoodsPage() {
           )}
         </div>
       </div>
+
+      <div className="pm-page pm-host">
+        {bpOpen && sellingSel > 0 && (
+          <BatchPriceModal count={sellingSel} onClose={() => setBpOpen(false)} onOk={pushToast} />
+        )}
+        <ToastWrap toasts={toasts} />
+      </div>
     </div>
   );
 }
 
 /* ================= 详情页 ================= */
 
-function SgDetailPage({ product: p, onBack }: { product: SgProduct; onBack: () => void }) {
+export function SgDetailPage({ product: p, onBack, foot: footProp, hideEdit }: {
+  product: SgProduct;
+  onBack: () => void;
+  /** 覆盖底部主操作（不传按商品状态推断；内部商机等复用场景传入，支持多个按钮） */
+  foot?: { text: string; cls: string }[];
+  /** 隐藏右上「编辑」按钮（商机等不可编辑场景） */
+  hideEdit?: boolean;
+}) {
   const [specOpen, setSpecOpen] = useState(true);
   const [skuShow, setSkuShow] = useState(true);
-  const foot = footAction(p);
+  const foot = footProp ?? [footAction(p)];
 
   const statusTag =
     p.status === 'selling' ? { text: '出售中', cls: 'green' }
@@ -291,7 +437,7 @@ function SgDetailPage({ product: p, onBack }: { product: SgProduct; onBack: () =
           <button className="sgd-back" onClick={onBack} title="返回">←</button>
           <span className="sgd-top-title">商品详情</span>
         </div>
-        <button className="sg-btn">编辑</button>
+        {!hideEdit && <button className="sg-btn">编辑</button>}
       </div>
 
       <div className="sgd-cat">
@@ -447,7 +593,9 @@ function SgDetailPage({ product: p, onBack }: { product: SgProduct; onBack: () =
       </div>
 
       <div className="sgd-foot">
-        <button className={`sgd-foot-btn ${foot.cls}`}>{foot.text}</button>
+        {foot.map((f) => (
+          <button key={f.text} className={`sgd-foot-btn ${f.cls}`}>{f.text}</button>
+        ))}
       </div>
     </div>
   );

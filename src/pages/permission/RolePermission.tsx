@@ -180,8 +180,10 @@ export default function RolePermission() {
             <span className="title">{crumb}</span>
           </div>
           <div className="tab-bar">
-            <button className={`tb ${tab === 'member' ? 'active' : ''}`} onClick={() => setTab('member')}>角色成员</button>
-            <button className={`tb ${tab === 'perm' ? 'active' : ''}`} onClick={() => setTab('perm')}>权限配置</button>
+            <div className="og-tabs">
+              <button className={`og-tab ${tab === 'member' ? 'active' : ''}`} onClick={() => setTab('member')}>角色成员</button>
+              <button className={`og-tab ${tab === 'perm' ? 'active' : ''}`} onClick={() => setTab('perm')}>权限配置</button>
+            </div>
             {tab === 'member' && (
               <button className="btn primary" style={{ marginLeft: 'auto' }} onClick={() => setModal({ kind: 'memberPicker' })}>添加成员</button>
             )}

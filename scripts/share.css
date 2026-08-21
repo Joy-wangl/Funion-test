@@ -1,0 +1,2 @@
+/* 独立展示页专用覆写：不展示列表页头（项目本体不受影响） */
+.qc-center-page .qc-head { display: none; }

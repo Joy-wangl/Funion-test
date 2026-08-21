@@ -69,10 +69,7 @@ export default function MarketPage() {
             <label>类目</label>
             <input className="sg-input" placeholder="请输入类目" value={filter.category} onChange={(e) => setFilter({ ...filter, category: e.target.value })} />
           </div>
-        </div>
-        <div className="sg-actions">
-          <div className="sg-mini"></div>
-          <div className="sg-rightacts">
+          <div className="sg-actions">
             <button className="sg-btn" onClick={() => { setFilter({ ...empty }); setApplied({ ...empty }); }}>
               重置
             </button>

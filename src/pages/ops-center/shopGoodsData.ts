@@ -49,7 +49,7 @@ export const SG_CHIPS: { key: string; label: string; match: (s: SgStatus) => boo
 const T_MAIN = '德国指甲剪刀套装全套耳勺指甲刀指甲钳修剪专用斜口指甲钳剪刀';
 const T_SERUM = 'PERDORA 玻尿酸修护精华液 补水保湿舒缓敏感肌 30ml 装';
 
-export const sgProducts: Record<'视频号' | '淘宝', SgProduct[]> = {
+const sgProductBase: Record<'视频号' | '淘宝', SgProduct[]> = {
   视频号: [
     {
       id: '8888777776666', title: T_SERUM, img: '/products/serum.png', linkId: '8888777776666',
@@ -142,6 +142,14 @@ export const sgProducts: Record<'视频号' | '淘宝', SgProduct[]> = {
       publishTime: '-', createTime: '2026-08-08 11:12:00',
     },
   ],
+};
+
+export type SgTab = '视频号' | '淘宝' | '京喜' | '得物';
+/* 京喜/得物 内容与视频号保持一致 */
+export const sgProducts: Record<SgTab, SgProduct[]> = {
+  ...sgProductBase,
+  京喜: sgProductBase.视频号,
+  得物: sgProductBase.视频号,
 };
 
 /** 详情静态素材（规格/SKU/图集） */

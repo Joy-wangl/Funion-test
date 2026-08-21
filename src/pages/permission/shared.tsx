@@ -2,7 +2,18 @@
    Funion 权限管理 · 公共组件（图标 / 复选框 / 弹窗 / toast）
    ========================================================= */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ROLES, roleById, type DeptNode, DEPT_TREE } from './data';
+import { ROLES, avaColor, membersOfDept, type DeptNode, DEPT_TREE, DEPT_MGMT_TREE, type Member } from './data';
+import {
+  OPS_CHANNELS,
+  OPS_ROLE_LABEL,
+  nowStamp,
+  newGroupId,
+  type OpsChannel,
+  type OpsChannelGroups,
+  type OpsChannelMembers,
+  type OpsRole,
+} from './opsGroupData';
+import BubbleSelect from '../../components/BubbleSelect';
 import './style.css';
 
 /* ---------- 通用图标 ---------- */
@@ -38,9 +49,10 @@ export const IconDept = () => (
 );
 
 /* ---------- 复选框 ---------- */
-export function Checkbox({ checked, indeterminate, onChange }: {
+export function Checkbox({ checked, indeterminate, disabled, onChange }: {
   checked: boolean;
   indeterminate?: boolean;
+  disabled?: boolean;
   onChange: (checked: boolean) => void;
 }) {
   const ref = useRef<HTMLInputElement>(null);
@@ -48,8 +60,8 @@ export function Checkbox({ checked, indeterminate, onChange }: {
     if (ref.current) ref.current.indeterminate = !!indeterminate;
   }, [indeterminate]);
   return (
-    <label className="checkbox">
-      <input ref={ref} type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+    <label className={`checkbox${disabled ? ' disabled' : ''}`}>
+      <input ref={ref} type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       <span className="box"><IconCheck /></span>
     </label>
   );
@@ -59,7 +71,7 @@ export function Checkbox({ checked, indeterminate, onChange }: {
 export function Modal({ title, sub, size, foot, onClose, children }: {
   title: string;
   sub?: string;
-  size?: 'md' | 'lg';
+  size?: 'md' | 'lg' | 'xl';
   foot: ReactNode;
   onClose: () => void;
   children: ReactNode;
@@ -224,69 +236,428 @@ export function DeptTransfer({ picked, onPickedChange }: {
   );
 }
 
-/* ---------- 添加成员（选择部门 → 分配角色 → 确认信息） ---------- */
-export function AddMemberModal({ onClose, onConfirm, notify }: {
+/* ---------- 添加成员（图一：左侧部门成员选择 + 右侧已选 + 运营归属） ---------- */
+export type OpsBindCfg = Record<OpsChannel, {
+  role: OpsRole | '';
+  groupId: string;
+  parentId: string;
+  groupName: string;
+}>;
+export function AddMemberModal({ onClose, onConfirm, notify, opsGroups, opsMembers, sourceMembers }: {
   onClose: () => void;
-  onConfirm: (depts: { id: string; name: string }[], roles: string[]) => void;
+  onConfirm: (members: Member[], roles: string[], opsPatch?: { groups: OpsChannelGroups; members: OpsChannelMembers }) => void;
   notify: (msg: string, type?: 'success' | 'error') => void;
+  opsGroups: OpsChannelGroups;
+  opsMembers: OpsChannelMembers;
+  sourceMembers: Member[];
 }) {
-  const [step, setStep] = useState(1);
-  const [picked, setPicked] = useState<Map<string, string>>(new Map());
-  const [roles, setRoles] = useState<string[]>([]);
-  const depts = [...picked.entries()].map(([id, name]) => ({ id, name }));
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [step, setStep] = useState<1 | 2>(1);
+  const [opsCfg, setOpsCfg] = useState<OpsBindCfg>({
+    taobao: { role: '', groupId: '', parentId: '', groupName: '' },
+    video: { role: '', groupId: '', parentId: '', groupName: '' },
+  });
 
-  const next = () => {
-    if (step === 1) {
-      if (!depts.length) { notify('请至少选择一个部门/成员', 'error'); return; }
-      setStep(2);
-    } else if (step === 2) {
-      setStep(3);
-    } else {
-      onConfirm(depts, roles);
-      onClose();
+  /* 归属必选：进入步骤2 时，已选成员在某平台已有归属且一致则预填，支持修改 */
+  useEffect(() => {
+    if (step !== 2) return;
+    setOpsCfg((prev) => {
+      const next = { ...prev };
+      OPS_CHANNELS.forEach(({ key }) => {
+        const entries = selectedMembers.map((m) => opsMembers[key].find((e) => e.memberId === m.id));
+        const first = entries[0];
+        if (!first) return;
+        const uniform = entries.every((e) => e && e.role === first.role && e.groupId === first.groupId && e.parentId === first.parentId);
+        if (uniform) next[key] = { ...next[key], role: first.role, groupId: first.groupId, parentId: first.parentId ?? '', groupName: '' };
+      });
+      return next;
+    });
+  }, [step]);
+
+  const selectedMembers = useMemo(() => sourceMembers.filter((m) => selectedIds.has(m.id)), [sourceMembers, selectedIds]);
+  const validSource = useMemo(() => sourceMembers.filter((m) => m.status !== 'pending'), [sourceMembers]);
+
+  const toggleMember = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const removeMember = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  const bulkSetMembers = (ids: string[], checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => { if (checked) next.add(id); else next.delete(id); });
+      return next;
+    });
+  };
+
+  const confirm = () => {
+    if (selectedMembers.length === 0) { notify('请至少选择一名成员', 'error'); return; }
+
+    const patchGroups = { ...opsGroups };
+    const patchMembers: OpsChannelMembers = { ...opsMembers };
+
+    for (const { key, label } of OPS_CHANNELS) {
+      const cfg = opsCfg[key];
+      /* 归属必选：每个平台都须完成职位与组 */
+      if (!cfg.role) { notify(`请完成${label}平台运营归属`, 'error'); return; }
+      const cfgRole = cfg.role;
+
+      if (cfgRole === 'leader') {
+        /* 一个组只有一个组长：组长职位新建运营组 */
+        const name = cfg.groupName.trim();
+        if (!name) { notify('请输入新建运营组名称', 'error'); return; }
+        if (selectedMembers.length > 1) { notify('组长职位一次仅可分配一名成员，请上一步调整', 'error'); return; }
+        const member = selectedMembers[0];
+        const gid = newGroupId();
+        patchGroups[key] = [...patchGroups[key], { id: gid, channel: key, name, leaderId: member.id, createdAt: nowStamp() }];
+        patchMembers[key] = patchMembers[key].filter((m) => m.memberId !== member.id);
+        patchMembers[key].push({
+          memberId: member.id,
+          name: member.name,
+          role: 'leader',
+          groupId: gid,
+          parentId: null,
+          addedBy: '管理员',
+          addedAt: nowStamp(),
+        });
+      } else {
+        const group = patchGroups[key].find((g) => g.id === cfg.groupId);
+        if (!group) { notify('请选择运营组', 'error'); return; }
+        let parentId = cfg.parentId;
+        if (cfgRole === 'specialist') {
+          /* 选组后组长直接代入，无需再选 */
+          parentId = patchMembers[key].find((m) => m.groupId === group.id && m.role === 'leader')?.memberId ?? '';
+          if (!parentId) { notify(`组「${group.name}」暂无组长，请选择其它组`, 'error'); return; }
+        } else if (!parentId) {
+          notify('请选择挂靠专员', 'error'); return;
+        }
+        selectedMembers.forEach((member) => {
+          patchMembers[key] = patchMembers[key].filter((m) => m.memberId !== member.id);
+          patchMembers[key].push({
+            memberId: member.id,
+            name: member.name,
+            role: cfgRole,
+            groupId: group.id,
+            parentId,
+            addedBy: '管理员',
+            addedAt: nowStamp(),
+          });
+        });
+      }
     }
+
+    onConfirm(selectedMembers, [], { groups: patchGroups, members: patchMembers });
+    onClose();
   };
 
   return (
-    <Modal title="添加成员" sub="从组织架构选择成员，并分配部门与角色" size="lg" onClose={onClose} foot={
-      <>
-        {step > 1 && <button className="btn" onClick={() => setStep(step - 1)}>上一步</button>}
-        <button className="btn" onClick={onClose}>取消</button>
-        <button className="btn primary" onClick={next}>{step === 3 ? '确认添加' : '下一步'}</button>
-      </>
-    }>
-      <div className="steps">
-        <div className={`step ${step === 1 ? 'active' : ''} ${step > 1 ? 'done' : ''}`}><span className="num">1</span>选择部门</div>
-        <div className="line"></div>
-        <div className={`step ${step === 2 ? 'active' : ''} ${step > 2 ? 'done' : ''}`}><span className="num">2</span>分配角色</div>
-        <div className="line"></div>
-        <div className={`step ${step === 3 ? 'active' : ''}`}><span className="num">3</span>确认信息</div>
-      </div>
-      {step === 1 && <DeptTransfer picked={picked} onPickedChange={setPicked} />}
-      {step === 2 && (
+    <Modal
+      title="分配成员"
+      sub={step === 1 ? '步骤 1/2 · 选择成员' : '步骤 2/2 · 分配运营归属'}
+      size="xl"
+      onClose={onClose}
+      foot={
         <>
-          <div className="form-tip" style={{ marginBottom: 14 }}>为所选成员统一分配角色，可稍后在成员详情中单独调整。</div>
-          <RoleSelector initial={[]} onChange={setRoles} />
+          {step === 2 && <button className="btn" onClick={() => setStep(1)}>上一步</button>}
+          <button className="btn" onClick={onClose}>取消</button>
+          {step === 1 ? (
+            <button
+              className="btn primary"
+              onClick={() => {
+                if (selectedMembers.length === 0) { notify('请至少选择一名成员', 'error'); return; }
+                setStep(2);
+              }}
+            >下一步</button>
+          ) : (
+            <button className="btn primary" onClick={confirm}>确定</button>
+          )}
         </>
-      )}
-      {step === 3 && (
-        <div className="desc-list">
-          <div className="row"><span className="k">选择部门</span><span className="v">
-            <div className="tags-wrap">{depts.map((d) => <span className="tag blue" key={d.id}>{d.name}</span>)}</div>
-          </span></div>
-          <div className="row"><span className="k">分配角色</span><span className="v">
-            {roles.length ? (
-              <div className="tags-wrap">{roles.map((id) => {
-                const r = roleById(id);
-                return <span className={`tag ${r?.color || ''}`} key={id}>{r?.name || id}</span>;
-              })}</div>
-            ) : <span style={{ color: 'var(--text-4)' }}>未分配（默认只读）</span>}
-          </span></div>
-          <div className="row"><span className="k">账号状态</span><span className="v">
-            <span className="status normal"><span className="dot"></span>正常（立即激活）</span>
-          </span></div>
+      }>
+      {step === 1 ? (
+        <div className="member-transfer">
+          <MemberPickPanel members={validSource} selectedIds={selectedIds} onToggle={toggleMember} onBulk={bulkSetMembers} />
+          <div className="member-transfer-right">
+            <div className="mtr-head">已选择({selectedMembers.length}/1000)</div>
+            <div className="mtr-body">
+              {selectedMembers.length === 0 ? (
+                <div className="mtr-empty">暂未选择成员</div>
+              ) : (
+                selectedMembers.map((m) => (
+                  <div className="mtr-selected" key={m.id}>
+                    <span className="og-ava" style={{ background: avaColor(m.name) }}>{m.name.slice(0, 1)}</span>
+                    <span className="mtr-name">{m.name}</span>
+                    <span className="mtr-rm" onClick={() => removeMember(m.id)}><IconXsm /></span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="am-step2">
+          <div className="am-step2-sum">
+            <span className="am-sum-label">已选成员</span>
+            <div className="am-sum-tags">
+              {selectedMembers.map((m) => (
+                <span key={m.id} className="am-sum-tag">
+                  <span className="og-ava" style={{ background: avaColor(m.name) }}>{m.name.slice(0, 1)}</span>
+                  {m.name}
+                </span>
+              ))}
+            </div>
+          </div>
+          <OpsBindingStep opsGroups={opsGroups} opsMembers={opsMembers} opsCfg={opsCfg} onChange={setOpsCfg} />
         </div>
       )}
     </Modal>
+  );
+}
+
+/* 组织树路径：根 → 目标部门 */
+function deptPathOf(id: string): DeptNode[] {
+  const walk = (ns: DeptNode[]): DeptNode[] => {
+    for (const n of ns) {
+      if (n.id === id) return [n];
+      const sub = walk(n.children);
+      if (sub.length) return [n, ...sub];
+    }
+    return [];
+  };
+  return walk(DEPT_MGMT_TREE);
+}
+
+/* ---------- 成员选择面板：钻取式组织树（子部门 + 成员混排） ----------
+   disabledIds：禁选成员（灰显不可勾）；noDeptPick：仅可选人，组织/全选不可勾 */
+export function MemberPickPanel({ members, selectedIds, onToggle, onBulk, disabledIds, noDeptPick }: {
+  members: Member[];
+  selectedIds: Set<string>;
+  onToggle: (id: string) => void;
+  onBulk: (ids: string[], checked: boolean) => void;
+  disabledIds?: Set<string>;
+  noDeptPick?: boolean;
+}) {
+  const [q, setQ] = useState('');
+  const [path, setPath] = useState<DeptNode[]>(() => deptPathOf('c1'));
+
+  const cur = path[path.length - 1];
+  const kw = q.trim().toLowerCase();
+  const searching = kw !== '';
+
+  const childDepts = searching ? [] : cur.children;
+  const directMembers = searching
+    ? members.filter((m) => m.name.toLowerCase().includes(kw) || m.account.toLowerCase().includes(kw))
+    : members.filter((m) => m.deptId === cur.id);
+  const allUnderIds = searching ? [] : membersOfDept(cur.id, members).map((m) => m.id);
+
+  const selCount = (ids: string[]) => ids.reduce((n, id) => n + (selectedIds.has(id) ? 1 : 0), 0);
+
+  return (
+    <div className="member-transfer-left">
+      <div className="mtr-head">
+        <div className="input-icon">
+          <span className="ic"><IconSearch /></span>
+          <input className="input" placeholder="搜索成员" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+      </div>
+
+      {!searching && (
+        <div className="mtr-breadcrumb">
+          <span className="seg" onClick={() => setPath(deptPathOf('c1'))}>通讯录</span>
+          {path.map((n, i) => (
+            <span key={n.id}>
+              <span className="sep">&gt;</span>
+              <span
+                className={`seg ${i === path.length - 1 ? 'cur' : ''}`}
+                onClick={() => { if (i < path.length - 1) setPath(path.slice(0, i + 1)); }}
+              >{n.name}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {!searching && !noDeptPick && allUnderIds.length > 0 && (
+        <div
+          className="mtr-selectall"
+          onClick={() => onBulk(allUnderIds, selCount(allUnderIds) < allUnderIds.length)}
+        >
+          <span onClick={(e) => e.stopPropagation()}>
+            <Checkbox
+              checked={selCount(allUnderIds) === allUnderIds.length}
+              indeterminate={selCount(allUnderIds) > 0 && selCount(allUnderIds) < allUnderIds.length}
+              onChange={() => onBulk(allUnderIds, selCount(allUnderIds) < allUnderIds.length)}
+            />
+          </span>
+          全选
+        </div>
+      )}
+
+      <div className="mtr-member-list">
+        {childDepts.map((d) => {
+          const ids = membersOfDept(d.id, members).map((m) => m.id);
+          const sel = selCount(ids);
+          return (
+            <div key={d.id} className="mtr-row" onClick={() => setPath([...path, d])}>
+              {!noDeptPick && (
+                <span onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    checked={ids.length > 0 && sel === ids.length}
+                    indeterminate={sel > 0 && sel < ids.length}
+                    onChange={(c) => onBulk(ids, c)}
+                  />
+                </span>
+              )}
+              <span className="mtr-dept-ic"><IconDept /></span>
+              <div className="mtr-m-info">
+                <div className="nm">{d.name}</div>
+                <div className="dp">{ids.length}人</div>
+              </div>
+              {d.children.length > 0 && <span className="mtr-drill">下级</span>}
+            </div>
+          );
+        })}
+
+        {directMembers.map((m) => {
+          const dis = disabledIds?.has(m.id) ?? false;
+          return (
+            <div key={m.id} className={`mtr-row${dis ? ' disabled' : ''}`} onClick={() => { if (!dis) onToggle(m.id); }}>
+              <span onClick={(e) => e.stopPropagation()}>
+                <Checkbox checked={selectedIds.has(m.id)} disabled={dis} onChange={() => { if (!dis) onToggle(m.id); }} />
+              </span>
+              <span className="og-ava" style={{ background: avaColor(m.name) }}>{m.name.slice(0, 1)}</span>
+              <div className="mtr-m-info">
+                <div className="nm">{m.name}</div>
+                <div className="dp">{m.account}</div>
+              </div>
+            </div>
+          );
+        })}
+
+        {!childDepts.length && !directMembers.length && (
+          <div className="mtr-empty">{searching ? '无匹配成员' : '暂无成员'}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- 运营归属配置（平台 tab 切换 · 归属必选） ---------- */
+function OpsBindingStep({ opsGroups, opsMembers, opsCfg, onChange }: {
+  opsGroups: OpsChannelGroups;
+  opsMembers: OpsChannelMembers;
+  opsCfg: OpsBindCfg;
+  onChange: (next: OpsBindCfg) => void;
+}) {
+  const [tab, setTab] = useState<OpsChannel>('taobao');
+  const update = (ch: OpsChannel, patch: Partial<OpsBindCfg[OpsChannel]>) => {
+    onChange({ ...opsCfg, [ch]: { ...opsCfg[ch], ...patch } });
+  };
+
+  const cfg = opsCfg[tab];
+  const group = opsGroups[tab].find((g) => g.id === cfg.groupId);
+  const groupLeader = group ? opsMembers[tab].find((m) => m.groupId === group.id && m.role === 'leader') : undefined;
+  const specialists = opsMembers[tab].filter((m) => m.role === 'specialist' && m.groupId === cfg.groupId);
+  const parentName = opsMembers[tab].find((m) => m.memberId === cfg.parentId)?.name ?? '';
+
+  const sumText = !cfg.role ? '' : cfg.role === 'leader'
+    ? `运营组长 · 新建组「${cfg.groupName.trim() || '—'}」`
+    : `${OPS_ROLE_LABEL[cfg.role]}${group ? ` · ${group.name}` : ''}${(cfg.role === 'specialist' ? groupLeader?.name : parentName) ? ` → ${cfg.role === 'specialist' ? groupLeader?.name : parentName}` : ''}`;
+
+  return (
+    <div className="og-binding-step">
+      <div className="og-bind-head">
+        <div className="og-tabs og-bind-tabs">
+          {OPS_CHANNELS.map((c) => (
+            <button key={c.key} type="button" className={`og-tab ${tab === c.key ? 'active' : ''}`} onClick={() => setTab(c.key)}>
+              {c.label}
+            </button>
+          ))}
+        </div>
+        {sumText && <span className="og-binding-sum">{sumText}</span>}
+      </div>
+      <div className="og-bind-panel">
+        <div className="og-bind-field">
+          <label>职位</label>
+          <div className="og-role-pills">
+            {(['leader', 'specialist', 'assistant'] as OpsRole[]).map((r) => (
+              <button
+                key={r}
+                type="button"
+                className={`og-pill ${cfg.role === r ? 'on' : ''}`}
+                onClick={() => update(tab, { role: r, groupId: '', parentId: '', groupName: '' })}
+              >{OPS_ROLE_LABEL[r]}</button>
+            ))}
+          </div>
+        </div>
+        {cfg.role === 'leader' && (
+          <>
+            <div className="og-bind-tip">一个运营组仅设一名组长，组长职位将在确定后新建运营组。</div>
+            <div className="og-bind-field">
+              <label>新建运营组名称</label>
+              <input
+                className="input"
+                value={cfg.groupName}
+                placeholder="请输入组名"
+                maxLength={20}
+                onChange={(e) => update(tab, { groupName: e.target.value })}
+              />
+            </div>
+          </>
+        )}
+        {cfg.role === 'specialist' && (
+          <div className="og-bind-field">
+            <label>运营组</label>
+            <BubbleSelect
+              className="input"
+              value={cfg.groupId || '请选择'}
+              onChange={(v) => update(tab, { groupId: v, parentId: '' })}
+              options={opsGroups[tab].map((g) => ({ value: g.id, label: g.name }))}
+            />
+            {group ? (
+              groupLeader ? (
+                <div className="og-bind-hint">将自动挂靠该组组长：{groupLeader.name}</div>
+              ) : (
+                <div className="og-bind-hint warn">该组暂无组长，请选择其它组</div>
+              )
+            ) : (
+              <div className="og-bind-hint">选择运营组后自动挂靠该组组长</div>
+            )}
+          </div>
+        )}
+        {cfg.role === 'assistant' && (
+          <div className="og-bind-grid">
+            <div className="og-bind-field">
+              <label>运营组</label>
+              <BubbleSelect
+                className="input"
+                value={cfg.groupId || '请选择'}
+                onChange={(v) => update(tab, { groupId: v, parentId: '' })}
+                options={opsGroups[tab].map((g) => ({ value: g.id, label: g.name }))}
+              />
+            </div>
+            <div className="og-bind-field">
+              <label>挂靠专员</label>
+              <BubbleSelect
+                className="input"
+                value={cfg.parentId || '请选择'}
+                onChange={(v) => update(tab, { parentId: v })}
+                options={specialists.map((m) => ({ value: m.memberId, label: m.name }))}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

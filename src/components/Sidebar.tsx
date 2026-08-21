@@ -6,6 +6,7 @@ interface SidebarProps {
   menus: MenuItem[];
   activeKey: string;
   onSelect: (key: string) => void;
+  className?: string;
 }
 
 /** 深度优先查找第一个叶子菜单项（用于 Tab 切换后的默认选中） */
@@ -30,7 +31,7 @@ function findParentKey(menus: MenuItem[], targetKey: string): string | undefined
   return undefined;
 }
 
-export default function Sidebar({ menus, activeKey, onSelect }: SidebarProps) {
+export default function Sidebar({ menus, activeKey, onSelect, className }: SidebarProps) {
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
 
   // 选中项变化时（如切换 Tab），自动展开其所在的分组
@@ -84,7 +85,7 @@ export default function Sidebar({ menus, activeKey, onSelect }: SidebarProps) {
   };
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${className ?? ''}`.trim()}>
       <nav className="sidebar-menu">{menus.map((item) => renderMenuItem(item))}</nav>
     </aside>
   );
