@@ -92,7 +92,7 @@ export default function AppCenter() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  const hasMine = apps.some((a) => a.mine || a.added);
+  const mineActive = view.kind === 'mine' || (view.kind === 'create' && backView.kind === 'mine');
 
   const listApps = useMemo(() => {
     let list = apps;
@@ -425,14 +425,8 @@ export default function AppCenter() {
               {c}
             </button>
           ))}
-          {hasMine && (
-            <button type="button" className={view.kind === 'mine' ? 'on' : ''} onClick={() => setView({ kind: 'mine' })}>
-              <Svg d={IC.cat} size={15} className="ap-cat-ic" />
-              我的应用
-            </button>
-          )}
         </nav>
-        <button type="button" className="ap-side-user" onClick={() => setView({ kind: 'mine' })} title="我的应用">
+        <button type="button" className={`ap-side-user${mineActive ? ' on' : ''}`} onClick={() => setView({ kind: 'mine' })} title="我的应用">
           <span className="ap-avatar" />
           七妮妮
         </button>

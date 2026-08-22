@@ -36,8 +36,8 @@ const OUT = 'd:/Qoder/Funion';
   await page.click('.ap-back');
   await page.waitForSelector('.ap-grid');
 
-  // 4. 我的应用（我的创作 tab）
-  await page.click('.ap-cats button:has-text("我的应用")');
+  // 4. 我的应用（底部头像栏入口）
+  await page.click('.ap-side-user');
   await page.waitForSelector('.ap-mine-tabs');
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/ac-verify-4-mine.png` });
