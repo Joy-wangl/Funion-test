@@ -80,6 +80,8 @@ const OUT = 'd:/Qoder/Funion';
   await page.click('.ap-upload.main');
   await page.click('.ap-upload.main');
   await page.click('.ap-tag-add');
+  await page.waitForSelector('.ap-tag-pop');
+  await page.click('.ap-tag-opt >> nth=0');
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/ac-verify-9-create-filled.png`, fullPage: true });
 
@@ -96,6 +98,12 @@ const OUT = 'd:/Qoder/Funion';
   await page.click('.ap-cat-ic-btn[title="修改"] >> nth=0');
   await page.waitForTimeout(200);
   await page.screenshot({ path: `${OUT}/ac-verify-11-cat-edit.png` });
+
+  // 12. 类目下默认按标签使用次数排序
+  await page.click('.ap-drawer-foot .ap-btn-plain');
+  await page.click('.ap-cats button:has-text("数据管理类")');
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/ac-verify-12-cat-tags.png` });
 
   await browser.close();
   console.log('screenshots done');

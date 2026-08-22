@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import BubbleSelect from '../../components/BubbleSelect';
 import {
-  CATEGORIES, FORM_CATEGORIES, ICON_PRESETS, PREVIEW_PRESETS, TAG_PRESETS,
+  CATEGORIES, FORM_CATEGORIES, ICON_PRESETS, PREVIEW_PRESETS,
   actKind, initialApps, type AppItem, type IconSpec, type Preview,
 } from './data';
 import './AppCenter.css';
@@ -88,6 +88,9 @@ export default function AppCenter() {
   const [fPreviews, setFPreviews] = useState<Preview[]>([]);
   const [fCat, setFCat] = useState('Agent');
   const [fTags, setFTags] = useState<string[]>([]);
+  const [customTags, setCustomTags] = useState<string[]>([]);
+  const [tagPop, setTagPop] = useState(false);
+  const [tagNew, setTagNew] = useState('');
 
   /* 类目管理抽屉（草稿态：新增/修改/删除/拖动排序，保存生效） */
   const [cats, setCats] = useState<string[]>(FORM_CATEGORIES);
@@ -120,6 +123,12 @@ export default function AppCenter() {
         const r = va < vb ? -1 : va > vb ? 1 : 0;
         return sortDesc ? -r : r;
       });
+    } else if (category && !search.trim()) {
+      /* 类目下默认按标签使用次数排序（标签关联应用数之和，降序） */
+      const m = new Map<string, number>();
+      apps.filter((a) => a.category === category).forEach((a) => a.tags.forEach((t) => m.set(t, (m.get(t) ?? 0) + 1)));
+      const score = (a: AppItem) => a.tags.reduce((s, t) => s + (m.get(t) ?? 0), 0);
+      list = [...list].sort((a, b) => score(b) - score(a));
     }
     return list;
   }, [apps, search, category, sortKey, sortDesc]);
@@ -243,6 +252,28 @@ export default function AppCenter() {
     if (!names.includes(fCat)) setFCat(names[0] ?? fCat);
     setCatDrawer(false);
     setToast('类目已保存');
+  };
+
+  /* ---------- 标签：按类目内使用次数（关联应用数）降序，支持选择/新建 ---------- */
+  const catTagUsage = useMemo(() => {
+    const m = new Map<string, number>();
+    apps.filter((a) => a.category === fCat).forEach((a) => a.tags.forEach((t) => m.set(t, (m.get(t) ?? 0) + 1)));
+    return m;
+  }, [apps, fCat]);
+
+  const formTagOptions = useMemo(() => {
+    const set = new Map<string, number>(catTagUsage);
+    customTags.forEach((t) => { if (!set.has(t)) set.set(t, 0); });
+    return [...set.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([t]) => t);
+  }, [catTagUsage, customTags]);
+
+  const createTag = () => {
+    const name = tagNew.trim();
+    if (!name) { setToast('请输入标签名称'); return; }
+    if (fTags.includes(name)) { setToast('标签已选择'); return; }
+    setCustomTags((v) => (v.includes(name) ? v : [...v, name]));
+    setFTags((v) => [...v, name]);
+    setTagNew('');
   };
 
   /* ---------- 列表/我的应用共用行：caret=打开+展开（我的应用行/列表我创建的）；其余=添加/更新/打开；主图仅详情展示 ---------- */
@@ -413,14 +444,7 @@ export default function AppCenter() {
 
         <label className="ap-label">应用标签</label>
         <div className="ap-tag-line">
-          <button
-            type="button"
-            className="ap-tag-add"
-            onClick={() => setFTags((v) => {
-              const next = TAG_PRESETS.find((t) => !v.includes(t));
-              return next ? [...v, next] : v;
-            })}
-          >
+          <button type="button" className="ap-tag-add" onClick={() => setTagPop((v) => !v)}>
             <Svg d={IC.plus} size={12} />
             标签
           </button>
@@ -431,6 +455,30 @@ export default function AppCenter() {
             </span>
           ))}
         </div>
+        {tagPop && (
+          <div className="ap-tag-pop">
+            <div className="ap-tag-pop-list">
+              {formTagOptions.filter((t) => !fTags.includes(t)).map((t) => (
+                <button type="button" key={t} className="ap-tag-opt" onClick={() => setFTags((v) => [...v, t])}>
+                  {t}
+                  {(catTagUsage.get(t) ?? 0) > 0 && <i>×{catTagUsage.get(t)}</i>}
+                </button>
+              ))}
+              {formTagOptions.filter((t) => !fTags.includes(t)).length === 0 && (
+                <span className="ap-tag-empty">暂无可用标签，可在下方新建</span>
+              )}
+            </div>
+            <div className="ap-tag-pop-add">
+              <input
+                placeholder="新建标签"
+                value={tagNew}
+                onChange={(e) => setTagNew(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') createTag(); }}
+              />
+              <button type="button" className="ap-btn-blue" onClick={createTag}>新建</button>
+            </div>
+          </div>
+        )}
 
         <div className="ap-form-foot">
           <button type="button" className="ap-btn-plain" onClick={() => setView(backView)}>返 回</button>

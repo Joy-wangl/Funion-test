@@ -67,7 +67,7 @@ export const TAG_PRESETS = ['绿色', '高效', '协同', '智能'];
 const bee = (n: number): IconSpec => ICON_PRESETS[n % ICON_PRESETS.length];
 
 export const initialApps: AppItem[] = [
-  { id: 'hb-1', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(1), category: '数据管理类', added: false, mine: false, users: 892, release: '2026/05/12', creator: '吴孝朝', previews: [], tags: [] },
+  { id: 'hb-1', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(1), category: '数据管理类', added: false, mine: false, users: 892, release: '2026/05/12', creator: '吴孝朝', previews: [], tags: ['高效'] },
   { id: 'hb-2', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(2), category: '数据管理类', added: true, mine: false, hasUpdate: true, users: 1521, release: '2026/06/01', creator: '吴孝朝', previews: [], tags: [] },
   { id: 'hb-3', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(3), category: '浏览器插件', added: false, mine: false, users: 356, release: '2026/07/15', creator: '吴孝朝', previews: [], tags: [] },
   { id: 'hb-4', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(4), category: '绘图工具', added: true, mine: false, users: 2210, release: '2026/01/20', creator: '吴孝朝', previews: [], tags: [] },
@@ -76,11 +76,11 @@ export const initialApps: AppItem[] = [
   { id: 'hb-7', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(2), category: '绘图工具', added: false, mine: false, users: 233, release: '2026/06/22', creator: '吴孝朝', previews: [], tags: [] },
   { id: 'hb-8', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(3), category: '实用小工具', added: false, mine: false, users: 610, release: '2026/02/14', creator: '吴孝朝', previews: [], tags: [] },
   { id: 'hb-9', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(4), category: 'Agent工具', added: false, mine: false, users: 158, release: '2026/07/30', creator: '吴孝朝', previews: [], tags: [] },
-  { id: 'jst', name: '聚水潭ERP', desc: '小蜜蜂干活很刻苦', icon: bee(7), category: '数据管理类', added: false, mine: false, users: 1310, release: '2026/05/28', creator: '吴孝朝', previews: [PREVIEW_PRESETS[2]], tags: [] },
+  { id: 'jst', name: '聚水潭ERP', desc: '小蜜蜂干活很刻苦', icon: bee(7), category: '数据管理类', added: false, mine: false, users: 1310, release: '2026/05/28', creator: '吴孝朝', previews: [PREVIEW_PRESETS[2]], tags: ['高效', '协同'] },
   { id: 'kingdee', name: '金蝶ERP', desc: '小蜜蜂干活很刻苦', icon: bee(8), category: '数据管理类', added: true, mine: false, hasUpdate: true, users: 980, release: '2026/04/19', creator: '吴孝朝', previews: [PREVIEW_PRESETS[1]], tags: [] },
-  { id: 'hzw', name: '海贼王ERP', desc: '小蜜蜂干活很刻苦，不知劳累就是干', icon: bee(5), category: '数据管理类', added: false, mine: false, users: 599, release: '2026/08/13', creator: '吴孝朝', previews: [PREVIEW_PRESETS[0], PREVIEW_PRESETS[0], PREVIEW_PRESETS[0]], tags: [] },
+  { id: 'hzw', name: '海贼王ERP', desc: '小蜜蜂干活很刻苦，不知劳累就是干', icon: bee(5), category: '数据管理类', added: false, mine: false, users: 599, release: '2026/08/13', creator: '吴孝朝', previews: [PREVIEW_PRESETS[0], PREVIEW_PRESETS[0], PREVIEW_PRESETS[0]], tags: ['高效'] },
   { id: 'c-1', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(1), category: 'Agent', added: false, mine: true, users: 120, release: '2026/06/10', creator: '七妮妮', previews: [PREVIEW_PRESETS[3]], tags: ['绿色'] },
   { id: 'c-2', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(2), category: 'Agent', added: false, mine: true, users: 86, release: '2026/07/02', creator: '七妮妮', previews: [PREVIEW_PRESETS[1]], tags: [] },
-  { id: 'a-1', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(1), category: '数据管理类', added: true, mine: false, users: 892, release: '2026/05/12', creator: '吴孝朝', previews: [], tags: [] },
+  { id: 'a-1', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(1), category: '数据管理类', added: true, mine: false, users: 892, release: '2026/05/12', creator: '吴孝朝', previews: [], tags: ['协同'] },
   { id: 'a-2', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(2), category: '浏览器插件', added: true, mine: false, users: 1521, release: '2026/06/01', creator: '吴孝朝', previews: [], tags: [] },
 ];
