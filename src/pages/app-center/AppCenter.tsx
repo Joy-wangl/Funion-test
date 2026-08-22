@@ -442,7 +442,6 @@ export default function AppCenter() {
         <section className="ap-home-card">
           <div className="ap-rank-head">
             <h3 className="ap-home-title"><Svg d={IC.trophy} size={18} />贡献榜</h3>
-            <span className="ap-rank-note">组织架构同步自成员管理（钉钉归属）</span>
           </div>
           <div className="ap-rank-bar">
             <div className="ap-rank-tabs">
@@ -450,10 +449,8 @@ export default function AppCenter() {
                 <button key={k} type="button" className={rankTab === k ? 'on' : ''} onClick={() => setRankTab(k)}>{label}</button>
               ))}
             </div>
-            {rankTab === 'best' ? (
+            {rankTab === 'best' && (
               <BubbleSelect options={RANK_RANGES} value={rankRange} onChange={setRankRange} />
-            ) : (
-              <span className="ap-rank-sub-note">{rankTab === 'person' ? '按创作数量排序' : '按部门整体创作次数排序'}</span>
             )}
           </div>
           <div className="ap-rank-list">

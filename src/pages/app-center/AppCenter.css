@@ -1163,13 +1163,11 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-rank-head .ap-home-title { margin-bottom: 0; }
 
-.ap-rank-note { font-size: 12px; color: #98a0b3; }
-
 .ap-rank-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin: 16px 0;
 }
 
 .ap-rank-tabs {
@@ -1197,15 +1195,13 @@ button.ap-home-app { cursor: pointer; }
   box-shadow: 0 1px 2px rgba(31, 35, 41, 0.08);
 }
 
-.ap-rank-sub-note { font-size: 12px; color: #98a0b3; }
-
-.ap-rank-list { padding: 2px 4px; }
+.ap-rank-list { padding: 4px 4px 2px; }
 
 .ap-rank-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 0;
+  gap: 10px;
+  padding: 6px 0;
   border: none;
   background: transparent;
   width: 100%;
@@ -1255,15 +1251,15 @@ button.ap-rank-row:hover .ap-rank-name { color: #2e7cf6; }
 
 .ap-rank-row em { font-style: normal; font-size: 13px; color: #646a73; flex-shrink: 0; }
 
-.ap-rank-person { padding: 6px 0 10px; border-bottom: 1px dashed #eef0f4; }
+.ap-rank-person { padding: 10px 0 14px; border-bottom: 1px dashed #eef0f4; }
 
-.ap-rank-person:last-child { border-bottom: none; padding-bottom: 2px; }
+.ap-rank-person:last-child { border-bottom: none; padding-bottom: 6px; }
 
 .ap-rank-apps {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 4px 0 0 28px;
+  gap: 10px;
+  margin: 10px 0 0 30px;
 }
 
 .ap-rank-app {
