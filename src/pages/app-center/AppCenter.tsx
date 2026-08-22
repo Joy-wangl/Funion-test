@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import BubbleSelect from '../../components/BubbleSelect';
 import {
   CATEGORIES, FORM_CATEGORIES, ICON_PRESETS, PREVIEW_PRESETS, TAG_PRESETS,
-  initialApps, type AppItem, type IconSpec, type Preview,
+  actKind, initialApps, type AppItem, type IconSpec, type Preview,
 } from './data';
 import './AppCenter.css';
 
@@ -54,13 +54,12 @@ function PreviewCard({ p }: { p: Preview }) {
 }
 
 /* 行右侧操作按钮：添加/更新/打开/加载 */
-function ActionBtn({ app, onAct }: { app: AppItem; onAct: (a: AppItem) => void }) {
-  if (app.state === 'loading') return <span className="ap-spin" />;
-  const cls = app.state === 'update' ? 'update' : 'plain';
-  const label = app.state === 'add' ? '添加' : app.state === 'update' ? '更新' : '打开';
+function ActionBtn({ app, loading, onAct }: { app: AppItem; loading: boolean; onAct: (a: AppItem) => void }) {
+  if (loading) return <span className="ap-spin" />;
+  const kind = actKind(app);
   return (
-    <button type="button" className={`ap-act ${cls}`} onClick={(e) => { e.stopPropagation(); onAct(app); }}>
-      {label}
+    <button type="button" className={`ap-act ${kind === 'update' ? 'update' : 'plain'}`} onClick={(e) => { e.stopPropagation(); onAct(app); }}>
+      {kind === 'add' ? '添加' : kind === 'update' ? '更新' : '打开'}
     </button>
   );
 }
@@ -76,6 +75,8 @@ export default function AppCenter() {
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [toast, setToast] = useState('');
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [backView, setBackView] = useState<View>({ kind: 'mine' });
 
   /* 上传新创作表单 */
   const [fName, setFName] = useState('');
@@ -91,7 +92,7 @@ export default function AppCenter() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  const hasMine = apps.some((a) => a.origin);
+  const hasMine = apps.some((a) => a.mine || a.added);
 
   const listApps = useMemo(() => {
     let list = apps;
@@ -117,17 +118,23 @@ export default function AppCenter() {
   const patchApp = (id: string, patch: Partial<AppItem>) =>
     setApps((v) => v.map((a) => (a.id === id ? { ...a, ...patch } : a)));
 
-  /* 添加/更新：加载后变为打开；添加同时进入「我添加的」 */
+  /* 添加/更新：加载后落库；我创建的无添加操作，直接打开 */
   const act = (app: AppItem) => {
-    if (app.state === 'open') {
+    const kind = actKind(app);
+    if (kind === 'open') {
       setToast(`正在打开「${app.name}」`);
       return;
     }
-    const wasAdd = app.state === 'add';
-    patchApp(app.id, { state: 'loading' });
+    setLoadingId(app.id);
     setTimeout(() => {
-      patchApp(app.id, { state: 'open', ...(wasAdd ? { origin: 'added' as const } : {}) });
-      setToast(wasAdd ? `已添加「${app.name}」` : `「${app.name}」已更新`);
+      setLoadingId(null);
+      if (kind === 'add') {
+        patchApp(app.id, { added: true });
+        setToast(`已添加「${app.name}」`);
+      } else {
+        patchApp(app.id, { hasUpdate: false });
+        setToast(`「${app.name}」已更新`);
+      }
     }, 900);
   };
 
@@ -137,7 +144,7 @@ export default function AppCenter() {
   };
 
   const removeAdded = (id: string) => {
-    patchApp(id, { origin: undefined, state: 'add' });
+    patchApp(id, { added: false });
     setToast('已移除应用');
   };
 
@@ -156,6 +163,7 @@ export default function AppCenter() {
     setFPreviews(src?.previews ?? []);
     setFCat(src?.category ?? 'Agent');
     setFTags(src?.tags ?? []);
+    setBackView(view);
     setView({ kind: 'create', editId });
   };
 
@@ -173,23 +181,23 @@ export default function AppCenter() {
         desc: fDesc.trim() || '小蜜蜂干活很刻苦',
         icon: fIcon,
         category: fCat,
-        state: 'open',
+        added: false,
+        mine: true,
         users: 0,
         release: today(),
         creator: '七妮妮',
         previews: fPreviews,
         tags: fTags,
-        origin: 'created',
       };
       setApps((v) => [app, ...v]);
       setToast('创作已上传');
     }
-    setMineTab('created');
-    setView({ kind: 'mine' });
+    if (!(view.kind === 'create' && view.editId)) setMineTab('created');
+    setView(backView);
   };
 
-  /* ---------- 列表单元格 ---------- */
-  const renderCell = (app: AppItem) => (
+  /* ---------- 列表/我的应用共用行：caret=打开+展开（我的应用行/列表我创建的）；其余=添加/更新/打开；主图仅详情展示 ---------- */
+  const renderCell = (app: AppItem, caret: boolean) => (
     <div key={app.id} className="ap-cell" onClick={() => setView({ kind: 'detail', id: app.id })}>
       <div className="ap-row">
         <Logo icon={app.icon} />
@@ -197,27 +205,16 @@ export default function AppCenter() {
           <span className="ap-row-name">{app.name}</span>
           <span className="ap-row-desc">{app.desc}</span>
         </div>
-        <ActionBtn app={app} onAct={act} />
-      </div>
-      {app.previews[0] && <PreviewCard p={app.previews[0]} />}
-    </div>
-  );
-
-  /* ---------- 我的应用行（打开 + 下拉） ---------- */
-  const renderMineRow = (app: AppItem) => (
-    <div key={app.id} className="ap-cell" onClick={() => setView({ kind: 'detail', id: app.id })}>
-      <div className="ap-row">
-        <Logo icon={app.icon} />
-        <div className="ap-row-main">
-          <span className="ap-row-name">{app.name}</span>
-          <span className="ap-row-desc">{app.desc}</span>
-        </div>
-        <div className="ap-open-wrap" onClick={(e) => e.stopPropagation()}>
-          <button type="button" className="ap-act plain" onClick={() => act(app)}>打开</button>
-          <button type="button" className="ap-act caret" onClick={(e) => openMenu(app.id, e)}>
-            <Svg d={IC.caret} size={12} className={menu?.id === app.id ? 'up' : ''} />
-          </button>
-        </div>
+        {caret ? (
+          <div className="ap-open-wrap" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="ap-act plain" onClick={() => act(app)}>打开</button>
+            <button type="button" className="ap-act caret" onClick={(e) => openMenu(app.id, e)}>
+              <Svg d={IC.caret} size={12} className={menu?.id === app.id ? 'up' : ''} />
+            </button>
+          </div>
+        ) : (
+          <ActionBtn app={app} loading={loadingId === app.id} onAct={act} />
+        )}
       </div>
     </div>
   );
@@ -247,7 +244,7 @@ export default function AppCenter() {
             ))}
           </div>
         </div>
-        <div className="ap-grid">{listApps.map(renderCell)}</div>
+        <div className="ap-grid">{listApps.map((a) => renderCell(a, a.mine))}</div>
       </>
     );
   };
@@ -267,7 +264,7 @@ export default function AppCenter() {
             <h2>{app.name}</h2>
             <p>{app.desc}</p>
             <button type="button" className="ap-btn-solid" onClick={() => act(app)}>
-              {app.state === 'open' ? '打开' : app.state === 'update' ? '更新' : '添加'}
+              {actKind(app) === 'add' ? '添加' : actKind(app) === 'update' ? '更新' : '打开'}
             </button>
           </div>
           <div className="ap-detail-stats">
@@ -287,8 +284,8 @@ export default function AppCenter() {
 
   /* ---------- 我的应用 ---------- */
   const renderMine = () => {
-    const created = apps.filter((a) => a.origin === 'created');
-    const added = apps.filter((a) => a.origin === 'added');
+    const created = apps.filter((a) => a.mine);
+    const added = apps.filter((a) => a.added && !a.mine);
     const list = mineTab === 'created' ? created : added;
     return (
       <>
@@ -299,7 +296,7 @@ export default function AppCenter() {
           </div>
           <button type="button" className="ap-btn-blue" onClick={() => openCreate()}>上传新创作</button>
         </div>
-        <div className="ap-grid mine">{list.map(renderMineRow)}</div>
+        <div className="ap-grid mine">{list.map((a) => renderCell(a, true))}</div>
       </>
     );
   };
@@ -308,7 +305,7 @@ export default function AppCenter() {
   const renderCreate = () => (
     <div className="ap-create">
       <div className="ap-create-head">
-        <button type="button" className="ap-back" onClick={() => setView({ kind: 'mine' })}>
+        <button type="button" className="ap-back" onClick={() => setView(backView)}>
           <Svg d={IC.back} size={18} />
         </button>
         <h2>上传新的创作</h2>
@@ -390,7 +387,7 @@ export default function AppCenter() {
         </div>
 
         <div className="ap-form-foot">
-          <button type="button" className="ap-btn-plain" onClick={() => setView({ kind: 'mine' })}>返 回</button>
+          <button type="button" className="ap-btn-plain" onClick={() => setView(backView)}>返 回</button>
           <button type="button" className="ap-btn-blue" onClick={submitCreate}>下一步</button>
         </div>
       </div>
@@ -435,10 +432,10 @@ export default function AppCenter() {
             </button>
           )}
         </nav>
-        <div className="ap-side-user">
+        <button type="button" className="ap-side-user" onClick={() => setView({ kind: 'mine' })} title="我的应用">
           <span className="ap-avatar" />
           七妮妮
-        </div>
+        </button>
       </aside>
 
       <main className="ap-main">
@@ -454,7 +451,12 @@ export default function AppCenter() {
         <>
           <div className="ap-menu-mask" onClick={() => setMenu(null)} />
           <div className="ap-menu" style={{ left: menu.x, top: menu.y }}>
-            {mineTab === 'created' ? (
+            {view.kind === 'mine' && mineTab === 'added' ? (
+              <>
+                <button type="button" onClick={() => { setMenu(null); setToast('已添加到首页'); }}>添加到首页</button>
+                <button type="button" className="danger" onClick={() => { setMenu(null); removeAdded(menuApp.id); }}>移除应用</button>
+              </>
+            ) : view.kind === 'mine' ? (
               <>
                 <button type="button" onClick={() => { setMenu(null); openCreate(menuApp.id); }}>编辑应用</button>
                 <button type="button" onClick={() => { setMenu(null); setToast('权限管理：演示'); }}>权限管理</button>
@@ -462,8 +464,9 @@ export default function AppCenter() {
               </>
             ) : (
               <>
-                <button type="button" onClick={() => { setMenu(null); setToast('已添加到首页'); }}>添加到首页</button>
-                <button type="button" className="danger" onClick={() => { setMenu(null); removeAdded(menuApp.id); }}>移除应用</button>
+                <button type="button" onClick={() => { setMenu(null); act(menuApp); }}>打开</button>
+                <button type="button" onClick={() => { setMenu(null); setToast('权限管理：演示'); }}>权限管理</button>
+                <button type="button" onClick={() => { setMenu(null); openCreate(menuApp.id); }}>编辑应用</button>
               </>
             )}
           </div>

@@ -15,6 +15,13 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/ac-verify-1-list.png` });
 
+  // 1b. 列表我创建的展开菜单（打开/权限管理/编辑应用）
+  await page.click('.ap-act.caret >> nth=0');
+  await page.waitForSelector('.ap-menu');
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: `${OUT}/ac-verify-1b-list-menu.png` });
+  await page.click('.ap-menu-mask');
+
   // 2. 搜索结果（搜索 ERP）
   await page.fill('.ap-search input', 'ERP');
   await page.waitForTimeout(400);
