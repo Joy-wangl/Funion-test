@@ -86,6 +86,13 @@ export default function AppCenter() {
   const [fCat, setFCat] = useState('Agent');
   const [fTags, setFTags] = useState<string[]>([]);
 
+  /* 类目管理抽屉 */
+  const [cats, setCats] = useState<string[]>(FORM_CATEGORIES);
+  const [catDrawer, setCatDrawer] = useState(false);
+  const [catNew, setCatNew] = useState('');
+  const [catEdit, setCatEdit] = useState<string | null>(null);
+  const [catEditVal, setCatEditVal] = useState('');
+
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(''), 2200);
@@ -194,6 +201,36 @@ export default function AppCenter() {
     }
     if (!(view.kind === 'create' && view.editId)) setMineTab('created');
     setView(backView);
+  };
+
+  /* ---------- 类目管理：新增/修改/排序 ---------- */
+  const addCat = () => {
+    const name = catNew.trim();
+    if (!name) { setToast('请输入类目名称'); return; }
+    if (cats.includes(name)) { setToast('类目已存在'); return; }
+    setCats((v) => [...v, name]);
+    setCatNew('');
+    setToast('类目已新增');
+  };
+
+  const saveCatEdit = (old: string) => {
+    const name = catEditVal.trim();
+    if (!name) { setToast('请输入类目名称'); return; }
+    if (name !== old && cats.includes(name)) { setToast('类目已存在'); return; }
+    setCats((v) => v.map((c) => (c === old ? name : c)));
+    if (fCat === old) setFCat(name);
+    setCatEdit(null);
+    setToast('类目已修改');
+  };
+
+  const moveCat = (idx: number, dir: -1 | 1) => {
+    setCats((v) => {
+      const j = idx + dir;
+      if (j < 0 || j >= v.length) return v;
+      const next = [...v];
+      [next[idx], next[j]] = [next[j], next[idx]];
+      return next;
+    });
   };
 
   /* ---------- 列表/我的应用共用行：caret=打开+展开（我的应用行/列表我创建的）；其余=添加/更新/打开；主图仅详情展示 ---------- */
@@ -355,14 +392,11 @@ export default function AppCenter() {
         <div className="ap-cat-line">
           <BubbleSelect
             className="ap-cat-select"
-            options={['新建类目', ...FORM_CATEGORIES]}
+            options={cats}
             value={fCat}
-            onChange={(v) => {
-              if (v === '新建类目') { setToast('新建类目：演示'); return; }
-              setFCat(v);
-            }}
+            onChange={setFCat}
           />
-          <button type="button" className="ap-cat-manage" onClick={() => setToast('类目管理：演示')}>类目管理</button>
+          <button type="button" className="ap-cat-manage" onClick={() => setCatDrawer(true)}>类目管理</button>
         </div>
 
         <label className="ap-label">应用标签</label>
@@ -463,6 +497,53 @@ export default function AppCenter() {
                 <button type="button" onClick={() => { setMenu(null); openCreate(menuApp.id); }}>编辑应用</button>
               </>
             )}
+          </div>
+        </>,
+        document.body,
+      )}
+
+      {catDrawer && createPortal(
+        <>
+          <div className="ap-drawer-mask" onClick={() => setCatDrawer(false)} />
+          <div className="ap-drawer">
+            <div className="ap-drawer-head">
+              <span>类目管理</span>
+              <button type="button" onClick={() => setCatDrawer(false)}><Svg d={IC.clear} size={14} /></button>
+            </div>
+            <div className="ap-drawer-body">
+              <div className="ap-drawer-add">
+                <input
+                  placeholder="请输入类目名称"
+                  value={catNew}
+                  onChange={(e) => setCatNew(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') addCat(); }}
+                />
+                <button type="button" className="ap-btn-blue" onClick={addCat}>新增</button>
+              </div>
+              {cats.map((c, i) => (
+                <div className="ap-cat-row" key={c}>
+                  {catEdit === c ? (
+                    <>
+                      <input
+                        className="ap-cat-edit-input"
+                        value={catEditVal}
+                        onChange={(e) => setCatEditVal(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') saveCatEdit(c); }}
+                      />
+                      <button type="button" className="ap-cat-op primary" onClick={() => saveCatEdit(c)}>保存</button>
+                      <button type="button" className="ap-cat-op" onClick={() => setCatEdit(null)}>取消</button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="ap-cat-name">{c}</span>
+                      <button type="button" className="ap-cat-op" onClick={() => { setCatEdit(c); setCatEditVal(c); }}>修改</button>
+                      <button type="button" className="ap-cat-op" disabled={i === 0} onClick={() => moveCat(i, -1)}>上移</button>
+                      <button type="button" className="ap-cat-op" disabled={i === cats.length - 1} onClick={() => moveCat(i, 1)}>下移</button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </>,
         document.body,
