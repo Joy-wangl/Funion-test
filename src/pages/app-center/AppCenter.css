@@ -518,72 +518,80 @@
   padding: 20px;
 }
 
-.ap-drawer-add {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.ap-drawer-add input {
-  flex: 1;
-  min-width: 0;
-  height: 36px;
-  border: 1px solid #e4e5eb;
-  border-radius: 8px;
-  background: #f2f3f7;
-  padding: 0 12px;
-  font-size: 13px;
-  outline: none;
-}
-
 .ap-cat-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid #ececf0;
-  border-radius: 8px;
-  margin-bottom: 10px;
+  gap: 12px;
+  margin-bottom: 14px;
+  cursor: grab;
 }
+
+.ap-cat-row:active { cursor: grabbing; }
+
+.ap-cat-row.dragging { opacity: 0.45; }
 
 .ap-cat-name {
   flex: 1;
+  min-width: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  background: #f2f3f7;
+  border-radius: 6px;
   font-size: 13px;
   color: #333;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .ap-cat-edit-input {
   flex: 1;
   min-width: 0;
-  height: 30px;
+  height: 40px;
   border: 1px solid #2e7cf6;
   border-radius: 6px;
-  padding: 0 8px;
+  padding: 0 12px;
   font-size: 13px;
   outline: none;
 }
 
-.ap-cat-op {
-  height: 26px;
-  padding: 0 10px;
+.ap-cat-ic-btn {
   border: none;
-  border-radius: 6px;
-  background: #f2f3f7;
-  color: #333;
-  font-size: 12px;
+  background: transparent;
+  color: #2e7cf6;
   cursor: pointer;
+  display: flex;
+  padding: 4px;
   flex-shrink: 0;
 }
 
-.ap-cat-op:hover { background: #e8eaf1; }
+.ap-cat-ic-btn:hover { opacity: 0.75; }
 
-.ap-cat-op.primary { background: #2e7cf6; color: #fff; }
+.ap-cat-ic-btn.danger { color: #f53f3f; }
 
-.ap-cat-op.primary:hover { background: #1a68e5; }
+.ap-cat-new {
+  width: 100%;
+  height: 40px;
+  border: none;
+  border-radius: 6px;
+  background: #f2f3f7;
+  color: #98a0b3;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  padding: 0 14px;
+}
 
-.ap-cat-op:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+.ap-cat-new:hover { background: #e8eaf1; }
+
+.ap-drawer-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid #ececf0;
 }
 
 /* ---------- 删除弹窗 ---------- */

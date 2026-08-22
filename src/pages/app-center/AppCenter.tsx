@@ -34,6 +34,9 @@ const IC = {
   plus: 'M12 5v14M5 12h14',
   sort: 'M8 5v14M8 5L5 8m3-3l3 3m8 11V5m0 14l-3-3m3 3l3-3',
   cat: 'M4 5h16v14H4V5zm0 4h16M9 9v10',
+  edit: 'M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z',
+  trash: 'M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v13a2 2 0 01-2 2H8a2 2 0 01-2-2V6h12z',
+  check: 'M20 6L9 17l-5-5',
 };
 
 function Logo({ icon, size = 44 }: { icon: IconSpec; size?: number }) {
@@ -86,12 +89,13 @@ export default function AppCenter() {
   const [fCat, setFCat] = useState('Agent');
   const [fTags, setFTags] = useState<string[]>([]);
 
-  /* 类目管理抽屉 */
+  /* 类目管理抽屉（草稿态：新增/修改/删除/拖动排序，保存生效） */
   const [cats, setCats] = useState<string[]>(FORM_CATEGORIES);
   const [catDrawer, setCatDrawer] = useState(false);
-  const [catNew, setCatNew] = useState('');
-  const [catEdit, setCatEdit] = useState<string | null>(null);
-  const [catEditVal, setCatEditVal] = useState('');
+  const [draft, setDraft] = useState<string[]>([]);
+  const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [editVal, setEditVal] = useState('');
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
 
   useEffect(() => {
     if (!toast) return;
@@ -203,34 +207,42 @@ export default function AppCenter() {
     setView(backView);
   };
 
-  /* ---------- 类目管理：新增/修改/排序 ---------- */
-  const addCat = () => {
-    const name = catNew.trim();
-    if (!name) { setToast('请输入类目名称'); return; }
-    if (cats.includes(name)) { setToast('类目已存在'); return; }
-    setCats((v) => [...v, name]);
-    setCatNew('');
-    setToast('类目已新增');
+  /* ---------- 类目管理：新增/修改/删除/拖动排序 ---------- */
+  const openCatDrawer = () => {
+    setDraft(cats);
+    setEditIdx(null);
+    setEditVal('');
+    setCatDrawer(true);
   };
 
-  const saveCatEdit = (old: string) => {
-    const name = catEditVal.trim();
+  const confirmEdit = (i: number) => {
+    const name = editVal.trim();
     if (!name) { setToast('请输入类目名称'); return; }
-    if (name !== old && cats.includes(name)) { setToast('类目已存在'); return; }
-    setCats((v) => v.map((c) => (c === old ? name : c)));
-    if (fCat === old) setFCat(name);
-    setCatEdit(null);
-    setToast('类目已修改');
+    setDraft((v) => v.map((c, idx) => (idx === i ? name : c)));
+    setEditIdx(null);
   };
 
-  const moveCat = (idx: number, dir: -1 | 1) => {
-    setCats((v) => {
-      const j = idx + dir;
-      if (j < 0 || j >= v.length) return v;
-      const next = [...v];
-      [next[idx], next[j]] = [next[j], next[idx]];
-      return next;
-    });
+  const addCatRow = () => {
+    if (editIdx !== null) { setToast('请先完成当前编辑'); return; }
+    setDraft((v) => [...v, '']);
+    setEditIdx(draft.length);
+    setEditVal('');
+  };
+
+  const removeCat = (i: number) => {
+    setDraft((v) => v.filter((_, idx) => idx !== i));
+    if (editIdx === i) setEditIdx(null);
+    else if (editIdx !== null && editIdx > i) setEditIdx(editIdx - 1);
+  };
+
+  const saveCats = () => {
+    const names = editIdx !== null ? draft.map((c, idx) => (idx === editIdx ? editVal.trim() : c)) : draft;
+    if (names.some((n) => !n)) { setToast('类目名称不能为空'); return; }
+    if (new Set(names).size !== names.length) { setToast('类目名称重复'); return; }
+    setCats(names);
+    if (!names.includes(fCat)) setFCat(names[0] ?? fCat);
+    setCatDrawer(false);
+    setToast('类目已保存');
   };
 
   /* ---------- 列表/我的应用共用行：caret=打开+展开（我的应用行/列表我创建的）；其余=添加/更新/打开；主图仅详情展示 ---------- */
@@ -396,7 +408,7 @@ export default function AppCenter() {
             value={fCat}
             onChange={setFCat}
           />
-          <button type="button" className="ap-cat-manage" onClick={() => setCatDrawer(true)}>类目管理</button>
+          <button type="button" className="ap-cat-manage" onClick={openCatDrawer}>类目管理</button>
         </div>
 
         <label className="ap-label">应用标签</label>
@@ -507,42 +519,63 @@ export default function AppCenter() {
           <div className="ap-drawer-mask" onClick={() => setCatDrawer(false)} />
           <div className="ap-drawer">
             <div className="ap-drawer-head">
-              <span>类目管理</span>
+              <span>管理类目</span>
               <button type="button" onClick={() => setCatDrawer(false)}><Svg d={IC.clear} size={14} /></button>
             </div>
             <div className="ap-drawer-body">
-              <div className="ap-drawer-add">
-                <input
-                  placeholder="请输入类目名称"
-                  value={catNew}
-                  onChange={(e) => setCatNew(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') addCat(); }}
-                />
-                <button type="button" className="ap-btn-blue" onClick={addCat}>新增</button>
-              </div>
-              {cats.map((c, i) => (
-                <div className="ap-cat-row" key={c}>
-                  {catEdit === c ? (
+              {draft.map((c, i) => (
+                <div
+                  key={i}
+                  className={`ap-cat-row${dragIdx === i ? ' dragging' : ''}`}
+                  draggable={editIdx !== i}
+                  onDragStart={() => setDragIdx(i)}
+                  onDragEnter={() => {
+                    if (dragIdx === null || dragIdx === i) return;
+                    setDraft((v) => {
+                      const n = [...v];
+                      const [m] = n.splice(dragIdx, 1);
+                      n.splice(i, 0, m);
+                      return n;
+                    });
+                    if (editIdx === dragIdx) setEditIdx(i);
+                    else if (editIdx === i) setEditIdx(dragIdx);
+                    setDragIdx(i);
+                  }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDragEnd={() => setDragIdx(null)}
+                >
+                  {editIdx === i ? (
                     <>
                       <input
                         className="ap-cat-edit-input"
-                        value={catEditVal}
-                        onChange={(e) => setCatEditVal(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') saveCatEdit(c); }}
+                        autoFocus
+                        placeholder="请输入类目名称"
+                        value={editVal}
+                        onChange={(e) => setEditVal(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') confirmEdit(i); }}
                       />
-                      <button type="button" className="ap-cat-op primary" onClick={() => saveCatEdit(c)}>保存</button>
-                      <button type="button" className="ap-cat-op" onClick={() => setCatEdit(null)}>取消</button>
+                      <button type="button" className="ap-cat-ic-btn" title="确定" onClick={() => confirmEdit(i)}>
+                        <Svg d={IC.check} size={15} />
+                      </button>
                     </>
                   ) : (
                     <>
                       <span className="ap-cat-name">{c}</span>
-                      <button type="button" className="ap-cat-op" onClick={() => { setCatEdit(c); setCatEditVal(c); }}>修改</button>
-                      <button type="button" className="ap-cat-op" disabled={i === 0} onClick={() => moveCat(i, -1)}>上移</button>
-                      <button type="button" className="ap-cat-op" disabled={i === cats.length - 1} onClick={() => moveCat(i, 1)}>下移</button>
+                      <button type="button" className="ap-cat-ic-btn" title="修改" onClick={() => { setEditIdx(i); setEditVal(c); }}>
+                        <Svg d={IC.edit} size={15} />
+                      </button>
+                      <button type="button" className="ap-cat-ic-btn danger" title="删除" onClick={() => removeCat(i)}>
+                        <Svg d={IC.trash} size={15} />
+                      </button>
                     </>
                   )}
                 </div>
               ))}
+              <button type="button" className="ap-cat-new" onClick={addCatRow}>+ 新建分类</button>
+            </div>
+            <div className="ap-drawer-foot">
+              <button type="button" className="ap-btn-plain" onClick={() => setCatDrawer(false)}>取 消</button>
+              <button type="button" className="ap-btn-blue" onClick={saveCats}>保 存</button>
             </div>
           </div>
         </>,

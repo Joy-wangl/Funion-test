@@ -83,16 +83,17 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/ac-verify-9-create-filled.png`, fullPage: true });
 
-  // 10. 类目管理抽屉
+  // 10. 管理类目抽屉
   await page.click('.ap-cat-manage');
   await page.waitForSelector('.ap-drawer');
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/ac-verify-10-cat-drawer.png` });
 
-  // 11. 新增类目 + 修改态
-  await page.fill('.ap-drawer-add input', '数据分析');
-  await page.click('.ap-drawer-add .ap-btn-blue');
-  await page.click('.ap-cat-row .ap-cat-op:has-text("修改")');
+  // 11. 新建分类 + 修改态
+  await page.click('.ap-cat-new');
+  await page.fill('.ap-cat-edit-input', '数据分析');
+  await page.click('.ap-cat-ic-btn[title="确定"]');
+  await page.click('.ap-cat-ic-btn[title="修改"] >> nth=0');
   await page.waitForTimeout(200);
   await page.screenshot({ path: `${OUT}/ac-verify-11-cat-edit.png` });
 
