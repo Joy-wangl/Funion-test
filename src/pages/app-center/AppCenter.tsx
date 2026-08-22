@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import BubbleSelect from '../../components/BubbleSelect';
 import {
-  CATEGORIES, FORM_CATEGORIES, ICON_PRESETS, PREVIEW_PRESETS,
-  actKind, initialApps, type AppItem, type IconSpec, type Preview,
+  CATEGORIES, FORM_CATEGORIES, ICON_PRESETS, PLATFORM_NOTICES, PREVIEW_PRESETS, RANK_RANGES,
+  actKind, creatorDept, initialApps, usageInRange, type AppItem, type IconSpec, type Preview,
 } from './data';
 import './AppCenter.css';
 
 type View =
+  | { kind: 'home' }
   | { kind: 'list' }
   | { kind: 'detail'; id: string }
   | { kind: 'mine' }
@@ -37,6 +38,13 @@ const IC = {
   edit: 'M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z',
   trash: 'M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v13a2 2 0 01-2 2H8a2 2 0 01-2-2V6h12z',
   check: 'M20 6L9 17l-5-5',
+  home: 'M3 10.5L12 3l9 7.5M5 9.5V21h5v-6h4v6h5V9.5',
+  all: 'M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z',
+  star: 'M12 3l2.9 5.9 6.5.95-4.7 4.6 1.1 6.45L12 17.9l-5.8 3 1.1-6.45L2.6 9.85l6.5-.95L12 3z',
+  bell: 'M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0',
+  trophy: 'M8 21h8m-4-4v4M7 4h10v5a5 5 0 01-10 0V4zm0 1H4v2a3 3 0 003 3m10-5h3v2a3 3 0 01-3 3',
+  clock: 'M12 3a9 9 0 109 9 9 9 0 00-9-9zm0 4v5l3 2',
+  flame: 'M12 3s5 4.5 5 9a5 5 0 01-10 0c0-4.5 5-9 5-9zm0 8s-2 1.8-2 3.5a2 2 0 004 0c0-1.7-2-3.5-2-3.5z',
 };
 
 function Logo({ icon, size = 44 }: { icon: IconSpec; size?: number }) {
@@ -73,7 +81,12 @@ export default function AppCenter() {
   const [category, setCategory] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<'users' | 'release' | null>(null);
   const [sortDesc, setSortDesc] = useState(true);
-  const [view, setView] = useState<View>({ kind: 'list' });
+  const [view, setView] = useState<View>({ kind: 'home' });
+  const [detailBack, setDetailBack] = useState<View>({ kind: 'list' });
+  const [recent, setRecent] = useState<{ id: string; at: number }[]>([]);
+  const [favIds, setFavIds] = useState<string[]>([]);
+  const [noticeId, setNoticeId] = useState<string | null>(null);
+  const [rankRange, setRankRange] = useState('近30天');
   const [mineTab, setMineTab] = useState<'created' | 'added'>('created');
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -138,10 +151,11 @@ export default function AppCenter() {
   const patchApp = (id: string, patch: Partial<AppItem>) =>
     setApps((v) => v.map((a) => (a.id === id ? { ...a, ...patch } : a)));
 
-  /* 添加/更新：加载后落库；我创建的无添加操作，直接打开 */
+  /* 添加/更新：加载后落库；我创建的无添加操作，直接打开；打开即记入最近使用 */
   const act = (app: AppItem) => {
     const kind = actKind(app);
     if (kind === 'open') {
+      setRecent((v) => [{ id: app.id, at: Date.now() }, ...v.filter((r) => r.id !== app.id)].slice(0, 8));
       setToast(`正在打开「${app.name}」`);
       return;
     }
@@ -161,6 +175,17 @@ export default function AppCenter() {
   const openMenu = (id: string, e: React.MouseEvent<HTMLButtonElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
     setMenu({ id, x: r.right - 116, y: r.bottom + 6 });
+  };
+
+  const openDetail = (id: string) => {
+    setDetailBack(view);
+    setView({ kind: 'detail', id });
+  };
+
+  const toggleFav = (id: string) => {
+    const on = favIds.includes(id);
+    setFavIds((v) => (on ? v.filter((x) => x !== id) : [...v, id]));
+    setToast(on ? '已取消收藏' : '已收藏，可在首页查看');
   };
 
   const removeAdded = (id: string) => {
@@ -278,7 +303,7 @@ export default function AppCenter() {
 
   /* ---------- 列表/我的应用共用行：caret=打开+展开（我的应用行/列表我创建的）；其余=添加/更新/打开；主图仅详情展示 ---------- */
   const renderCell = (app: AppItem, caret: boolean) => (
-    <div key={app.id} className="ap-cell" onClick={() => setView({ kind: 'detail', id: app.id })}>
+    <div key={app.id} className="ap-cell" onClick={() => openDetail(app.id)}>
       <div className="ap-row">
         <Logo icon={app.icon} />
         <div className="ap-row-main">
@@ -298,6 +323,161 @@ export default function AppCenter() {
       </div>
     </div>
   );
+
+  /* ---------- 首页 ---------- */
+  const fmtRecent = (at: number) => {
+    const d = new Date(at);
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  };
+
+  const renderHome = () => {
+    const recentApps = recent
+      .map((r) => ({ app: apps.find((a) => a.id === r.id), at: r.at }))
+      .filter((x): x is { app: AppItem; at: number } => Boolean(x.app));
+    const favApps = apps.filter((a) => favIds.includes(a.id));
+    const now = Date.now();
+    const releases = apps
+      .filter((a) => a.hasUpdate || now - new Date(a.release).getTime() <= 30 * 86400000)
+      .sort((a, b) => b.release.localeCompare(a.release));
+    const personMap = new Map<string, number>();
+    apps.forEach((a) => personMap.set(a.creator, (personMap.get(a.creator) ?? 0) + 1));
+    const personRank = [...personMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const deptMap = new Map<string, number>();
+    apps.forEach((a) => {
+      const d = creatorDept(a.creator);
+      deptMap.set(d, (deptMap.get(d) ?? 0) + 1);
+    });
+    const deptRank = [...deptMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const bestApps = [...apps].sort((a, b) => usageInRange(b, rankRange) - usageInRange(a, rankRange)).slice(0, 5);
+    return (
+      <div className="ap-home">
+        <div className="ap-home-head">
+          <h2>首页</h2>
+          <span>{today()} · 欢迎回来，七妮妮</span>
+        </div>
+
+        <section className="ap-home-card">
+          <h3 className="ap-home-title"><Svg d={IC.clock} size={16} />最近使用</h3>
+          {recentApps.length === 0 ? (
+            <div className="ap-empty">暂无最近使用的应用，点击应用的「打开」后会自动记录在这里</div>
+          ) : (
+            <div className="ap-home-row">
+              {recentApps.map(({ app, at }) => (
+                <button type="button" key={app.id} className="ap-home-app" onClick={() => openDetail(app.id)}>
+                  <Logo icon={app.icon} size={36} />
+                  <span>
+                    <span className="ap-home-app-name">{app.name}</span>
+                    <span className="ap-home-app-sub">{fmtRecent(at)} 使用</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="ap-home-card">
+          <h3 className="ap-home-title"><Svg d={IC.star} size={16} />我收藏的应用</h3>
+          {favApps.length === 0 ? (
+            <div className="ap-empty">还没有收藏的应用，在应用详情右上角点击星标即可收藏</div>
+          ) : (
+            <div className="ap-home-row">
+              {favApps.map((app) => (
+                <div key={app.id} className="ap-home-app">
+                  <button type="button" className="ap-home-app-body" onClick={() => openDetail(app.id)}>
+                    <Logo icon={app.icon} size={36} />
+                    <span>
+                      <span className="ap-home-app-name">{app.name}</span>
+                      <span className="ap-home-app-sub">{app.users} 人次使用</span>
+                    </span>
+                  </button>
+                  <button type="button" className="ap-fav on" title="取消收藏" onClick={() => toggleFav(app.id)}>
+                    <Svg d={IC.star} size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <div className="ap-home-2col">
+          <section className="ap-home-card">
+            <h3 className="ap-home-title"><Svg d={IC.flame} size={16} />应用上新（升级公告）</h3>
+            <div className="ap-rel-list">
+              {releases.map((a) => (
+                <button type="button" key={a.id} className="ap-rel-item" onClick={() => openDetail(a.id)}>
+                  <Logo icon={a.icon} size={30} />
+                  <span className="ap-rel-main">
+                    <b>{a.name}</b>
+                    <i>{a.hasUpdate ? '有新版本可更新' : `${a.release} 新上架`}</i>
+                  </span>
+                  <em className={`ap-rel-tag ${a.hasUpdate ? 'up' : 'new'}`}>{a.hasUpdate ? '升级' : '上新'}</em>
+                </button>
+              ))}
+              {releases.length === 0 && <div className="ap-empty">暂无上新与升级公告</div>}
+            </div>
+          </section>
+          <section className="ap-home-card">
+            <h3 className="ap-home-title"><Svg d={IC.bell} size={16} />平台公告</h3>
+            <div className="ap-rel-list">
+              {PLATFORM_NOTICES.map((n) => (
+                <button type="button" key={n.id} className="ap-rel-item" onClick={() => setNoticeId(n.id)}>
+                  <span className="ap-rel-main">
+                    <b>{n.title}</b>
+                    <i>{n.date}</i>
+                  </span>
+                  <em className="ap-rel-tag notice">{n.tag}</em>
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <section className="ap-home-card">
+          <div className="ap-rank-head">
+            <h3 className="ap-home-title"><Svg d={IC.trophy} size={16} />贡献榜</h3>
+            <span className="ap-rank-note">组织架构同步自成员管理（钉钉归属）</span>
+          </div>
+          <div className="ap-rank-grid">
+            <div className="ap-rank-card">
+              <h4>个人贡献榜<span>创作数量最多</span></h4>
+              {personRank.map(([name, n], i) => (
+                <div key={name} className="ap-rank-row">
+                  <b className={i < 3 ? `no${i + 1}` : ''}>{i + 1}</b>
+                  <span className="ap-rank-name">{name}<i>{creatorDept(name)}</i></span>
+                  <em>{n} 个创作</em>
+                </div>
+              ))}
+            </div>
+            <div className="ap-rank-card">
+              <h4>部门贡献榜<span>部门整体创作最多</span></h4>
+              {deptRank.map(([name, n], i) => (
+                <div key={name} className="ap-rank-row">
+                  <b className={i < 3 ? `no${i + 1}` : ''}>{i + 1}</b>
+                  <span className="ap-rank-name">{name}</span>
+                  <em>{n} 次创作</em>
+                </div>
+              ))}
+            </div>
+            <div className="ap-rank-card">
+              <h4>最佳应用榜<span>范围内使用人次最多</span></h4>
+              <div className="ap-rank-range">
+                <BubbleSelect options={RANK_RANGES} value={rankRange} onChange={setRankRange} />
+              </div>
+              {bestApps.map((a, i) => (
+                <button type="button" key={a.id} className="ap-rank-row" onClick={() => openDetail(a.id)}>
+                  <b className={i < 3 ? `no${i + 1}` : ''}>{i + 1}</b>
+                  <Logo icon={a.icon} size={24} />
+                  <span className="ap-rank-name">{a.name}</span>
+                  <em>{usageInRange(a, rankRange)} 人次</em>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  };
 
   /* ---------- 列表 / 搜索 ---------- */
   const renderList = () => {
@@ -335,8 +515,16 @@ export default function AppCenter() {
     const app = detailApp;
     return (
       <div className="ap-detail">
-        <button type="button" className="ap-back" onClick={() => setView({ kind: 'list' })}>
+        <button type="button" className="ap-back" onClick={() => setView(detailBack)}>
           <Svg d={IC.back} size={18} />
+        </button>
+        <button
+          type="button"
+          className={`ap-fav${favIds.includes(app.id) ? ' on' : ''}`}
+          title={favIds.includes(app.id) ? '取消收藏' : '收藏'}
+          onClick={() => toggleFav(app.id)}
+        >
+          <Svg d={IC.star} size={16} />
         </button>
         <div className="ap-detail-head">
           <Logo icon={app.icon} size={78} />
@@ -508,6 +696,23 @@ export default function AppCenter() {
           )}
         </div>
         <nav className="ap-cats">
+          <button
+            type="button"
+            className={view.kind === 'home' ? 'on' : ''}
+            onClick={() => setView({ kind: 'home' })}
+          >
+            <Svg d={IC.home} size={15} className="ap-cat-ic" />
+            首页
+          </button>
+          <div className="ap-side-div" />
+          <button
+            type="button"
+            className={`${!category && !search && view.kind === 'list' ? 'on' : ''}`}
+            onClick={() => { setCategory(null); setSearch(''); setView({ kind: 'list' }); }}
+          >
+            <Svg d={IC.all} size={15} className="ap-cat-ic" />
+            全部
+          </button>
           {CATEGORIES.map((c) => (
             <button
               key={c}
@@ -527,6 +732,7 @@ export default function AppCenter() {
       </aside>
 
       <main className="ap-main">
+        {view.kind === 'home' && renderHome()}
         {view.kind === 'list' && renderList()}
         {view.kind === 'detail' && renderDetail()}
         {view.kind === 'mine' && renderMine()}
@@ -647,6 +853,28 @@ export default function AppCenter() {
           </div>
         </div>
       )}
+
+      {noticeId && (() => {
+        const n = PLATFORM_NOTICES.find((x) => x.id === noticeId);
+        if (!n) return null;
+        return (
+          <div className="ap-mask">
+            <div className="ap-modal">
+              <div className="ap-modal-head">
+                <span>{n.title}</span>
+                <button type="button" onClick={() => setNoticeId(null)}><Svg d={IC.clear} size={14} /></button>
+              </div>
+              <div className="ap-modal-body ap-notice-body">
+                <i>{n.date} · {n.tag}</i>
+                <p>{n.content}</p>
+              </div>
+              <div className="ap-modal-foot">
+                <button type="button" className="ap-btn-blue" onClick={() => setNoticeId(null)}>我知道了</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
