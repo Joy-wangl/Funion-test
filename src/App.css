@@ -100,3 +100,9 @@
   overflow-y: auto;
   background: var(--color-bg);
 }
+
+.app-content.ac-standalone {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}

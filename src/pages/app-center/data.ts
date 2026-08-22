@@ -1,0 +1,216 @@
+export interface AppContact {
+  name: string;
+  role: '业务' | '运维';
+}
+
+export interface AppItem {
+  id: string;
+  name: string;
+  domain: string;
+  leaderUnit: string;
+  coverage: string[];
+  responsibleDept: string;
+  businessContact: AppContact;
+  opsContact: AppContact;
+  phone: string;
+  email: string;
+  intro: string;
+  tags: string[];
+  status: 'online' | 'offline' | 'beta';
+}
+
+export const DOMAINS = [
+  '勘探开发',
+  '生产运行',
+  '安全环保',
+  '经营管理',
+  '科技创新',
+  '人力资源',
+] as const;
+
+export type Domain = (typeof DOMAINS)[number];
+
+export const apps: AppItem[] = [
+  {
+    id: 'app-001',
+    name: '油藏动态分析平台',
+    domain: '勘探开发',
+    leaderUnit: '勘探开发研究院',
+    coverage: ['油藏分析', '动态监测', '储量评估'],
+    responsibleDept: '油藏工程研究所',
+    businessContact: { name: '张伟', role: '业务' },
+    opsContact: { name: '李强', role: '运维' },
+    phone: '010-12345678',
+    email: 'yzdt@funion.com',
+    intro: '集成油藏地质、生产动态、测试数据，提供多维度油藏分析模型与决策支持。',
+    tags: ['核心系统', '实时数据'],
+    status: 'online',
+  },
+  {
+    id: 'app-002',
+    name: '勘探部署管理系统',
+    domain: '勘探开发',
+    leaderUnit: '勘探事业部',
+    coverage: ['井位部署', '勘探计划', '资源评价'],
+    responsibleDept: '勘探部署部',
+    businessContact: { name: '王芳', role: '业务' },
+    opsContact: { name: '赵敏', role: '运维' },
+    phone: '010-12345679',
+    email: 'ktbs@funion.com',
+    intro: '支撑勘探井位部署全流程管理，覆盖方案编制、审批、执行与效果跟踪。',
+    tags: ['计划管理', '流程审批'],
+    status: 'online',
+  },
+  {
+    id: 'app-003',
+    name: '采油生产监控系统',
+    domain: '生产运行',
+    leaderUnit: '生产运行部',
+    coverage: ['油井监控', '产量分析', '设备管理'],
+    responsibleDept: '采油工艺研究所',
+    businessContact: { name: '刘洋', role: '业务' },
+    opsContact: { name: '陈杰', role: '运维' },
+    phone: '010-12345680',
+    email: 'cysc@funion.com',
+    intro: '实时采集油井工况数据，提供产量预警、设备状态监测与生产调度支持。',
+    tags: ['物联网', '实时监控'],
+    status: 'online',
+  },
+  {
+    id: 'app-004',
+    name: '集输管网调度平台',
+    domain: '生产运行',
+    leaderUnit: '油气储运公司',
+    coverage: ['管网调度', '输油管理', '能耗分析'],
+    responsibleDept: '储运工程部',
+    businessContact: { name: '孙丽', role: '业务' },
+    opsContact: { name: '周涛', role: '运维' },
+    phone: '010-12345681',
+    email: 'jsgw@funion.com',
+    intro: '实现集输管网运行状态可视化、调度指令下发与能耗优化分析。',
+    tags: ['调度优化', 'GIS'],
+    status: 'beta',
+  },
+  {
+    id: 'app-005',
+    name: '安全环保综合监管',
+    domain: '安全环保',
+    leaderUnit: '安全环保部',
+    coverage: ['隐患排查', '环境监测', '应急管理'],
+    responsibleDept: '安全监督中心',
+    businessContact: { name: '吴刚', role: '业务' },
+    opsContact: { name: '郑辉', role: '运维' },
+    phone: '010-12345682',
+    email: 'aqhb@funion.com',
+    intro: '覆盖隐患排查治理、环境监测预警、应急资源调度与事故事件管理。',
+    tags: ['合规监管', '风险预警'],
+    status: 'online',
+  },
+  {
+    id: 'app-006',
+    name: '碳排放管理平台',
+    domain: '安全环保',
+    leaderUnit: '新能源办公室',
+    coverage: ['碳核算', '排放监测', '节能管理'],
+    responsibleDept: '节能减排中心',
+    businessContact: { name: '钱坤', role: '业务' },
+    opsContact: { name: '黄磊', role: '运维' },
+    phone: '010-12345683',
+    email: 'tpf@funion.com',
+    intro: '提供碳排放核算、监测、报告与节能项目管理一站式服务。',
+    tags: ['双碳', 'ESG'],
+    status: 'beta',
+  },
+  {
+    id: 'app-007',
+    name: '经营决策驾驶舱',
+    domain: '经营管理',
+    leaderUnit: '计划经营部',
+    coverage: ['经营分析', '预算管理', '绩效考核'],
+    responsibleDept: '经营分析中心',
+    businessContact: { name: '徐静', role: '业务' },
+    opsContact: { name: '马云', role: '运维' },
+    phone: '010-12345684',
+    email: 'jyjc@funion.com',
+    intro: '整合生产经营数据，提供多维经营分析、预算执行跟踪与绩效看板。',
+    tags: ['BI', '领导驾驶舱'],
+    status: 'online',
+  },
+  {
+    id: 'app-008',
+    name: '合同管理系统',
+    domain: '经营管理',
+    leaderUnit: '法律企管部',
+    coverage: ['合同起草', '审批流程', '履约管理'],
+    responsibleDept: '合同管理中心',
+    businessContact: { name: '朱婷', role: '业务' },
+    opsContact: { name: '杨帆', role: '运维' },
+    phone: '010-12345685',
+    email: 'htgl@funion.com',
+    intro: '覆盖合同全生命周期管理，支持起草、审批、签署、履约与归档。',
+    tags: ['流程管理', '电子签章'],
+    status: 'online',
+  },
+  {
+    id: 'app-009',
+    name: '科研项目管理平台',
+    domain: '科技创新',
+    leaderUnit: '科技信息部',
+    coverage: ['项目申报', '进度管理', '成果管理'],
+    responsibleDept: '科研管理办公室',
+    businessContact: { name: '林峰', role: '业务' },
+    opsContact: { name: '何平', role: '运维' },
+    phone: '010-12345686',
+    email: 'kyxm@funion.com',
+    intro: '支撑科研项目从申报、立项、执行到验收、成果转化的全过程管理。',
+    tags: ['项目管理', '知识产权'],
+    status: 'online',
+  },
+  {
+    id: 'app-010',
+    name: '知识图谱引擎',
+    domain: '科技创新',
+    leaderUnit: '数据中心',
+    coverage: ['知识检索', '图谱构建', '智能问答'],
+    responsibleDept: '数据智能部',
+    businessContact: { name: '宋佳', role: '业务' },
+    opsContact: { name: '曹阳', role: '运维' },
+    phone: '010-12345687',
+    email: 'zstp@funion.com',
+    intro: '基于油气行业知识图谱，提供智能检索、关联推荐与问答服务。',
+    tags: ['AI', '知识管理'],
+    status: 'beta',
+  },
+  {
+    id: 'app-011',
+    name: '人才发展管理系统',
+    domain: '人力资源',
+    leaderUnit: '人力资源部',
+    coverage: ['人才盘点', '培训管理', '绩效发展'],
+    responsibleDept: '人才发展中心',
+    businessContact: { name: '谢薇', role: '业务' },
+    opsContact: { name: '唐勇', role: '运维' },
+    phone: '010-12345688',
+    email: 'rcfz@funion.com',
+    intro: '支撑人才画像、培训计划、能力评估与职业发展通道管理。',
+    tags: ['人才管理', '学习发展'],
+    status: 'online',
+  },
+  {
+    id: 'app-012',
+    name: '薪酬福利自助平台',
+    domain: '人力资源',
+    leaderUnit: '人力资源部',
+    coverage: ['薪酬查询', '福利管理', '社保公积金'],
+    responsibleDept: '薪酬福利部',
+    businessContact: { name: '韩梅', role: '业务' },
+    opsContact: { name: '冯磊', role: '运维' },
+    phone: '010-12345689',
+    email: 'xcfl@funion.com',
+    intro: '为员工提供薪酬、社保、公积金、福利等自助查询与办理服务。',
+    tags: ['员工自助', '薪酬福利'],
+    status: 'online',
+  },
+];
+
+export const leaderUnits = Array.from(new Set(apps.map((a) => a.leaderUnit)));

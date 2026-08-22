@@ -3,6 +3,7 @@ import { navigation } from './config/navigation';
 import TopTabs from './components/TopTabs';
 import Sidebar, { findFirstLeaf } from './components/Sidebar';
 import QualityCenter from './pages/quality/QualityCenter';
+import AppCenter from './pages/app-center/AppCenter';
 import OpsCenter from './pages/ops-center/OpsCenter';
 import './App.css';
 
@@ -67,6 +68,10 @@ export default function App() {
         ) : activeTabKey === 'qc-center' ? (
           <main className="app-content qc-standalone">
             <QualityCenter sidebarCollapsed={sidebarCollapsed} />
+          </main>
+        ) : activeTabKey === 'app-center' ? (
+          <main className="app-content ac-standalone">
+            <AppCenter />
           </main>
         ) : (
           <>
