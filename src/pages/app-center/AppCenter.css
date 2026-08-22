@@ -1208,7 +1208,9 @@ button.ap-home-app { cursor: pointer; }
   text-align: left;
 }
 
-button.ap-rank-row { cursor: pointer; }
+button.ap-rank-row { cursor: pointer; border-radius: 8px; }
+
+button.ap-rank-row:hover { background: #f7f8fa; }
 
 button.ap-rank-row:hover .ap-rank-name { color: #2e7cf6; }
 
@@ -1251,6 +1253,26 @@ button.ap-rank-row:hover .ap-rank-name { color: #2e7cf6; }
 
 .ap-rank-row em { font-style: normal; font-size: 13px; color: #646a73; flex-shrink: 0; }
 
+.ap-rank-meter {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: #f2f3f7;
+  margin: 0 18px;
+  overflow: hidden;
+}
+
+.ap-rank-meter i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #8fc0ff, #2e7cf6);
+}
+
+.ap-rank-caret { color: #98a0b3; flex-shrink: 0; transition: transform 0.2s; }
+
+.ap-rank-caret.open { transform: rotate(180deg); }
+
 .ap-rank-person { padding: 10px 0 14px; border-bottom: 1px dashed #eef0f4; }
 
 .ap-rank-person:last-child { border-bottom: none; padding-bottom: 6px; }
@@ -1278,8 +1300,6 @@ button.ap-rank-row:hover .ap-rank-name { color: #2e7cf6; }
 .ap-rank-app:hover { background: #eef3ff; color: #2e7cf6; }
 
 .ap-rank-app i { font-style: normal; font-size: 12px; color: #98a0b3; }
-
-.ap-rank-more { align-self: center; font-size: 12px; color: #98a0b3; }
 
 .ap-notice-body i { display: block; font-style: normal; color: #98a0b3; font-size: 12px; margin-bottom: 8px; }
 

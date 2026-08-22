@@ -88,6 +88,7 @@ export default function AppCenter() {
   const [noticeId, setNoticeId] = useState<string | null>(null);
   const [rankRange, setRankRange] = useState('近30天');
   const [rankTab, setRankTab] = useState<'person' | 'dept' | 'best'>('person');
+  const [rankOpen, setRankOpen] = useState<string | null>(null);
   const [bannerIdx, setBannerIdx] = useState(0);
   const [mineTab, setMineTab] = useState<'created' | 'added'>('created');
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
@@ -364,6 +365,12 @@ export default function AppCenter() {
       const d = creatorDept(a.creator);
       deptUsers.set(d, (deptUsers.get(d) ?? 0) + a.users);
     });
+    const deptCreators = new Map<string, Set<string>>();
+    apps.forEach((a) => {
+      const d = creatorDept(a.creator);
+      if (!deptCreators.has(d)) deptCreators.set(d, new Set());
+      deptCreators.get(d)?.add(a.creator);
+    });
     const bestApps = [...apps].sort((a, b) => usageInRange(b, rankRange) - usageInRange(a, rankRange)).slice(0, 5);
     return (
       <div className="ap-home">
@@ -456,30 +463,35 @@ export default function AppCenter() {
           <div className="ap-rank-list">
             {rankTab === 'person' && personRank.map(([name, n], i) => {
               const created = apps.filter((a) => a.creator === name).sort((a, b) => b.users - a.users);
+              const open = rankOpen === name;
               return (
                 <div key={name} className="ap-rank-person">
-                  <div className="ap-rank-row">
+                  <button type="button" className="ap-rank-row" onClick={() => setRankOpen(open ? null : name)}>
                     <b className={i < 3 ? `no${i + 1}` : ''}>{i + 1}</b>
                     <span className="ap-rank-name">{name}<i>{creatorDept(name)}</i></span>
+                    <span className="ap-rank-meter"><i style={{ width: `${(n / (personRank[0]?.[1] ?? 1)) * 100}%` }} /></span>
                     <em>{n} 个创作 · {personUsers.get(name) ?? 0} 人使用</em>
-                  </div>
-                  <div className="ap-rank-apps">
-                    {created.slice(0, 4).map((a) => (
-                      <button key={a.id} type="button" className="ap-rank-app" onClick={() => openDetail(a.id)}>
-                        <Logo icon={a.icon} size={18} />
-                        <span>{a.name}</span>
-                        <i>{a.users} 人</i>
-                      </button>
-                    ))}
-                    {created.length > 4 && <span className="ap-rank-more">+{created.length - 4}</span>}
-                  </div>
+                    <Svg d={IC.caret} size={14} className={`ap-rank-caret${open ? ' open' : ''}`} />
+                  </button>
+                  {open && (
+                    <div className="ap-rank-apps">
+                      {created.map((a) => (
+                        <button key={a.id} type="button" className="ap-rank-app" onClick={() => openDetail(a.id)}>
+                          <Logo icon={a.icon} size={18} />
+                          <span>{a.name}</span>
+                          <i>{a.users} 人</i>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
             {rankTab === 'dept' && deptRank.map(([name, n], i) => (
               <div key={name} className="ap-rank-row">
                 <b className={i < 3 ? `no${i + 1}` : ''}>{i + 1}</b>
-                <span className="ap-rank-name">{name}</span>
+                <span className="ap-rank-name">{name}<i>{deptCreators.get(name)?.size ?? 0} 位创作者</i></span>
+                <span className="ap-rank-meter"><i style={{ width: `${(n / (deptRank[0]?.[1] ?? 1)) * 100}%` }} /></span>
                 <em>{n} 次创作 · {deptUsers.get(name) ?? 0} 人使用</em>
               </div>
             ))}
@@ -487,7 +499,8 @@ export default function AppCenter() {
               <button type="button" key={a.id} className="ap-rank-row" onClick={() => openDetail(a.id)}>
                 <b className={i < 3 ? `no${i + 1}` : ''}>{i + 1}</b>
                 <Logo icon={a.icon} size={28} />
-                <span className="ap-rank-name">{a.name}</span>
+                <span className="ap-rank-name">{a.name}<i>{a.creator} · {creatorDept(a.creator)}</i></span>
+                <span className="ap-rank-meter"><i style={{ width: `${(usageInRange(a, rankRange) / (usageInRange(bestApps[0], rankRange) || 1)) * 100}%` }} /></span>
                 <em>{usageInRange(a, rankRange)} 人次</em>
               </button>
             ))}

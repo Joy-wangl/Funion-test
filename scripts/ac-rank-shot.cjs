@@ -1,4 +1,4 @@
-/* 单独截取首页贡献榜卡片（个人榜含应用 chips） */
+/* 截取首页贡献榜卡片：个人(收起/展开)/部门/最佳应用 */
 const { chromium } = require('D:/Funion/.playwright/package/index.js');
 
 (async () => {
@@ -13,6 +13,19 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
   await card.scrollIntoViewIfNeeded();
   await page.waitForTimeout(300);
   await card.screenshot({ path: 'd:/Qoder/Funion/ac-verify-17-rank-person.png' });
+
+  await page.click('.ap-rank-person >> nth=0 >> .ap-rank-row');
+  await page.waitForTimeout(300);
+  await card.screenshot({ path: 'd:/Qoder/Funion/ac-verify-18-rank-open.png' });
+
+  await page.click('.ap-rank-tabs button:has-text("部门贡献榜")');
+  await page.waitForTimeout(300);
+  await card.screenshot({ path: 'd:/Qoder/Funion/ac-verify-19-rank-dept.png' });
+
+  await page.click('.ap-rank-tabs button:has-text("最佳应用榜")');
+  await page.waitForTimeout(300);
+  await card.screenshot({ path: 'd:/Qoder/Funion/ac-verify-20-rank-best.png' });
+
   await browser.close();
-  console.log('rank shot ok');
+  console.log('rank shots ok');
 })();
