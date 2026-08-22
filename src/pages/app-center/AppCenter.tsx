@@ -87,6 +87,8 @@ export default function AppCenter() {
   const [favIds, setFavIds] = useState<string[]>([]);
   const [noticeId, setNoticeId] = useState<string | null>(null);
   const [rankRange, setRankRange] = useState('近30天');
+  const [rankTab, setRankTab] = useState<'person' | 'dept' | 'best'>('person');
+  const [bannerIdx, setBannerIdx] = useState(0);
   const [mineTab, setMineTab] = useState<'created' | 'added'>('created');
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -118,6 +120,12 @@ export default function AppCenter() {
     const t = setTimeout(() => setToast(''), 2200);
     return () => clearTimeout(t);
   }, [toast]);
+
+  /* 平台公告 banner 自动轮播 */
+  useEffect(() => {
+    const t = setInterval(() => setBannerIdx((v) => (v + 1) % PLATFORM_NOTICES.length), 5000);
+    return () => clearInterval(t);
+  }, []);
 
   const mineActive = view.kind === 'mine' || (view.kind === 'create' && backView.kind === 'mine');
 
@@ -400,7 +408,17 @@ export default function AppCenter() {
           )}
         </section>
 
-        <div className="ap-home-2col">
+        <div className="ap-home-banner-row">
+          <div className="ap-banner" onClick={() => setNoticeId(PLATFORM_NOTICES[bannerIdx].id)}>
+            <em className="ap-banner-tag">{PLATFORM_NOTICES[bannerIdx].tag} · {PLATFORM_NOTICES[bannerIdx].date}</em>
+            <h3>{PLATFORM_NOTICES[bannerIdx].title}</h3>
+            <p>{PLATFORM_NOTICES[bannerIdx].content}</p>
+            <div className="ap-banner-dots" onClick={(e) => e.stopPropagation()}>
+              {PLATFORM_NOTICES.map((n, i) => (
+                <button key={n.id} type="button" className={i === bannerIdx ? 'on' : ''} onClick={() => setBannerIdx(i)} />
+              ))}
+            </div>
+          </div>
           <section className="ap-home-card">
             <h3 className="ap-home-title"><Svg d={IC.flame} size={16} />应用上新（升级公告）</h3>
             <div className="ap-rel-list">
@@ -417,20 +435,6 @@ export default function AppCenter() {
               {releases.length === 0 && <div className="ap-empty">暂无上新与升级公告</div>}
             </div>
           </section>
-          <section className="ap-home-card">
-            <h3 className="ap-home-title"><Svg d={IC.bell} size={16} />平台公告</h3>
-            <div className="ap-rel-list">
-              {PLATFORM_NOTICES.map((n) => (
-                <button type="button" key={n.id} className="ap-rel-item" onClick={() => setNoticeId(n.id)}>
-                  <span className="ap-rel-main">
-                    <b>{n.title}</b>
-                    <i>{n.date}</i>
-                  </span>
-                  <em className="ap-rel-tag notice">{n.tag}</em>
-                </button>
-              ))}
-            </div>
-          </section>
         </div>
 
         <section className="ap-home-card">
@@ -438,41 +442,41 @@ export default function AppCenter() {
             <h3 className="ap-home-title"><Svg d={IC.trophy} size={16} />贡献榜</h3>
             <span className="ap-rank-note">组织架构同步自成员管理（钉钉归属）</span>
           </div>
-          <div className="ap-rank-grid">
-            <div className="ap-rank-card">
-              <h4>个人贡献榜<span>创作数量最多</span></h4>
-              {personRank.map(([name, n], i) => (
-                <div key={name} className="ap-rank-row">
-                  <b className={i < 3 ? `no${i + 1}` : ''}>{i + 1}</b>
-                  <span className="ap-rank-name">{name}<i>{creatorDept(name)}</i></span>
-                  <em>{n} 个创作</em>
-                </div>
+          <div className="ap-rank-bar">
+            <div className="ap-rank-tabs">
+              {([['person', '个人贡献榜'], ['dept', '部门贡献榜'], ['best', '最佳应用榜']] as const).map(([k, label]) => (
+                <button key={k} type="button" className={rankTab === k ? 'on' : ''} onClick={() => setRankTab(k)}>{label}</button>
               ))}
             </div>
-            <div className="ap-rank-card">
-              <h4>部门贡献榜<span>部门整体创作最多</span></h4>
-              {deptRank.map(([name, n], i) => (
-                <div key={name} className="ap-rank-row">
-                  <b className={i < 3 ? `no${i + 1}` : ''}>{i + 1}</b>
-                  <span className="ap-rank-name">{name}</span>
-                  <em>{n} 次创作</em>
-                </div>
-              ))}
-            </div>
-            <div className="ap-rank-card">
-              <h4>最佳应用榜<span>范围内使用人次最多</span></h4>
-              <div className="ap-rank-range">
-                <BubbleSelect options={RANK_RANGES} value={rankRange} onChange={setRankRange} />
+            {rankTab === 'best' ? (
+              <BubbleSelect options={RANK_RANGES} value={rankRange} onChange={setRankRange} />
+            ) : (
+              <span className="ap-rank-sub-note">{rankTab === 'person' ? '按创作数量排序' : '按部门整体创作次数排序'}</span>
+            )}
+          </div>
+          <div className="ap-rank-list">
+            {rankTab === 'person' && personRank.map(([name, n], i) => (
+              <div key={name} className="ap-rank-row">
+                <b className={i < 3 ? `no${i + 1}` : ''}>{i + 1}</b>
+                <span className="ap-rank-name">{name}<i>{creatorDept(name)}</i></span>
+                <em>{n} 个创作</em>
               </div>
-              {bestApps.map((a, i) => (
-                <button type="button" key={a.id} className="ap-rank-row" onClick={() => openDetail(a.id)}>
-                  <b className={i < 3 ? `no${i + 1}` : ''}>{i + 1}</b>
-                  <Logo icon={a.icon} size={24} />
-                  <span className="ap-rank-name">{a.name}</span>
-                  <em>{usageInRange(a, rankRange)} 人次</em>
-                </button>
-              ))}
-            </div>
+            ))}
+            {rankTab === 'dept' && deptRank.map(([name, n], i) => (
+              <div key={name} className="ap-rank-row">
+                <b className={i < 3 ? `no${i + 1}` : ''}>{i + 1}</b>
+                <span className="ap-rank-name">{name}</span>
+                <em>{n} 次创作</em>
+              </div>
+            ))}
+            {rankTab === 'best' && bestApps.map((a, i) => (
+              <button type="button" key={a.id} className="ap-rank-row" onClick={() => openDetail(a.id)}>
+                <b className={i < 3 ? `no${i + 1}` : ''}>{i + 1}</b>
+                <Logo icon={a.icon} size={24} />
+                <span className="ap-rank-name">{a.name}</span>
+                <em>{usageInRange(a, rankRange)} 人次</em>
+              </button>
+            ))}
           </div>
         </section>
       </div>

@@ -121,11 +121,17 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/ac-verify-14-home.png`, fullPage: true });
 
-  // 15. 平台公告弹窗
-  await page.click('.ap-home-2col section:nth-child(2) .ap-rel-item >> nth=0');
+  // 15. 平台公告 banner 弹窗
+  await page.click('.ap-banner');
   await page.waitForSelector('.ap-notice-body');
   await page.waitForTimeout(200);
   await page.screenshot({ path: `${OUT}/ac-verify-15-notice.png` });
+  await page.click('.ap-modal-foot .ap-btn-blue');
+
+  // 16. 贡献榜 tab 切换（最佳应用榜）
+  await page.click('.ap-rank-tabs button:has-text("最佳应用榜")');
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/ac-verify-16-rank-best.png`, fullPage: true });
 
   await browser.close();
   console.log('screenshots done');
