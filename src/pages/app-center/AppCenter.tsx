@@ -1,581 +1,489 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import BubbleSelect from '../../components/BubbleSelect';
-import { apps, DOMAINS, leaderUnits, leaderUnitOf, type AppItem } from './data';
+import {
+  CATEGORIES, FORM_CATEGORIES, ICON_PRESETS, PREVIEW_PRESETS, TAG_PRESETS,
+  initialApps, type AppItem, type IconSpec, type Preview,
+} from './data';
 import './AppCenter.css';
 
-/* PRD《一体化应用中心需求对接文档》四大板块 */
-type SectionKey = 'mine' | 'apps' | 'usage' | 'data';
+type View =
+  | { kind: 'list' }
+  | { kind: 'detail'; id: string }
+  | { kind: 'mine' }
+  | { kind: 'create'; editId?: string };
 
-const STATUS_LABEL: Record<AppItem['status'], string> = {
-  online: '运行中',
-  beta: '试用中',
-  offline: '已停用',
+const today = () => {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())}`;
 };
 
-/* ---------- 图标 ---------- */
+/* ---------- 小图标 ---------- */
+const Svg = ({ d, size = 14, className = '' }: { d: string; size?: number; className?: string }) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d={d} />
+  </svg>
+);
 const IC = {
-  star: 'M12 3.6l2.6 5.3 5.9.9-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.8l5.9-.9L12 3.6z',
-  grid: 'M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z',
-  chart: 'M4 20h16M7 16v-5m5 5V7m5 9v-3',
-  db: 'M12 3c4.4 0 8 1.3 8 3s-3.6 3-8 3-8-1.3-8-3 3.6-3 8-3zM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6',
-  enter: 'M13 5l7 7-7 7M20 12H4',
-  close: 'M6 6l12 12M18 6L6 18',
-  check: 'M4 12.5l5 5L20 6.5',
-  phone: 'M5 4h4l2 5-2.5 1.5a12 12 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z',
-  mail: 'M4 6h16v12H4V6zm0 1l8 6 8-6',
-  user: 'M12 12a4 4 0 100-8 4 4 0 000 8zm-8 8a8 8 0 0116 0',
-  dept: 'M4 20h16M6 20V6l6-3 6 3v14M10 9h1m3 0h1m-5 4h1m3 0h1',
+  search: 'M11 4a7 7 0 110 14 7 7 0 010-14zm9 16l-4.35-4.35',
+  clear: 'M6 6l12 12M18 6L6 18',
+  back: 'M15 5l-7 7 7 7',
+  caret: 'M6 9l6 6 6-6',
+  plus: 'M12 5v14M5 12h14',
+  sort: 'M8 5v14M8 5L5 8m3-3l3 3m8 11V5m0 14l-3-3m3 3l3-3',
+  cat: 'M4 5h16v14H4V5zm0 4h16M9 9v10',
 };
 
-function Icon({ d, size = 16, filled = false, className = '' }: { d: string; size?: number; filled?: boolean; className?: string }) {
+function Logo({ icon, size = 44 }: { icon: IconSpec; size?: number }) {
   return (
-    <svg
-      className={className}
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill={filled ? 'currentColor' : 'none'}
-      stroke={filled ? 'none' : 'currentColor'}
-      strokeWidth={1.8}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d={d} />
-    </svg>
+    <span className="ap-logo" style={{ width: size, height: size, background: icon.bg, fontSize: size * 0.42, color: icon.c ?? '#fff', borderRadius: size * 0.24 }}>
+      {icon.g}
+    </span>
   );
 }
 
-/* 业务域配色（应用图标底色） */
-const HUES: [string, string][] = [
-  ['#eef3ff', '#4f7cff'],
-  ['#e6f6fb', '#0e9db8'],
-  ['#e8f7f0', '#1f9c5c'],
-  ['#fff4e8', '#f77234'],
-  ['#f0ecff', '#7b61ff'],
-  ['#ffeef0', '#f53f5e'],
-  ['#fffbe6', '#c9930a'],
-  ['#ecf8e6', '#67a80f'],
-];
-const hueOf = (domain: string) => {
-  const i = DOMAINS.findIndex((d) => d.name === domain);
-  return HUES[(i < 0 ? 0 : i) % HUES.length];
-};
+function PreviewCard({ p }: { p: Preview }) {
+  return (
+    <div className={`ap-preview hue-${p.hue}`}>
+      <span className="ap-preview-title">{p.title}</span>
+      <span className="ap-preview-sub">{p.sub}</span>
+    </div>
+  );
+}
 
-const loadFavs = (): string[] => {
-  try {
-    const raw = localStorage.getItem('funion:ac:favs');
-    if (raw) return JSON.parse(raw) as string[];
-  } catch { /* ignore */ }
-  return ['app-01', 'app-13'];
-};
+/* 行右侧操作按钮：添加/更新/打开/加载 */
+function ActionBtn({ app, onAct }: { app: AppItem; onAct: (a: AppItem) => void }) {
+  if (app.state === 'loading') return <span className="ap-spin" />;
+  const cls = app.state === 'update' ? 'update' : 'plain';
+  const label = app.state === 'add' ? '添加' : app.state === 'update' ? '更新' : '打开';
+  return (
+    <button type="button" className={`ap-act ${cls}`} onClick={(e) => { e.stopPropagation(); onAct(app); }}>
+      {label}
+    </button>
+  );
+}
 
 export default function AppCenter() {
-  const [section, setSection] = useState<SectionKey>('apps');
-  const [subView, setSubView] = useState<'domain' | 'all'>('domain');
-
-  /* 收藏（我的应用） */
-  const [favs, setFavs] = useState<string[]>(loadFavs);
-  useEffect(() => {
-    try { localStorage.setItem('funion:ac:favs', JSON.stringify(favs)); } catch { /* ignore */ }
-  }, [favs]);
-
-  /* 业务域视图 */
-  const [selectedDomain, setSelectedDomain] = useState(DOMAINS[0].name);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  /* 所有应用筛选：草稿态，点搜索生效 */
-  const [fDomain, setFDomain] = useState('全部业务域');
-  const [fLeader, setFLeader] = useState('全部域长单位');
-  const [fName, setFName] = useState('');
-  const [fCoverage, setFCoverage] = useState('');
-  const [query, setQuery] = useState({ domain: '全部业务域', leader: '全部域长单位', name: '', coverage: '' });
-
-  /* 权限申请流程 */
-  const [applied, setApplied] = useState<string[]>([]);
-  const [permApp, setPermApp] = useState<AppItem | null>(null);
-  const [permReason, setPermReason] = useState('');
-  const [permDone, setPermDone] = useState(false);
-
-  /* 轻提示 */
+  const [apps, setApps] = useState<AppItem[]>(initialApps);
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<'users' | 'release' | null>(null);
+  const [sortDesc, setSortDesc] = useState(true);
+  const [view, setView] = useState<View>({ kind: 'list' });
+  const [mineTab, setMineTab] = useState<'created' | 'added'>('created');
+  const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [toast, setToast] = useState('');
+
+  /* 上传新创作表单 */
+  const [fName, setFName] = useState('');
+  const [fDesc, setFDesc] = useState('');
+  const [fIcon, setFIcon] = useState<IconSpec | null>(null);
+  const [fPreviews, setFPreviews] = useState<Preview[]>([]);
+  const [fCat, setFCat] = useState('Agent');
+  const [fTags, setFTags] = useState<string[]>([]);
+
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(''), 2400);
+    const t = setTimeout(() => setToast(''), 2200);
     return () => clearTimeout(t);
   }, [toast]);
 
-  const favApps = useMemo(() => apps.filter((a) => favs.includes(a.id)), [favs]);
-  const domainApps = useMemo(() => apps.filter((a) => a.domain === selectedDomain), [selectedDomain]);
-  const selectedApp = apps.find((a) => a.id === selectedId) ?? null;
+  const hasMine = apps.some((a) => a.origin);
 
-  const filteredApps = useMemo(() => {
-    return apps.filter((a) => {
-      const okDomain = query.domain === '全部业务域' || a.domain === query.domain;
-      const okLeader = query.leader === '全部域长单位' || leaderUnitOf(a.domain) === query.leader;
-      const okName = !query.name || a.name.toLowerCase().includes(query.name.trim().toLowerCase());
-      const okCoverage = !query.coverage || a.coverage.some((c) => c.includes(query.coverage.trim()));
-      return okDomain && okLeader && okName && okCoverage;
-    });
-  }, [query]);
+  const listApps = useMemo(() => {
+    let list = apps;
+    if (search.trim()) {
+      const kw = search.trim().toLowerCase();
+      list = list.filter((a) => a.name.toLowerCase().includes(kw) || a.desc.toLowerCase().includes(kw));
+    } else if (category) {
+      list = list.filter((a) => a.category === category);
+    }
+    if (sortKey) {
+      list = [...list].sort((a, b) => {
+        const va = sortKey === 'users' ? a.users : a.release;
+        const vb = sortKey === 'users' ? b.users : b.release;
+        const r = va < vb ? -1 : va > vb ? 1 : 0;
+        return sortDesc ? -r : r;
+      });
+    }
+    return list;
+  }, [apps, search, category, sortKey, sortDesc]);
 
-  const toggleFav = (id: string) => {
-    setFavs((v) => (v.includes(id) ? v.filter((x) => x !== id) : [...v, id]));
-  };
+  const detailApp = view.kind === 'detail' ? apps.find((a) => a.id === view.id) ?? null : null;
 
-  /* 单点登录进入系统；无权限走权限申请流程 */
-  const enterApp = (app: AppItem) => {
-    if (app.status === 'offline') {
-      setToast(`「${app.name}」已停用，请联系运维联系人`);
+  const patchApp = (id: string, patch: Partial<AppItem>) =>
+    setApps((v) => v.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+
+  /* 添加/更新：加载后变为打开；添加同时进入「我添加的」 */
+  const act = (app: AppItem) => {
+    if (app.state === 'open') {
+      setToast(`正在打开「${app.name}」`);
       return;
     }
-    if (!app.hasPermission && !applied.includes(app.id)) {
-      setPermReason('');
-      setPermDone(false);
-      setPermApp(app);
-      return;
-    }
-    if (!app.hasPermission) {
-      setToast('权限申请审批中，通过后即可进入系统');
-      return;
-    }
-    setToast(`单点登录成功，正在跳转「${app.name}」`);
+    const wasAdd = app.state === 'add';
+    patchApp(app.id, { state: 'loading' });
+    setTimeout(() => {
+      patchApp(app.id, { state: 'open', ...(wasAdd ? { origin: 'added' as const } : {}) });
+      setToast(wasAdd ? `已添加「${app.name}」` : `「${app.name}」已更新`);
+    }, 900);
   };
 
-  const submitPerm = () => {
-    if (!permApp) return;
-    if (!permReason.trim()) {
-      setToast('请填写申请理由');
-      return;
+  const openMenu = (id: string, e: React.MouseEvent<HTMLButtonElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    setMenu({ id, x: r.right - 116, y: r.bottom + 6 });
+  };
+
+  const removeAdded = (id: string) => {
+    patchApp(id, { origin: undefined, state: 'add' });
+    setToast('已移除应用');
+  };
+
+  const confirmDelete = () => {
+    if (!deleteId) return;
+    setApps((v) => v.filter((a) => a.id !== deleteId));
+    setDeleteId(null);
+    setToast('应用已删除');
+  };
+
+  const openCreate = (editId?: string) => {
+    const src = editId ? apps.find((a) => a.id === editId) : null;
+    setFName(src?.name ?? '');
+    setFDesc(src?.desc ?? '');
+    setFIcon(src?.icon ?? null);
+    setFPreviews(src?.previews ?? []);
+    setFCat(src?.category ?? 'Agent');
+    setFTags(src?.tags ?? []);
+    setView({ kind: 'create', editId });
+  };
+
+  const submitCreate = () => {
+    if (!fName.trim()) { setToast('请输入应用名称'); return; }
+    if (!fIcon) { setToast('请上传应用图标'); return; }
+    if (fPreviews.length === 0) { setToast('请至少上传一张应用主图'); return; }
+    if (view.kind === 'create' && view.editId) {
+      patchApp(view.editId, { name: fName.trim(), desc: fDesc.trim(), icon: fIcon, previews: fPreviews, category: fCat, tags: fTags });
+      setToast('应用已更新');
+    } else {
+      const app: AppItem = {
+        id: `my-${Date.now()}`,
+        name: fName.trim(),
+        desc: fDesc.trim() || '小蜜蜂干活很刻苦',
+        icon: fIcon,
+        category: fCat,
+        state: 'open',
+        users: 0,
+        release: today(),
+        creator: '七妮妮',
+        previews: fPreviews,
+        tags: fTags,
+        origin: 'created',
+      };
+      setApps((v) => [app, ...v]);
+      setToast('创作已上传');
     }
-    setApplied((v) => [...v, permApp.id]);
-    setPermDone(true);
+    setMineTab('created');
+    setView({ kind: 'mine' });
   };
 
-  const openPerm = (app: AppItem) => {
-    setPermReason('');
-    setPermDone(false);
-    setPermApp(app);
-  };
-
-  /* ---------- 通用：应用卡片 ---------- */
-  const renderCard = (app: AppItem) => {
-    const [bg, fg] = hueOf(app.domain);
-    const fav = favs.includes(app.id);
-    return (
-      <div
-        key={app.id}
-        className={`ac-app-card${selectedId === app.id ? ' on' : ''}`}
-        onClick={() => setSelectedId(app.id)}
-      >
-        <div className="ac-card-top">
-          <span className="ac-app-icon" style={{ background: bg, color: fg }}>{app.name[0]}</span>
-          <button
-            type="button"
-            className={`ac-star${fav ? ' on' : ''}`}
-            title={fav ? '取消收藏' : '收藏'}
-            onClick={(e) => { e.stopPropagation(); toggleFav(app.id); }}
-          >
-            <Icon d={IC.star} size={17} filled={fav} />
-          </button>
+  /* ---------- 列表单元格 ---------- */
+  const renderCell = (app: AppItem) => (
+    <div key={app.id} className="ap-cell" onClick={() => setView({ kind: 'detail', id: app.id })}>
+      <div className="ap-row">
+        <Logo icon={app.icon} />
+        <div className="ap-row-main">
+          <span className="ap-row-name">{app.name}</span>
+          <span className="ap-row-desc">{app.desc}</span>
         </div>
-        <h3 className="ac-app-name">{app.name}</h3>
-        <p className="ac-app-intro">{app.intro}</p>
-        <div className="ac-card-foot">
-          <span className={`ac-status st-${app.status}`}>{STATUS_LABEL[app.status]}</span>
-          <span className="ac-card-domain">{app.domain}</span>
-        </div>
+        <ActionBtn app={app} onAct={act} />
       </div>
-    );
-  };
-
-  /* ---------- 通用：右侧应用信息（PRD：责任部门/联系人/联系方式/简介） ---------- */
-  const renderDetail = () => {
-    if (!selectedApp) {
-      return (
-        <div className="ac-detail-empty">
-          <Icon d={IC.grid} size={36} className="ac-detail-empty-ico" />
-          <p>点击应用卡片查看应用信息</p>
-        </div>
-      );
-    }
-    const app = selectedApp;
-    const [bg, fg] = hueOf(app.domain);
-    const fav = favs.includes(app.id);
-    const pending = !app.hasPermission && applied.includes(app.id);
-    return (
-      <>
-        <div className="ac-detail-head">
-          <span className="ac-app-icon lg" style={{ background: bg, color: fg }}>{app.name[0]}</span>
-          <div className="ac-detail-title">
-            <h3>{app.name}</h3>
-            <span className={`ac-status st-${app.status}`}>{STATUS_LABEL[app.status]}</span>
-          </div>
-        </div>
-        <div className="ac-detail-body">
-          <div className="ac-row"><span className="ac-row-label">责任部门</span><span className="ac-row-value">{app.responsibleDept}</span></div>
-          <div className="ac-row">
-            <span className="ac-row-label">联系人</span>
-            <span className="ac-row-value">
-              {app.businessContact.name}（业务）／{app.opsContact.name}（运维）
-            </span>
-          </div>
-          <div className="ac-row">
-            <span className="ac-row-label">联系方式</span>
-            <span className="ac-row-value">{app.phone}<br />{app.email}</span>
-          </div>
-          <div className="ac-row"><span className="ac-row-label">业务域</span><span className="ac-row-value">{app.domain}</span></div>
-          <div className="ac-row"><span className="ac-row-label">覆盖业务</span><span className="ac-row-value">{app.coverage.join('、')}</span></div>
-          <div className="ac-row col">
-            <span className="ac-row-label">简介</span>
-            <p className="ac-row-intro">{app.intro}</p>
-          </div>
-        </div>
-        <div className="ac-detail-foot">
-          <button type="button" className="ac-btn primary" onClick={() => enterApp(app)}>
-            <Icon d={IC.enter} size={14} />
-            进入系统
-          </button>
-          {!app.hasPermission && !pending && (
-            <button type="button" className="ac-btn light" onClick={() => openPerm(app)}>权限申请</button>
-          )}
-          {pending && <span className="ac-perm-pending">权限审批中</span>}
-          <button
-            type="button"
-            className={`ac-btn light${fav ? ' starred' : ''}`}
-            onClick={() => toggleFav(app.id)}
-          >
-            <Icon d={IC.star} size={14} filled={fav} />
-            {fav ? '已收藏' : '收藏'}
-          </button>
-        </div>
-      </>
-    );
-  };
-
-  /* ---------- 板块一：我的应用 ---------- */
-  const renderMine = () => (
-    <>
-      <div className="ac-head">
-        <h2 className="ac-title">我的应用</h2>
-        <span className="ac-desc">我收藏的应用信息，点击后与业务域列表页面操作相同</span>
-      </div>
-      {favApps.length === 0 ? (
-        <div className="ac-empty">
-          <Icon d={IC.star} size={34} />
-          <p>暂无收藏的应用</p>
-          <button type="button" className="ac-btn light" onClick={() => setSection('apps')}>去应用（业务域）收藏</button>
-        </div>
-      ) : (
-        <div className="ac-board">
-          <div className="ac-board-center">
-            <div className="ac-card-grid">{favApps.map(renderCard)}</div>
-          </div>
-          <aside className="ac-detail">{renderDetail()}</aside>
-        </div>
-      )}
-    </>
+      {app.previews[0] && <PreviewCard p={app.previews[0]} />}
+    </div>
   );
 
-  /* ---------- 板块二：应用（业务域） ---------- */
-  const renderApps = () => (
-    <>
-      <div className="ac-head">
-        <h2 className="ac-title">应用（业务域）</h2>
-        <span className="ac-desc">按油田业务域管理应用，左侧业务域 · 中间卡片 · 右侧应用信息</span>
-        <div className="ac-seg">
-          <button type="button" className={subView === 'domain' ? 'on' : ''} onClick={() => setSubView('domain')}>按业务域列表</button>
-          <button type="button" className={subView === 'all' ? 'on' : ''} onClick={() => setSubView('all')}>所有应用</button>
+  /* ---------- 我的应用行（打开 + 下拉） ---------- */
+  const renderMineRow = (app: AppItem) => (
+    <div key={app.id} className="ap-cell" onClick={() => setView({ kind: 'detail', id: app.id })}>
+      <div className="ap-row">
+        <Logo icon={app.icon} />
+        <div className="ap-row-main">
+          <span className="ap-row-name">{app.name}</span>
+          <span className="ap-row-desc">{app.desc}</span>
+        </div>
+        <div className="ap-open-wrap" onClick={(e) => e.stopPropagation()}>
+          <button type="button" className="ap-act plain" onClick={() => act(app)}>打开</button>
+          <button type="button" className="ap-act caret" onClick={(e) => openMenu(app.id, e)}>
+            <Svg d={IC.caret} size={12} className={menu?.id === app.id ? 'up' : ''} />
+          </button>
         </div>
       </div>
+    </div>
+  );
 
-      {subView === 'domain' ? (
-        <div className="ac-board with-menu">
-          <aside className="ac-domain-menu">
-            <div className="ac-menu-title">业务域</div>
-            {DOMAINS.map((d) => (
+  /* ---------- 列表 / 搜索 ---------- */
+  const renderList = () => {
+    const kw = search.trim();
+    const title = kw ? `“${kw}”搜索结果` : category ? `${category}（${listApps.length}）` : `全部应用（${listApps.length}）`;
+    return (
+      <>
+        <div className="ap-list-head">
+          <h2 className="ap-list-title">{title}</h2>
+          <div className="ap-sorts">
+            {(['users', 'release'] as const).map((k) => (
               <button
-                key={d.name}
+                key={k}
                 type="button"
-                className={`ac-menu-item${selectedDomain === d.name ? ' on' : ''}`}
-                onClick={() => { setSelectedDomain(d.name); setSelectedId(null); }}
-              >
-                <span className="ac-menu-name">{d.name}</span>
-                <span className="ac-menu-count">{apps.filter((a) => a.domain === d.name).length}</span>
-              </button>
-            ))}
-          </aside>
-          <div className="ac-board-center">
-            <div className="ac-card-grid">{domainApps.map(renderCard)}</div>
-          </div>
-          <aside className="ac-detail">{renderDetail()}</aside>
-        </div>
-      ) : (
-        <>
-          <div className="ac-filters">
-            <BubbleSelect
-              className="ac-select"
-              options={['全部业务域', ...DOMAINS.map((d) => d.name)]}
-              value={fDomain}
-              onChange={setFDomain}
-            />
-            <BubbleSelect
-              className="ac-select"
-              options={['全部域长单位', ...leaderUnits]}
-              value={fLeader}
-              onChange={setFLeader}
-            />
-            <input className="ac-input" placeholder="系统名" value={fName} onChange={(e) => setFName(e.target.value)} />
-            <input className="ac-input" placeholder="覆盖业务" value={fCoverage} onChange={(e) => setFCoverage(e.target.value)} />
-            <div className="ac-actions">
-              <button
-                type="button"
-                className="ac-btn light"
+                className={`ap-sort${sortKey === k ? ' on' : ''}`}
                 onClick={() => {
-                  setFDomain('全部业务域'); setFLeader('全部域长单位'); setFName(''); setFCoverage('');
-                  setQuery({ domain: '全部业务域', leader: '全部域长单位', name: '', coverage: '' });
+                  if (sortKey === k) setSortDesc((v) => !v);
+                  else { setSortKey(k); setSortDesc(true); }
                 }}
               >
-                重置
+                {k === 'users' ? '使用人数' : '上架时间'}
+                <Svg d={IC.sort} size={12} />
               </button>
-              <button
-                type="button"
-                className="ac-btn primary"
-                onClick={() => setQuery({ domain: fDomain, leader: fLeader, name: fName, coverage: fCoverage })}
-              >
-                搜索
-              </button>
-            </div>
-          </div>
-
-          <div className="ac-table-card">
-            <table className="ac-table">
-              <thead>
-                <tr>
-                  <th>系统名</th>
-                  <th>业务域</th>
-                  <th>域长单位</th>
-                  <th>覆盖业务</th>
-                  <th>业务联系人</th>
-                  <th>状态</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredApps.map((app) => {
-                  const [bg, fg] = hueOf(app.domain);
-                  const fav = favs.includes(app.id);
-                  return (
-                    <tr key={app.id}>
-                      <td>
-                        <div className="ac-table-name">
-                          <span className="ac-table-icon" style={{ background: bg, color: fg }}>{app.name[0]}</span>
-                          <span>{app.name}</span>
-                        </div>
-                      </td>
-                      <td>{app.domain}</td>
-                      <td>{leaderUnitOf(app.domain)}</td>
-                      <td>{app.coverage.join('、')}</td>
-                      <td>{app.businessContact.name}</td>
-                      <td><span className={`ac-status st-${app.status}`}>{STATUS_LABEL[app.status]}</span></td>
-                      <td>
-                        <div className="ac-table-ops">
-                          <button type="button" className="ac-link" onClick={() => enterApp(app)}>进入系统</button>
-                          <button
-                            type="button"
-                            className={`ac-star${fav ? ' on' : ''}`}
-                            title={fav ? '取消收藏' : '收藏'}
-                            onClick={() => toggleFav(app.id)}
-                          >
-                            <Icon d={IC.star} size={15} filled={fav} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            {filteredApps.length === 0 && (
-              <div className="ac-table-empty">未找到匹配的应用</div>
-            )}
-          </div>
-        </>
-      )}
-    </>
-  );
-
-  /* ---------- 板块三：使用情况 ---------- */
-  const renderUsage = () => {
-    const totalClicks = apps.reduce((s, a) => s + a.clicks, 0);
-    const top = [...apps].sort((a, b) => b.clicks - a.clicks);
-    const maxClicks = top[0]?.clicks ?? 1;
-    const onlineCount = apps.filter((a) => a.status === 'online').length;
-    return (
-      <>
-        <div className="ac-head">
-          <h2 className="ac-title">使用情况</h2>
-          <span className="ac-desc">各个应用的点击率使用情况卡片、排名</span>
-        </div>
-
-        <div className="ac-stats">
-          <div className="ac-stat"><span className="ac-stat-label">应用总数</span><span className="ac-stat-num">{apps.length}</span><span className="ac-stat-sub">覆盖 {DOMAINS.length} 个业务域</span></div>
-          <div className="ac-stat"><span className="ac-stat-label">本月总点击</span><span className="ac-stat-num">{totalClicks.toLocaleString()}</span><span className="ac-stat-sub">单点登录统一计数</span></div>
-          <div className="ac-stat"><span className="ac-stat-label">运行中应用</span><span className="ac-stat-num">{onlineCount}</span><span className="ac-stat-sub">试用中 {apps.filter((a) => a.status === 'beta').length} 个</span></div>
-          <div className="ac-stat"><span className="ac-stat-label">最受欢迎</span><span className="ac-stat-num sm">{top[0]?.name}</span><span className="ac-stat-sub">本月点击 {top[0]?.clicks.toLocaleString()} 次</span></div>
-        </div>
-
-        <div className="ac-usage-grid">
-          <div className="ac-card ac-rank-card">
-            <div className="ac-card-title">应用点击排名</div>
-            <div className="ac-rank-list">
-              {top.slice(0, 8).map((app, i) => (
-                <div key={app.id} className="ac-rank-row">
-                  <span className={`ac-rank-no r${i + 1}`}>{i + 1}</span>
-                  <div className="ac-rank-main">
-                    <div className="ac-rank-line">
-                      <span className="ac-rank-name">{app.name}</span>
-                      <span className="ac-rank-num">{app.clicks.toLocaleString()} 次</span>
-                    </div>
-                    <div className="ac-rank-bar"><i style={{ width: `${Math.round((app.clicks / maxClicks) * 100)}%` }} /></div>
-                  </div>
-                  <span className="ac-rank-rate">{((app.clicks / totalClicks) * 100).toFixed(1)}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="ac-usage-cards">
-            {top.map((app) => {
-              const [bg, fg] = hueOf(app.domain);
-              const wMax = Math.max(...app.weekly);
-              return (
-                <div key={app.id} className="ac-card ac-ucard">
-                  <div className="ac-ucard-head">
-                    <span className="ac-app-icon sm" style={{ background: bg, color: fg }}>{app.name[0]}</span>
-                    <div className="ac-ucard-title">
-                      <span className="ac-ucard-name">{app.name}</span>
-                      <span className="ac-ucard-domain">{app.domain}</span>
-                    </div>
-                    <span className="ac-ucard-clicks">{app.clicks.toLocaleString()}</span>
-                  </div>
-                  <div className="ac-bars">
-                    {app.weekly.map((w, i) => (
-                      <i key={i} className={i === app.weekly.length - 1 ? 'last' : ''} style={{ height: `${Math.max(12, Math.round((w / wMax) * 100))}%` }} title={`${w} 次`} />
-                    ))}
-                  </div>
-                  <div className="ac-ucard-foot">近 7 日点击趋势 · 点击率 {((app.clicks / totalClicks) * 100).toFixed(1)}%</div>
-                </div>
-              );
-            })}
+            ))}
           </div>
         </div>
+        <div className="ap-grid">{listApps.map(renderCell)}</div>
       </>
     );
   };
 
-  /* ---------- 板块四：数据中心（EPBP 嵌入） ---------- */
-  const renderData = () => (
-    <>
-      <div className="ac-head">
-        <h2 className="ac-title">数据中心</h2>
-        <span className="ac-desc">EPBP 数据嵌入，单点登录免登录访问</span>
-      </div>
-      <div className="ac-card ac-epbp">
-        <div className="ac-epbp-head">
-          <span className="ac-epbp-tag">EPBP</span>
-          <span className="ac-epbp-title">企业业务基础平台（EPBP）数据嵌入区</span>
-          <span className="ac-epbp-sub">与 EPBP 结合嵌入，统一单点登录</span>
+  /* ---------- 详情 ---------- */
+  const renderDetail = () => {
+    if (!detailApp) return null;
+    const app = detailApp;
+    return (
+      <div className="ap-detail">
+        <button type="button" className="ap-back" onClick={() => setView({ kind: 'list' })}>
+          <Svg d={IC.back} size={18} />
+        </button>
+        <div className="ap-detail-head">
+          <Logo icon={app.icon} size={78} />
+          <div className="ap-detail-info">
+            <h2>{app.name}</h2>
+            <p>{app.desc}</p>
+            <button type="button" className="ap-btn-solid" onClick={() => act(app)}>
+              {app.state === 'open' ? '打开' : app.state === 'update' ? '更新' : '添加'}
+            </button>
+          </div>
+          <div className="ap-detail-stats">
+            <div className="ap-stat"><span>创作者</span><b>{app.creator}</b></div>
+            <div className="ap-stat"><span>上线时间</span><b>{app.release}</b></div>
+            <div className="ap-stat"><span>使用人次</span><b>{app.users}</b></div>
+          </div>
         </div>
-        <div className="ac-epbp-body">
-          <div className="ac-epbp-logo">EPBP</div>
-          <p>勘探开发一体化业务数据将在此嵌入展示</p>
-          <button type="button" className="ac-btn primary" onClick={() => setToast('单点登录成功，正在打开 EPBP 数据中心')}>
-            <Icon d={IC.enter} size={14} />
-            单点登录打开 EPBP
+        <div className="ap-detail-divider" />
+        <h3 className="ap-detail-sub">预览</h3>
+        <div className="ap-detail-previews">
+          {app.previews.map((p, i) => <PreviewCard key={i} p={p} />)}
+        </div>
+      </div>
+    );
+  };
+
+  /* ---------- 我的应用 ---------- */
+  const renderMine = () => {
+    const created = apps.filter((a) => a.origin === 'created');
+    const added = apps.filter((a) => a.origin === 'added');
+    const list = mineTab === 'created' ? created : added;
+    return (
+      <>
+        <div className="ap-mine-head">
+          <div className="ap-mine-tabs">
+            <button type="button" className={mineTab === 'created' ? 'on' : ''} onClick={() => setMineTab('created')}>我的创作</button>
+            <button type="button" className={mineTab === 'added' ? 'on' : ''} onClick={() => setMineTab('added')}>我添加的</button>
+          </div>
+          <button type="button" className="ap-btn-blue" onClick={() => openCreate()}>上传新创作</button>
+        </div>
+        <div className="ap-grid mine">{list.map(renderMineRow)}</div>
+      </>
+    );
+  };
+
+  /* ---------- 上传新创作 ---------- */
+  const renderCreate = () => (
+    <div className="ap-create">
+      <div className="ap-create-head">
+        <button type="button" className="ap-back" onClick={() => setView({ kind: 'mine' })}>
+          <Svg d={IC.back} size={18} />
+        </button>
+        <h2>上传新的创作</h2>
+      </div>
+
+      <div className="ap-form">
+        <label className="ap-label">应用名称<i>*</i></label>
+        <div className="ap-field">
+          <input maxLength={10} placeholder="请输入" value={fName} onChange={(e) => setFName(e.target.value)} />
+          <span className="ap-count">{fName.length}/10</span>
+        </div>
+
+        <label className="ap-label">应用简述</label>
+        <div className="ap-field area">
+          <textarea maxLength={80} placeholder="请输入" value={fDesc} onChange={(e) => setFDesc(e.target.value)} />
+          <span className="ap-count">{fDesc.length}/80</span>
+        </div>
+
+        <label className="ap-label">应用图标<i>*</i></label>
+        <button
+          type="button"
+          className="ap-upload icon"
+          onClick={() => setFIcon((cur) => ICON_PRESETS[(ICON_PRESETS.indexOf(cur as IconSpec) + 1) % ICON_PRESETS.length] ?? ICON_PRESETS[0])}
+        >
+          {fIcon ? <Logo icon={fIcon} size={96} /> : (<><Svg d={IC.plus} size={20} /><span>上传图片</span></>)}
+        </button>
+        <div className="ap-hint-line">
+          <span className="ap-hint">支持.jpg .png .webp格式</span>
+          <button type="button" className="ap-link" onClick={() => { setFIcon(ICON_PRESETS[Math.floor(Math.random() * ICON_PRESETS.length)]); setToast('已为你一键生成图标'); }}>
+            没有灵感？点击一键生成
           </button>
         </div>
+
+        <label className="ap-label">应用主图<i>*</i></label>
+        <div className="ap-main-grid">
+          {fPreviews.map((p, i) => <PreviewCard key={i} p={p} />)}
+          {fPreviews.length < 9 && (
+            <button type="button" className="ap-upload main" onClick={() => setFPreviews((v) => [...v, PREVIEW_PRESETS[v.length % PREVIEW_PRESETS.length]])}>
+              <Svg d={IC.plus} size={20} />
+              <span>上传图片</span>
+            </button>
+          )}
+        </div>
+        <span className="ap-hint">至少上传一张图片，最多可上传9张，建议图片比例 16:9</span>
+
+        <label className="ap-label">应用分类<i>*</i></label>
+        <div className="ap-cat-line">
+          <BubbleSelect
+            className="ap-cat-select"
+            options={['新建类目', ...FORM_CATEGORIES]}
+            value={fCat}
+            onChange={(v) => {
+              if (v === '新建类目') { setToast('新建类目：演示'); return; }
+              setFCat(v);
+            }}
+          />
+          <button type="button" className="ap-cat-manage" onClick={() => setToast('类目管理：演示')}>类目管理</button>
+        </div>
+
+        <label className="ap-label">应用标签</label>
+        <div className="ap-tag-line">
+          <button
+            type="button"
+            className="ap-tag-add"
+            onClick={() => setFTags((v) => {
+              const next = TAG_PRESETS.find((t) => !v.includes(t));
+              return next ? [...v, next] : v;
+            })}
+          >
+            <Svg d={IC.plus} size={12} />
+            标签
+          </button>
+          {fTags.map((t) => (
+            <span key={t} className="ap-tag">
+              {t}
+              <button type="button" onClick={() => setFTags((v) => v.filter((x) => x !== t))}>×</button>
+            </span>
+          ))}
+        </div>
+
+        <div className="ap-form-foot">
+          <button type="button" className="ap-btn-plain" onClick={() => setView({ kind: 'mine' })}>返 回</button>
+          <button type="button" className="ap-btn-blue" onClick={submitCreate}>下一步</button>
+        </div>
       </div>
-    </>
+    </div>
   );
 
-  const SECTIONS: { key: SectionKey; label: string; icon: string; badge?: number }[] = [
-    { key: 'mine', label: '我的应用', icon: IC.star, badge: favs.length },
-    { key: 'apps', label: '应用（业务域）', icon: IC.grid },
-    { key: 'usage', label: '使用情况', icon: IC.chart },
-    { key: 'data', label: '数据中心', icon: IC.db },
-  ];
+  const deleteApp = deleteId ? apps.find((a) => a.id === deleteId) : null;
+  const menuApp = menu ? apps.find((a) => a.id === menu.id) : null;
 
   return (
-    <div className="ac-page">
-      <aside className="ac-side">
-        <div className="ac-side-brand">应用中心<span>一体化应用门户</span></div>
-        <div className="ac-grp">导航</div>
-        {SECTIONS.map((s) => (
-          <button
-            key={s.key}
-            type="button"
-            className={`ac-nav${section === s.key ? ' active' : ''}`}
-            onClick={() => { setSection(s.key); setSelectedId(null); }}
-          >
-            <span className="ac-nav-ico"><Icon d={s.icon} size={17} /></span>
-            <span className="ac-nav-text">{s.label}</span>
-            {s.badge ? <span className="ac-badge">{s.badge}</span> : null}
-          </button>
-        ))}
+    <div className="ap-page">
+      <aside className="ap-side">
+        <div className="ap-search">
+          <Svg d={IC.search} size={14} />
+          <input
+            placeholder="搜索"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setView({ kind: 'list' }); }}
+          />
+          {search && (
+            <button type="button" className="ap-search-clear" onClick={() => setSearch('')}>
+              <Svg d={IC.clear} size={12} />
+            </button>
+          )}
+        </div>
+        <nav className="ap-cats">
+          {CATEGORIES.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`${category === c && !search ? 'on' : ''}`}
+              onClick={() => { setCategory(category === c ? null : c); setSearch(''); setView({ kind: 'list' }); }}
+            >
+              <Svg d={IC.cat} size={15} className="ap-cat-ic" />
+              {c}
+            </button>
+          ))}
+          {hasMine && (
+            <button type="button" className={view.kind === 'mine' ? 'on' : ''} onClick={() => setView({ kind: 'mine' })}>
+              <Svg d={IC.cat} size={15} className="ap-cat-ic" />
+              我的应用
+            </button>
+          )}
+        </nav>
+        <div className="ap-side-user">
+          <span className="ap-avatar" />
+          七妮妮
+        </div>
       </aside>
 
-      <main className="ac-main">
-        {section === 'mine' && renderMine()}
-        {section === 'apps' && renderApps()}
-        {section === 'usage' && renderUsage()}
-        {section === 'data' && renderData()}
+      <main className="ap-main">
+        {view.kind === 'list' && renderList()}
+        {view.kind === 'detail' && renderDetail()}
+        {view.kind === 'mine' && renderMine()}
+        {view.kind === 'create' && renderCreate()}
       </main>
 
-      {toast && <div className="ac-toast">{toast}</div>}
+      {toast && <div className="ap-toast">{toast}</div>}
 
-      {permApp && (
-        <div className="ac-mask" onClick={() => setPermApp(null)}>
-          <div className="ac-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="ac-modal-head">
-              <span>权限申请</span>
-              <button type="button" className="ac-modal-close" onClick={() => setPermApp(null)}>
-                <Icon d={IC.close} size={14} />
-              </button>
-            </div>
-            {permDone ? (
-              <div className="ac-modal-success">
-                <span className="ac-success-ico"><Icon d={IC.check} size={22} /></span>
-                <h4>申请已提交</h4>
-                <p>系统：{permApp.name}</p>
-                <p>审批流程：{leaderUnitOf(permApp.domain)} 审批 → 科技信息部备案</p>
-                <p className="ac-success-status">当前状态：审批中</p>
-              </div>
+      {menu && menuApp && createPortal(
+        <>
+          <div className="ap-menu-mask" onClick={() => setMenu(null)} />
+          <div className="ap-menu" style={{ left: menu.x, top: menu.y }}>
+            {mineTab === 'created' ? (
+              <>
+                <button type="button" onClick={() => { setMenu(null); openCreate(menuApp.id); }}>编辑应用</button>
+                <button type="button" onClick={() => { setMenu(null); setToast('权限管理：演示'); }}>权限管理</button>
+                <button type="button" className="danger" onClick={() => { setMenu(null); setDeleteId(menuApp.id); }}>删除应用</button>
+              </>
             ) : (
-              <div className="ac-modal-body">
-                <div className="ac-row"><span className="ac-row-label">申请系统</span><span className="ac-row-value">{permApp.name}</span></div>
-                <div className="ac-row"><span className="ac-row-label">申请人</span><span className="ac-row-value">七妮妮</span></div>
-                <div className="ac-row"><span className="ac-row-label">审批流程</span><span className="ac-row-value">{leaderUnitOf(permApp.domain)} 审批 → 科技信息部备案</span></div>
-                <div className="ac-row col grow">
-                  <span className="ac-row-label">申请理由</span>
-                  <textarea
-                    className="ac-textarea"
-                    placeholder="请说明申请该系统权限的业务背景"
-                    value={permReason}
-                    onChange={(e) => setPermReason(e.target.value)}
-                  />
-                </div>
-              </div>
+              <>
+                <button type="button" onClick={() => { setMenu(null); setToast('已添加到首页'); }}>添加到首页</button>
+                <button type="button" className="danger" onClick={() => { setMenu(null); removeAdded(menuApp.id); }}>移除应用</button>
+              </>
             )}
-            <div className="ac-modal-foot">
-              {permDone ? (
-                <button type="button" className="ac-btn primary" onClick={() => setPermApp(null)}>完成</button>
-              ) : (
-                <>
-                  <button type="button" className="ac-btn light" onClick={() => setPermApp(null)}>取消</button>
-                  <button type="button" className="ac-btn primary" onClick={submitPerm}>提交申请</button>
-                </>
-              )}
+          </div>
+        </>,
+        document.body,
+      )}
+
+      {deleteApp && (
+        <div className="ap-mask">
+          <div className="ap-modal">
+            <div className="ap-modal-head">
+              <span>删除应用</span>
+              <button type="button" onClick={() => setDeleteId(null)}><Svg d={IC.clear} size={14} /></button>
+            </div>
+            <div className="ap-modal-body">
+              应用删除后，使用记录及关联数据将全部丢失，请谨慎操作，是否确认删除该应用？
+            </div>
+            <div className="ap-modal-foot">
+              <button type="button" className="ap-btn-plain" onClick={() => setDeleteId(null)}>取 消</button>
+              <button type="button" className="ap-btn-blue" onClick={confirmDelete}>确 定</button>
             </div>
           </div>
         </div>
