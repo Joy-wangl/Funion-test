@@ -360,54 +360,6 @@ export default function AppCenter() {
     const bestApps = [...apps].sort((a, b) => usageInRange(b, rankRange) - usageInRange(a, rankRange)).slice(0, 5);
     return (
       <div className="ap-home">
-        <div className="ap-home-head">
-          <h2>首页</h2>
-          <span>{today()} · 欢迎回来，七妮妮</span>
-        </div>
-
-        <section className="ap-home-card">
-          <h3 className="ap-home-title"><Svg d={IC.clock} size={16} />最近使用</h3>
-          {recentApps.length === 0 ? (
-            <div className="ap-empty">暂无最近使用的应用，点击应用的「打开」后会自动记录在这里</div>
-          ) : (
-            <div className="ap-home-row">
-              {recentApps.map(({ app, at }) => (
-                <button type="button" key={app.id} className="ap-home-app" onClick={() => openDetail(app.id)}>
-                  <Logo icon={app.icon} size={36} />
-                  <span>
-                    <span className="ap-home-app-name">{app.name}</span>
-                    <span className="ap-home-app-sub">{fmtRecent(at)} 使用</span>
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="ap-home-card">
-          <h3 className="ap-home-title"><Svg d={IC.star} size={16} />我收藏的应用</h3>
-          {favApps.length === 0 ? (
-            <div className="ap-empty">还没有收藏的应用，在应用详情右上角点击星标即可收藏</div>
-          ) : (
-            <div className="ap-home-row">
-              {favApps.map((app) => (
-                <div key={app.id} className="ap-home-app">
-                  <button type="button" className="ap-home-app-body" onClick={() => openDetail(app.id)}>
-                    <Logo icon={app.icon} size={36} />
-                    <span>
-                      <span className="ap-home-app-name">{app.name}</span>
-                      <span className="ap-home-app-sub">{app.users} 人次使用</span>
-                    </span>
-                  </button>
-                  <button type="button" className="ap-fav on" title="取消收藏" onClick={() => toggleFav(app.id)}>
-                    <Svg d={IC.star} size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
         <div className="ap-home-banner-row">
           <div className="ap-banner" onClick={() => setNoticeId(PLATFORM_NOTICES[bannerIdx].id)}>
             <em className="ap-banner-tag">{PLATFORM_NOTICES[bannerIdx].tag} · {PLATFORM_NOTICES[bannerIdx].date}</em>
@@ -436,6 +388,49 @@ export default function AppCenter() {
             </div>
           </section>
         </div>
+
+        <section className="ap-home-card">
+          <h3 className="ap-home-title"><Svg d={IC.star} size={16} />我收藏的应用</h3>
+          {favApps.length === 0 ? (
+            <div className="ap-empty">还没有收藏的应用，在应用详情右上角点击星标即可收藏</div>
+          ) : (
+            <div className="ap-home-row">
+              {favApps.map((app) => (
+                <div key={app.id} className="ap-home-app">
+                  <button type="button" className="ap-home-app-body" onClick={() => openDetail(app.id)}>
+                    <Logo icon={app.icon} size={36} />
+                    <span>
+                      <span className="ap-home-app-name">{app.name}</span>
+                      <span className="ap-home-app-sub">{app.users} 人次使用</span>
+                    </span>
+                  </button>
+                  <button type="button" className="ap-fav on" title="取消收藏" onClick={() => toggleFav(app.id)}>
+                    <Svg d={IC.star} size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="ap-home-card">
+          <h3 className="ap-home-title"><Svg d={IC.clock} size={16} />最近使用</h3>
+          {recentApps.length === 0 ? (
+            <div className="ap-empty">暂无最近使用的应用，点击应用的「打开」后会自动记录在这里</div>
+          ) : (
+            <div className="ap-home-row">
+              {recentApps.map(({ app, at }) => (
+                <button type="button" key={app.id} className="ap-home-app" onClick={() => openDetail(app.id)}>
+                  <Logo icon={app.icon} size={36} />
+                  <span>
+                    <span className="ap-home-app-name">{app.name}</span>
+                    <span className="ap-home-app-sub">{fmtRecent(at)} 使用</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
 
         <section className="ap-home-card">
           <div className="ap-rank-head">

@@ -953,12 +953,6 @@
   gap: 18px;
 }
 
-.ap-home-head { display: flex; align-items: baseline; gap: 12px; }
-
-.ap-home-head h2 { font-size: 20px; font-weight: 700; }
-
-.ap-home-head span { font-size: 12px; color: #98a0b3; }
-
 .ap-home-card {
   background: #fff;
   border-radius: 12px;
@@ -1215,6 +1209,7 @@ button.ap-home-app { cursor: pointer; }
   border: none;
   background: transparent;
   width: 100%;
+  text-align: left;
 }
 
 button.ap-rank-row { cursor: pointer; }
