@@ -1018,7 +1018,7 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-home-app-name {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: #1f2329;
   max-width: 110px;
@@ -1027,7 +1027,7 @@ button.ap-home-app { cursor: pointer; }
   text-overflow: ellipsis;
 }
 
-.ap-home-app-sub { display: block; font-size: 11px; color: #98a0b3; margin-top: 2px; }
+.ap-home-app-sub { display: block; font-size: 12px; color: #98a0b3; margin-top: 2px; }
 
 .ap-home-app .ap-fav { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 6px; }
 
@@ -1082,17 +1082,17 @@ button.ap-home-app { cursor: pointer; }
 .ap-banner-tag {
   display: inline-block;
   font-style: normal;
-  font-size: 11px;
+  font-size: 12px;
   padding: 3px 10px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.22);
   margin-bottom: 12px;
 }
 
-.ap-banner h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.ap-banner h3 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
 
 .ap-banner p {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.7;
   opacity: 0.88;
   display: -webkit-box;
@@ -1141,7 +1141,7 @@ button.ap-home-app { cursor: pointer; }
 .ap-rel-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 
 .ap-rel-main b {
-  font-size: 13px;
+  font-size: 14px;
   color: #1f2329;
   font-weight: 600;
   overflow: hidden;
@@ -1149,9 +1149,9 @@ button.ap-home-app { cursor: pointer; }
   text-overflow: ellipsis;
 }
 
-.ap-rel-main i { font-style: normal; font-size: 11px; color: #98a0b3; }
+.ap-rel-main i { font-style: normal; font-size: 12px; color: #98a0b3; }
 
-.ap-rel-tag { flex-shrink: 0; font-style: normal; font-size: 11px; border-radius: 4px; padding: 2px 8px; }
+.ap-rel-tag { flex-shrink: 0; font-style: normal; font-size: 12px; border-radius: 4px; padding: 2px 8px; }
 
 .ap-rel-tag.new { background: #e8f3ff; color: #2e7cf6; }
 
@@ -1217,12 +1217,12 @@ button.ap-rank-row { cursor: pointer; }
 button.ap-rank-row:hover .ap-rank-name { color: #2e7cf6; }
 
 .ap-rank-row b {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border-radius: 6px;
   background: #f2f3f7;
   color: #646a73;
-  font-size: 11px;
+  font-size: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1238,7 +1238,7 @@ button.ap-rank-row:hover .ap-rank-name { color: #2e7cf6; }
 .ap-rank-name {
   flex: 1;
   min-width: 0;
-  font-size: 12px;
+  font-size: 14px;
   color: #1f2329;
   display: flex;
   flex-direction: column;
@@ -1246,14 +1246,44 @@ button.ap-rank-row:hover .ap-rank-name { color: #2e7cf6; }
 
 .ap-rank-name i {
   font-style: normal;
-  font-size: 10px;
+  font-size: 12px;
   color: #98a0b3;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
-.ap-rank-row em { font-style: normal; font-size: 11px; color: #646a73; flex-shrink: 0; }
+.ap-rank-row em { font-style: normal; font-size: 13px; color: #646a73; flex-shrink: 0; }
+
+.ap-rank-person { padding: 6px 0 10px; border-bottom: 1px dashed #eef0f4; }
+
+.ap-rank-person:last-child { border-bottom: none; padding-bottom: 2px; }
+
+.ap-rank-apps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 0 28px;
+}
+
+.ap-rank-app {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 6px;
+  background: #f7f8fa;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #445066;
+  cursor: pointer;
+}
+
+.ap-rank-app:hover { background: #eef3ff; color: #2e7cf6; }
+
+.ap-rank-app i { font-style: normal; font-size: 12px; color: #98a0b3; }
+
+.ap-rank-more { align-self: center; font-size: 12px; color: #98a0b3; }
 
 .ap-notice-body i { display: block; font-style: normal; color: #98a0b3; font-size: 12px; margin-bottom: 8px; }
 

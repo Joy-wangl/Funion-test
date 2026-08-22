@@ -357,6 +357,13 @@ export default function AppCenter() {
       deptMap.set(d, (deptMap.get(d) ?? 0) + 1);
     });
     const deptRank = [...deptMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const personUsers = new Map<string, number>();
+    apps.forEach((a) => personUsers.set(a.creator, (personUsers.get(a.creator) ?? 0) + a.users));
+    const deptUsers = new Map<string, number>();
+    apps.forEach((a) => {
+      const d = creatorDept(a.creator);
+      deptUsers.set(d, (deptUsers.get(d) ?? 0) + a.users);
+    });
     const bestApps = [...apps].sort((a, b) => usageInRange(b, rankRange) - usageInRange(a, rankRange)).slice(0, 5);
     return (
       <div className="ap-home">
@@ -372,11 +379,11 @@ export default function AppCenter() {
             </div>
           </div>
           <section className="ap-home-card">
-            <h3 className="ap-home-title"><Svg d={IC.flame} size={16} />应用上新（升级公告）</h3>
+            <h3 className="ap-home-title"><Svg d={IC.flame} size={18} />应用上新（升级公告）</h3>
             <div className="ap-rel-list">
               {releases.map((a) => (
                 <button type="button" key={a.id} className="ap-rel-item" onClick={() => openDetail(a.id)}>
-                  <Logo icon={a.icon} size={30} />
+                  <Logo icon={a.icon} size={32} />
                   <span className="ap-rel-main">
                     <b>{a.name}</b>
                     <i>{a.hasUpdate ? '有新版本可更新' : `${a.release} 新上架`}</i>
@@ -390,7 +397,7 @@ export default function AppCenter() {
         </div>
 
         <section className="ap-home-card">
-          <h3 className="ap-home-title"><Svg d={IC.star} size={16} />我收藏的应用</h3>
+          <h3 className="ap-home-title"><Svg d={IC.star} size={18} />我收藏的应用</h3>
           {favApps.length === 0 ? (
             <div className="ap-empty">还没有收藏的应用，在应用详情右上角点击星标即可收藏</div>
           ) : (
@@ -398,7 +405,7 @@ export default function AppCenter() {
               {favApps.map((app) => (
                 <div key={app.id} className="ap-home-app">
                   <button type="button" className="ap-home-app-body" onClick={() => openDetail(app.id)}>
-                    <Logo icon={app.icon} size={36} />
+                    <Logo icon={app.icon} size={40} />
                     <span>
                       <span className="ap-home-app-name">{app.name}</span>
                       <span className="ap-home-app-sub">{app.users} 人次使用</span>
@@ -414,14 +421,14 @@ export default function AppCenter() {
         </section>
 
         <section className="ap-home-card">
-          <h3 className="ap-home-title"><Svg d={IC.clock} size={16} />最近使用</h3>
+          <h3 className="ap-home-title"><Svg d={IC.clock} size={18} />最近使用</h3>
           {recentApps.length === 0 ? (
             <div className="ap-empty">暂无最近使用的应用，点击应用的「打开」后会自动记录在这里</div>
           ) : (
             <div className="ap-home-row">
               {recentApps.map(({ app, at }) => (
                 <button type="button" key={app.id} className="ap-home-app" onClick={() => openDetail(app.id)}>
-                  <Logo icon={app.icon} size={36} />
+                  <Logo icon={app.icon} size={40} />
                   <span>
                     <span className="ap-home-app-name">{app.name}</span>
                     <span className="ap-home-app-sub">{fmtRecent(at)} 使用</span>
@@ -434,7 +441,7 @@ export default function AppCenter() {
 
         <section className="ap-home-card">
           <div className="ap-rank-head">
-            <h3 className="ap-home-title"><Svg d={IC.trophy} size={16} />贡献榜</h3>
+            <h3 className="ap-home-title"><Svg d={IC.trophy} size={18} />贡献榜</h3>
             <span className="ap-rank-note">组织架构同步自成员管理（钉钉归属）</span>
           </div>
           <div className="ap-rank-bar">
@@ -450,24 +457,39 @@ export default function AppCenter() {
             )}
           </div>
           <div className="ap-rank-list">
-            {rankTab === 'person' && personRank.map(([name, n], i) => (
-              <div key={name} className="ap-rank-row">
-                <b className={i < 3 ? `no${i + 1}` : ''}>{i + 1}</b>
-                <span className="ap-rank-name">{name}<i>{creatorDept(name)}</i></span>
-                <em>{n} 个创作</em>
-              </div>
-            ))}
+            {rankTab === 'person' && personRank.map(([name, n], i) => {
+              const created = apps.filter((a) => a.creator === name).sort((a, b) => b.users - a.users);
+              return (
+                <div key={name} className="ap-rank-person">
+                  <div className="ap-rank-row">
+                    <b className={i < 3 ? `no${i + 1}` : ''}>{i + 1}</b>
+                    <span className="ap-rank-name">{name}<i>{creatorDept(name)}</i></span>
+                    <em>{n} 个创作 · {personUsers.get(name) ?? 0} 人使用</em>
+                  </div>
+                  <div className="ap-rank-apps">
+                    {created.slice(0, 4).map((a) => (
+                      <button key={a.id} type="button" className="ap-rank-app" onClick={() => openDetail(a.id)}>
+                        <Logo icon={a.icon} size={18} />
+                        <span>{a.name}</span>
+                        <i>{a.users} 人</i>
+                      </button>
+                    ))}
+                    {created.length > 4 && <span className="ap-rank-more">+{created.length - 4}</span>}
+                  </div>
+                </div>
+              );
+            })}
             {rankTab === 'dept' && deptRank.map(([name, n], i) => (
               <div key={name} className="ap-rank-row">
                 <b className={i < 3 ? `no${i + 1}` : ''}>{i + 1}</b>
                 <span className="ap-rank-name">{name}</span>
-                <em>{n} 次创作</em>
+                <em>{n} 次创作 · {deptUsers.get(name) ?? 0} 人使用</em>
               </div>
             ))}
             {rankTab === 'best' && bestApps.map((a, i) => (
               <button type="button" key={a.id} className="ap-rank-row" onClick={() => openDetail(a.id)}>
                 <b className={i < 3 ? `no${i + 1}` : ''}>{i + 1}</b>
-                <Logo icon={a.icon} size={24} />
+                <Logo icon={a.icon} size={28} />
                 <span className="ap-rank-name">{a.name}</span>
                 <em>{usageInRange(a, rankRange)} 人次</em>
               </button>
