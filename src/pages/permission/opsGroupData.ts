@@ -80,6 +80,11 @@ export const INITIAL_OPS_MEMBERS: OpsChannelMembers = {
     { memberId: 'm12', name: '陈晓',   role: 'assistant',  groupId: 'tg1', parentId: 'm11', addedBy: '刘洋',     addedAt: '2026/02/18 11:30:00' },
     { memberId: 'm9',  name: '徐佳华', role: 'leader',     groupId: 'tg2', parentId: null,  addedBy: '系统同步', addedAt: '2026/02/15 10:00:00' },
     { memberId: 'm13', name: '杨帆',   role: 'specialist', groupId: 'tg2', parentId: 'm9',  addedBy: '徐佳华',   addedAt: '2026/02/15 14:40:00' },
+    /* 部门管理成员必有归属：添加归属前置到添加成员时，初始成员同样预置归属 */
+    { memberId: 'm1',  name: '张三',   role: 'specialist', groupId: 'tg1', parentId: 'm5',  addedBy: '黄亚芳',   addedAt: '2026/02/18 12:00:00' },
+    { memberId: 'm2',  name: '李四',   role: 'assistant',  groupId: 'tg1', parentId: 'm6',  addedBy: '孙倩',     addedAt: '2026/02/18 12:00:00' },
+    { memberId: 'm3',  name: '李四',   role: 'specialist', groupId: 'tg2', parentId: 'm9',  addedBy: '徐佳华',   addedAt: '2026/02/18 12:00:00' },
+    { memberId: 'm4',  name: '张三',   role: 'assistant',  groupId: 'tg2', parentId: 'm13', addedBy: '杨帆',     addedAt: '2026/02/18 12:00:00' },
   ],
   video: [
     { memberId: 'm5',  name: '黄亚芳', role: 'leader',     groupId: 'vg1', parentId: null,  addedBy: '系统同步', addedAt: '2026/02/16 15:20:00' },

@@ -146,7 +146,7 @@
 .pm-page .tree-item {
   display: flex;
   align-items: center;
-  height: 34px;
+  height: 40px;
   padding: 0 8px;
   border-radius: var(--radius);
   cursor: pointer;
