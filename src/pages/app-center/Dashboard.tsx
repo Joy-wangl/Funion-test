@@ -211,13 +211,17 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
   const goodAll = reviews.length ? reviews.filter((r) => r.stars >= 4).length / reviews.length : 0;
   const goodApps = rows.filter((r) => r.avg >= 4.5 && r.cnt >= 3);
   const hotIds = new Set(top3.map((r) => r.app.id));
+  /* 应用数据概览：新增按上线日期判、更新按名称去重、蒙尘=日均使用不足 2 人次 */
+  const newApps = apps.filter((a) => Date.now() - new Date(a.release).getTime() <= range * 86400000).length;
+  const updatedApps = new Set(apps.filter((a) => a.hasUpdate || a.releaseNote).map((a) => a.name)).size;
+  const dustApps = rows.filter((r) => r.use / range < 2).length;
 
   return (
     <div className="ap-dash">
       <div className="ap-dash-head">
         <button type="button" className="ap-back" onClick={onBack}><Ic d="M15 19l-7-7 7-7" size={16} /></button>
-        <h2>数据看板</h2>
-        <span className="ap-dash-sub">近{range}天使用人次与占比，一眼看出哪些应用好用</span>
+        <h2>数据概览</h2>
+        <span className="ap-dash-sub">应用资产与使用情况，一眼看清</span>
         <span className="ap-dash-search">
           <Ic d="M11 4a7 7 0 100 14 7 7 0 000-14zM21 21l-4.35-4.35" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索应用名称" />
@@ -229,28 +233,57 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
         </span>
       </div>
 
-      <div className="ap-dash-kpis">
-        <div className="ap-dash-kpi">
-          <span className="lb">近{range}天总使用人次</span>
-          <span className="vl">{fmt(rangeTotal)}</span>
-          <span className="sb">日均约 <b>{fmt(Math.round(rangeTotal / range))}</b> 人次</span>
+      <section className="ap-dash-ovmod">
+        <h3>应用数据概览<span>应用资产与更新状态</span></h3>
+        <div className="ap-dash-kpis">
+          <div className="ap-dash-kpi">
+            <span className="lb">应用总数</span>
+            <span className="vl">{apps.length}</span>
+            <span className="sb">覆盖 <b>{cats.length}</b> 个类目</span>
+          </div>
+          <div className="ap-dash-kpi">
+            <span className="lb">新增应用数</span>
+            <span className="vl">{newApps}</span>
+            <span className="sb">近{range}天新上线</span>
+          </div>
+          <div className="ap-dash-kpi">
+            <span className="lb">更新应用数（去重后）</span>
+            <span className="vl">{updatedApps}</span>
+            <span className="sb">按应用名去重的版本更新</span>
+          </div>
+          <div className="ap-dash-kpi">
+            <span className="lb">蒙尘应用数</span>
+            <span className="vl">{dustApps}</span>
+            <span className="sb">近{range}天日均使用 &lt; 2 人次</span>
+          </div>
         </div>
-        <div className="ap-dash-kpi">
-          <span className="lb">累计总人次</span>
-          <span className="vl">{fmt(allTotal)}</span>
-          <span className="sb">近{range}天新增占 <b>{allTotal ? Math.round((rangeTotal / allTotal) * 100) : 0}%</b></span>
+      </section>
+
+      <section className="ap-dash-ovmod">
+        <h3>使用情况概览<span>近{range}天使用与口碑</span></h3>
+        <div className="ap-dash-kpis">
+          <div className="ap-dash-kpi">
+            <span className="lb">近{range}天总使用人次</span>
+            <span className="vl">{fmt(rangeTotal)}</span>
+            <span className="sb">日均约 <b>{fmt(Math.round(rangeTotal / range))}</b> 人次</span>
+          </div>
+          <div className="ap-dash-kpi">
+            <span className="lb">累计总人次</span>
+            <span className="vl">{fmt(allTotal)}</span>
+            <span className="sb">近{range}天新增占 <b>{allTotal ? Math.round((rangeTotal / allTotal) * 100) : 0}%</b></span>
+          </div>
+          <div className="ap-dash-kpi">
+            <span className="lb">总体平均评分</span>
+            <span className="vl">{avgAll ? avgAll.toFixed(1) : '--'}</span>
+            <span className="sb">整体好评率 <b>{Math.round(goodAll * 100)}%</b></span>
+          </div>
+          <div className="ap-dash-kpi">
+            <span className="lb">好评应用</span>
+            <span className="vl">{goodApps.length}</span>
+            <span className="sb">均分 ≥ 4.5 且评价 ≥ 3 条</span>
+          </div>
         </div>
-        <div className="ap-dash-kpi">
-          <span className="lb">总体平均评分</span>
-          <span className="vl">{avgAll ? avgAll.toFixed(1) : '--'}</span>
-          <span className="sb">整体好评率 <b>{Math.round(goodAll * 100)}%</b></span>
-        </div>
-        <div className="ap-dash-kpi">
-          <span className="lb">好评应用</span>
-          <span className="vl">{goodApps.length}</span>
-          <span className="sb">均分 ≥ 4.5 且评价 ≥ 3 条</span>
-        </div>
-      </div>
+      </section>
 
       <div className="ap-dash-duo">
         <section className="ap-dash-card ap-dash-top3-mod">

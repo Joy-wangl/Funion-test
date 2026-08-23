@@ -20,6 +20,11 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/ac-dash.png`, fullPage: true });
 
+  // 数据概览：两个模块，应用数据概览在上，字段齐全
+  const ovlTitles = await page.$$eval('.ap-dash-ovmod > h3', els => els.map(e => (e.firstChild ? e.firstChild.textContent : '').trim()));
+  const ovlLbs = await page.$$eval('.ap-dash-ovmod:first-of-type .ap-dash-kpi .lb', els => els.map(e => e.textContent));
+  const ovlTotal = await page.$eval('.ap-dash-ovmod .ap-dash-kpi .vl', el => el.textContent);
+
   // 范围切换
   await page.click('.ap-dash-range button:has-text("近7天")');
   await page.waitForTimeout(200);
@@ -84,6 +89,6 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/ac-mine-gap.png`, clip: { x: 0, y: 60, width: 1600, height: 420 } });
 
-  console.log(`entry=${entry} rangeOn=${on7} topN=${topN} sparks=${sparks} chipVer=${chipTxt.includes('版本时间段')} trendClosed=${trendClosed} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catsNavWide=${catsNavWide} catsNavNarrow=${catsNavNarrow} scrolled=${scrolled}`);
+  console.log(`ovl=${ovlTitles.join('|')} lbs=${ovlLbs.join('/')} ovlTotal=${ovlTotal} entry=${entry} rangeOn=${on7} topN=${topN} sparks=${sparks} chipVer=${chipTxt.includes('版本时间段')} trendClosed=${trendClosed} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catsNavWide=${catsNavWide} catsNavNarrow=${catsNavNarrow} scrolled=${scrolled}`);
   await browser.close();
 })().catch((e) => { console.error(e); process.exit(1); });

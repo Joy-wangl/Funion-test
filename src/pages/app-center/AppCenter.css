@@ -1424,6 +1424,12 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-dash-kpi .sb b { color: #2e7cf6; font-weight: 600; }
 
+.ap-dash-ovmod { display: flex; flex-direction: column; gap: 10px; }
+
+.ap-dash-ovmod > h3 { margin: 0; font-size: 14px; font-weight: 600; color: #1f2329; }
+
+.ap-dash-ovmod > h3 span { margin-left: 8px; font-size: 12px; font-weight: 400; color: #98a0ae; }
+
 .ap-dash-row { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; }
 
 .ap-dash-card { background: #fff; border-radius: 10px; padding: 16px 18px; min-width: 0; }
