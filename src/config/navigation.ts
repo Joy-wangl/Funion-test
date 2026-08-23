@@ -25,4 +25,5 @@ export const navigation: TabConfig[] = [
   { key: 'app-center', label: '应用中心', menus: [] },
   { key: 'ops-center', label: '智能运营中心', menus: [] },
   { key: 'qc-center', label: '品控中心', menus: [] },
+  { key: 'reception-center', label: '聚合接待', menus: [] },
 ];

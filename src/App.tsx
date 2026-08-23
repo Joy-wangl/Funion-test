@@ -5,6 +5,7 @@ import Sidebar, { findFirstLeaf } from './components/Sidebar';
 import QualityCenter from './pages/quality/QualityCenter';
 import AppCenter from './pages/app-center/AppCenter';
 import OpsCenter from './pages/ops-center/OpsCenter';
+import ReceptionCenter from './pages/reception/ReceptionCenter';
 import './App.css';
 
 export default function App() {
@@ -72,6 +73,10 @@ export default function App() {
         ) : activeTabKey === 'app-center' ? (
           <main className="app-content ac-standalone">
             <AppCenter />
+          </main>
+        ) : activeTabKey === 'reception-center' ? (
+          <main className="app-content ac-standalone">
+            <ReceptionCenter sidebarCollapsed={sidebarCollapsed} />
           </main>
         ) : (
           <>
