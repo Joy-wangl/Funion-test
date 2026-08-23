@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { toasts } from './toast';
-import '../pages/permission/style.css';
+/* .toast 样式由全局基础组件层（main.ts 引入 permission/style.css）提供 */
 </script>
 
 <template>

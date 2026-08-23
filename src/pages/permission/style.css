@@ -1069,3 +1069,43 @@
 
 /* 右侧占位 */
 .pm-page .og-empty-side .empty { padding-top: 80px; }
+
+/* =========================================================
+   收敛共享类（原散落于模板的行内样式，统一收敛于此；规范见《UI&风格设计规范文档》）
+   ========================================================= */
+/* 布局小工具 */
+.pm-page .grow { flex: 1; }
+.pm-page .ml-auto { margin-left: auto; }
+.pm-page .mt0 { margin: 0; }
+/* 表格：次级信息列 / 空值占位 / 操作列表头宽度 */
+.pm-page .td-time { color: var(--text-3); }
+.pm-page .td-dim { color: var(--text-4); }
+.pm-page .th-op { width: 80px; }
+.pm-page .th-150 { width: 150px; }
+.pm-page .th-14 { width: 14%; }
+.pm-page .th-24 { width: 24%; }
+/* 空状态尺寸变体（默认 60px，嵌入面板用紧凑档） */
+.pm-page .empty.tight { padding: 20px 0; }
+.pm-page .empty.md { padding: 30px 0; }
+/* 表单提示间距变体 */
+.pm-page .form-tip.mt { margin-top: 10px; }
+.pm-page .form-tip.mb { margin-bottom: 14px; }
+/* 弹窗内警示说明（图标 + 文案） */
+.pm-page .modal-warn { display: flex; gap: 12px; align-items: flex-start; }
+.pm-page .modal-warn-ic { flex-shrink: 0; color: var(--warning); }
+.pm-page .modal-warn-ic.danger { color: var(--danger); }
+.pm-page .modal-warn-txt { color: var(--text-2); line-height: 1.6; padding-top: 1px; }
+/* 表单横排（双列 / 输入+按钮） */
+.pm-page .form-row { display: flex; gap: 16px; }
+.pm-page .form-row-sm { display: flex; gap: 8px; }
+.pm-page .input-ro { background: var(--fill-1); }
+/* 角色选择器（RoleSelector） */
+.pm-page .rs-group { margin-bottom: 14px; }
+.pm-page .rs-group-name { font-size: 12px; color: var(--text-3); margin-bottom: 8px; }
+.pm-page .rs-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.pm-page .rs-item { border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; }
+/* 部门转移穿梭框 */
+.pm-page .dt-count { margin: 0 3px; color: var(--primary); }
+.pm-page .dt-empty { padding: 24px 0; text-align: center; color: var(--text-4); }
+.pm-page .dt-label { margin-left: 6px; }
+.pm-page .dt-desc { color: var(--text-4); font-size: 12px; margin-left: auto; }

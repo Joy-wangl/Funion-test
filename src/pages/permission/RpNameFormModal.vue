@@ -22,7 +22,7 @@ const ok = () => {
 
 <template>
   <Modal :title="title" @close="emit('close')">
-    <div class="form-item" :style="{ margin: 0 }">
+    <div class="form-item mt0">
       <label>名称 <span class="req">*</span></label>
       <input ref="inputEl" v-model="val" class="input" placeholder="请输入名称" :maxlength="20" />
     </div>

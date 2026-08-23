@@ -100,7 +100,7 @@ const selDEntries = computed(() => [...selD.value.entries()]);
           <span class="box"><IconCheck /></span>全选
         </label>
         <div class="pk-list">
-          <div v-if="total === 0" class="empty" :style="{ padding: '20px 0' }">无匹配结果</div>
+          <div v-if="total === 0" class="empty tight">无匹配结果</div>
           <div v-for="m in mems" :key="m.id" class="pk-row mp-member">
             <Checkbox :checked="selM.has(m.id)" @change="(c: boolean) => toggleMember(m, c)" />
             <span class="ava-sm" :style="{ background: avaColor(m.name) }">{{ m.name.slice(0, 1) }}</span>

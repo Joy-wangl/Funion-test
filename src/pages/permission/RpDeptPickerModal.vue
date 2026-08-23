@@ -113,7 +113,7 @@ const selEntries = computed(() => [...sel.value.entries()]);
               @sub="toggleSub"
             />
           </template>
-          <div v-else class="empty" :style="{ padding: '30px 0' }">无匹配部门</div>
+          <div v-else class="empty md">无匹配部门</div>
         </div>
       </div>
       <div class="picker-right">

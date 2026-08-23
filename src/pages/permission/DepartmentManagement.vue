@@ -190,7 +190,7 @@ const pickNode = (id: string) => { curDeptId.value = id; };
             @ctx="showDeptCtx"
           />
         </template>
-        <div v-else class="empty" :style="{ padding: '20px 0' }">无匹配部门</div>
+        <div v-else class="empty tight">无匹配部门</div>
       </div>
     </div>
 
@@ -211,7 +211,7 @@ const pickNode = (id: string) => { curDeptId.value = id; };
               <th>运营归属</th>
               <th>添加人</th>
               <th>添加时间</th>
-              <th :style="{ width: '80px' }">操作</th>
+              <th class="th-op">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -222,7 +222,7 @@ const pickNode = (id: string) => { curDeptId.value = id; };
                   <span v-for="(r, ri) in m.roles.slice(0, 3)" :key="ri" class="tag">{{ r }}</span>
                   <span v-if="m.roles.length > 3" class="more">···</span>
                 </div>
-                <span v-else :style="{ color: 'var(--text-4)' }">-</span>
+                <span v-else class="td-dim">-</span>
               </td>
               <td>
                 <div v-if="assignmentsOf(m.id).length" class="og-assign-cell">
@@ -234,7 +234,7 @@ const pickNode = (id: string) => { curDeptId.value = id; };
                 </div>
               </td>
               <td>{{ m.adder }}</td>
-              <td :style="{ color: 'var(--text-3)' }">{{ m.at }}</td>
+              <td class="td-time">{{ m.at }}</td>
               <td>
                 <div class="op">
                   <a class="danger" @click="pushToast('已移除')">移除</a>
@@ -267,9 +267,9 @@ const pickNode = (id: string) => { curDeptId.value = id; };
     @close="closeModal"
   />
   <Modal v-else-if="modal?.kind === 'confirm'" :title="modal.title" @close="closeModal">
-    <div :style="{ display: 'flex', gap: '12px', alignItems: 'flex-start' }">
-      <span :style="{ color: modal.danger ? 'var(--danger)' : 'var(--warning)', flexShrink: 0 }"><IconWarn /></span>
-      <div :style="{ color: 'var(--text-2)', lineHeight: 1.6, paddingTop: '1px' }">
+    <div class="modal-warn">
+      <span class="modal-warn-ic" :class="{ danger: modal.danger }"><IconWarn /></span>
+      <div class="modal-warn-txt">
         {{ modal.msg.pre }}<b>{{ modal.msg.bold }}</b>{{ modal.msg.post }}
       </div>
     </div>

@@ -817,7 +817,7 @@ const gotoFbDetail = (fbId: string) => {
               </div>
               <div v-if="fbReplies === 0" class="ap-fb-empty">暂无回复，官方处理后会在此回复你</div>
             </div>
-            <div class="ap-fb-field-label" :style="{ marginTop: '16px' }">补充描述</div>
+            <div class="ap-fb-field-label mt">补充描述</div>
             <textarea
               v-model="fbNote"
               class="ap-fb-input"

@@ -18,7 +18,7 @@ const setChecked = (id: string, name: string, checked: boolean) => {
   <div class="transfer">
     <div class="side">
       <div class="s-head">
-        <div class="input-icon" :style="{ flex: 1 }">
+        <div class="input-icon grow">
           <span class="ic"><IconSearch /></span>
           <input class="input" placeholder="搜索部门" />
         </div>
@@ -36,12 +36,12 @@ const setChecked = (id: string, name: string, checked: boolean) => {
     </div>
     <div class="side">
       <div class="s-head">
-        已选择 <b :style="{ margin: '0 3px', color: 'var(--primary)' }">{{ picked.size }}</b>/10000
+        已选择 <b class="dt-count">{{ picked.size }}</b>/10000
         <span class="clear" @click="emit('pickedChange', new Map())">清空</span>
       </div>
       <div class="s-body">
         <template v-if="picked.size === 0">
-          <div :style="{ color: 'var(--text-4)', textAlign: 'center', padding: '24px 0' }">暂未选择</div>
+          <div class="dt-empty">暂未选择</div>
         </template>
         <template v-else>
           <div v-for="[id, name] in picked.entries()" :key="id" class="selected-item">

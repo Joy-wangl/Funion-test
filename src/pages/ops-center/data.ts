@@ -529,7 +529,7 @@ export const parentTasks: ParentTask[] = [
 /* ================= 商品创建详情（静态素材，淘宝/视频号列表共用） ================= */
 export const createDetail = {
   category: ['一级类目', '二级类目', '三级类目'],
-  checkStatus: '未核验',
+  checkStatus: '待审核',
   thumbs: ['/products/main.png', '/products/main.png', '/products/main.png', '/products/main.png', '/products/main.png', '/products/main.png'],
   specs: [
     { name: '颜色分类', values: ['黑色', '白色'] },

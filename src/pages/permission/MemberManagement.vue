@@ -239,7 +239,7 @@ const drawerEdit = () => {
               <th>角色</th>
               <th>添加人</th>
               <th>添加时间</th>
-              <th :style="{ width: '150px' }">操作</th>
+              <th class="th-150">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -253,10 +253,10 @@ const drawerEdit = () => {
                     {{ roleById(rid)?.name || rid }}
                   </span>
                 </div>
-                <span v-else :style="{ color: 'var(--text-4)' }">-</span>
+                <span v-else class="td-dim">-</span>
               </td>
               <td>{{ m.addBy }}</td>
-              <td :style="{ color: 'var(--text-3)' }">{{ m.addAt }}</td>
+              <td class="td-time">{{ m.addAt }}</td>
               <td>
                 <div class="op">
                   <a v-if="m.status !== 'pending'" class="danger" @click="confirmRemove([m.id])">移除</a>
@@ -298,9 +298,9 @@ const drawerEdit = () => {
       :title="modal.title"
       @close="closeModalAt(idx)"
     >
-      <div :style="{ display: 'flex', gap: '12px', alignItems: 'flex-start' }">
-        <span :style="{ color: modal.danger ? 'var(--danger)' : 'var(--warning)', flexShrink: 0 }"><IconWarn /></span>
-        <div :style="{ color: 'var(--text-2)', lineHeight: 1.6, paddingTop: '1px' }">
+      <div class="modal-warn">
+        <span class="modal-warn-ic" :class="{ danger: modal.danger }"><IconWarn /></span>
+        <div class="modal-warn-txt">
           {{ modal.msg.pre }}<b v-if="modal.msg.bold">{{ modal.msg.bold }}</b>{{ modal.msg.post }}
         </div>
       </div>
@@ -379,7 +379,7 @@ const drawerEdit = () => {
               {{ roleById(rid)?.name || rid }}
             </span>
           </template>
-          <span v-else :style="{ color: 'var(--text-4)' }">暂无角色（默认只读）</span>
+          <span v-else class="td-dim">暂无角色（默认只读）</span>
         </div>
         <div class="section-title">数据权限范围</div>
         <div class="desc-list">

@@ -46,7 +46,7 @@ const confirm = () => { if (!pickedSrc.value) return; emit('confirm', pickedSrc.
       />
       <OgPickedSide :picked="pickedMembers" :max="1" :on-remove="() => picked = new Set()" />
     </div>
-    <div v-if="pickedSrc" class="form-tip" :style="{ marginTop: '10px' }">转交后：<b>{{ pickedSrc.name }}</b> 将接任「{{ group.name }}」{{ roleLabel }}，接管{{ oldLabel }} {{ entry.name }} 的下属；{{ entry.name }} 退出该运营组。</div>
+    <div v-if="pickedSrc" class="form-tip mt">转交后：<b>{{ pickedSrc.name }}</b> 将接任「{{ group.name }}」{{ roleLabel }}，接管{{ oldLabel }} {{ entry.name }} 的下属；{{ entry.name }} 退出该运营组。</div>
     <template #foot>
       <button class="btn" @click="emit('close')">取消</button>
       <button class="btn primary" @click="confirm">确认转交</button>

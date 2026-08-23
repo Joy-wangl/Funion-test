@@ -3,6 +3,10 @@
   position: relative;
   min-width: 0;
 }
+/* 复用模块 .select 盒样式时，触发器内边距与输入件对齐 */
+.bselect.select .bselect-trigger {
+  padding: 0 10px;
+}
 .bselect .bselect-trigger {
   width: 100%;
   height: 100%;
@@ -74,7 +78,7 @@
   background: #f5f8ff;
 }
 .bselect-opt.selected {
-  color: #4f7cff;
+  color: var(--color-primary);
   font-weight: 600;
 }
 .bselect-opt.disabled {

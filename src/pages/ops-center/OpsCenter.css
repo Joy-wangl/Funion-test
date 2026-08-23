@@ -2958,21 +2958,6 @@
 
 /* ===== 商品创建详情页 cpd-*（查看/编辑态） ===== */
 .ops-center .cpd-top-acts { display: flex; align-items: center; gap: 8px; }
-.ops-center .cpd-saveas { position: relative; display: flex; }
-/* 保存版本 分体按钮：主体 + ⌄ 视觉合一 */
-.ops-center .cpd-split-main { border-radius: 10px 0 0 10px; }
-.ops-center .cpd-split-caret {
-  border-radius: 0 10px 10px 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.35);
-  padding: 0 9px;
-}
-.ops-center .cpd-saveas-menu {
-  position: absolute; top: 40px; right: 0; z-index: 40;
-  background: #fff; border: 1px solid #e8ebf1; border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(26, 34, 56, 0.12); padding: 4px; white-space: nowrap;
-}
-.ops-center .cpd-saveas-menu div { padding: 7px 14px; font-size: 12px; color: #3d4657; cursor: pointer; border-radius: 6px; }
-.ops-center .cpd-saveas-menu div:hover { background: #f2f5fa; color: #4f7cff; }
 .ops-center .cpd-cat-edit { margin-left: auto; font-size: 12px; color: #4f7cff; text-decoration: none; }
 .ops-center .cpd-side-acts { flex: none; display: flex; flex-direction: column; gap: 10px; }
 .ops-center .cpd-side-btn {
@@ -3027,76 +3012,6 @@
 .ops-center .cpd-rad { width: 14px; height: 14px; border-radius: 50%; border: 1px solid #c3c9d4; background: #fff; position: relative; flex: none; }
 .ops-center .cpd-radio.on .cpd-rad { border-color: #4f7cff; }
 .ops-center .cpd-radio.on .cpd-rad::after { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: #4f7cff; }
-/* 版本选择按钮（详情页顶部） */
-.ops-center .cpd-ver-btn {
-  display: inline-flex; align-items: center; gap: 8px;
-  height: 32px; padding: 0 12px; border: 1px solid #4f7cff; border-radius: 8px;
-  background: #fff; color: #232b3a; font-size: 13px; cursor: pointer;
-}
-.ops-center .cpd-ver-btn:hover { background: #f6f9ff; }
-.ops-center .cpd-ver-btn .caret { color: #8a92a1; }
-/* 选择版本弹窗（居中模态，限宽限高、内部滚动） */
-.ops-center .cpd-ver-mask {
-  position: fixed; inset: 0; z-index: 260;
-  background: rgba(20, 26, 40, 0.35);
-  display: flex; justify-content: flex-end;
-}
-.ops-center .cpd-ver-panel {
-  width: min(1100px, 92vw); height: 100%;
-  display: flex; flex-direction: column; overflow: hidden;
-  background: #fff; border-radius: 14px 0 0 14px;
-  box-shadow: -18px 0 50px rgba(26, 34, 56, 0.2);
-  animation: cpd-ver-in 0.24s ease-out;
-}
-@keyframes cpd-ver-in {
-  from { transform: translateX(60px); opacity: 0.5; }
-  to { transform: none; opacity: 1; }
-}
-.ops-center .cpd-ver-head {
-  flex: none; display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 20px; background: #fff; border-bottom: 1px solid #f0f3f7;
-}
-.ops-center .cpd-ver-h { font-size: 16px; font-weight: 700; color: #232b3a; }
-.ops-center .cpd-ver-close {
-  width: 28px; height: 28px; border: 0; background: transparent; border-radius: 8px;
-  color: #8a92a1; font-size: 14px; cursor: pointer;
-}
-.ops-center .cpd-ver-close:hover { background: #f2f5fa; color: #4f7cff; }
-.ops-center .cpd-ver-body { flex: 1; min-height: 0; overflow: auto; padding: 14px 20px 20px; }
-.ops-center .cpd-ver-top { display: flex; justify-content: flex-end; margin-bottom: 12px; }
-.ops-center .cpd-ver-filter { background: #f7f8fa; border-radius: 12px; padding: 14px; margin-bottom: 14px; }
-.ops-center .cpd-ver-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
-.ops-center .cpd-ver-row2 { display: flex; align-items: center; gap: 12px; }
-.ops-center .cpd-ver-plat { min-width: 200px; }
-.ops-center .cpd-ver-range { width: 320px; }
-.ops-center .cpd-ver-spacer { flex: 1; }
-.ops-center .cpd-ver-table { min-width: 860px; }
-.ops-center .cpd-ver-table tbody td { padding: 8px 12px; }
-.ops-center .cpd-ver-table th:nth-child(1) { width: 34%; }
-.ops-center .cpd-ver-table th:nth-child(5) { width: 90px; }
-.ops-center .cpd-ver-tpl { display: flex; gap: 10px; align-items: flex-start; }
-.ops-center .cpd-ver-tpl img {
-  width: 44px; height: 44px; border-radius: 8px; border: 1px solid #eef1f5;
-  object-fit: cover; background: #fff; flex: none;
-}
-.ops-center .cpd-ver-ttitle {
-  font-size: 13px; color: #232b3a; font-weight: 600; max-width: 360px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.ops-center .cpd-ver-no { font-size: 12px; color: #8a92a1; margin: 2px 0 4px; }
-.ops-center .cpd-plat-tag {
-  display: inline-block; border: 1px solid #bcd0ff; color: #4f7cff; background: #f6f9ff;
-  border-radius: 6px; padding: 1px 10px; font-size: 12px;
-}
-.ops-center .cpd-ver-name { font-size: 13px; color: #232b3a; font-weight: 600; }
-.ops-center .cpd-ver-desc { font-size: 12px; color: #8a92a1; margin-top: 4px; line-height: 1.5; max-width: 260px; }
-.ops-center .cpd-ver-ops { display: flex; flex-direction: column; gap: 6px; }
-.ops-center .cpd-ver-ops a { color: #4f7cff; font-size: 12px; text-decoration: none; cursor: pointer; }
-.ops-center .cpd-ver-ops a:hover { text-decoration: underline; }
-.ops-center .cpd-ver-ops a.danger { color: #f05b5e; }
-.ops-center .cpd-ver-ops a.muted { color: #9aa2b1; cursor: default; }
-.ops-center .cpd-ver-ops a.muted:hover { text-decoration: none; }
-.ops-center .cpd-ver-empty { text-align: center; color: #9aa2b1; padding: 32px 0 !important; }
 
 /* ===== AI助手，仅新增本模块样式 ===== */
 .ops-center .ai-page {

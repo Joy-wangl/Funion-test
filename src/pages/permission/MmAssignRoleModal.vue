@@ -26,7 +26,7 @@ const ok = () => {
 
 <template>
   <Modal title="分配角色" :sub="`为${who}分配角色`" size="md" @close="emit('close')">
-    <div class="form-tip" :style="{ marginBottom: '14px' }">角色决定成员可访问的菜单、数据范围与功能权限。批量分配将覆盖成员原有角色。</div>
+    <div class="form-tip mb">角色决定成员可访问的菜单、数据范围与功能权限。批量分配将覆盖成员原有角色。</div>
     <RoleSelector :initial="preset" @change="(v: string[]) => roles = v" />
     <template #foot>
       <button class="btn" @click="emit('close')">取消</button>

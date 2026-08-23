@@ -20,18 +20,17 @@ const toggle = (id: string, checked: boolean) => {
 
 <template>
   <div>
-    <div v-for="g in groups" :key="g" :style="{ marginBottom: '14px' }">
-      <div :style="{ fontSize: '12px', color: 'var(--text-3)', marginBottom: '8px' }">{{ g }}</div>
-      <div :style="{ display: 'flex', flexWrap: 'wrap', gap: '8px' }">
+    <div v-for="g in groups" :key="g" class="rs-group">
+      <div class="rs-group-name">{{ g }}</div>
+      <div class="rs-list">
         <label
           v-for="r in ROLES.filter((x) => x.group === g)"
           :key="r.id"
-          class="checkbox"
-          :style="{ border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 10px' }"
+          class="checkbox rs-item"
         >
           <input type="checkbox" :checked="sel.has(r.id)" @change="toggle(r.id, ($event.target as HTMLInputElement).checked)" />
           <span class="box"><IconCheck /></span>
-          <span class="tag" :class="r.color" :style="{ margin: 0 }">{{ r.name }}</span>
+          <span class="tag mt0" :class="r.color">{{ r.name }}</span>
         </label>
       </div>
     </div>

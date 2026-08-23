@@ -5,7 +5,6 @@ import { createDetail, createVersions } from './data';
 import { pushToast } from '../../components/toast';
 import ToastWrap from '../../components/ToastWrap.vue';
 import CpdMediaSec from './CpdMediaSec.vue';
-import CpdVersionPicker from './CpdVersionPicker.vue';
 
 const props = defineProps<{ row: CreateRow }>();
 const emit = defineEmits<{ (e: 'back'): void }>();
@@ -16,9 +15,7 @@ const OTHER_COST_TIP = '包含 快递费、包材费、出仓成本、仓库房�
 
 /** 商品创建详情页：查看态/编辑态（样式复用店铺商品详情 sgd-*，字段按原型） */
 const editing = ref(false);
-const saveOpen = ref(false);
 const curVer = ref<CreateVersion>(createVersions.find((v) => v.current) ?? createVersions[0]);
-const verOpen = ref(false);
 const specOpen = ref(true);
 const skuShow = ref(true);
 const ship = ref('48小时内发货');
@@ -35,23 +32,9 @@ const d = createDetail;
           <span class="sgd-top-title">商品详情</span>
         </div>
         <div class="cpd-top-acts">
-          <button v-if="editing" class="cpd-ver-btn" title="选择版本" @click="verOpen = true">
-            {{ curVer.verName }}<span class="caret">⌄</span>
-          </button>
           <template v-if="editing">
             <button class="sg-btn" @click="editing = false">取消编辑</button>
-            <div class="cpd-saveas">
-              <button
-                class="sg-btn primary cpd-split-main"
-                @click="editing = false; pushToast('版本已保存')"
-              >
-                保存版本
-              </button>
-              <button class="sg-btn primary cpd-split-caret" @click="saveOpen = !saveOpen">⌄</button>
-              <div v-if="saveOpen" class="cpd-saveas-menu">
-                <div @click="saveOpen = false; pushToast('已另存版本')">另存版本</div>
-              </div>
-            </div>
+            <button class="sg-btn primary" @click="editing = false; pushToast('版本已保存')">保存版本</button>
           </template>
           <button v-else class="sg-btn" @click="editing = true">编辑</button>
         </div>
@@ -73,12 +56,9 @@ const d = createDetail;
         <div class="sgd-info">
           <h2>{{ props.row.title }}</h2>
           <div class="sgd-fields">
-            <div class="sgd-frow"><span>版本名称：</span><b>{{ curVer.verName }}</b></div>
-            <div class="sgd-frow"><span>版本描述：</span><b>{{ curVer.verDesc }}</b></div>
-            <div class="sgd-frow"><span>版本号：</span><b>{{ curVer.versionNo }}</b></div>
             <div class="sgd-frow"><span>创建时间：</span><b>{{ curVer.time }}</b></div>
             <div class="sgd-frow"><span>创建人：</span><b>{{ curVer.person }}</b></div>
-            <div class="sgd-frow"><span>核验状态：</span><b><span class="sgd-tag red">{{ d.checkStatus }}</span></b></div>
+            <div class="sgd-frow"><span>审核状态：</span><b><span class="sgd-tag orange">{{ d.checkStatus }}</span></b></div>
           </div>
         </div>
         <div class="cpd-side-acts">
@@ -275,12 +255,5 @@ const d = createDetail;
     </div>
 
     <div class="pm-page pm-host"><ToastWrap /></div>
-    <CpdVersionPicker
-      v-if="verOpen"
-      :current-id="curVer.id"
-      :toast="pushToast"
-      @close="verOpen = false"
-      @switch="(v: CreateVersion) => { curVer = v; verOpen = false; pushToast(`已切换至版本 ${v.verName}`); }"
-    />
   </div>
 </template>

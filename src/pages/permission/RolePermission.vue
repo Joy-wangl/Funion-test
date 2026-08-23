@@ -164,18 +164,18 @@ const onMemberPickerConfirm = (added: Member[]) => {
           <button class="og-tab" :class="tab === 'member' ? 'active' : ''" @click="tab = 'member'">角色成员</button>
           <button class="og-tab" :class="tab === 'perm' ? 'active' : ''" @click="tab = 'perm'">权限配置</button>
         </div>
-        <button v-if="tab === 'member'" class="btn primary" :style="{ marginLeft: 'auto' }" @click="openMemberPicker">添加成员</button>
+        <button v-if="tab === 'member'" class="btn primary ml-auto" @click="openMemberPicker">添加成员</button>
       </div>
 
       <div v-if="tab === 'member'" class="content-body">
         <table class="table">
-          <thead><tr><th>姓名</th><th>部门</th><th>添加人</th><th>添加时间</th><th :style="{ width: '80px' }">操作</th></tr></thead>
+          <thead><tr><th>姓名</th><th>部门</th><th>添加人</th><th>添加时间</th><th class="th-op">操作</th></tr></thead>
           <tbody>
             <tr v-for="(r, i) in roleMembers" :key="i">
               <td class="col-name">{{ r.name }}</td>
               <td>{{ r.dept }}</td>
               <td>{{ r.adder }}</td>
-              <td :style="{ color: 'var(--text-3)' }">{{ r.at }}</td>
+              <td class="td-time">{{ r.at }}</td>
               <td><div class="op"><a class="danger" @click="pushToast('已移除')">移除</a></div></td>
             </tr>
           </tbody>
@@ -186,11 +186,11 @@ const onMemberPickerConfirm = (added: Member[]) => {
         <table class="pm-table">
           <thead>
             <tr>
-              <th :style="{ width: '14%' }">一级菜单</th>
-              <th :style="{ width: '14%' }">二级菜单</th>
-              <th :style="{ width: '24%' }">查看数据权限</th>
-              <th :style="{ width: '24%' }">管理数据权限</th>
-              <th :style="{ width: '24%' }">功能权限</th>
+              <th class="th-14">一级菜单</th>
+              <th class="th-14">二级菜单</th>
+              <th class="th-24">查看数据权限</th>
+              <th class="th-24">管理数据权限</th>
+              <th class="th-24">功能权限</th>
             </tr>
           </thead>
           <tbody>
@@ -237,9 +237,9 @@ const onMemberPickerConfirm = (added: Member[]) => {
     @close="closeModal"
   />
   <Modal v-else-if="modal?.kind === 'confirm'" :title="modal.title" @close="closeModal">
-    <div :style="{ display: 'flex', gap: '12px', alignItems: 'flex-start' }">
-      <span :style="{ color: modal.danger ? 'var(--danger)' : 'var(--warning)', flexShrink: 0 }"><IconWarn /></span>
-      <div :style="{ color: 'var(--text-2)', lineHeight: 1.6, paddingTop: '1px' }">
+    <div class="modal-warn">
+      <span class="modal-warn-ic" :class="{ danger: modal.danger }"><IconWarn /></span>
+      <div class="modal-warn-txt">
         {{ modal.msg.pre }}<b>{{ modal.msg.bold }}</b>{{ modal.msg.post }}
       </div>
     </div>

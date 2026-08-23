@@ -134,7 +134,7 @@ onBeforeUnmount(() => bodyRef.value?.removeEventListener('wheel', onWheel));
             :title="hidden.has('use') ? '显示「总使用人次」' : '隐藏「总使用人次」'"
             @click="toggle('use')"
           >
-            <i :style="{ background: hidden.has('use') ? '#d5d9e0' : '#2e7cf6' }" />总使用人次<b>{{ fmt(data.useSum) }}</b>
+            <i :style="{ background: hidden.has('use') ? '#d5d9e0' : '#4f7cff' }" />总使用人次<b>{{ fmt(data.useSum) }}</b>
           </button>
         </div>
         <span class="ap-dash-range">
@@ -157,14 +157,14 @@ onBeforeUnmount(() => bodyRef.value?.removeEventListener('wheel', onWheel));
             <text :x="x(0) + 4" :y="T + 10" fill="#22a06b" class="band-lb">上一版·完成</text>
           </g>
           <g v-if="data.relIdx < n">
-            <rect :x="x(Math.max(data.relIdx, 0))" :y="T" :width="Math.max(2, W - R - x(Math.max(data.relIdx, 0)))" :height="H - T - B" fill="#2e7cf6" opacity="0.08" />
-            <line :x1="x(Math.max(data.relIdx, 0))" :x2="x(Math.max(data.relIdx, 0))" :y1="T" :y2="H - B" stroke="#2e7cf6" stroke-dasharray="4 4" opacity="0.6" />
-            <text :x="x(Math.max(data.relIdx, 0)) + 4" :y="T + 10" fill="#2e7cf6" class="band-lb">v{{ app.version ?? '1.0.0' }}·运行中</text>
+            <rect :x="x(Math.max(data.relIdx, 0))" :y="T" :width="Math.max(2, W - R - x(Math.max(data.relIdx, 0)))" :height="H - T - B" fill="#4f7cff" opacity="0.08" />
+            <line :x1="x(Math.max(data.relIdx, 0))" :x2="x(Math.max(data.relIdx, 0))" :y1="T" :y2="H - B" stroke="#4f7cff" stroke-dasharray="4 4" opacity="0.6" />
+            <text :x="x(Math.max(data.relIdx, 0)) + 4" :y="T + 10" fill="#4f7cff" class="band-lb">v{{ app.version ?? '1.0.0' }}·运行中</text>
           </g>
-          <polyline v-if="!hidden.has('use')" :points="line(data.usePts)" fill="none" stroke="#2e7cf6" stroke-width="2.2" />
+          <polyline v-if="!hidden.has('use')" :points="line(data.usePts)" fill="none" stroke="#4f7cff" stroke-width="2.2" />
           <polyline v-if="!hidden.has('new')" :points="line(data.newPts)" fill="none" stroke="#22a06b" stroke-width="2.2" />
           <template v-if="!hidden.has('use')">
-            <circle v-for="(v, i) in data.usePts" :key="`u${i}`" :cx="x(i)" :cy="y(v)" :r="hover?.i === i ? 4 : 2.4" fill="#2e7cf6" />
+            <circle v-for="(v, i) in data.usePts" :key="`u${i}`" :cx="x(i)" :cy="y(v)" :r="hover?.i === i ? 4 : 2.4" fill="#4f7cff" />
           </template>
           <template v-if="!hidden.has('new')">
             <circle v-for="(v, i) in data.newPts" :key="`n${i}`" :cx="x(i)" :cy="y(v)" :r="hover?.i === i ? 4 : 2.4" fill="#22a06b" />
@@ -193,7 +193,7 @@ onBeforeUnmount(() => bodyRef.value?.removeEventListener('wheel', onWheel));
           }"
         >
           <div class="ap-trend-tip-date">{{ data.labels[hover.i] }}</div>
-          <div v-if="!hidden.has('use')" class="ap-trend-tip-line"><i style="background:#2e7cf6" />总使用人次<b>{{ fmt(Math.round(data.usePts[hover.i])) }}</b></div>
+          <div v-if="!hidden.has('use')" class="ap-trend-tip-line"><i style="background:#4f7cff" />总使用人次<b>{{ fmt(Math.round(data.usePts[hover.i])) }}</b></div>
           <div v-if="!hidden.has('new')" class="ap-trend-tip-line"><i style="background:#22a06b" />新增人数<b>{{ fmt(Math.round(data.newPts[hover.i])) }}</b></div>
         </div>
       </div>

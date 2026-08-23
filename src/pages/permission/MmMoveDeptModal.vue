@@ -27,7 +27,7 @@ const ok = () => {
 
 <template>
   <Modal title="移动部门" :sub="`将${who}移动到新的部门`" size="md" @close="emit('close')">
-    <div class="form-tip" :style="{ marginBottom: '14px' }">选择目标部门，成员的角色配置保持不变。</div>
+    <div class="form-tip mb">选择目标部门，成员的角色配置保持不变。</div>
     <DeptTransfer :picked="picked" @picked-change="(next: Map<string, string>) => picked = next" />
     <template #foot>
       <button class="btn" @click="emit('close')">取消</button>

@@ -31,8 +31,8 @@ const isCompany = props.node.type === 'company';
         :checked="picked.has(node.id)"
         @change="(c: boolean) => emit('check', node.id, node.name, c)"
       />
-      <span class="label" :style="{ marginLeft: '6px' }">{{ node.name }}</span>
-      <span v-if="node.desc" :style="{ color: 'var(--text-4)', fontSize: '12px', marginLeft: 'auto' }">{{ node.desc }}</span>
+      <span class="label dt-label">{{ node.name }}</span>
+      <span v-if="node.desc" class="dt-desc">{{ node.desc }}</span>
     </div>
     <div v-if="hasChild && !collapsed" class="tree-children">
       <DeptTransferNode

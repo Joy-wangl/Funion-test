@@ -6,6 +6,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { RC_COMPANY, RC_GROUPS, RC_STRATEGIES, type RcGroup, type RcStrategy } from './data';
 import Modal from '../../components/Modal.vue';
+import BubbleSelect from '../../components/BubbleSelect.vue';
 
 /** 演示占位文案口径（与线上逐字一致） */
 const toastPlaceholder = (name: string) => `演示原型：「${name}」页面暂未开放`;
@@ -144,14 +145,18 @@ const pkSelected = computed(() => CANDIDATES
     <div class="qc-body">
       <!-- 筛选区 -->
       <div class="qc-filters rc-filter-row">
-        <select v-model="draft.company" class="select">
-          <option value="">公司</option>
-          <option :value="RC_COMPANY">{{ RC_COMPANY }}</option>
-        </select>
-        <select v-model="draft.group" class="select">
-          <option value="">组别</option>
-          <option v-for="g in RC_GROUPS" :key="g" :value="g">{{ g }}</option>
-        </select>
+        <BubbleSelect
+          class-name="select rc-bs"
+          :value="draft.company || '公司'"
+          :options="[RC_COMPANY]"
+          @change="(v: string) => (draft = { ...draft, company: v })"
+        />
+        <BubbleSelect
+          class-name="select rc-bs"
+          :value="draft.group || '组别'"
+          :options="[...RC_GROUPS]"
+          @change="(v: string) => (draft = { ...draft, group: v })"
+        />
         <input
           v-model="draft.name"
           class="input rc-input"
@@ -308,15 +313,13 @@ const pkSelected = computed(() => CANDIDATES
               <div class="rc-rules">
                 <div v-for="(r, i) in cfg.rules" :key="i" class="rc-rule">
                   <span v-if="i === 0" class="rc-rule-kw">当</span>
-                  <select
+                  <BubbleSelect
                     v-else
-                    class="select rc-rule-conj"
+                    class-name="select rc-rule-conj"
                     :value="r.conj"
-                    @change="cfg = { ...cfg, rules: cfg.rules.map((x, j) => (j === i ? { ...x, conj: ($event.target as HTMLSelectElement).value } : x)) }"
-                  >
-                    <option value="且">且</option>
-                    <option value="或">或</option>
-                  </select>
+                    :options="['且', '或']"
+                    @change="(v: string) => (cfg = { ...cfg, rules: cfg.rules.map((x, j) => (j === i ? { ...x, conj: v } : x)) })"
+                  />
                   <span>{{ METRIC_NAMES[i] }}{{ METRIC_OPS[i] }}</span>
                   <input
                     class="input rc-rule-v"
@@ -354,14 +357,13 @@ const pkSelected = computed(() => CANDIDATES
       @close="pickerOpen = false"
     >
       <div class="qc-filters rc-filter-row">
-        <select class="select" value="" @change="() => {}">
-          <option value="">公司</option>
-          <option>{{ RC_COMPANY }}</option>
-        </select>
-        <select v-model="pkGroup" class="select">
-          <option value="">分组</option>
-          <option v-for="g in RC_GROUPS" :key="g" :value="g">{{ g }}</option>
-        </select>
+        <BubbleSelect class-name="select rc-bs" value="公司" :options="[RC_COMPANY]" />
+        <BubbleSelect
+          class-name="select rc-bs"
+          :value="pkGroup || '分组'"
+          :options="[...RC_GROUPS]"
+          @change="(v: string) => (pkGroup = v)"
+        />
         <input
           v-model="pkName"
           class="input rc-input wide"

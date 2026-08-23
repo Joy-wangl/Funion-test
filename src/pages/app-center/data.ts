@@ -91,13 +91,13 @@ export interface TagDef { name: string; color: string; }
 
 export const INITIAL_TAG_DEFS: TagDef[] = [
   { name: '绿色', color: '#52c41a' },
-  { name: '高效', color: '#2e7cf6' },
+  { name: '高效', color: '#4f7cff' },
   { name: '协同', color: '#fa8c16' },
   { name: '智能', color: '#7b2ff7' },
 ];
 
 /** 新建标签弹窗预设色板 */
-export const TAG_COLOR_PRESETS = ['#52c41a', '#2e7cf6', '#fa8c16', '#7b2ff7', '#f5222d', '#eb2f96', '#13c2c2', '#faad14'];
+export const TAG_COLOR_PRESETS = ['#52c41a', '#4f7cff', '#fa8c16', '#7b2ff7', '#f5222d', '#eb2f96', '#13c2c2', '#faad14'];
 
 /* ---------- 应用类型 / 发布配置（新建第二步） ---------- */
 export const APP_TYPES = ['Web应用', 'EXE程序', '浏览器插件'];

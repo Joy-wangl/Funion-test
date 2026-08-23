@@ -500,15 +500,16 @@ const MON_TABS = [{ k: 'duty', t: '值班状态' }, { k: 'login', t: '登录状�
       <div class="rc-table-foot">
         <div class="rc-pager">
           <span class="rc-pg-total">共{{ companies.length }}条</span>
-          <select
-            class="select rc-pg-size"
-            :value="pageSize"
-            @change="pageSize = Number(($event.target as HTMLSelectElement).value); page = 1"
-          >
-            <option :value="10">10条/页</option>
-            <option :value="20">20条/页</option>
-            <option :value="50">50条/页</option>
-          </select>
+          <BubbleSelect
+            class-name="select rc-pg-size"
+            :value="String(pageSize)"
+            :options="[
+              { value: '10', label: '10条/页' },
+              { value: '20', label: '20条/页' },
+              { value: '50', label: '50条/页' },
+            ]"
+            @change="(v: string) => { pageSize = Number(v); page = 1; }"
+          />
           <button type="button" class="rc-pg-btn" :disabled="safePage <= 1" @click="page = Math.max(1, page - 1)">‹</button>
           <button
             v-for="p in pages"
@@ -545,12 +546,20 @@ const MON_TABS = [{ k: 'duty', t: '值班状态' }, { k: 'login', t: '登录状�
       <div class="rc-form">
         <div class="f-row">
           <span class="f-label">目标客服：</span>
-          <select v-if="transfer.mode === 'single'" class="select" disabled :value="rcAgentLabel(transfer.agent)">
-            <option>{{ rcAgentLabel(transfer.agent) }}</option>
-          </select>
-          <select v-else class="select" disabled :value="`已选 ${sel.size} 名客服（批量）`">
-            <option>{{ `已选 ${sel.size} 名客服（批量）` }}</option>
-          </select>
+          <BubbleSelect
+            v-if="transfer.mode === 'single'"
+            class-name="select"
+            disabled
+            :value="rcAgentLabel(transfer.agent)"
+            :options="[rcAgentLabel(transfer.agent)]"
+          />
+          <BubbleSelect
+            v-else
+            class-name="select"
+            disabled
+            :value="`已选 ${sel.size} 名客服（批量）`"
+            :options="[`已选 ${sel.size} 名客服（批量）`]"
+          />
         </div>
         <div class="f-row">
           <span class="f-label">转移客服：</span>

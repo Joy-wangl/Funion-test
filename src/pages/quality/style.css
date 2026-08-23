@@ -4,10 +4,7 @@
    ========================================================= */
 
 .qc-page {
-  --primary: #4f7cff;
-  --primary-hover: #6b90ff;
-  --primary-light: #eef3ff;
-  --primary-light-2: #f5f8ff;
+  /* 主色等变量已由同层 .pm-page 统一引用全局 token，此处不再重复声明 */
   font-family: Arial, "Microsoft YaHei", sans-serif;
 }
 
@@ -192,7 +189,7 @@
 
 /* 操作栏：竖排（td 保持 table-cell，仅子元素 block） */
 .qc-page .qc-op-col { white-space: nowrap; }
-.qc-page .qc-op-col > * { display: block; color: #3d7eff; font-size: 12px; line-height: 1.9; text-decoration: none; cursor: pointer; }
+.qc-page .qc-op-col > * { display: block; color: var(--color-primary); font-size: 12px; line-height: 1.9; text-decoration: none; cursor: pointer; }
 .qc-page .qc-op-col a:hover { text-decoration: underline; }
 
 /* ---------- 平台覆盖 ---------- */

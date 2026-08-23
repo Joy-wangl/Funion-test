@@ -7,6 +7,7 @@
 import { computed, ref } from 'vue';
 import { LIVE_PLATFORMS, liveStoresOf, type LivePlatform, type LiveStore } from './liveData';
 import { RC_COMPANY, RC_GROUPS } from './data';
+import BubbleSelect from '../../components/BubbleSelect.vue';
 
 const nowStr = () => {
   const d = new Date();
@@ -79,14 +80,8 @@ const query = () => {
     <div class="qc-body rc-live-filter">
       <div class="rc-live-filter-left">
         <div class="rc-filter-row">
-          <select class="select">
-            <option value="">公司</option>
-            <option>{{ RC_COMPANY }}</option>
-          </select>
-          <select class="select">
-            <option value="">分组</option>
-            <option v-for="g in RC_GROUPS" :key="g">{{ g }}</option>
-          </select>
+          <BubbleSelect class-name="select rc-bs" default-value="公司" :options="[RC_COMPANY]" />
+          <BubbleSelect class-name="select rc-bs" default-value="分组" :options="[...RC_GROUPS]" />
           <input
             v-model="nameDraft"
             class="input rc-input"
@@ -95,15 +90,9 @@ const query = () => {
           />
         </div>
         <div class="rc-filter-row">
-          <select class="select">
-            <option value="">未回复筛选</option>
-          </select>
-          <select class="select">
-            <option value="">警告状态</option>
-          </select>
-          <select class="select">
-            <option value="">接待开关</option>
-          </select>
+          <BubbleSelect class-name="select rc-bs" default-value="未回复筛选" :options="[]" />
+          <BubbleSelect class-name="select rc-bs" default-value="警告状态" :options="[]" />
+          <BubbleSelect class-name="select rc-bs" default-value="接待开关" :options="[]" />
         </div>
       </div>
       <div class="rc-live-right">

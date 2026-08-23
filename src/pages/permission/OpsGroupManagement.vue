@@ -324,7 +324,7 @@ const transferPersonConfirm = (memberId: string) => {
             </div>
           </div>
         </template>
-        <div v-else class="empty" :style="{ padding: '20px 0' }">无匹配运营组</div>
+        <div v-else class="empty tight">无匹配运营组</div>
       </div>
 
       <div class="og-md-right">
@@ -405,7 +405,7 @@ const transferPersonConfirm = (memberId: string) => {
             </div>
           </div>
         </div>
-        <div v-else class="empty" :style="{ padding: '60px 0' }">请选择左侧运营组</div>
+        <div v-else class="empty">请选择左侧运营组</div>
       </div>
     </div>
   </div>
@@ -461,9 +461,9 @@ const transferPersonConfirm = (memberId: string) => {
     @close="closeModal"
   />
   <Modal v-else-if="modal?.kind === 'confirm'" :title="modal.title" @close="closeModal">
-    <div :style="{ display: 'flex', gap: '12px', alignItems: 'flex-start' }">
-      <span :style="{ color: 'var(--danger)', flexShrink: 0 }"><IconWarn /></span>
-      <div :style="{ color: 'var(--text-2)', lineHeight: 1.6, paddingTop: '1px' }">
+    <div class="modal-warn">
+      <span class="modal-warn-ic danger"><IconWarn /></span>
+      <div class="modal-warn-txt">
         {{ modal.msg.pre }}<b>{{ modal.msg.bold }}</b>{{ modal.msg.post }}
       </div>
     </div>
