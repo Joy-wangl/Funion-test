@@ -355,7 +355,10 @@ export default function AppCenter() {
       if (!fFile) { setToast('请上传应用文件'); return; }
     }
     if (fType === 'EXE程序' && !fRun) { setToast('请选择运行文件'); return; }
-    if (!fVersion.trim()) { setToast('请输入版本号'); return; }
+    const editId = view.kind === 'create' ? view.editId : undefined;
+    const editing = !!editId;
+    /* 更新已有应用才需填新版本号；上传新创作为上新，初始版本固定 v1.0.0 */
+    if (editing && !fVersion.trim()) { setToast('请输入版本号'); return; }
     const extra = {
       appType: fType,
       deployMode: fType === 'Web应用' ? fDeploy : undefined,
@@ -364,11 +367,11 @@ export default function AppCenter() {
       runFile: fType === 'EXE程序' ? fRun : undefined,
       publishMode: fPublish,
       permScope: fPublish === 'online' ? fPerm : undefined,
-      version: fVersion.trim(),
+      version: editing ? fVersion.trim() : '1.0.0',
     };
-    if (view.kind === 'create' && view.editId) {
-      const target = apps.find((a) => a.id === view.editId);
-      patchApp(view.editId, {
+    if (editing && editId) {
+      const target = apps.find((a) => a.id === editId);
+      patchApp(editId, {
         name: fName.trim(), desc: fDesc.trim(), icon: fIcon, previews: fPreviews, category: fCat, tags: fTags,
         releaseNote: fNote.trim() || undefined, release: today(), hasUpdate: true,
         prevVersion: target?.hasUpdate ? target.prevVersion : target ? versionOf(target) : undefined, ...extra,
@@ -394,7 +397,7 @@ export default function AppCenter() {
       setApps((v) => [app, ...v]);
       setToast(fPublish === 'test' ? '创作已提交（发布测试）' : '创作已上传');
     }
-    if (!(view.kind === 'create' && view.editId)) setMineTab('created');
+    if (!editing) setMineTab('created');
     setView(backView);
   };
 
@@ -1261,7 +1264,7 @@ export default function AppCenter() {
                     </div>
                   </>
                 ) : fileField}
-                {versionField}
+                {editing && versionField}
                 {noteField}
                 {publishField}
                 {permField}
@@ -1270,7 +1273,7 @@ export default function AppCenter() {
 
             {fType === 'EXE程序' && (
               <>
-                {versionField}
+                {editing && versionField}
                 {fileField}
                 {runField}
                 {noteField}
@@ -1281,7 +1284,7 @@ export default function AppCenter() {
 
             {fType === '浏览器插件' && (
               <>
-                {versionField}
+                {editing && versionField}
                 {fileField}
                 {noteField}
                 {publishField}
@@ -1291,7 +1294,7 @@ export default function AppCenter() {
 
             {!fType && (
               <>
-                {versionField}
+                {editing && versionField}
                 {noteField}
                 {publishField}
               </>

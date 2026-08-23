@@ -25,6 +25,9 @@ const OUT = 'd:/Qoder/Funion';
   await page.click('.ap-form-foot .ap-btn-blue');
   await page.waitForSelector('.ap-radio-line');
   await page.waitForTimeout(200);
+  // 上传新创作＝上新：不出现版本号输入（初始版本固定 v1.0.0）
+  const verSel = 'input[placeholder="遵循语义化版本规范(主版本.次版本.修订号)"]';
+  const newVersionGone = (await page.locator(verSel).count()) === 0;
   await page.screenshot({ path: `${OUT}/ac-step-2-empty.png` });
 
   // Web应用 + 文件托管 + 发布线上（权限管理出现）
@@ -40,7 +43,6 @@ const OUT = 'd:/Qoder/Funion';
   await page.click('.ap-cat-select .bselect-trigger');
   await page.click('.bselect-opt:has-text("EXE程序")');
   await page.waitForTimeout(200);
-  await page.fill('input[placeholder="遵循语义化版本规范(主版本.次版本.修订号)"]', 'v1.0.1');
   await page.click('.ap-upload-file');
   await page.click('.ap-run-line .ap-link');
   await page.waitForTimeout(200);
@@ -66,6 +68,8 @@ const OUT = 'd:/Qoder/Funion';
   await page.screenshot({ path: `${OUT}/ac-edit-1.png` });
   await page.click('.ap-form-foot .ap-btn-blue');
   await page.waitForTimeout(300);
+  // 编辑应用＝更新已有应用：保留版本号输入
+  const editVersionShown = (await page.locator(verSel).count()) === 1;
   await page.screenshot({ path: `${OUT}/ac-edit-2.png` });
 
   // 详情无评分
@@ -80,5 +84,5 @@ const OUT = 'd:/Qoder/Funion';
   await page.screenshot({ path: `${OUT}/ac-detail-norate.png` });
 
   await browser.close();
-  console.log('ac step shots ok');
+  console.log(`newVersionGone=${newVersionGone} editVersionShown=${editVersionShown} detail has review block: ${!!hasRev}`);
 })().catch((e) => { console.error(e); process.exit(1); });
