@@ -36,14 +36,24 @@ const daySeries = (id: string, use: number, range: number) => {
   return out;
 };
 
-/* 每日使用迷你柱状图：最后一根为当天 */
+/* 每日使用趋势图：面积+折线，末点高亮 */
 const Spark = ({ id, use, range }: { id: string; use: number; range: number }) => {
   const arr = useMemo(() => daySeries(id, use, range), [id, use, range]);
+  const w = 130;
+  const h = 26;
   const mx = Math.max(...arr, 1);
+  const pts = arr.map((v, i) => [
+    (i / (arr.length - 1)) * w,
+    h - 2 - (v / mx) * (h - 6),
+  ]);
+  const line = pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+  const last = pts[pts.length - 1];
   return (
-    <span className="ap-dash-spark" title={`近${range}天每日使用`}>
-      {arr.map((v, i) => (<i key={i} style={{ height: `${Math.max(8, Math.round((v / mx) * 100))}%` }} />))}
-    </span>
+    <svg className="ap-dash-spark" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-label={`近${range}天每日使用趋势`}>
+      <polygon points={`0,${h} ${line} ${w},${h}`} fill="rgba(46,124,246,.12)" />
+      <polyline points={line} fill="none" stroke="#2e7cf6" strokeWidth={1.4} />
+      <circle cx={last[0]} cy={last[1]} r={2} fill="#2e7cf6" />
+    </svg>
   );
 };
 
@@ -92,6 +102,7 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
   const useSorted = useMemo(() => [...rows].sort((a, b) => b.use - a.use), [rows]);
   const rankOf = useMemo(() => new Map(useSorted.map((r, i) => [r.app.id, i + 1])), [useSorted]);
   const top3 = useSorted.slice(0, 3);
+  const top10 = useSorted.slice(0, 10);
   const maxUsers = Math.max(1, ...apps.map((a) => a.users));
   const cats = useMemo(() => [...new Set(apps.map((a) => a.category))], [apps]);
 
@@ -161,11 +172,11 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
       <div className="ap-dash-duo">
         <section className="ap-dash-card ap-dash-top3-mod">
           <div className="ap-dash-top3-head">
-            <h3>近{range}天使用 TOP3</h3>
+            <h3>近{range}天使用 TOP10</h3>
             <span>按使用人次排出的头部应用</span>
           </div>
           <div className="ap-dash-top3-list">
-            {top3.map((r, i) => (
+            {top10.map((r, i) => (
               <div className={`ap-dash-top3-row r${i + 1}`} key={r.app.id}>
                 <span className="medal">{i + 1}</span>
                 <span className="inf">
@@ -178,12 +189,6 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
                 </span>
               </div>
             ))}
-          </div>
-          <div className="ap-dash-modstats">
-            <span className="ms"><b>{apps.length}<em>个</em></b><i>全部应用</i></span>
-            <span className="ms"><b>{cats.length}<em>类</em></b><i>覆盖类目</i></span>
-            <span className="ms"><b>{rows.filter((r) => r.use > 0).length}<em>个</em></b><i>近{range}天在用</i></span>
-            <span className="ms"><b>{Math.round(rangeTotal / range)}<em>人次/日</em></b><i>日均使用</i></span>
           </div>
         </section>
 

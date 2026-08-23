@@ -26,10 +26,9 @@ const OUT = 'd:/Qoder/Funion';
   const on7 = await page.evaluate(() => document.querySelector('.ap-dash-range button.on')?.textContent);
   await page.screenshot({ path: `${OUT}/ac-dash-7d.png`, clip: { x: 200, y: 200, width: 1200, height: 500 } });
 
-  // TOP3 重心区
-  const top3 = await page.locator('.ap-dash-top3-row').count();
+  // TOP10 重心区
+  const topN = await page.locator('.ap-dash-top3-row').count();
   const sparks = await page.locator('.ap-dash-spark').count();
-  const msTxt = (await page.locator('.ap-dash-modstats').textContent()) || '';
 
   // 搜索：ERP
   await page.fill('.ap-dash-search input', 'ERP');
@@ -74,6 +73,6 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/ac-mine-gap.png`, clip: { x: 0, y: 60, width: 1600, height: 420 } });
 
-  console.log(`entry=${entry} rangeOn=${on7} top3=${top3} sparks=${sparks} hasAllApps=${msTxt.includes('全部应用')} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catsNavWide=${catsNavWide} catsNavNarrow=${catsNavNarrow} scrolled=${scrolled}`);
+  console.log(`entry=${entry} rangeOn=${on7} topN=${topN} sparks=${sparks} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catsNavWide=${catsNavWide} catsNavNarrow=${catsNavNarrow} scrolled=${scrolled}`);
   await browser.close();
 })().catch((e) => { console.error(e); process.exit(1); });
