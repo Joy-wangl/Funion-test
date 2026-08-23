@@ -155,7 +155,7 @@ const onTab = (t: SgTab) => { tab.value = t; chip.value = 'all'; checked.value =
           </div>
         </template>
         <div class="sg-actions">
-          <div v-if="canPrice && sellingSel > 0" class="sg-mini">已选 <b :style="{ color: '#4f7cff' }">{{ sellingSel }}</b> 件出售中商品</div>
+          <div v-if="canPrice && sellingSel > 0" class="sg-mini">已选 <b>{{ sellingSel }}</b> 件出售中商品</div>
           <button
             v-if="canPrice"
             class="sg-btn primary"

@@ -121,10 +121,7 @@ const confirmDelete = () => {
                   <img class="create-thumb" :src="row.thumb" alt="thumb" />
                   <div>
                     <div class="create-product-title">
-                      <span
-                        class="create-platform-badge taobao"
-                        :style="{ height: '22px', padding: '0 8px', fontSize: '11px', marginRight: '8px', verticalAlign: 'middle' }"
-                      >
+                      <span class="create-platform-badge taobao sm">
                         {{ row.platformBadge }}
                       </span>
                       <Ellipsis class-name="create-title-ell" :text="row.title" />

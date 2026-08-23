@@ -52,14 +52,6 @@ const idSelectFields3 = [
 /** 运营管理页：仅保留 ID数据模块 */
 const checked = ref<boolean[]>(omProducts.map(() => false));
 
-const onDelete = () => {
-  if (!checked.value.some(Boolean)) {
-    alert('请先选择商品');
-    return;
-  }
-  window.confirm('是否确定删除商品');
-};
-
 const onLog = () => {
   alert('操作日志功能入口（演示）');
 };
@@ -161,18 +153,15 @@ const onLog = () => {
             <BubbleSelect class-name="id-select" default-value="自动化标签" :options="['全部', '爆款', '滞销', '清仓', '新品']" />
           </div>
 
-          <!-- 按钮组作为筛选网格末位子项：业务操作在左，重置/查询居右（查询最右） -->
+          <!-- 按钮组作为筛选网格末位子项：列设置▦最左，业务操作居中，重置/查询居右（查询最右） -->
           <div class="id-actions">
+            <button class="id-btn icon">▦</button>
             <BubbleSelect class-name="om-select" default-value="批量操作" :options="['批量涨价', '批量降价']" />
-            <button class="om-delete-btn" @click="onDelete">
-              删除商品
-            </button>
             <button class="om-log-btn" @click="onLog">
               操作日志
             </button>
             <button class="id-btn">重置</button>
             <button class="id-btn primary">查询</button>
-            <button class="id-btn icon">▦</button>
           </div>
         </div>
 

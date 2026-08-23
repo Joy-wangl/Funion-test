@@ -2277,6 +2277,7 @@
   font-size: 12px;
   color: #98a0ae;
 }
+.ops-center .sg-mini b { color: var(--color-primary); }
 .sg-btn {
   height: 40px;
   padding: 0 16px;
@@ -3374,20 +3375,6 @@
 .ops-center .om-select:hover {
   border-color: #cfd9e8;
 }
-.ops-center .om-delete-btn {
-  height: 40px;
-  padding: 0 16px;
-  border: 1px solid #ffd1d4;
-  border-radius: 10px;
-  background: #fff7f7;
-  color: #ef5b61;
-  font-size: 13px;
-  cursor: pointer;
-}
-.ops-center .om-delete-btn:hover {
-  background: #fff0f0;
-  border-color: #ffbfc3;
-}
 .ops-center .om-log-btn {
   height: 40px;
   padding: 0 16px;
@@ -3467,7 +3454,7 @@
   color: #9da7b5;
   text-align: center;
 }
-/* ID数据筛选操作行：按钮组嵌入网格末位（字段占满整行时独占一行右对齐） */
+/* ID数据筛选操作行：按钮组嵌入网格末位（字段占满整行时独占一行右对齐）；与下方展示区保持疏离 */
 .ops-center .id-actions {
   grid-column: 1 / -1;
   display: flex;
@@ -3476,6 +3463,7 @@
   flex-wrap: wrap;
   gap: 8px;
   align-self: end;
+  margin-bottom: 16px;
 }
 .ops-center .id-btn {
   min-width: 66px;
@@ -3630,6 +3618,14 @@
   background: #fff4ea;
   color: #f28c3b;
   border: 1px solid #ffd8b8;
+}
+/* 表格内嵌小尺寸变体（原行内样式收敛） */
+.ops-center .create-platform-badge.sm {
+  height: 22px;
+  padding: 0 8px;
+  font-size: 11px;
+  margin-right: 8px;
+  vertical-align: middle;
 }
 .ops-center .create-platform-badge.video {
   background: #eef4ff;
