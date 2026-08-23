@@ -83,14 +83,14 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
 
       <div className="ap-dash-kpis">
         <div className="ap-dash-kpi">
-          <span className="lb">范围内总使用人次</span>
+          <span className="lb">近{range}天总使用人次</span>
           <span className="vl">{fmt(rangeTotal)}</span>
           <span className="sb">日均约 <b>{fmt(Math.round(rangeTotal / range))}</b> 人次</span>
         </div>
         <div className="ap-dash-kpi">
           <span className="lb">累计总人次</span>
           <span className="vl">{fmt(allTotal)}</span>
-          <span className="sb">范围内新增占 <b>{allTotal ? Math.round((rangeTotal / allTotal) * 100) : 0}%</b></span>
+          <span className="sb">近{range}天新增占 <b>{allTotal ? Math.round((rangeTotal / allTotal) * 100) : 0}%</b></span>
         </div>
         <div className="ap-dash-kpi">
           <span className="lb">总体平均评分</span>
@@ -115,7 +115,7 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
         <div className="ap-dash-thead">
           <span>排名</span>
           <span>应用</span>
-          <span>范围内使用人次</span>
+          <span>近{range}天使用人次</span>
           <span>使用人次占比</span>
           <span>平均评分</span>
           <span>好评率</span>
