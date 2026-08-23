@@ -289,7 +289,6 @@ function AppTrendModal({ app, onClose }: { app: AppItem; onClose: () => void }) 
 export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[]; reviews: AppReview[]; onBack: () => void }) {
   const [range, setRange] = useState<Range>(30);
   const [sort, setSort] = useState<'use' | 'rate'>('use');
-  const [q, setQ] = useState('');
   const [cat, setCat] = useState('全部');
   const [trendApp, setTrendApp] = useState<AppItem | null>(null);
 
@@ -335,10 +334,7 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
   const cats = useMemo(() => [...new Set(apps.map((a) => a.category))], [apps]);
 
   /* 类目筛选改下拉（BubbleSelect）：默认全部 */
-  const kw = q.trim().toLowerCase();
-  const view = rows.filter((r) =>
-    (cat === '全部' || r.app.category === cat) &&
-    (!kw || r.app.name.toLowerCase().includes(kw)));
+  const view = rows.filter((r) => cat === '全部' || r.app.category === cat);
   const allTotal = apps.reduce((s, a) => s + a.users, 0);
   const avgAll = reviews.length ? reviews.reduce((s, r) => s + r.stars, 0) / reviews.length : 0;
   const goodAll = reviews.length ? reviews.filter((r) => r.stars >= 4).length / reviews.length : 0;
@@ -354,11 +350,6 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
       <div className="ap-dash-head">
         <button type="button" className="ap-back" onClick={onBack}><Ic d="M15 19l-7-7 7-7" size={16} /></button>
         <h2>数据概览</h2>
-        <span className="ap-dash-sub">应用资产与使用情况，一眼看清</span>
-        <span className="ap-dash-search">
-          <Ic d="M11 4a7 7 0 100 14 7 7 0 000-14zM21 21l-4.35-4.35" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索应用名称" />
-        </span>
         <span className="ap-dash-range">
           {RANGES.map((d) => (
             <button key={d} type="button" className={range === d ? 'on' : ''} onClick={() => setRange(d)}>近{d}天</button>
@@ -368,7 +359,7 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
 
       <div className="ap-dash-ovcard">
       <section className="ap-dash-ovmod">
-        <h3>应用数据概览<span>应用资产与更新状态</span></h3>
+        <h3>应用数据概览</h3>
         <div className="ap-dash-kpis">
           <div className="ap-dash-kpi">
             <span className="lb">应用总数</span>
@@ -394,7 +385,7 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
       </section>
 
       <section className="ap-dash-ovmod">
-        <h3>使用情况概览<span>近{range}天使用与口碑</span></h3>
+        <h3>使用情况概览</h3>
         <div className="ap-dash-kpis">
           <div className="ap-dash-kpi">
             <span className="lb">近{range}天总使用人次</span>

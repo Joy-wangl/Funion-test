@@ -85,13 +85,6 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(250);
   const trendClosed = (await page.locator('.ap-trend-modal').count()) === 0;
 
-  // 搜索：ERP
-  await page.fill('.ap-dash-search input', 'ERP');
-  await page.waitForTimeout(200);
-  const rowsErp = await page.locator('.ap-dash-trow').count();
-  await page.fill('.ap-dash-search input', '');
-  await page.waitForTimeout(200);
-
   // 类目筛选：下拉（BubbleSelect）选数据管理类
   await page.click('.ap-dash-cat-select .bselect-trigger');
   await page.waitForSelector('.bselect-menu');
@@ -116,6 +109,6 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/ac-mine-gap.png`, clip: { x: 0, y: 60, width: 1600, height: 420 } });
 
-  console.log(`ovl=${ovlTitles.join('|')} lbs=${ovlLbs.join('/')} ovlTotal=${ovlTotal} entry=${entry} rangeOn=${on7} topN=${topN} sparkRemoved=${sparkRemoved} trendBtn=${trendBtnTxt} headOk=${headOk} alignOk=${alignOk} customOk=${customOk} tipOk=${tipOk} bands=${bandTxt.join('/')} noVer=${!chipTxt.includes('版本时间段')} chipToggle=${chipToggle} trendClosed=${trendClosed} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catSelOk=${catSelTxt === '数据管理类'} catReset=${catReset}`);
+  console.log(`ovl=${ovlTitles.join('|')} lbs=${ovlLbs.join('/')} ovlTotal=${ovlTotal} entry=${entry} rangeOn=${on7} topN=${topN} sparkRemoved=${sparkRemoved} trendBtn=${trendBtnTxt} headOk=${headOk} alignOk=${alignOk} customOk=${customOk} tipOk=${tipOk} bands=${bandTxt.join('/')} noVer=${!chipTxt.includes('版本时间段')} chipToggle=${chipToggle} trendClosed=${trendClosed} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catSelOk=${catSelTxt === '数据管理类'} catReset=${catReset}`);
   await browser.close();
 })().catch((e) => { console.error(e); process.exit(1); });

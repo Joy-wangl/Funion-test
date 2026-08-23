@@ -1403,8 +1403,6 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-dash-head h2 { font-size: 18px; font-weight: 700; color: #1f2329; margin: 0; }
 
-.ap-dash-sub { font-size: 12px; color: #98a0b3; }
-
 .ap-dash-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 
 .ap-dash-kpi {
@@ -1430,8 +1428,6 @@ button.ap-home-app { cursor: pointer; }
 .ap-dash-ovcard { background: #fff; border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 18px; }
 
 .ap-dash-ovmod > h3 { margin: 0; font-size: 14px; font-weight: 600; color: #1f2329; }
-
-.ap-dash-ovmod > h3 span { margin-left: 8px; font-size: 12px; font-weight: 400; color: #98a0ae; }
 
 .ap-dash-row { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; }
 
@@ -1461,24 +1457,7 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-dash-range button.on { background: #fff; color: #1f2329; font-weight: 600; }
 
-.ap-dash-head .ap-dash-search { margin-left: auto; }
-
-/* 看板搜索框 */
-.ap-dash-search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #fff;
-  border: 1px solid #e5e7ef;
-  border-radius: 6px;
-  padding: 0 10px;
-  height: 30px;
-  color: #98a0b3;
-}
-
-.ap-dash-search input { border: none; outline: none; background: transparent; font-size: 12px; width: 150px; color: #1f2329; }
-
-.ap-dash-search input::placeholder { color: #b6bcc9; }
+.ap-dash-head .ap-dash-range { margin-left: auto; }
 
 /* TOP3 重心模块 + 明细并排一行 */
 .ap-dash-duo { display: grid; grid-template-columns: 420px minmax(0, 1fr); gap: 16px; align-items: stretch; flex: 1; min-height: 460px; }
