@@ -662,7 +662,11 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  cursor: pointer;
 }
+
+/* 点击名称即编辑：悬浮提示可点 */
+.ap-cat-name:hover { color: #2e7cf6; }
 
 .ap-cat-edit-input {
   flex: 1;

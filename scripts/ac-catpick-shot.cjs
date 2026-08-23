@@ -29,6 +29,24 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(200);
   const picked = await page.evaluate(() => document.querySelectorAll('.ap-cat-pick').length);
   await page.screenshot({ path: `${OUT}/ac-catpick-picked.png` });
-  console.log(`tiles=${tiles} upload=${up} pickerClosedAfterPick=${picked === 0}`);
+
+  // 名称点击即编辑（铅笔按钮已删），失焦保存
+  const editBtnGone = (await page.locator('.ap-cat-ic-btn[title="修改"]').count()) === 0;
+  const firstName = ((await page.locator('.ap-cat-row >> nth=0 >> .ap-cat-name').textContent()) || '').trim();
+  await page.click('.ap-cat-row >> nth=0 >> .ap-cat-name');
+  await page.waitForSelector('.ap-cat-edit-input');
+  await page.fill('.ap-cat-edit-input', `${firstName}2`);
+  await page.click('.ap-drawer-head span');
+  await page.waitForTimeout(200);
+  const savedName = ((await page.locator('.ap-cat-row >> nth=0 >> .ap-cat-name').textContent()) || '').trim();
+  const blurSaved = savedName === `${firstName}2`;
+  // 还原名称
+  await page.click('.ap-cat-row >> nth=0 >> .ap-cat-name');
+  await page.waitForSelector('.ap-cat-edit-input');
+  await page.fill('.ap-cat-edit-input', firstName);
+  await page.click('.ap-drawer-head span');
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: `${OUT}/ac-catpick-edit.png` });
+  console.log(`tiles=${tiles} upload=${up} pickerClosedAfterPick=${picked === 0} editBtnGone=${editBtnGone} blurSaved=${blurSaved}`);
   await browser.close();
 })().catch((e) => { console.error(e); process.exit(1); });

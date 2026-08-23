@@ -414,6 +414,18 @@ export default function AppCenter() {
     setEditIdx(null);
   };
 
+  /* 失焦即保存：空名称时新建行移除、已有行还原 */
+  const blurEdit = (i: number) => {
+    const name = editVal.trim();
+    if (!name) {
+      setDraft((v) => (v[i].n ? v : v.filter((_, idx) => idx !== i)));
+      setEditIdx(null);
+      return;
+    }
+    setDraft((v) => v.map((c, idx) => (idx === i ? { ...c, n: name } : c)));
+    setEditIdx(null);
+  };
+
   const addCatRow = () => {
     if (editIdx !== null) { setToast('请先完成当前编辑'); return; }
     setDraft((v) => [...v, { n: '', ic: 'folder' }]);
@@ -1486,25 +1498,18 @@ export default function AppCenter() {
                     )}
                   </div>
                   {editIdx === i ? (
-                    <>
-                      <input
-                        className="ap-cat-edit-input"
-                        autoFocus
-                        placeholder="请输入类目名称"
-                        value={editVal}
-                        onChange={(e) => setEditVal(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') confirmEdit(i); }}
-                      />
-                      <button type="button" className="ap-cat-ic-btn" title="确定" onClick={() => confirmEdit(i)}>
-                        <Svg d={IC.check} size={15} />
-                      </button>
-                    </>
+                    <input
+                      className="ap-cat-edit-input"
+                      autoFocus
+                      placeholder="请输入类目名称"
+                      value={editVal}
+                      onChange={(e) => setEditVal(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') confirmEdit(i); }}
+                      onBlur={() => blurEdit(i)}
+                    />
                   ) : (
                     <>
-                      <span className="ap-cat-name">{c.n}</span>
-                      <button type="button" className="ap-cat-ic-btn" title="修改" onClick={() => { setEditIdx(i); setEditVal(c.n); }}>
-                        <Svg d={IC.edit} size={15} />
-                      </button>
+                      <span className="ap-cat-name" title="点击修改名称" onClick={() => { setEditIdx(i); setEditVal(c.n); }}>{c.n}</span>
                       <button type="button" className="ap-cat-ic-btn danger" title="删除" onClick={() => removeCat(i)}>
                         <Svg d={IC.trash} size={15} />
                       </button>
