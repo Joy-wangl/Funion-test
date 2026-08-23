@@ -1471,8 +1471,10 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-dash-search input::placeholder { color: #b6bcc9; }
 
-/* TOP3 重心区 */
-.ap-dash-top3-wrap { display: flex; flex-direction: column; gap: 10px; }
+/* TOP3 重心模块 + 明细并排一行 */
+.ap-dash-duo { display: grid; grid-template-columns: 420px minmax(0, 1fr); gap: 16px; align-items: stretch; }
+
+.ap-dash-top3-mod { display: flex; flex-direction: column; gap: 12px; }
 
 .ap-dash-top3-head { display: flex; align-items: baseline; gap: 10px; }
 
@@ -1480,19 +1482,19 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-dash-top3-head span { font-size: 12px; color: #98a0b3; }
 
-.ap-dash-top3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.ap-dash-top3-list { display: flex; flex-direction: column; gap: 10px; }
 
-.ap-dash-top3-card {
+.ap-dash-top3-row {
   display: flex;
   align-items: center;
   gap: 12px;
   background: linear-gradient(135deg, #f4f8ff, #fff);
   border: 1px solid #e2e9f8;
   border-radius: 10px;
-  padding: 14px 16px;
+  padding: 12px 14px;
 }
 
-.ap-dash-top3-card .medal {
+.ap-dash-top3-row .medal {
   width: 28px;
   height: 28px;
   border-radius: 50%;
@@ -1506,44 +1508,40 @@ button.ap-home-app { cursor: pointer; }
   flex-shrink: 0;
 }
 
-.ap-dash-top3-card.r1 .medal { background: #f7a634; }
+.ap-dash-top3-row.r1 .medal { background: #f7a634; }
 
-.ap-dash-top3-card.r2 .medal { background: #8f9ab0; }
+.ap-dash-top3-row.r2 .medal { background: #8f9ab0; }
 
-.ap-dash-top3-card.r3 .medal { background: #d8a06a; }
+.ap-dash-top3-row.r3 .medal { background: #d8a06a; }
 
-.ap-dash-top3-card .inf { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ap-dash-top3-row .inf { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 
-.ap-dash-top3-card .inf b { font-size: 14px; color: #1f2329; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ap-dash-top3-row .inf b { font-size: 14px; color: #1f2329; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.ap-dash-top3-card .inf i { font-style: normal; font-size: 11px; color: #98a0b3; }
+.ap-dash-top3-row .inf i { font-style: normal; font-size: 11px; color: #98a0b3; }
 
-.ap-dash-top3-card .nums { margin-left: auto; text-align: right; display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+.ap-dash-top3-row .nums { margin-left: auto; text-align: right; display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
 
-.ap-dash-top3-card .nums b { font-size: 18px; color: #1f2329; }
+.ap-dash-top3-row .nums b { font-size: 16px; color: #1f2329; }
 
-.ap-dash-top3-card .nums b em { font-style: normal; font-size: 11px; color: #98a0b3; margin-left: 2px; }
+.ap-dash-top3-row .nums b em { font-style: normal; font-size: 11px; color: #98a0b3; margin-left: 2px; }
 
-.ap-dash-top3-card .nums i { font-style: normal; font-size: 11px; color: #98a0b3; }
+.ap-dash-top3-row .nums i { font-style: normal; font-size: 11px; color: #98a0b3; }
 
-/* 类目筛选 */
-.ap-dash-cats { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; }
+/* 右侧明细：与 TOP3 模块同高，内部滚动 */
+.ap-dash-duo-right { position: relative; min-height: 340px; }
 
-.ap-dash-cats button {
-  border: 1px solid #e5e7ef;
-  background: #fff;
-  color: #565d6b;
-  font-size: 12px;
-  border-radius: 999px;
-  padding: 4px 12px;
-  cursor: pointer;
-}
+.ap-dash-duo-right > .ap-dash-card { position: absolute; inset: 0; display: flex; flex-direction: column; }
 
-.ap-dash-cats button:hover { border-color: #2e7cf6; color: #2e7cf6; }
+.ap-dash-scroll { flex: 1; min-height: 0; overflow-y: auto; }
 
-.ap-dash-cats button.on { border-color: #2e7cf6; background: #2e7cf6; color: #fff; font-weight: 600; }
+.ap-dash-duo .ap-dash-thead,
+.ap-dash-duo .ap-dash-trow { grid-template-columns: 36px 1.3fr 96px 1.7fr 64px 60px 96px; gap: 10px; }
 
-.ap-dash-cnt { font-size: 12px; color: #98a0b3; font-weight: 400; margin-left: 8px; }
+.ap-dash-card > h3 .ap-dash-range { margin-left: auto; }
+
+/* 类目筛选：与页面切换统一的分段样式 */
+.ap-dash-cats { margin: 0 0 12px; align-self: flex-start; }
 
 .ap-dash-empty { padding: 32px 0; text-align: center; color: #98a0b3; font-size: 12px; }
 

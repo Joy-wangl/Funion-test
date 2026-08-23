@@ -120,74 +120,79 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
         </div>
       </div>
 
-      <section className="ap-dash-top3-wrap">
-        <div className="ap-dash-top3-head">
-          <h3>近{range}天使用 TOP3</h3>
-          <span>按使用人次排出的头部应用</span>
-        </div>
-        <div className="ap-dash-top3">
-          {top3.map((r, i) => (
-            <div className={`ap-dash-top3-card r${i + 1}`} key={r.app.id}>
-              <span className="medal">{i + 1}</span>
-              <span className="inf">
-                <b>{r.app.name}</b>
-                <i>{r.app.category}</i>
-              </span>
-              <span className="nums">
-                <b>{r.use}<em>人次 / 近{range}天</em></b>
-                <i>占全盘使用 {(r.share * 100).toFixed(1)}% · 均分 {r.cnt ? r.avg.toFixed(1) : '--'}</i>
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="ap-dash-card">
-        <h3>
-          应用使用明细
-          <span className="ap-dash-cnt">{view.length} 个应用</span>
-          <span className="ap-dash-range">
-            <button type="button" className={sort === 'use' ? 'on' : ''} onClick={() => setSort('use')}>按使用人次</button>
-            <button type="button" className={sort === 'rate' ? 'on' : ''} onClick={() => setSort('rate')}>按评分</button>
-          </span>
-        </h3>
-        <div className="ap-dash-cats">
-          <button type="button" className={cat === 'all' ? 'on' : ''} onClick={() => setCat('all')}>全部</button>
-          {cats.map((c) => (
-            <button key={c} type="button" className={cat === c ? 'on' : ''} onClick={() => setCat(c)}>{c}</button>
-          ))}
-        </div>
-        <div className="ap-dash-thead">
-          <span>排名</span>
-          <span>应用</span>
-          <span>近{range}天使用人次</span>
-          <span>应用总人次 / 日均占比</span>
-          <span>平均评分</span>
-          <span>好评率</span>
-          <span>标记</span>
-        </div>
-        {view.map((r) => (
-          <div className="ap-dash-trow" key={r.app.id}>
-            <span className={`rk${(rankOf.get(r.app.id) ?? 0) <= 3 ? ' top' : ''}`}>{rankOf.get(r.app.id)}</span>
-            <span className="nm">
-              <b>{r.app.name}</b>
-              <i>{r.app.category}</i>
-            </span>
-            <span className="ct-strong">{r.use} 人次</span>
-            <span className="ap-dash-share">
-              <span className="tr"><i style={{ width: `${Math.max(2, Math.round((r.app.users / maxUsers) * 100))}%` }} /></span>
-              <span className="pc">总 {fmt(r.app.users)} 人次 · 日均占 {(r.share * 100).toFixed(1)}%</span>
-            </span>
-            <span className="ct-strong">{r.cnt ? r.avg.toFixed(1) : '--'}</span>
-            <span className="ct-strong">{r.cnt ? `${Math.round(r.goodRate * 100)}%` : '--'}</span>
-            <span className="ap-dash-badges">
-              {r.avg >= 4.5 && r.cnt >= 3 && <em className="ap-dash-badge good">好评</em>}
-              {hotIds.has(r.app.id) && <em className="ap-dash-badge hot">热门</em>}
-            </span>
+      <div className="ap-dash-duo">
+        <section className="ap-dash-card ap-dash-top3-mod">
+          <div className="ap-dash-top3-head">
+            <h3>近{range}天使用 TOP3</h3>
+            <span>按使用人次排出的头部应用</span>
           </div>
-        ))}
-        {view.length === 0 && <div className="ap-dash-empty">未找到匹配应用，调整搜索或类目试试</div>}
-      </section>
+          <div className="ap-dash-top3-list">
+            {top3.map((r, i) => (
+              <div className={`ap-dash-top3-row r${i + 1}`} key={r.app.id}>
+                <span className="medal">{i + 1}</span>
+                <span className="inf">
+                  <b>{r.app.name}</b>
+                  <i>{r.app.category}</i>
+                </span>
+                <span className="nums">
+                  <b>{r.use}<em>人次 / 近{range}天</em></b>
+                  <i>占全盘使用 {(r.share * 100).toFixed(1)}% · 均分 {r.cnt ? r.avg.toFixed(1) : '--'}</i>
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <div className="ap-dash-duo-right">
+          <section className="ap-dash-card">
+            <h3>
+              应用使用明细
+              <span className="ap-dash-range">
+                <button type="button" className={sort === 'use' ? 'on' : ''} onClick={() => setSort('use')}>按使用人次</button>
+                <button type="button" className={sort === 'rate' ? 'on' : ''} onClick={() => setSort('rate')}>按评分</button>
+              </span>
+            </h3>
+            <div className="ap-dash-range ap-dash-cats">
+              <button type="button" className={cat === 'all' ? 'on' : ''} onClick={() => setCat('all')}>全部</button>
+              {cats.map((c) => (
+                <button key={c} type="button" className={cat === c ? 'on' : ''} onClick={() => setCat(c)}>{c}</button>
+              ))}
+            </div>
+            <div className="ap-dash-thead">
+              <span>排名</span>
+              <span>应用</span>
+              <span>近{range}天使用人次</span>
+              <span>应用总人次 / 日均占比</span>
+              <span>平均评分</span>
+              <span>好评率</span>
+              <span>标记</span>
+            </div>
+            <div className="ap-dash-scroll">
+              {view.map((r) => (
+                <div className="ap-dash-trow" key={r.app.id}>
+                  <span className={`rk${(rankOf.get(r.app.id) ?? 0) <= 3 ? ' top' : ''}`}>{rankOf.get(r.app.id)}</span>
+                  <span className="nm">
+                    <b>{r.app.name}</b>
+                    <i>{r.app.category}</i>
+                  </span>
+                  <span className="ct-strong">{r.use} 人次</span>
+                  <span className="ap-dash-share">
+                    <span className="tr"><i style={{ width: `${Math.max(2, Math.round((r.app.users / maxUsers) * 100))}%` }} /></span>
+                    <span className="pc">总 {fmt(r.app.users)} 人次 · 日均占 {(r.share * 100).toFixed(1)}%</span>
+                  </span>
+                  <span className="ct-strong">{r.cnt ? r.avg.toFixed(1) : '--'}</span>
+                  <span className="ct-strong">{r.cnt ? `${Math.round(r.goodRate * 100)}%` : '--'}</span>
+                  <span className="ap-dash-badges">
+                    {r.avg >= 4.5 && r.cnt >= 3 && <em className="ap-dash-badge good">好评</em>}
+                    {hotIds.has(r.app.id) && <em className="ap-dash-badge hot">热门</em>}
+                  </span>
+                </div>
+              ))}
+              {view.length === 0 && <div className="ap-dash-empty">未找到匹配应用，调整搜索或类目试试</div>}
+            </div>
+          </section>
+        </div>
+      </div>
     </div>
   );
 }

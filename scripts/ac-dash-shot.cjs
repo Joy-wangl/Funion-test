@@ -27,7 +27,7 @@ const OUT = 'd:/Qoder/Funion';
   await page.screenshot({ path: `${OUT}/ac-dash-7d.png`, clip: { x: 200, y: 200, width: 1200, height: 500 } });
 
   // TOP3 重心区
-  const top3 = await page.locator('.ap-dash-top3-card').count();
+  const top3 = await page.locator('.ap-dash-top3-row').count();
 
   // 搜索：ERP
   await page.fill('.ap-dash-search input', 'ERP');
@@ -40,7 +40,7 @@ const OUT = 'd:/Qoder/Funion';
   await page.click('.ap-dash-cats button:has-text("数据管理类")');
   await page.waitForTimeout(200);
   const rowsCat = await page.locator('.ap-dash-trow').count();
-  const cntTxt = await page.locator('.ap-dash-cnt').textContent();
+  const cntN = await page.locator('.ap-dash-cnt').count();
   await page.screenshot({ path: `${OUT}/ac-dash-filter.png`, fullPage: true });
   await page.click('.ap-dash-cats button:has-text("全部")');
   await page.waitForTimeout(200);
@@ -54,6 +54,6 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/ac-mine-gap.png`, clip: { x: 0, y: 60, width: 1600, height: 420 } });
 
-  console.log(`entry=${entry} rangeOn=${on7} top3=${top3} rowsErp=${rowsErp} rowsCat=${rowsCat} cnt=${(cntTxt || '').trim()}`);
+  console.log(`entry=${entry} rangeOn=${on7} top3=${top3} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0}`);
   await browser.close();
 })().catch((e) => { console.error(e); process.exit(1); });
