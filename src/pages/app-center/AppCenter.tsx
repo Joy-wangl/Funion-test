@@ -1385,7 +1385,7 @@ export default function AppCenter() {
         {view.kind === 'list' && renderList()}
         {view.kind === 'detail' && renderDetail()}
         {view.kind === 'mine' && renderMine()}
-        {view.kind === 'dash' && <AppDashboard apps={apps} reviews={reviews} onBack={() => setView({ kind: 'home' })} />}
+        {view.kind === 'dash' && <AppDashboard apps={apps} reviews={reviews} onBack={() => setView({ kind: 'home' })} onOpenApp={openDetail} />}
         {view.kind === 'create' && renderCreate()}
       </main>
 

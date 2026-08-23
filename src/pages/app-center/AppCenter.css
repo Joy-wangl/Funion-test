@@ -1521,7 +1521,14 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-dash-duo-right > .ap-dash-card { position: absolute; inset: 0; display: flex; flex-direction: column; }
 
-.ap-dash-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.ap-dash-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
+
+/* 滚动条隐藏但保留滚轮/拖拽交互 */
+.ap-dash-scroll::-webkit-scrollbar { display: none; }
+
+.ap-dash-trow { cursor: pointer; }
+
+.ap-dash-trow:hover { background: #f8fafd; }
 
 .ap-dash-duo .ap-dash-thead,
 .ap-dash-duo .ap-dash-trow { grid-template-columns: 32px 0.8fr 128px 1.4fr 64px 64px 72px; gap: 16px; }

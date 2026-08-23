@@ -286,7 +286,7 @@ function AppTrendModal({ app, onClose }: { app: AppItem; onClose: () => void }) 
 }
 
 /* 数据看板：领导视角——哪些应用好用、范围内总人次与使用占比 */
-export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[]; reviews: AppReview[]; onBack: () => void }) {
+export default function AppDashboard({ apps, reviews, onBack, onOpenApp }: { apps: AppItem[]; reviews: AppReview[]; onBack: () => void; onOpenApp: (id: string) => void }) {
   const [range, setRange] = useState<Range>(30);
   const [sort, setSort] = useState<'use' | 'rate'>('use');
   const [cat, setCat] = useState('全部');
@@ -457,7 +457,7 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
                 <span>使用趋势</span>
               </div>
               {view.map((r) => (
-                <div className="ap-dash-trow" key={r.app.id}>
+                <div className="ap-dash-trow" key={r.app.id} onClick={() => onOpenApp(r.app.id)}>
                   <span className={`rk${(rankOf.get(r.app.id) ?? 0) <= 3 ? ' top' : ''}`}>{rankOf.get(r.app.id)}</span>
                   <span className="nm">
                     <b>{r.app.name}</b>
@@ -470,10 +470,10 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
                   </span>
                   <span className="ct-strong">{r.cnt ? r.avg.toFixed(1) : '--'}</span>
                   <span className="ct-strong">{r.cnt ? `${Math.round(r.goodRate * 100)}%` : '--'}</span>
-                  <button type="button" className="ap-dash-trendcell" title="点击查看使用趋势" onClick={() => setTrendApp(r.app)}>趋势图</button>
+                  <button type="button" className="ap-dash-trendcell" title="点击查看使用趋势" onClick={(e) => { e.stopPropagation(); setTrendApp(r.app); }}>趋势图</button>
                 </div>
               ))}
-              {view.length === 0 && <div className="ap-dash-empty">未找到匹配应用，调整搜索或类目试试</div>}
+              {view.length === 0 && <div className="ap-dash-empty">未找到匹配应用，调整类目试试</div>}
             </div>
           </section>
         </div>

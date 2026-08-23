@@ -100,6 +100,31 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(200);
   const catReset = ((await page.locator('.ap-dash-cat-select .bselect-text').textContent()) || '').trim() === '全部';
 
+  // 滚动条隐藏但保留滚动交互
+  const scrollHidden = await page.evaluate(() => {
+    const el = document.querySelector('.ap-dash-scroll');
+    if (!el) return false;
+    const cs = getComputedStyle(el);
+    const ws = getComputedStyle(el, '::-webkit-scrollbar');
+    return cs.scrollbarWidth === 'none' || ws.display === 'none';
+  });
+  const scrollable = await page.evaluate(() => {
+    const el = document.querySelector('.ap-dash-scroll');
+    if (!el) return false;
+    const before = el.scrollTop;
+    el.scrollTop += 120;
+    const ok = el.scrollTop > before;
+    el.scrollTop = before;
+    return ok;
+  });
+
+  // 行点击进入应用详情，详情返回回看板
+  await page.click('.ap-dash-trow');
+  await page.waitForSelector('.ap-detail');
+  const detailOk = (await page.locator('.ap-detail').count()) === 1;
+  await page.click('.ap-detail .ap-back');
+  await page.waitForSelector('.ap-dash-head');
+
   // 返回首页
   await page.click('.ap-dash-head .ap-back');
   await page.waitForSelector('.ap-home-rank-row');
@@ -109,6 +134,6 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/ac-mine-gap.png`, clip: { x: 0, y: 60, width: 1600, height: 420 } });
 
-  console.log(`ovl=${ovlTitles.join('|')} lbs=${ovlLbs.join('/')} ovlTotal=${ovlTotal} entry=${entry} rangeOn=${on7} topN=${topN} sparkRemoved=${sparkRemoved} trendBtn=${trendBtnTxt} headOk=${headOk} alignOk=${alignOk} customOk=${customOk} tipOk=${tipOk} bands=${bandTxt.join('/')} noVer=${!chipTxt.includes('版本时间段')} chipToggle=${chipToggle} trendClosed=${trendClosed} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catSelOk=${catSelTxt === '数据管理类'} catReset=${catReset}`);
+  console.log(`ovl=${ovlTitles.join('|')} lbs=${ovlLbs.join('/')} ovlTotal=${ovlTotal} entry=${entry} rangeOn=${on7} topN=${topN} sparkRemoved=${sparkRemoved} trendBtn=${trendBtnTxt} headOk=${headOk} alignOk=${alignOk} customOk=${customOk} tipOk=${tipOk} bands=${bandTxt.join('/')} noVer=${!chipTxt.includes('版本时间段')} chipToggle=${chipToggle} trendClosed=${trendClosed} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catSelOk=${catSelTxt === '数据管理类'} catReset=${catReset} scrollHidden=${scrollHidden} scrollable=${scrollable} detailOk=${detailOk}`);
   await browser.close();
 })().catch((e) => { console.error(e); process.exit(1); });
