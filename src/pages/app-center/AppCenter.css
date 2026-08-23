@@ -1272,7 +1272,13 @@ button.ap-home-app { cursor: pointer; }
   color: #8a91a0;
   cursor: pointer;
   flex-shrink: 0;
+  /* 与卡片操作按钮一致：悬浮卡片才展示 */
+  opacity: 0;
+  transition: opacity 0.15s;
 }
+
+.ap-cell:hover .ap-fav,
+.ap-fav:focus-visible { opacity: 1; }
 
 .ap-fav:hover { color: #faad14; }
 

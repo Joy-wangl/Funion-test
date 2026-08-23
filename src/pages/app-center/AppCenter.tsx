@@ -41,8 +41,8 @@ const featLinesOf = (a: AppItem): string[] => {
 };
 
 /* ---------- 小图标 ---------- */
-const Svg = ({ d, size = 14, className = '', filled = false }: { d: string; size?: number; className?: string; filled?: boolean }) => (
-  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'}
+const Svg = ({ d, size = 14, className = '', filled = false, vb = '0 0 24 24' }: { d: string; size?: number; className?: string; filled?: boolean; vb?: string }) => (
+  <svg className={className} width={size} height={size} viewBox={vb} fill={filled ? 'currentColor' : 'none'}
     stroke="currentColor" strokeWidth={filled ? 0 : 2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d={d} />
   </svg>
@@ -69,6 +69,8 @@ const IC = {
   tool: 'M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z',
   robot: 'M12 2v3M9 5h6a5 5 0 015 5v5a5 5 0 01-5 5H9a5 5 0 01-5-5v-5a5 5 0 015-5zM9.5 12.5h.01M14.5 12.5h.01M10 16h4',
   star: 'M12 3l2.9 5.9 6.5.95-4.7 4.6 1.1 6.45L12 17.9l-5.8 3 1.1-6.45L2.6 9.85l6.5-.95L12 3z',
+  /* 收藏星：iconfont 圆角实心星（1024 视图） */
+  starFill: 'M908.1 353.1l-253.9-36.9L540.7 86.1c-3.1-6.3-8.2-11.4-14.5-14.5-15.8-7.8-35-1.3-42.9 14.5L369.8 316.2l-253.9 36.9c-7 1-13.4 4.3-18.3 9.3a32.05 32.05 0 00.6 45.3l183.7 179.1-43.4 252.9a32.07 32.07 0 0046.5 33.8L512 754l227.1 119.4c6.2 3.3 13.4 4.4 20.3 3.2 17.4-3 29.1-19.5 26.1-36.9l-43.4-252.9 183.7-179.1c5-4.9 8.3-11.3 9.3-18.3 2.5-17.5-9.6-33.7-27-36.3z',
   bell: 'M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0',
   trophy: 'M8 21h8m-4-4v4M7 4h10v5a5 5 0 01-10 0V4zm0 1H4v2a3 3 0 003 3m10-5h3v2a3 3 0 01-3 3',
   clock: 'M12 3a9 9 0 109 9 9 9 0 00-9-9zm0 4v5l3 2',
@@ -506,7 +508,7 @@ export default function AppCenter() {
           title={favIds.includes(app.id) ? '取消收藏' : '收藏'}
           onClick={(e) => { e.stopPropagation(); toggleFav(app.id); }}
         >
-          <Svg d={IC.star} size={16} filled />
+          <Svg d={IC.starFill} size={16} filled vb="0 0 1024 1024" />
         </button>
       </div>
     </div>
@@ -857,7 +859,7 @@ export default function AppCenter() {
             onClick={() => toggleFav(app.id)}
           >
             <span>收藏</span>
-            <b><Svg d={IC.star} size={16} filled /></b>
+            <b><Svg d={IC.starFill} size={16} filled vb="0 0 1024 1024" /></b>
           </button>
         </div>
         <div className="ap-detail-stats">
