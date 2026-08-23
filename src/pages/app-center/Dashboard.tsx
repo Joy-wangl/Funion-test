@@ -128,7 +128,6 @@ function AppTrendModal({ app, onClose }: { app: AppItem; onClose: () => void }) 
               <i style={{ background: hidden.has('use') ? '#d5d9e0' : '#2e7cf6' }} />总使用人次<b>{fmt(data.useSum)}</b>
             </button>
           </div>
-          <span className="ap-trend-wheeltip">滚轮切换时间范围</span>
           <span className="ap-dash-range">
             {RANGES.map((r) => (
               <button key={r} type="button" className={tr === r ? 'on' : ''} onClick={() => setTr(r)}>近{r}天</button>
@@ -170,8 +169,6 @@ function AppTrendModal({ app, onClose }: { app: AppItem; onClose: () => void }) 
           ) : null))}
         </svg>
         <div className="ap-trend-foot">
-          <span className="lg"><i style={{ background: '#2e7cf6' }} />每日使用人次</span>
-          <span className="lg"><i style={{ background: '#22a06b' }} />每日新增人数</span>
           <span className="pd">{data.labels[0]} → {data.labels[n - 1]}</span>
           <button type="button" className="ap-trend-closebtn" onClick={onClose}>关闭</button>
         </div>

@@ -1582,8 +1582,6 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-trend-chip.off b { color: #98a0ae; text-decoration: line-through; }
 
-.ap-trend-wheeltip { font-size: 12px; color: #98a0ae; }
-
 .ap-trend-svg { width: 100%; height: auto; background: #f7f8fa; border-radius: 8px; }
 
 .ap-trend-svg .ax { font-size: 11px; fill: #98a0ae; }
@@ -1591,10 +1589,6 @@ button.ap-home-app { cursor: pointer; }
 .ap-trend-svg .band-lb { font-size: 10px; }
 
 .ap-trend-foot { display: flex; align-items: center; gap: 16px; margin-top: 12px; font-size: 12px; color: #565d6b; }
-
-.ap-trend-foot .lg { display: inline-flex; align-items: center; gap: 6px; }
-
-.ap-trend-foot .lg i { width: 8px; height: 8px; border-radius: 50%; }
 
 .ap-trend-foot .pd { margin-left: auto; color: #98a0b3; }
 

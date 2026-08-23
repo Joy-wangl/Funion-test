@@ -217,8 +217,12 @@
 }
 .rc-caret:not(.open) { transform: rotate(-90deg); }
 .rc-row-company td { background: #fff; }
-/* 展开区参考品控系列展开：嵌套块整体缩进，形成层级感 */
-.rc-page .rc-tree .expand-row > td { padding: 12px 20px 16px 48px; }
+/* 公司父行行高向子表成员行看齐，避免外矮内高 */
+.rc-page .rc-tree tbody tr.rc-row-company > td { padding: 18px 12px; }
+/* 父行 caret 与勾选同列（图二树形缩进）：首列加宽，名称列自然缩进 */
+.rc-page .rc-tree th.check,
+.rc-page .rc-tree td.check { width: 56px; }
+.rc-row-company td.check .rc-caret { margin-right: 0; margin-left: 4px; }
 .rc-row-group td { background: #f7f8fa; }
 .rc-row-agent:hover td { background: #f5f9ff; }
 .rc-group-name { padding-left: 30px; }

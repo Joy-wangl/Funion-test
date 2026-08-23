@@ -200,15 +200,13 @@ export default function AgentTable({
               <tr className="rc-row-company">
                 <td className="check">
                   <input type="checkbox" title="全选/清空全部客服" checked={allFiltered} onChange={toggleAllFiltered} />
-                </td>
-                <td>
                   <span
                     className={`rc-caret ${companyOpen ? 'open' : ''}`}
                     title="展开/收起"
                     onClick={() => setCompanyOpen((v) => !v)}
                   >▾</span>
-                  <b>{RC_COMPANY}</b>
                 </td>
+                <td><b>{RC_COMPANY}</b></td>
                 <td>{companySum.ai}</td>
                 <td>{companySum.human}</td>
                 <td>{companySum.resp}s</td>
