@@ -234,11 +234,6 @@ const permItems: { name: string; target?: PageKey }[] = [
             </div>
           </section>
           <section :class="pageCls('permDept')">
-            <div class="page-header">
-              <div class="page-title">
-                <p>组织架构与部门成员</p>
-              </div>
-            </div>
             <div class="pm-page pm-embed">
               <DepartmentManagement />
             </div>
