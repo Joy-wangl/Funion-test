@@ -36,27 +36,6 @@ const daySeries = (id: string, use: number, range: number) => {
   return out;
 };
 
-/* 每日使用趋势图：面积+折线，末点高亮 */
-const Spark = ({ id, use, range }: { id: string; use: number; range: number }) => {
-  const arr = useMemo(() => daySeries(id, use, range), [id, use, range]);
-  const w = 130;
-  const h = 26;
-  const mx = Math.max(...arr, 1);
-  const pts = arr.map((v, i) => [
-    (i / (arr.length - 1)) * w,
-    h - 2 - (v / mx) * (h - 6),
-  ]);
-  const line = pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
-  const last = pts[pts.length - 1];
-  return (
-    <svg className="ap-dash-spark" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-label={`近${range}天每日使用趋势`}>
-      <polygon points={`0,${h} ${line} ${w},${h}`} fill="rgba(46,124,246,.12)" />
-      <polyline points={line} fill="none" stroke="#2e7cf6" strokeWidth={1.4} />
-      <circle cx={last[0]} cy={last[1]} r={2} fill="#2e7cf6" />
-    </svg>
-  );
-};
-
 /* 使用趋势弹窗：参考品控中心趋势图——指标 pills + 周期切换 + 双线趋势 */
 function AppTrendModal({ app, onClose }: { app: AppItem; onClose: () => void }) {
   const [tr, setTr] = useState<Range>(30);
@@ -356,10 +335,7 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
                     <span className="tr"><i style={{ width: `${Math.max(2, Math.round((r.app.users / maxUsers) * 100))}%` }} /></span>
                     <span className="pc">总 {fmt(r.app.users)} 人次 · 日均占 {(r.share * 100).toFixed(1)}%</span>
                   </span>
-                  <button type="button" className="ap-dash-trendcell" title="点击查看使用趋势" onClick={() => setTrendApp(r.app)}>
-                    <Spark id={r.app.id} use={r.use} range={range} />
-                    <span>趋势图</span>
-                  </button>
+                  <button type="button" className="ap-dash-trendcell" title="点击查看使用趋势" onClick={() => setTrendApp(r.app)}>趋势图</button>
                   <span className="ct-strong">{r.cnt ? r.avg.toFixed(1) : '--'}</span>
                   <span className="ct-strong">{r.cnt ? `${Math.round(r.goodRate * 100)}%` : '--'}</span>
                   <span className="ap-dash-badges">
