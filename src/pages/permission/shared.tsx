@@ -237,12 +237,9 @@ export function DeptTransfer({ picked, onPickedChange }: {
 }
 
 /* ---------- 添加成员（图一：左侧部门成员选择 + 右侧已选 + 运营归属） ---------- */
-export type OpsBindCfg = Record<OpsChannel, {
-  role: OpsRole | '';
-  groupId: string;
-  parentId: string;
-  groupName: string;
-}>;
+export type RoleAssign = { groupId: string; parentId: string; groupName: string; memberIds: string[] };
+export type OpsBindCfg = Record<OpsChannel, Record<OpsRole, RoleAssign>>;
+const emptyAssign = (): RoleAssign => ({ groupId: '', parentId: '', groupName: '', memberIds: [] });
 export function AddMemberModal({ onClose, onConfirm, notify, opsGroups, opsMembers, sourceMembers }: {
   onClose: () => void;
   onConfirm: (members: Member[], roles: string[], opsPatch?: { groups: OpsChannelGroups; members: OpsChannelMembers }) => void;
@@ -253,26 +250,10 @@ export function AddMemberModal({ onClose, onConfirm, notify, opsGroups, opsMembe
 }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [step, setStep] = useState<1 | 2>(1);
-  const [opsCfg, setOpsCfg] = useState<OpsBindCfg>({
-    taobao: { role: '', groupId: '', parentId: '', groupName: '' },
-    video: { role: '', groupId: '', parentId: '', groupName: '' },
-  });
-
-  /* 归属必选：进入步骤2 时，已选成员在某平台已有归属且一致则预填，支持修改 */
-  useEffect(() => {
-    if (step !== 2) return;
-    setOpsCfg((prev) => {
-      const next = { ...prev };
-      OPS_CHANNELS.forEach(({ key }) => {
-        const entries = selectedMembers.map((m) => opsMembers[key].find((e) => e.memberId === m.id));
-        const first = entries[0];
-        if (!first) return;
-        const uniform = entries.every((e) => e && e.role === first.role && e.groupId === first.groupId && e.parentId === first.parentId);
-        if (uniform) next[key] = { ...next[key], role: first.role, groupId: first.groupId, parentId: first.parentId ?? '', groupName: '' };
-      });
-      return next;
-    });
-  }, [step]);
+  const [opsCfg, setOpsCfg] = useState<OpsBindCfg>(() => ({
+    taobao: { leader: emptyAssign(), specialist: emptyAssign(), assistant: emptyAssign() },
+    video: { leader: emptyAssign(), specialist: emptyAssign(), assistant: emptyAssign() },
+  }));
 
   const selectedMembers = useMemo(() => sourceMembers.filter((m) => selectedIds.has(m.id)), [sourceMembers, selectedIds]);
   const validSource = useMemo(() => sourceMembers.filter((m) => m.status !== 'pending'), [sourceMembers]);
@@ -309,51 +290,42 @@ export function AddMemberModal({ onClose, onConfirm, notify, opsGroups, opsMembe
     const patchMembers: OpsChannelMembers = { ...opsMembers };
 
     for (const { key, label } of OPS_CHANNELS) {
-      const cfg = opsCfg[key];
-      /* 归属必选：每个平台都须完成职位与组 */
-      if (!cfg.role) { notify(`请完成${label}平台运营归属`, 'error'); return; }
-      const cfgRole = cfg.role;
+      const ch = opsCfg[key];
+      /* 归属必选：每个平台都须为所有成员分配职位 */
+      const assigned = new Set([...ch.leader.memberIds, ...ch.specialist.memberIds, ...ch.assistant.memberIds]);
+      if (selectedMembers.some((m) => !assigned.has(m.id))) { notify(`请为${label}平台所有成员分配职位`, 'error'); return; }
 
-      if (cfgRole === 'leader') {
+      if (ch.leader.memberIds.length > 0) {
         /* 一个组只有一个组长：组长职位新建运营组 */
-        const name = cfg.groupName.trim();
-        if (!name) { notify('请输入新建运营组名称', 'error'); return; }
-        if (selectedMembers.length > 1) { notify('组长职位一次仅可分配一名成员，请上一步调整', 'error'); return; }
-        const member = selectedMembers[0];
-        const gid = newGroupId();
-        patchGroups[key] = [...patchGroups[key], { id: gid, channel: key, name, leaderId: member.id, createdAt: nowStamp() }];
-        patchMembers[key] = patchMembers[key].filter((m) => m.memberId !== member.id);
-        patchMembers[key].push({
-          memberId: member.id,
-          name: member.name,
-          role: 'leader',
-          groupId: gid,
-          parentId: null,
-          addedBy: '管理员',
-          addedAt: nowStamp(),
-        });
-      } else {
-        const group = patchGroups[key].find((g) => g.id === cfg.groupId);
-        if (!group) { notify('请选择运营组', 'error'); return; }
-        let parentId = cfg.parentId;
-        if (cfgRole === 'specialist') {
+        const name = ch.leader.groupName.trim();
+        if (!name) { notify(`请输入${label}平台新建运营组名称`, 'error'); return; }
+        const member = selectedMembers.find((m) => m.id === ch.leader.memberIds[0]);
+        if (member) {
+          const gid = newGroupId();
+          patchGroups[key] = [...patchGroups[key], { id: gid, channel: key, name, leaderId: member.id, createdAt: nowStamp() }];
+          patchMembers[key] = patchMembers[key].filter((m) => m.memberId !== member.id);
+          patchMembers[key].push({ memberId: member.id, name: member.name, role: 'leader', groupId: gid, parentId: null, addedBy: '管理员', addedAt: nowStamp() });
+        }
+      }
+
+      for (const r of ['specialist', 'assistant'] as OpsRole[]) {
+        const ids = ch[r].memberIds;
+        if (ids.length === 0) continue;
+        const group = patchGroups[key].find((g) => g.id === ch[r].groupId);
+        if (!group) { notify(`请选择${label}平台${OPS_ROLE_LABEL[r]}的运营组`, 'error'); return; }
+        let parentId = ch[r].parentId;
+        if (r === 'specialist') {
           /* 选组后组长直接代入，无需再选 */
           parentId = patchMembers[key].find((m) => m.groupId === group.id && m.role === 'leader')?.memberId ?? '';
           if (!parentId) { notify(`组「${group.name}」暂无组长，请选择其它组`, 'error'); return; }
         } else if (!parentId) {
-          notify('请选择挂靠专员', 'error'); return;
+          notify(`请选择${label}平台${OPS_ROLE_LABEL[r]}的挂靠专员`, 'error'); return;
         }
-        selectedMembers.forEach((member) => {
-          patchMembers[key] = patchMembers[key].filter((m) => m.memberId !== member.id);
-          patchMembers[key].push({
-            memberId: member.id,
-            name: member.name,
-            role: cfgRole,
-            groupId: group.id,
-            parentId,
-            addedBy: '管理员',
-            addedAt: nowStamp(),
-          });
+        ids.forEach((id) => {
+          const member = selectedMembers.find((m) => m.id === id);
+          if (!member) return;
+          patchMembers[key] = patchMembers[key].filter((m) => m.memberId !== id);
+          patchMembers[key].push({ memberId: id, name: member.name, role: r, groupId: group.id, parentId, addedBy: '管理员', addedAt: nowStamp() });
         });
       }
     }
@@ -418,7 +390,7 @@ export function AddMemberModal({ onClose, onConfirm, notify, opsGroups, opsMembe
               ))}
             </div>
           </div>
-          <OpsBindingStep opsGroups={opsGroups} opsMembers={opsMembers} opsCfg={opsCfg} onChange={setOpsCfg} />
+          <OpsBindingStep opsGroups={opsGroups} opsMembers={opsMembers} opsCfg={opsCfg} onChange={setOpsCfg} selectedMembers={selectedMembers} />
         </div>
       )}
     </Modal>
@@ -552,27 +524,43 @@ export function MemberPickPanel({ members, selectedIds, onToggle, onBulk, disabl
   );
 }
 
-/* ---------- 运营归属配置（平台 tab 切换 · 归属必选） ---------- */
-function OpsBindingStep({ opsGroups, opsMembers, opsCfg, onChange }: {
+/* ---------- 运营归属配置（平台 tab · 先选职位再选人：组长单选 / 专员·助理多选） ---------- */
+function OpsBindingStep({ opsGroups, opsMembers, opsCfg, onChange, selectedMembers }: {
   opsGroups: OpsChannelGroups;
   opsMembers: OpsChannelMembers;
   opsCfg: OpsBindCfg;
   onChange: (next: OpsBindCfg) => void;
+  selectedMembers: Member[];
 }) {
   const [tab, setTab] = useState<OpsChannel>('taobao');
-  const update = (ch: OpsChannel, patch: Partial<OpsBindCfg[OpsChannel]>) => {
-    onChange({ ...opsCfg, [ch]: { ...opsCfg[ch], ...patch } });
+  const [role, setRole] = useState<OpsRole>('specialist');
+  const ch = opsCfg[tab];
+  const cfg = ch[role];
+  const update = (patch: Partial<RoleAssign>) => {
+    onChange({ ...opsCfg, [tab]: { ...ch, [role]: { ...cfg, ...patch } } });
   };
 
-  const cfg = opsCfg[tab];
   const group = opsGroups[tab].find((g) => g.id === cfg.groupId);
   const groupLeader = group ? opsMembers[tab].find((m) => m.groupId === group.id && m.role === 'leader') : undefined;
   const specialists = opsMembers[tab].filter((m) => m.role === 'specialist' && m.groupId === cfg.groupId);
-  const parentName = opsMembers[tab].find((m) => m.memberId === cfg.parentId)?.name ?? '';
 
-  const sumText = !cfg.role ? '' : cfg.role === 'leader'
-    ? `运营组长 · 新建组「${cfg.groupName.trim() || '—'}」`
-    : `${OPS_ROLE_LABEL[cfg.role]}${group ? ` · ${group.name}` : ''}${(cfg.role === 'specialist' ? groupLeader?.name : parentName) ? ` → ${cfg.role === 'specialist' ? groupLeader?.name : parentName}` : ''}`;
+  const assignedRoleOf = (id: string) =>
+    (['leader', 'specialist', 'assistant'] as OpsRole[]).find((r) => ch[r].memberIds.includes(id));
+
+  /* 点选成员：先从本平台各职位移除，再按单/多选写入当前职位 */
+  const togglePick = (id: string) => {
+    const wasOn = cfg.memberIds.includes(id);
+    const nextCh = { ...ch };
+    (['leader', 'specialist', 'assistant'] as OpsRole[]).forEach((r) => {
+      nextCh[r] = { ...nextCh[r], memberIds: nextCh[r].memberIds.filter((x) => x !== id) };
+    });
+    if (!wasOn) nextCh[role] = { ...nextCh[role], memberIds: role === 'leader' ? [id] : [...cfg.memberIds, id] };
+    onChange({ ...opsCfg, [tab]: nextCh });
+  };
+
+  const sumParts = (['leader', 'specialist', 'assistant'] as OpsRole[])
+    .filter((r) => ch[r].memberIds.length > 0)
+    .map((r) => `${OPS_ROLE_LABEL[r]}×${ch[r].memberIds.length}`);
 
   return (
     <div className="og-binding-step">
@@ -584,23 +572,21 @@ function OpsBindingStep({ opsGroups, opsMembers, opsCfg, onChange }: {
             </button>
           ))}
         </div>
-        {sumText && <span className="og-binding-sum">{sumText}</span>}
+        {sumParts.length > 0 && <span className="og-binding-sum">{sumParts.join(' · ')}</span>}
       </div>
       <div className="og-bind-panel">
         <div className="og-bind-field">
           <label>职位</label>
           <div className="og-role-pills">
             {(['leader', 'specialist', 'assistant'] as OpsRole[]).map((r) => (
-              <button
-                key={r}
-                type="button"
-                className={`og-pill ${cfg.role === r ? 'on' : ''}`}
-                onClick={() => update(tab, { role: r, groupId: '', parentId: '', groupName: '' })}
-              >{OPS_ROLE_LABEL[r]}</button>
+              <button key={r} type="button" className={`og-pill ${role === r ? 'on' : ''}`} onClick={() => setRole(r)}>
+                {OPS_ROLE_LABEL[r]}
+                {ch[r].memberIds.length > 0 && <i className="og-pill-n">{ch[r].memberIds.length}</i>}
+              </button>
             ))}
           </div>
         </div>
-        {cfg.role === 'leader' && (
+        {role === 'leader' && (
           <>
             <div className="og-bind-tip">一个运营组仅设一名组长，组长职位将在确定后新建运营组。</div>
             <div className="og-bind-field">
@@ -610,18 +596,18 @@ function OpsBindingStep({ opsGroups, opsMembers, opsCfg, onChange }: {
                 value={cfg.groupName}
                 placeholder="请输入组名"
                 maxLength={20}
-                onChange={(e) => update(tab, { groupName: e.target.value })}
+                onChange={(e) => update({ groupName: e.target.value })}
               />
             </div>
           </>
         )}
-        {cfg.role === 'specialist' && (
+        {role === 'specialist' && (
           <div className="og-bind-field">
             <label>运营组</label>
             <BubbleSelect
               className="input"
               value={cfg.groupId || '请选择'}
-              onChange={(v) => update(tab, { groupId: v, parentId: '' })}
+              onChange={(v) => update({ groupId: v, parentId: '' })}
               options={opsGroups[tab].map((g) => ({ value: g.id, label: g.name }))}
             />
             {group ? (
@@ -635,14 +621,14 @@ function OpsBindingStep({ opsGroups, opsMembers, opsCfg, onChange }: {
             )}
           </div>
         )}
-        {cfg.role === 'assistant' && (
+        {role === 'assistant' && (
           <div className="og-bind-grid">
             <div className="og-bind-field">
               <label>运营组</label>
               <BubbleSelect
                 className="input"
                 value={cfg.groupId || '请选择'}
-                onChange={(v) => update(tab, { groupId: v, parentId: '' })}
+                onChange={(v) => update({ groupId: v, parentId: '' })}
                 options={opsGroups[tab].map((g) => ({ value: g.id, label: g.name }))}
               />
             </div>
@@ -651,12 +637,31 @@ function OpsBindingStep({ opsGroups, opsMembers, opsCfg, onChange }: {
               <BubbleSelect
                 className="input"
                 value={cfg.parentId || '请选择'}
-                onChange={(v) => update(tab, { parentId: v })}
+                onChange={(v) => update({ parentId: v })}
                 options={specialists.map((m) => ({ value: m.memberId, label: m.name }))}
               />
             </div>
           </div>
         )}
+        <div className="og-bind-field">
+          <label>选择成员{role === 'leader' ? '（单选）' : '（可多选）'}</label>
+          <div className="am-pick-list">
+            {selectedMembers.map((m) => {
+              const ar = assignedRoleOf(m.id);
+              const on = ar === role;
+              return (
+                <button key={m.id} type="button" className={`am-pick${on ? ' on' : ''}`} onClick={() => togglePick(m.id)}>
+                  <span className="og-ava" style={{ background: avaColor(m.name) }}>{m.name.slice(0, 1)}</span>
+                  <span className="nm">{m.name}</span>
+                  {on ? <span className="ck"><IconCheck /></span> : ar ? <i className="as">{OPS_ROLE_LABEL[ar]}</i> : null}
+                </button>
+              );
+            })}
+          </div>
+          {role === 'leader'
+            ? <div className="og-bind-hint">组长仅可单选 1 名成员，点选新成员将自动替换。</div>
+            : <div className="og-bind-hint">已在他职的成员会显示当前职位，点选将改配到本职位。</div>}
+        </div>
       </div>
     </div>
   );

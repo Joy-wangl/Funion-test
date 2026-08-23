@@ -1047,6 +1047,8 @@
 .pm-page .og-pill { height: 30px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--border); background: var(--white); color: var(--text-2); font-size: 12px; cursor: pointer; transition: all .15s; }
 .pm-page .og-pill:hover { border-color: var(--primary); color: var(--primary); }
 .pm-page .og-pill.on { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+.pm-page .og-pill-n { font-style: normal; margin-left: 6px; border-radius: 999px; padding: 0 6px; background: var(--fill-1); color: var(--text-3); }
+.pm-page .og-pill.on .og-pill-n { background: rgba(255, 255, 255, .28); color: #fff; }
 .pm-page .og-bind-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 /* 编辑归属弹窗：分段 tab 与下方表单左对齐 */
 .pm-page .og-edit-tabs { margin: 0 0 16px; }
@@ -1059,6 +1061,13 @@
 .pm-page .am-sum-label { font-size: 12px; color: var(--text-3); flex-shrink: 0; padding-top: 5px; }
 .pm-page .am-sum-tags { display: flex; flex-wrap: wrap; gap: 8px; }
 .pm-page .am-sum-tag { display: inline-flex; align-items: center; gap: 6px; background: var(--white); border: 1px solid var(--border-2); border-radius: 999px; padding: 3px 12px 3px 4px; font-size: 12px; color: var(--text-1); }
+/* 步骤2：职位下选人（组长单选 / 专员·助理多选） */
+.pm-page .am-pick-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.pm-page .am-pick { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--white); border-radius: 8px; padding: 5px 10px; font-size: 12px; color: var(--text-2); cursor: pointer; transition: all .15s; }
+.pm-page .am-pick:hover { border-color: var(--primary); color: var(--primary); }
+.pm-page .am-pick.on { border-color: var(--primary); background: #eef4ff; color: var(--primary); }
+.pm-page .am-pick .ck { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: var(--primary); color: #fff; }
+.pm-page .am-pick .as { font-style: normal; font-size: 11px; color: var(--text-4); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; }
 .pm-page .am-sum-tag .og-ava { width: 20px; height: 20px; border-radius: 50%; font-size: 11px; }
 
 /* 右侧占位 */
