@@ -68,7 +68,7 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
   const useSorted = useMemo(() => [...rows].sort((a, b) => b.use - a.use), [rows]);
   const rankOf = useMemo(() => new Map(useSorted.map((r, i) => [r.app.id, i + 1])), [useSorted]);
   const top3 = useSorted.slice(0, 3);
-  const maxUse = useSorted[0]?.use ?? 1;
+  const maxUsers = Math.max(1, ...apps.map((a) => a.users));
   const cats = useMemo(() => [...new Set(apps.map((a) => a.category))], [apps]);
   const kw = q.trim().toLowerCase();
   const view = rows.filter((r) =>
@@ -120,20 +120,26 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
         </div>
       </div>
 
-      <section className="ap-dash-top3">
-        {top3.map((r, i) => (
-          <div className={`ap-dash-top3-card r${i + 1}`} key={r.app.id}>
-            <span className="medal">{i + 1}</span>
-            <span className="inf">
-              <b>{r.app.name}</b>
-              <i>{r.app.category}</i>
-            </span>
-            <span className="nums">
-              <b>{r.use}<em>人次</em></b>
-              <i>占比 {(r.share * 100).toFixed(1)}% · 均分 {r.cnt ? r.avg.toFixed(1) : '--'}</i>
-            </span>
-          </div>
-        ))}
+      <section className="ap-dash-top3-wrap">
+        <div className="ap-dash-top3-head">
+          <h3>近{range}天使用 TOP3</h3>
+          <span>按使用人次排出的头部应用</span>
+        </div>
+        <div className="ap-dash-top3">
+          {top3.map((r, i) => (
+            <div className={`ap-dash-top3-card r${i + 1}`} key={r.app.id}>
+              <span className="medal">{i + 1}</span>
+              <span className="inf">
+                <b>{r.app.name}</b>
+                <i>{r.app.category}</i>
+              </span>
+              <span className="nums">
+                <b>{r.use}<em>人次 / 近{range}天</em></b>
+                <i>占全盘使用 {(r.share * 100).toFixed(1)}% · 均分 {r.cnt ? r.avg.toFixed(1) : '--'}</i>
+              </span>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="ap-dash-card">
@@ -155,7 +161,7 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
           <span>排名</span>
           <span>应用</span>
           <span>近{range}天使用人次</span>
-          <span>使用人次占比</span>
+          <span>应用总人次 / 日均占比</span>
           <span>平均评分</span>
           <span>好评率</span>
           <span>标记</span>
@@ -169,8 +175,8 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
             </span>
             <span className="ct-strong">{r.use} 人次</span>
             <span className="ap-dash-share">
-              <span className="tr"><i style={{ width: `${Math.max(2, Math.round((r.use / maxUse) * 100))}%` }} /></span>
-              <span className="pc">{(r.share * 100).toFixed(1)}%</span>
+              <span className="tr"><i style={{ width: `${Math.max(2, Math.round((r.app.users / maxUsers) * 100))}%` }} /></span>
+              <span className="pc">总 {fmt(r.app.users)} 人次 · 日均占 {(r.share * 100).toFixed(1)}%</span>
             </span>
             <span className="ct-strong">{r.cnt ? r.avg.toFixed(1) : '--'}</span>
             <span className="ct-strong">{r.cnt ? `${Math.round(r.goodRate * 100)}%` : '--'}</span>
