@@ -51,7 +51,11 @@ function AppTrendModal({ app, onClose }: { app: AppItem; onClose: () => void }) 
       labels.push(`${d.getMonth() + 1}/${d.getDate()}`);
     }
     const sum = (a: number[]) => Math.round(a.reduce((s, v) => s + v, 0));
-    return { usePts, newPts, labels, useSum: sum(usePts), newSum: sum(newPts) };
+    /* 版本上线日在图表窗口内的下标：之前=旧版完成带，之后=当前版本运行中带 */
+    const first = new Date();
+    first.setDate(first.getDate() - (tr - 1));
+    const relIdx = Math.round((new Date(app.release).getTime() - first.getTime()) / 86400000);
+    return { usePts, newPts, labels, useSum: sum(usePts), newSum: sum(newPts), relIdx };
   }, [app, tr]);
 
   const W = 960;
@@ -99,6 +103,22 @@ function AppTrendModal({ app, onClose }: { app: AppItem; onClose: () => void }) 
               </g>
             );
           })}
+          {/* 版本时间段色带：参考品控中心趋势图（完成=绿 / 运行中=蓝），垫在折线下 */}
+          {data.relIdx > 0 && (
+            <g>
+              <rect x={x(0)} y={T} width={Math.max(2, x(Math.min(data.relIdx, n - 1)) - x(0))} height={H - T - B} fill="#22a06b" opacity={0.08} />
+              <line x1={x(0)} x2={x(0)} y1={T} y2={H - B} stroke="#22a06b" strokeDasharray="4 4" opacity={0.6} />
+              {data.relIdx < n && <line x1={x(data.relIdx)} x2={x(data.relIdx)} y1={T} y2={H - B} stroke="#22a06b" opacity={0.6} />}
+              <text x={x(0) + 4} y={T + 10} fill="#22a06b" className="band-lb">上一版·完成</text>
+            </g>
+          )}
+          {data.relIdx < n && (
+            <g>
+              <rect x={x(Math.max(data.relIdx, 0))} y={T} width={Math.max(2, W - R - x(Math.max(data.relIdx, 0)))} height={H - T - B} fill="#2e7cf6" opacity={0.08} />
+              <line x1={x(Math.max(data.relIdx, 0))} x2={x(Math.max(data.relIdx, 0))} y1={T} y2={H - B} stroke="#2e7cf6" strokeDasharray="4 4" opacity={0.6} />
+              <text x={x(Math.max(data.relIdx, 0)) + 4} y={T + 10} fill="#2e7cf6" className="band-lb">v{app.version ?? '1.0.0'}·运行中</text>
+            </g>
+          )}
           <polyline points={line(data.usePts)} fill="none" stroke="#2e7cf6" strokeWidth={2.2} />
           <polyline points={line(data.newPts)} fill="none" stroke="#22a06b" strokeWidth={2.2} />
           {data.usePts.map((v, i) => <circle key={`u${i}`} cx={x(i)} cy={y(v)} r={2.4} fill="#2e7cf6" />)}
