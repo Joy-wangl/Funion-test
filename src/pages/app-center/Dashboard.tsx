@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AppItem, AppReview } from './data';
 
 /* 全局时间范围：所有指标按范围联动 */
@@ -70,6 +70,20 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
   const top3 = useSorted.slice(0, 3);
   const maxUsers = Math.max(1, ...apps.map((a) => a.users));
   const cats = useMemo(() => [...new Set(apps.map((a) => a.category))], [apps]);
+
+  /* 类目条横向滚动：仅溢出时显示左右滚动按钮（参考应用商城交互） */
+  const catScrollRef = useRef<HTMLDivElement | null>(null);
+  const [catNav, setCatNav] = useState({ l: false, r: false });
+  const updateCatNav = () => {
+    const el = catScrollRef.current;
+    if (!el) { setCatNav({ l: false, r: false }); return; }
+    setCatNav({ l: el.scrollLeft > 4, r: el.scrollLeft + el.clientWidth < el.scrollWidth - 4 });
+  };
+  useEffect(() => {
+    const t = requestAnimationFrame(updateCatNav);
+    window.addEventListener('resize', updateCatNav);
+    return () => { cancelAnimationFrame(t); window.removeEventListener('resize', updateCatNav); };
+  }, [cats]);
   const kw = q.trim().toLowerCase();
   const view = rows.filter((r) =>
     (cat === 'all' || r.app.category === cat) &&
@@ -152,11 +166,21 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
                 <button type="button" className={sort === 'rate' ? 'on' : ''} onClick={() => setSort('rate')}>按评分</button>
               </span>
             </h3>
-            <div className="ap-dash-range ap-dash-cats">
-              <button type="button" className={cat === 'all' ? 'on' : ''} onClick={() => setCat('all')}>全部</button>
-              {cats.map((c) => (
-                <button key={c} type="button" className={cat === c ? 'on' : ''} onClick={() => setCat(c)}>{c}</button>
-              ))}
+            <div className="ap-dash-cats-row">
+              <div className="ap-dash-cats-scroll" ref={catScrollRef} onScroll={updateCatNav}>
+                <div className="ap-dash-range ap-dash-cats">
+                  <button type="button" className={cat === 'all' ? 'on' : ''} onClick={() => setCat('all')}>全部</button>
+                  {cats.map((c) => (
+                    <button key={c} type="button" className={cat === c ? 'on' : ''} onClick={() => setCat(c)}>{c}</button>
+                  ))}
+                </div>
+              </div>
+              {(catNav.l || catNav.r) && (
+                <span className="ap-rev-nav ap-dash-cats-nav">
+                  <button type="button" title="向左滚动" disabled={!catNav.l} onClick={() => catScrollRef.current?.scrollBy({ left: -240, behavior: 'smooth' })}><Ic d="M15 18l-6-6 6-6" size={13} /></button>
+                  <button type="button" title="向右滚动" disabled={!catNav.r} onClick={() => catScrollRef.current?.scrollBy({ left: 240, behavior: 'smooth' })}><Ic d="M9 18l6-6-6-6" size={13} /></button>
+                </span>
+              )}
             </div>
             <div className="ap-dash-thead">
               <span>排名</span>

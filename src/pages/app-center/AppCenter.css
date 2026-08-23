@@ -1540,8 +1540,16 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-dash-card > h3 .ap-dash-range { margin-left: auto; }
 
-/* 类目筛选：与页面切换统一的分段样式 */
-.ap-dash-cats { margin: 0 0 12px; align-self: flex-start; }
+/* 类目筛选：与页面切换统一的分段样式；溢出时右侧出现左右滚动按钮 */
+.ap-dash-cats-row { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; }
+
+.ap-dash-cats-scroll { flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+
+.ap-dash-cats-scroll::-webkit-scrollbar { display: none; }
+
+.ap-dash-cats { margin: 0; width: max-content; }
+
+.ap-dash-cats-nav { flex-shrink: 0; }
 
 .ap-dash-empty { padding: 32px 0; text-align: center; color: #98a0b3; font-size: 12px; }
 

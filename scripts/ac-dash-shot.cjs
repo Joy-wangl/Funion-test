@@ -45,6 +45,24 @@ const OUT = 'd:/Qoder/Funion';
   await page.click('.ap-dash-cats button:has-text("全部")');
   await page.waitForTimeout(200);
 
+  // 类目条滚动按钮：宽屏隐藏，窄屏溢出出现且可滚
+  const catsNavWide = await page.locator('.ap-dash-cats-nav').count();
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await page.waitForTimeout(400);
+  const catsNavNarrow = await page.locator('.ap-dash-cats-nav').count();
+  let scrolled = false;
+  if (catsNavNarrow) {
+    await page.click('.ap-dash-cats-nav button[title="向右滚动"]');
+    await page.waitForTimeout(600);
+    scrolled = await page.evaluate(() => {
+      const el = document.querySelector('.ap-dash-cats-scroll');
+      return el ? el.scrollLeft > 0 : false;
+    });
+  }
+  await page.screenshot({ path: `${OUT}/ac-dash-catsnav.png`, clip: { x: 0, y: 150, width: 1000, height: 620 } });
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.waitForTimeout(300);
+
   // 返回首页
   await page.click('.ap-dash-head .ap-back');
   await page.waitForSelector('.ap-home-rank-row');
@@ -54,6 +72,6 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/ac-mine-gap.png`, clip: { x: 0, y: 60, width: 1600, height: 420 } });
 
-  console.log(`entry=${entry} rangeOn=${on7} top3=${top3} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0}`);
+  console.log(`entry=${entry} rangeOn=${on7} top3=${top3} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catsNavWide=${catsNavWide} catsNavNarrow=${catsNavNarrow} scrolled=${scrolled}`);
   await browser.close();
 })().catch((e) => { console.error(e); process.exit(1); });
