@@ -1,15 +1,19 @@
 import { useMemo, useState } from 'react';
 import type { AppItem, AppReview } from './data';
 
-/* 确定性伪随机：保证每次打开趋势曲线一致 */
-const seeded = (seed: number) => () => {
-  seed = (seed * 9301 + 49297) % 233280;
-  return seed / 233280;
-};
+/* 全局时间范围：所有指标按范围联动 */
+const RANGES = [7, 30, 90] as const;
+type Range = (typeof RANGES)[number];
+const FACTOR: Record<Range, number> = { 7: 0.12, 30: 0.35, 90: 0.72 };
 
 const fmt = (n: number) => (n >= 10000 ? `${(n / 10000).toFixed(1)}w` : `${n}`);
 
-const DONUT_COLORS = ['#2e7cf6', '#f7ba1e', '#00b42a', '#f53f3f', '#722ed1', '#0fc6c2'];
+/* 按应用确定性扰动：不同范围的人次拆分稳定且有差异 */
+const noise = (id: string) => {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 997;
+  return 0.8 + (h % 40) / 100;
+};
 
 const Ic = ({ d, size = 14 }: { d: string; size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -17,180 +21,127 @@ const Ic = ({ d, size = 14 }: { d: string; size?: number }) => (
   </svg>
 );
 
-/* 数据看板：应用使用统计二级页 */
+type Row = { app: AppItem; use: number; share: number; avg: number; cnt: number; goodRate: number };
+
+/* 数据看板：领导视角——哪些应用好用、范围内总人次与使用占比 */
 export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[]; reviews: AppReview[]; onBack: () => void }) {
-  const [range, setRange] = useState<7 | 30>(30);
+  const [range, setRange] = useState<Range>(30);
+  const [sort, setSort] = useState<'use' | 'rate'>('use');
 
-  const totalUsers = apps.reduce((s, a) => s + a.users, 0);
-  const avgStars = reviews.length ? reviews.reduce((s, r) => s + r.stars, 0) / reviews.length : 0;
-  const pending = reviews.filter((r) => !r.reply).length;
-  const repliedRate = reviews.length ? Math.round(((reviews.length - pending) / reviews.length) * 100) : 100;
-  const newThisMonth = apps.filter((a) => Date.now() - new Date(a.release.replace(/\//g, '-')).getTime() <= 30 * 86400000).length;
-
-  /* 使用趋势序列（按范围确定性生成） */
-  const series = useMemo(() => {
-    const rand = seeded(42);
-    const base = Math.max(40, totalUsers / 260);
-    return Array.from({ length: range }, (_, i) => {
-      const wave = 1 + 0.35 * Math.sin(i / 3.1) + 0.18 * Math.sin(i / 1.7 + 2);
-      return Math.round(base * wave * (0.8 + rand() * 0.5));
+  /* 按应用聚合评价：均分 / 条数 / 好评率 */
+  const rateByApp = useMemo(() => {
+    const m = new Map<string, { sum: number; cnt: number; good: number }>();
+    reviews.forEach((r) => {
+      const s = m.get(r.appId) ?? { sum: 0, cnt: 0, good: 0 };
+      s.sum += r.stars;
+      s.cnt += 1;
+      if (r.stars >= 4) s.good += 1;
+      m.set(r.appId, s);
     });
-  }, [range, totalUsers]);
-
-  const topApps = useMemo(() => [...apps].sort((a, b) => b.users - a.users).slice(0, 8), [apps]);
-  const catDist = useMemo(() => {
-    const m = new Map<string, number>();
-    apps.forEach((a) => m.set(a.category, (m.get(a.category) ?? 0) + 1));
-    return [...m.entries()].sort((a, b) => b[1] - a[1]);
-  }, [apps]);
-  const starDist = useMemo(() => {
-    const arr = [0, 0, 0, 0, 0];
-    reviews.forEach((r) => { arr[r.stars - 1] += 1; });
-    return arr;
+    return m;
   }, [reviews]);
-  const starMax = Math.max(1, ...starDist);
-  const topMax = Math.max(1, ...topApps.map((a) => a.users));
 
-  /* 趋势图几何 */
-  const W = 640, H = 220, PL = 42, PR = 12, PT = 14, PB = 26;
-  const max = Math.max(...series) * 1.15;
-  const px = (i: number) => PL + (i * (W - PL - PR)) / (series.length - 1);
-  const py = (v: number) => PT + (1 - v / max) * (H - PT - PB);
-  const line = series.map((v, i) => `${i ? 'L' : 'M'}${px(i).toFixed(1)} ${py(v).toFixed(1)}`).join(' ');
-  const area = `${line} L${px(series.length - 1).toFixed(1)} ${H - PB} L${px(0).toFixed(1)} ${H - PB} Z`;
-  const dayLabel = (i: number) => {
-    const d = new Date(Date.now() - (series.length - 1 - i) * 86400000);
-    return `${d.getMonth() + 1}/${d.getDate()}`;
-  };
-  const ticks = [0, Math.floor((series.length - 1) / 3), Math.floor((2 * (series.length - 1)) / 3), series.length - 1];
+  const rows = useMemo<Row[]>(() => {
+    const raw = apps.map((a) => {
+      const s = rateByApp.get(a.id);
+      return {
+        app: a,
+        use: Math.round(a.users * FACTOR[range] * noise(a.id)),
+        share: 0,
+        avg: s && s.cnt ? s.sum / s.cnt : 0,
+        cnt: s?.cnt ?? 0,
+        goodRate: s && s.cnt ? s.good / s.cnt : 0,
+      };
+    });
+    const total = raw.reduce((x, r) => x + r.use, 0) || 1;
+    raw.forEach((r) => { r.share = r.use / total; });
+    raw.sort(sort === 'use'
+      ? (a, b) => b.use - a.use
+      : (a, b) => (b.avg || -1) - (a.avg || -1) || b.use - a.use);
+    return raw;
+  }, [apps, rateByApp, range, sort]);
 
-  /* 环形图几何 */
-  const R = 56, C = 2 * Math.PI * R;
-  let acc = 0;
+  const rangeTotal = rows.reduce((s, r) => s + r.use, 0);
+  const allTotal = apps.reduce((s, a) => s + a.users, 0);
+  const avgAll = reviews.length ? reviews.reduce((s, r) => s + r.stars, 0) / reviews.length : 0;
+  const goodAll = reviews.length ? reviews.filter((r) => r.stars >= 4).length / reviews.length : 0;
+  const goodApps = rows.filter((r) => r.avg >= 4.5 && r.cnt >= 3);
+  const hotIds = new Set([...rows].sort((a, b) => b.use - a.use).slice(0, 3).map((r) => r.app.id));
 
   return (
     <div className="ap-dash">
       <div className="ap-dash-head">
         <button type="button" className="ap-back" onClick={onBack}><Ic d="M15 19l-7-7 7-7" size={16} /></button>
         <h2>数据看板</h2>
-        <span className="ap-dash-sub">应用使用情况与运营数据总览，支持定期复盘</span>
+        <span className="ap-dash-sub">近{range}天使用人次与占比，一眼看出哪些应用好用</span>
+        <span className="ap-dash-range">
+          {RANGES.map((d) => (
+            <button key={d} type="button" className={range === d ? 'on' : ''} onClick={() => setRange(d)}>近{d}天</button>
+          ))}
+        </span>
       </div>
 
       <div className="ap-dash-kpis">
         <div className="ap-dash-kpi">
-          <span className="lb">上架应用</span>
-          <span className="vl">{apps.length}</span>
-          <span className="sb">近30天新增 <b>{newThisMonth}</b> 个</span>
+          <span className="lb">范围内总使用人次</span>
+          <span className="vl">{fmt(rangeTotal)}</span>
+          <span className="sb">日均约 <b>{fmt(Math.round(rangeTotal / range))}</b> 人次</span>
         </div>
         <div className="ap-dash-kpi">
-          <span className="lb">累计使用人次</span>
-          <span className="vl">{fmt(totalUsers)}</span>
-          <span className="sb">日均约 <b>{fmt(Math.round(totalUsers / 90))}</b> 人次</span>
+          <span className="lb">累计总人次</span>
+          <span className="vl">{fmt(allTotal)}</span>
+          <span className="sb">范围内新增占 <b>{allTotal ? Math.round((rangeTotal / allTotal) * 100) : 0}%</b></span>
         </div>
         <div className="ap-dash-kpi">
-          <span className="lb">平均评分</span>
-          <span className="vl">{avgStars ? avgStars.toFixed(1) : '--'}</span>
-          <span className="sb">共 <b>{reviews.length}</b> 条评价</span>
+          <span className="lb">总体平均评分</span>
+          <span className="vl">{avgAll ? avgAll.toFixed(1) : '--'}</span>
+          <span className="sb">整体好评率 <b>{Math.round(goodAll * 100)}%</b></span>
         </div>
         <div className="ap-dash-kpi">
-          <span className="lb">待回复反馈</span>
-          <span className="vl">{pending}</span>
-          <span className="sb">反馈回复率 <b>{repliedRate}%</b></span>
+          <span className="lb">好评应用</span>
+          <span className="vl">{goodApps.length}</span>
+          <span className="sb">均分 ≥ 4.5 且评价 ≥ 3 条</span>
         </div>
       </div>
 
-      <div className="ap-dash-row">
-        <section className="ap-dash-card">
-          <h3>
-            使用趋势
-            <span className="ap-dash-range">
-              <button type="button" className={range === 7 ? 'on' : ''} onClick={() => setRange(7)}>近7天</button>
-              <button type="button" className={range === 30 ? 'on' : ''} onClick={() => setRange(30)}>近30天</button>
+      <section className="ap-dash-card">
+        <h3>
+          应用使用明细（按{sort === 'use' ? '使用人次' : '平均评分'}排序）
+          <span className="ap-dash-range">
+            <button type="button" className={sort === 'use' ? 'on' : ''} onClick={() => setSort('use')}>按使用人次</button>
+            <button type="button" className={sort === 'rate' ? 'on' : ''} onClick={() => setSort('rate')}>按评分</button>
+          </span>
+        </h3>
+        <div className="ap-dash-thead">
+          <span>排名</span>
+          <span>应用</span>
+          <span>范围内使用人次</span>
+          <span>使用人次占比</span>
+          <span>平均评分</span>
+          <span>好评率</span>
+          <span>标记</span>
+        </div>
+        {rows.map((r, i) => (
+          <div className="ap-dash-trow" key={r.app.id}>
+            <span className={`rk${i < 3 ? ' top' : ''}`}>{i + 1}</span>
+            <span className="nm">
+              <b>{r.app.name}</b>
+              <i>{r.app.category}</i>
             </span>
-          </h3>
-          <svg className="ap-dash-chart" viewBox={`0 0 ${W} ${H}`}>
-            {[0, 0.5, 1].map((t) => (
-              <g key={t}>
-                <line x1={PL} x2={W - PR} y1={PT + t * (H - PT - PB)} y2={PT + t * (H - PT - PB)} stroke="#ececf0" strokeDasharray={t === 1 ? '' : '4 4'} />
-                <text x={PL - 6} y={PT + t * (H - PT - PB) + 4} textAnchor="end" fontSize={10} fill="#98a0b3">{fmt(Math.round(max * (1 - t)))}</text>
-              </g>
-            ))}
-            <path d={area} fill="rgba(46,124,246,0.10)" />
-            <path d={line} fill="none" stroke="#2e7cf6" strokeWidth={2} strokeLinecap="round" />
-            {ticks.map((i) => (
-              <g key={i}>
-                <circle cx={px(i)} cy={py(series[i])} r={3} fill="#fff" stroke="#2e7cf6" strokeWidth={2} />
-                <text x={px(i)} y={H - 8} textAnchor="middle" fontSize={10} fill="#98a0b3">{dayLabel(i)}</text>
-              </g>
-            ))}
-          </svg>
-        </section>
-
-        <section className="ap-dash-card">
-          <h3>类目分布</h3>
-          <div className="ap-dash-donut">
-            <svg width={150} height={150} viewBox="0 0 160 160">
-              <g transform="rotate(-90 80 80)">
-                {catDist.map(([name, n], i) => {
-                  const frac = n / apps.length;
-                  const el = (
-                    <circle
-                      key={name}
-                      cx={80} cy={80} r={R} fill="none"
-                      stroke={DONUT_COLORS[i % DONUT_COLORS.length]} strokeWidth={22}
-                      strokeDasharray={`${(frac * C).toFixed(1)} ${C.toFixed(1)}`}
-                      strokeDashoffset={(-acc * C).toFixed(1)}
-                    />
-                  );
-                  acc += frac;
-                  return el;
-                })}
-              </g>
-              <text x={80} y={76} textAnchor="middle" fontSize={22} fontWeight={700} fill="#1f2329">{apps.length}</text>
-              <text x={80} y={94} textAnchor="middle" fontSize={11} fill="#98a0b3">应用总数</text>
-            </svg>
-            <div className="ap-dash-legend">
-              {catDist.map(([name, n], i) => (
-                <span className="li" key={name}>
-                  <i style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }} />
-                  {name}
-                  <span className="pc">{n} 个 · {Math.round((n / apps.length) * 100)}%</span>
-                </span>
-              ))}
-            </div>
+            <span className="ct-strong">{r.use} 人次</span>
+            <span className="ap-dash-share">
+              <span className="tr"><i style={{ width: `${Math.max(2, Math.round((r.use / Math.max(1, rows[0]?.use ?? 1)) * 100))}%` }} /></span>
+              <span className="pc">{(r.share * 100).toFixed(1)}%</span>
+            </span>
+            <span className="ct-strong">{r.cnt ? r.avg.toFixed(1) : '--'}</span>
+            <span className="ct-strong">{r.cnt ? `${Math.round(r.goodRate * 100)}%` : '--'}</span>
+            <span className="ap-dash-badges">
+              {r.avg >= 4.5 && r.cnt >= 3 && <em className="ap-dash-badge good">好评</em>}
+              {hotIds.has(r.app.id) && <em className="ap-dash-badge hot">热门</em>}
+            </span>
           </div>
-        </section>
-      </div>
-
-      <div className="ap-dash-row">
-        <section className="ap-dash-card">
-          <h3>应用使用排行 TOP{topApps.length}</h3>
-          <div className="ap-dash-bars">
-            {topApps.map((a, i) => (
-              <div className="ap-dash-bar-row" key={a.id}>
-                <span className={`rk${i < 3 ? ' top' : ''}`}>{i + 1}</span>
-                <span className="nm" title={a.name}>{a.name}</span>
-                <span className="tr"><i style={{ width: `${Math.round((a.users / topMax) * 100)}%` }} /></span>
-                <span className="ct">{a.users} 人使用</span>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="ap-dash-card">
-          <h3>评分分布</h3>
-          <div className="ap-dash-bars">
-            {[5, 4, 3, 2, 1].map((s) => (
-              <div className="ap-dash-star-row" key={s}>
-                <span className="st">{s} 星</span>
-                <span className="tr"><i style={{ width: `${Math.round((starDist[s - 1] / starMax) * 100)}%` }} /></span>
-                <span className="ct">{starDist[s - 1]}</span>
-              </div>
-            ))}
-          </div>
-          <div className="ap-dash-good">好评率 {reviews.length ? Math.round(((starDist[3] + starDist[4]) / reviews.length) * 100) : 100}%</div>
-        </section>
-      </div>
+        ))}
+      </section>
     </div>
   );
 }

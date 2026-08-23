@@ -1452,27 +1452,48 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-dash-range button.on { background: #fff; color: #1f2329; font-weight: 600; }
 
-.ap-dash-chart { width: 100%; height: auto; display: block; }
+.ap-dash-head .ap-dash-range { margin-left: auto; }
 
-.ap-dash-bars { display: flex; flex-direction: column; gap: 10px; }
-
-.ap-dash-bar-row {
+.ap-dash-thead,
+.ap-dash-trow {
   display: grid;
-  grid-template-columns: 18px 110px 1fr 70px;
+  grid-template-columns: 40px 1.5fr 120px 1.6fr 90px 80px 110px;
+  gap: 12px;
   align-items: center;
-  gap: 10px;
+}
+
+.ap-dash-thead {
+  font-size: 12px;
+  color: #98a0b3;
+  padding: 0 12px 10px;
+  border-bottom: 1px solid #f0f1f5;
+}
+
+.ap-dash-trow {
+  padding: 12px;
+  border-bottom: 1px solid #f5f6f8;
   font-size: 13px;
   color: #333;
 }
 
-.ap-dash-bar-row .rk { color: #98a0b3; }
+.ap-dash-trow:last-child { border-bottom: none; }
 
-.ap-dash-bar-row .rk.top { color: #fa8c16; font-weight: 700; }
+.ap-dash-trow .rk { color: #98a0b3; }
 
-.ap-dash-bar-row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ap-dash-trow .rk.top { color: #fa8c16; font-weight: 700; }
 
-.ap-dash-bar-row .tr,
-.ap-dash-star-row .tr {
+.ap-dash-trow .nm { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.ap-dash-trow .nm b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ap-dash-trow .nm i { font-style: normal; font-size: 12px; color: #98a0b3; }
+
+.ap-dash-trow .ct-strong { font-weight: 600; color: #1f2329; }
+
+.ap-dash-share { display: flex; align-items: center; gap: 8px; min-width: 0; }
+
+.ap-dash-share .tr {
+  flex: 1;
   height: 8px;
   background: #f2f3f7;
   border-radius: 4px;
@@ -1480,51 +1501,22 @@ button.ap-home-app { cursor: pointer; }
   display: block;
 }
 
-.ap-dash-bar-row .tr i {
+.ap-dash-share .tr i {
   display: block;
   height: 100%;
   background: linear-gradient(90deg, #63b3ff, #2e7cf6);
   border-radius: 4px;
 }
 
-.ap-dash-bar-row .ct { text-align: right; color: #666; font-size: 12px; }
+.ap-dash-share .pc { width: 48px; text-align: right; color: #666; font-size: 12px; }
 
-.ap-dash-donut { display: flex; align-items: center; gap: 18px; }
+.ap-dash-badges { display: flex; gap: 6px; }
 
-.ap-dash-legend { flex: 1; display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #333; min-width: 0; }
+.ap-dash-badge { font-style: normal; font-size: 11px; padding: 2px 8px; border-radius: 4px; }
 
-.ap-dash-legend .li { display: flex; align-items: center; gap: 8px; }
+.ap-dash-badge.good { color: #00b42a; background: #e8ffea; }
 
-.ap-dash-legend .li i { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
-
-.ap-dash-legend .li .pc { margin-left: auto; color: #98a0b3; font-size: 12px; }
-
-.ap-dash-star-row {
-  display: grid;
-  grid-template-columns: 40px 1fr 40px;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  color: #333;
-}
-
-.ap-dash-star-row .tr i {
-  display: block;
-  height: 100%;
-  background: #f7ba1e;
-  border-radius: 4px;
-}
-
-.ap-dash-star-row .ct { text-align: right; color: #666; font-size: 12px; }
-
-.ap-dash-good {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid #f0f1f5;
-  font-size: 13px;
-  color: #666;
-  text-align: right;
-}
+.ap-dash-badge.hot { color: #fa8c16; background: #fff7e8; }
 
 .ap-rank-head .ap-home-title { margin-bottom: 0; }
 
