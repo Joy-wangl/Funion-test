@@ -28,6 +28,8 @@ const OUT = 'd:/Qoder/Funion';
 
   // TOP3 重心区
   const top3 = await page.locator('.ap-dash-top3-row').count();
+  const sparks = await page.locator('.ap-dash-spark').count();
+  const msTxt = (await page.locator('.ap-dash-modstats').textContent()) || '';
 
   // 搜索：ERP
   await page.fill('.ap-dash-search input', 'ERP');
@@ -72,6 +74,6 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/ac-mine-gap.png`, clip: { x: 0, y: 60, width: 1600, height: 420 } });
 
-  console.log(`entry=${entry} rangeOn=${on7} top3=${top3} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catsNavWide=${catsNavWide} catsNavNarrow=${catsNavNarrow} scrolled=${scrolled}`);
+  console.log(`entry=${entry} rangeOn=${on7} top3=${top3} sparks=${sparks} hasAllApps=${msTxt.includes('全部应用')} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catsNavWide=${catsNavWide} catsNavNarrow=${catsNavNarrow} scrolled=${scrolled}`);
   await browser.close();
 })().catch((e) => { console.error(e); process.exit(1); });

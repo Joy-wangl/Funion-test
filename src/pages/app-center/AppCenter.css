@@ -1397,7 +1397,7 @@ button.ap-home-app { cursor: pointer; }
 .ap-rank-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 
 /* ---------- 数据看板二级页 ---------- */
-.ap-dash { display: flex; flex-direction: column; gap: 16px; }
+.ap-dash { display: flex; flex-direction: column; gap: 16px; min-height: 100%; }
 
 .ap-dash-head { display: flex; align-items: center; gap: 10px; }
 
@@ -1472,7 +1472,7 @@ button.ap-home-app { cursor: pointer; }
 .ap-dash-search input::placeholder { color: #b6bcc9; }
 
 /* TOP3 重心模块 + 明细并排一行 */
-.ap-dash-duo { display: grid; grid-template-columns: 420px minmax(0, 1fr); gap: 16px; align-items: stretch; }
+.ap-dash-duo { display: grid; grid-template-columns: 420px minmax(0, 1fr); gap: 16px; align-items: stretch; flex: 1; min-height: 460px; }
 
 .ap-dash-top3-mod { display: flex; flex-direction: column; gap: 12px; }
 
@@ -1528,6 +1528,22 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-dash-top3-row .nums i { font-style: normal; font-size: 11px; color: #98a0b3; }
 
+/* 左侧模块底部关键字段 */
+.ap-dash-modstats {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid #edeff5;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 12px;
+}
+
+.ap-dash-modstats .ms b { display: block; font-size: 16px; font-weight: 700; color: #1f2329; }
+
+.ap-dash-modstats .ms b em { font-style: normal; font-size: 11px; color: #98a0b3; font-weight: 400; margin-left: 2px; }
+
+.ap-dash-modstats .ms i { font-style: normal; font-size: 11px; color: #98a0b3; }
+
 /* 右侧明细：与 TOP3 模块同高，内部滚动 */
 .ap-dash-duo-right { position: relative; min-height: 340px; }
 
@@ -1536,7 +1552,16 @@ button.ap-home-app { cursor: pointer; }
 .ap-dash-scroll { flex: 1; min-height: 0; overflow-y: auto; }
 
 .ap-dash-duo .ap-dash-thead,
-.ap-dash-duo .ap-dash-trow { grid-template-columns: 36px 1.3fr 96px 1.7fr 64px 60px 96px; gap: 10px; }
+.ap-dash-duo .ap-dash-trow { grid-template-columns: 36px 1.2fr 92px 1.5fr 130px 56px 56px 88px; gap: 10px; }
+
+/* 每日使用迷你柱状图 */
+.ap-dash-spark { display: flex; align-items: flex-end; gap: 1px; height: 26px; }
+
+.ap-dash-spark i { flex: 1; min-width: 1px; background: #c3d8fb; border-radius: 1px; min-height: 2px; }
+
+.ap-dash-spark i:last-child { background: #2e7cf6; }
+
+.ap-dash-dayavg { display: block; font-style: normal; font-size: 11px; color: #98a0b3; font-weight: 400; }
 
 .ap-dash-card > h3 .ap-dash-range { margin-left: auto; }
 

@@ -23,6 +23,30 @@ const Ic = ({ d, size = 14 }: { d: string; size?: number }) => (
 
 type Row = { app: AppItem; use: number; share: number; avg: number; cnt: number; goodRate: number };
 
+/* 按应用确定性每日波动：日粒度曲线稳定 */
+const daySeries = (id: string, use: number, range: number) => {
+  const avg = use / range || 0;
+  const out: number[] = [];
+  for (let i = 0; i < range; i++) {
+    let h = 0;
+    const s = `${id}:${i}`;
+    for (let c = 0; c < s.length; c++) h = (h * 31 + s.charCodeAt(c)) % 997;
+    out.push(avg * (0.5 + (h % 100) / 100));
+  }
+  return out;
+};
+
+/* 每日使用迷你柱状图：最后一根为当天 */
+const Spark = ({ id, use, range }: { id: string; use: number; range: number }) => {
+  const arr = useMemo(() => daySeries(id, use, range), [id, use, range]);
+  const mx = Math.max(...arr, 1);
+  return (
+    <span className="ap-dash-spark" title={`近${range}天每日使用`}>
+      {arr.map((v, i) => (<i key={i} style={{ height: `${Math.max(8, Math.round((v / mx) * 100))}%` }} />))}
+    </span>
+  );
+};
+
 /* 数据看板：领导视角——哪些应用好用、范围内总人次与使用占比 */
 export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[]; reviews: AppReview[]; onBack: () => void }) {
   const [range, setRange] = useState<Range>(30);
@@ -155,6 +179,12 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
               </div>
             ))}
           </div>
+          <div className="ap-dash-modstats">
+            <span className="ms"><b>{apps.length}<em>个</em></b><i>全部应用</i></span>
+            <span className="ms"><b>{cats.length}<em>类</em></b><i>覆盖类目</i></span>
+            <span className="ms"><b>{rows.filter((r) => r.use > 0).length}<em>个</em></b><i>近{range}天在用</i></span>
+            <span className="ms"><b>{Math.round(rangeTotal / range)}<em>人次/日</em></b><i>日均使用</i></span>
+          </div>
         </section>
 
         <div className="ap-dash-duo-right">
@@ -187,6 +217,7 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
               <span>应用</span>
               <span>近{range}天使用人次</span>
               <span>应用总人次 / 日均占比</span>
+              <span>每日使用趋势</span>
               <span>平均评分</span>
               <span>好评率</span>
               <span>标记</span>
@@ -199,11 +230,12 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
                     <b>{r.app.name}</b>
                     <i>{r.app.category}</i>
                   </span>
-                  <span className="ct-strong">{r.use} 人次</span>
+                  <span className="ct-strong">{r.use} 人次<i className="ap-dash-dayavg">日均 {Math.round(r.use / range)}</i></span>
                   <span className="ap-dash-share">
                     <span className="tr"><i style={{ width: `${Math.max(2, Math.round((r.app.users / maxUsers) * 100))}%` }} /></span>
                     <span className="pc">总 {fmt(r.app.users)} 人次 · 日均占 {(r.share * 100).toFixed(1)}%</span>
                   </span>
+                  <Spark id={r.app.id} use={r.use} range={range} />
                   <span className="ct-strong">{r.cnt ? r.avg.toFixed(1) : '--'}</span>
                   <span className="ct-strong">{r.cnt ? `${Math.round(r.goodRate * 100)}%` : '--'}</span>
                   <span className="ap-dash-badges">
