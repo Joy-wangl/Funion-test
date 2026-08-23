@@ -1,12 +1,13 @@
 <script setup lang="ts">
 /* =========================================================
    聚合接待 · 视图②「智能分流」策略页（面包屑：分流设置 › 智能分流）
-   6 窗口 tab / 策略卡片 / 策略详情抽屉 / 选择账号弹窗
+   6 窗口 tab / 分组策略表格 / 策略详情抽屉 / 选择账号弹窗
    ========================================================= */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { RC_COMPANY, RC_GROUPS, RC_STRATEGIES, type RcGroup, type RcStrategy } from './data';
 import Modal from '../../components/Modal.vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
+import Ellipsis from '../../components/Ellipsis.vue';
 
 /** 演示占位文案口径（与线上逐字一致） */
 const toastPlaceholder = (name: string) => `演示原型：「${name}」页面暂未开放`;
@@ -81,6 +82,20 @@ const filtered = computed(() => cards.value.filter((c) => {
 
 const drawerCard = computed(() => cards.value.find((c) => c.id === drawerId.value) ?? null);
 
+/** 表格按组别分组（组内按优先级升序，直观呈现分流顺序） */
+const grouped = computed(() => {
+  const map = new Map<string, RcStrategy[]>();
+  filtered.value.forEach((c) => {
+    const list = map.get(c.group) ?? [];
+    list.push(c);
+    map.set(c.group, list);
+  });
+  return [...map.entries()].map(([group, rows]) => ({
+    group,
+    rows: [...rows].sort((a, b) => a.priority - b.priority),
+  }));
+});
+
 const openCard = (card: RcStrategy) => {
   cfg.value = { ...DEFAULT_CFG, personnel: [card.name.split('/')[0]] };
   drawerId.value = card.id;
@@ -136,7 +151,7 @@ const pkSelected = computed(() => CANDIDATES
         @click="props.pushToast(t === '智能分流' ? '演示原型：当前页不可关闭' : toastPlaceholder(t))"
       >
         {{ t }}
-        <span class="x" @click.stop="props.pushToast(t === '智能分流' ? '演示原型：当前页不可关闭' : toastPlaceholder(t))">
+        <span class="x" title="关闭窗口" @click.stop="props.pushToast(t === '智能分流' ? '演示原型：当前页不可关闭' : toastPlaceholder(t))">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M18 6L6 18M6 6l12 12" /></svg>
         </span>
       </div>
@@ -169,43 +184,60 @@ const pkSelected = computed(() => CANDIDATES
         </div>
       </div>
 
-      <!-- 总公司区 -->
+      <!-- 总公司区：分组策略表（组内按优先级升序） -->
       <div class="rc-sec-title">总公司区</div>
-      <div class="rc-company-box">
-        <div class="rc-company-name">{{ RC_COMPANY }}</div>
-        <div v-if="filtered.length === 0" class="rc-empty">暂无数据</div>
-        <div v-else class="rc-cards">
-          <div v-for="c in filtered" :key="c.id" class="rc-card" @click="openCard(c)">
-            <div class="rc-card-head">
-              <b class="rc-card-name">{{ c.name }}</b>
-              <span
-                class="rc-switch"
-                :class="{ on: c.on }"
-                title="启用/停用策略"
-                @click.stop="toggleCardSwitch(c)"
-              ><i /></span>
-            </div>
-            <div class="rc-card-tags">
-              <span v-for="t in c.tags" :key="t" class="rc-tag" :class="t === '自营' ? 'green' : 'orange'">{{ t }}</span>
-              <span class="rc-tag blue">会话次数：{{ c.sessions }}</span>
-            </div>
-            <div class="rc-card-grid">
-              <span class="full">公司：{{ RC_COMPANY }}</span>
-              <span>店铺数量：{{ c.shops }}</span>
-              <span>包含{{ c.people }}人</span>
-              <span>系列编码数量：{{ c.codes }}</span>
-              <span>标签：未设置</span>
-              <span>优先级：{{ c.priority }}</span>
-              <span>ID：{{ c.id }}</span>
-              <span class="full">名称：{{ c.name }}</span>
-            </div>
-            <span
-              class="rc-card-clock"
-              title="变更记录"
-              @click.stop="props.pushToast('演示占位：变更记录后续迭代设计')"
-            >⏱</span>
+      <div class="rc-st-company">{{ RC_COMPANY }}</div>
+      <div v-if="filtered.length === 0" class="rc-empty">暂无数据</div>
+      <div v-else class="rc-st-groups">
+        <section v-for="g in grouped" :key="g.group" class="rc-st-group">
+          <div class="rc-st-ghead">
+            <b>{{ g.group }}</b>
+            <span class="rc-dim">{{ g.rows.length }} 个策略</span>
           </div>
-        </div>
+          <table class="table rc-st-table">
+            <thead>
+              <tr>
+                <th class="th-name">策略名称</th>
+                <th>模式</th>
+                <th>会话次数</th>
+                <th>店铺数量</th>
+                <th>系列编码数量</th>
+                <th>优先级</th>
+                <th>状态</th>
+                <th class="th-op">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="c in g.rows" :key="c.id" class="rc-st-row" @click="openCard(c)">
+                <td>
+                  <Ellipsis class-name="rc-st-name" :text="c.name" />
+                  <div class="rc-st-id">ID：{{ c.id }}</div>
+                </td>
+                <td>
+                  <span v-for="t in c.tags" :key="t" class="tag" :class="t === '自营' ? 'green' : 'orange'">{{ t }}</span>
+                </td>
+                <td>{{ c.sessions }}</td>
+                <td>{{ c.shops }} 店 · {{ c.people }} 人</td>
+                <td>{{ c.codes }}</td>
+                <td>{{ c.priority }}</td>
+                <td>
+                  <span
+                    class="rc-switch"
+                    :class="{ on: c.on }"
+                    title="启用/停用策略"
+                    @click.stop="toggleCardSwitch(c)"
+                  ><i /></span>
+                </td>
+                <td>
+                  <div class="op" @click.stop>
+                    <a @click="openCard(c)">策略详情</a>
+                    <a @click="props.pushToast('演示占位：变更记录后续迭代设计')">变更记录</a>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
       </div>
     </div>
 

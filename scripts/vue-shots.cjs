@@ -52,12 +52,12 @@ const BASE = process.argv[2] || 'http://localhost:5173/';
   // ---------- 智能分流策略页 ----------
   await page.click('.rc-menu-item.grp:has-text("分流设置")');
   await page.click('.rc-menu-item.child:has-text("智能分流")');
-  await page.waitForSelector('.rc-cards');
+  await page.waitForSelector('.rc-st-table');
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/vue-verify-6-strategy.png` });
 
-  // 策略详情抽屉
-  await page.click('.rc-card');
+  // 策略详情抽屉（点击首行策略）
+  await page.click('.rc-st-row');
   await page.waitForSelector('.rc-drawer');
   await page.waitForTimeout(200);
   await page.screenshot({ path: `${OUT}/vue-verify-7-drawer.png` });
