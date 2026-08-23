@@ -213,29 +213,30 @@ const opsOf = (a: RcAgent): Op[] => {
 const directOpsOf = (a: RcAgent) => { const o = opsOf(a); return o.length > 3 ? o.slice(0, 3) : o; };
 const moreOpsOf = (a: RcAgent) => { const o = opsOf(a); return o.length > 3 ? o.slice(3) : []; };
 
-/* ---------- 转移弹窗级联数据 ---------- */
+/* ---------- 转移弹窗级联数据 ----------
+   离线/小休客服无法承接业务，不进入可转移目标（组计数与成员列表仅统计在线） */
 const cascExcl = computed(() => {
   if (!transfer.value) return new Set<number>();
   return transfer.value.mode === 'single' ? new Set([transfer.value.agent.id]) : sel.value;
 });
 const cascGroups = computed(() => RC_COMPANIES.flatMap((c) => (RC_COMPANY_GROUPS[c] ?? []).map((g) => ({ c, g }))));
-const cascCountOf = (c: string, g: string) => props.agents.filter((a) => a.company === c && a.group === g && !cascExcl.value.has(a.id)).length;
-const cascMembers = computed(() => props.agents.filter((a) => a.group === cascActive.value && !cascExcl.value.has(a.id)));
+const cascCountOf = (c: string, g: string) => props.agents.filter((a) => a.company === c && a.group === g && a.status === '在线' && !cascExcl.value.has(a.id)).length;
+const cascMembers = computed(() => props.agents.filter((a) => a.group === cascActive.value && a.status === '在线' && !cascExcl.value.has(a.id)));
 
 /* ---------- 值班监控弹窗数据 ---------- */
 const monInfo = computed(() => {
   if (!monitor.value) return null;
   const m = rcMonitorOf(monitor.value);
   const segs = monTab.value === 'duty' ? [
-    { label: '在线', value: m.online, color: '#52c41a' },
-    { label: '小休', value: m.rest, color: '#faad14' },
-    { label: '离线', value: m.offline, color: '#9aa1ae' },
+    { label: '在线', value: m.online, color: '#00b42a' },
+    { label: '小休', value: m.rest, color: '#ff7d00' },
+    { label: '离线', value: m.offline, color: '#c9cdd4' },
   ] : monTab.value === 'login' ? [
-    { label: '登录', value: m.login, color: '#52c41a' },
-    { label: '登出', value: m.logout, color: '#9aa1ae' },
+    { label: '登录', value: m.login, color: '#00b42a' },
+    { label: '登出', value: m.logout, color: '#c9cdd4' },
   ] : [
-    { label: '在线', value: m.wsOn, color: '#52c41a' },
-    { label: '离线', value: m.wsOff, color: '#9aa1ae' },
+    { label: '在线', value: m.wsOn, color: '#00b42a' },
+    { label: '离线', value: m.wsOff, color: '#c9cdd4' },
   ];
   const total = segs.reduce((t, s) => t + s.value, 0) || 1;
   const live = segs.filter((s) => s.value > 0);
@@ -247,13 +248,13 @@ const monInfo = computed(() => {
     return { ...s, a0, a1 };
   });
   const stats = [
-    { label: '在线时长', value: m.online, color: '#52c41a' },
-    { label: '小休时长', value: m.rest, color: '#faad14' },
-    { label: '离线时长', value: m.offline, color: '#9aa1ae' },
-    { label: '登录时长', value: m.login, color: '#52c41a' },
-    { label: '登出时长', value: m.logout, color: '#9aa1ae' },
-    { label: 'WS在线时长', value: m.wsOn, color: '#52c41a' },
-    { label: 'WS离线时长', value: m.wsOff, color: '#9aa1ae' },
+    { label: '在线时长', value: m.online, color: '#00b42a' },
+    { label: '小休时长', value: m.rest, color: '#ff7d00' },
+    { label: '离线时长', value: m.offline, color: '#c9cdd4' },
+    { label: '登录时长', value: m.login, color: '#00b42a' },
+    { label: '登出时长', value: m.logout, color: '#c9cdd4' },
+    { label: 'WS在线时长', value: m.wsOn, color: '#00b42a' },
+    { label: 'WS离线时长', value: m.wsOff, color: '#c9cdd4' },
   ];
   return { segs, total, live, arcs, stats };
 });
@@ -582,16 +583,17 @@ const MON_TABS = [{ k: 'duty', t: '值班状态' }, { k: 'login', t: '登录状�
               </div>
             </div>
             <div class="rc-casc-col rc-casc-members">
-              <div v-if="cascMembers.length === 0" class="rc-casc-empty">暂无可选成员</div>
-              <label v-for="a in cascMembers" :key="a.id" class="rc-casc-m">
-                <input
-                  type="checkbox"
-                  :checked="pick?.kind === 'agent' && pick.id === a.id"
-                  @change="pick = (pick?.kind === 'agent' && pick.id === a.id) ? null : { kind: 'agent', id: a.id }"
-                />
-                {{ a.name }}
-                <span :class="STATUS_CLS[a.status]">{{ a.status }}</span>
-              </label>
+              <div v-if="cascMembers.length === 0" class="empty tight">暂无在线成员</div>
+              <template v-else>
+                <label v-for="a in cascMembers" :key="a.id" class="rc-casc-m">
+                  <input
+                    type="checkbox"
+                    :checked="pick?.kind === 'agent' && pick.id === a.id"
+                    @change="pick = (pick?.kind === 'agent' && pick.id === a.id) ? null : { kind: 'agent', id: a.id }"
+                  />
+                  {{ a.name }}
+                </label>
+              </template>
             </div>
           </div>
         </div>
@@ -602,40 +604,30 @@ const MON_TABS = [{ k: 'duty', t: '值班状态' }, { k: 'login', t: '登录状�
       </template>
     </Modal>
 
-    <!-- ---------- 值班监控弹窗（左统计 + 右 tab 切换饼图） ---------- -->
+    <!-- ---------- 值班监控弹窗（头部人员信息 + tab 切换饼图 + 右侧时长统计） ---------- -->
     <Modal
       v-if="monitor && monInfo"
       title="值班监控"
+      :sub="`${monitor.name}（${monitor.group}） · ID: ${monitor.id}`"
       size="lg"
       @close="monitor = null"
     >
       <div class="rc-mon">
-        <div class="rc-mon-side">
-          <div class="rc-mon-name">{{ monitor.name }}（{{ monitor.group }}）</div>
-          <div class="rc-mon-id">ID: {{ monitor.id }}</div>
-          <div class="rc-mon-stats">
-            <div v-for="s in monInfo.stats" :key="s.label" class="rc-mon-stat">
-              <i :style="{ background: s.color }" />
-              <span>{{ s.label }}</span>
-              <b>{{ s.value.toFixed(2) }}h</b>
-            </div>
-          </div>
+        <div class="rc-mon-tabs">
+          <button
+            v-for="t in MON_TABS"
+            :key="t.k"
+            type="button"
+            class="rc-mon-tab"
+            :class="{ on: monTab === t.k }"
+            @click="monTab = t.k"
+          >{{ t.t }}</button>
         </div>
-        <div class="rc-mon-main">
-          <div class="rc-mon-tabs">
-            <button
-              v-for="t in MON_TABS"
-              :key="t.k"
-              type="button"
-              class="rc-mon-tab"
-              :class="{ on: monTab === t.k }"
-              @click="monTab = t.k"
-            >{{ t.t }}</button>
-          </div>
+        <div class="rc-mon-body">
           <div class="rc-mon-pie">
-            <svg viewBox="0 0 160 160" width="160" height="160">
-              <circle v-if="monInfo.live.length === 1" cx="80" cy="80" r="70" :fill="monInfo.live[0].color" />
-              <template v-else><path v-for="s in monInfo.arcs" :key="s.label" :d="piePath(80, 80, 70, s.a0, s.a1)" :fill="s.color" /></template>
+            <svg viewBox="0 0 200 200" width="190" height="190">
+              <circle v-if="monInfo.live.length === 1" cx="100" cy="100" r="88" :fill="monInfo.live[0].color" />
+              <template v-else><path v-for="s in monInfo.arcs" :key="s.label" :d="piePath(100, 100, 88, s.a0, s.a1)" :fill="s.color" /></template>
             </svg>
             <div class="rc-mon-legend">
               <div v-for="s in monInfo.segs" :key="s.label" class="rc-mon-lg">
@@ -644,6 +636,13 @@ const MON_TABS = [{ k: 'duty', t: '值班状态' }, { k: 'login', t: '登录状�
                 <b>{{ s.value.toFixed(2) }}h</b>
                 <em>{{ Math.round((s.value / monInfo.total) * 100) }}%</em>
               </div>
+            </div>
+          </div>
+          <div class="rc-mon-stats">
+            <div v-for="s in monInfo.stats" :key="s.label" class="rc-mon-stat">
+              <i :style="{ background: s.color }" />
+              <span>{{ s.label }}</span>
+              <b>{{ s.value.toFixed(2) }}h</b>
             </div>
           </div>
         </div>
