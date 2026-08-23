@@ -34,3 +34,7 @@ funion-*.png
 /quality_center_tab.png
 /series_code_list.png
 dist-share
+
+# 本地工具与临时文件
+.tools/
+commit-msg.txt

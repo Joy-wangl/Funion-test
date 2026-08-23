@@ -5,14 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "build:share": "tsc -b && vite build && node scripts/build-share.mjs",
+    "build": "vue-tsc -b && vite build",
+    "build:share": "vue-tsc -b && vite build && node scripts/build-share.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vitejs/plugin-vue": "^6.0.8",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "vue": "^3.5.41",
+    "vue-tsc": "^3.3.11"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",

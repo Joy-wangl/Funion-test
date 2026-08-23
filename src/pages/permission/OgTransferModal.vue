@@ -1,0 +1,67 @@
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue';
+import Modal from '../../components/Modal.vue';
+import BubbleSelect from '../../components/BubbleSelect.vue';
+import { OPS_ROLE_LABEL } from './opsGroupData';
+import type { OpsGroup, OpsMember } from './opsGroupData';
+
+const props = defineProps<{
+  entry: OpsMember;
+  group: OpsGroup;
+  channelGroups: OpsGroup[];
+  channelMembers: OpsMember[];
+}>();
+const emit = defineEmits<{
+  (e: 'confirm', targetGroupId: string, targetParentId: string): void;
+  (e: 'close'): void;
+}>();
+
+const targetGroupId = ref(props.group.id);
+const targetParentId = ref('');
+
+const parentCandidates = computed(() => {
+  if (props.entry.role === 'specialist') {
+    return props.channelMembers.filter((m) => m.groupId === targetGroupId.value && m.role === 'leader' && m.memberId !== props.entry.memberId);
+  }
+  if (props.entry.role === 'assistant') {
+    return props.channelMembers.filter((m) => m.groupId === targetGroupId.value && m.role === 'specialist' && m.memberId !== props.entry.memberId);
+  }
+  return [];
+});
+
+watch([targetGroupId, parentCandidates], () => {
+  targetParentId.value = parentCandidates.value[0]?.memberId ?? '';
+}, { immediate: true });
+
+const confirm = () => {
+  if (!targetGroupId.value || !targetParentId.value) return;
+  emit('confirm', targetGroupId.value, targetParentId.value);
+};
+</script>
+
+<template>
+  <Modal :title="`转交${OPS_ROLE_LABEL[entry.role]}`" :sub="`当前：${entry.name} · 组：${group.name}`" size="md" @close="emit('close')">
+    <div class="form-item">
+      <label>目标分组</label>
+      <BubbleSelect
+        class-name="input"
+        :value="targetGroupId"
+        :options="channelGroups.map((g) => ({ value: g.id, label: g.name }))"
+        @change="(v: string) => targetGroupId = v"
+      />
+    </div>
+    <div class="form-item">
+      <label>{{ entry.role === 'specialist' ? '挂靠组长' : '挂靠专员' }}</label>
+      <BubbleSelect
+        class-name="input"
+        :value="targetParentId || '请选择'"
+        :options="parentCandidates.map((m) => ({ value: m.memberId, label: m.name }))"
+        @change="(v: string) => targetParentId = v"
+      />
+    </div>
+    <template #foot>
+      <button class="btn" @click="emit('close')">取消</button>
+      <button class="btn primary" @click="confirm">确认转交</button>
+    </template>
+  </Modal>
+</template>
