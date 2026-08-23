@@ -1596,6 +1596,18 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-trend-svg { width: 100%; height: auto; background: #f7f8fa; border-radius: 8px; }
 
+.ap-trend-chartwrap { position: relative; }
+
+.ap-trend-tip { position: absolute; z-index: 30; pointer-events: none; background: rgba(35, 43, 58, 0.92); color: #fff; border-radius: 8px; padding: 6px 10px; font-size: 12px; line-height: 1.5; white-space: nowrap; box-shadow: 0 6px 18px rgba(26, 34, 56, 0.25); }
+
+.ap-trend-tip-date { margin-bottom: 4px; opacity: 0.75; }
+
+.ap-trend-tip-line { display: flex; align-items: center; gap: 6px; }
+
+.ap-trend-tip-line i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+
+.ap-trend-tip-line b { margin-left: auto; padding-left: 10px; font-weight: 700; }
+
 .ap-trend-svg .ax { font-size: 11px; fill: #98a0ae; }
 
 .ap-trend-svg .band-lb { font-size: 10px; }

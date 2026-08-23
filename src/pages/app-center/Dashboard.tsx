@@ -141,11 +141,25 @@ function AppTrendModal({ app, onClose }: { app: AppItem; onClose: () => void }) 
   const T = 18;
   const B = 34;
   const n = data.n;
+  /* 悬浮提示（与品控趋势图交互一致）：竖向参考线 + 暗色 tooltip */
+  const [hover, setHover] = useState<{ i: number; px: number; py: number } | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { setHover(null); }, [data]);
   const mx = Math.max(...(hidden.has('use') ? [] : data.usePts), ...(hidden.has('new') ? [] : data.newPts), 1) * 1.15;
   const x = (i: number) => L + (i * (W - L - R)) / (n - 1);
   const y = (v: number) => T + (1 - v / mx) * (H - T - B);
   const step = Math.max(1, Math.ceil(n / 8));
   const line = (pts: number[]) => pts.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const onMove = (e: { clientX: number; clientY: number }) => {
+    const wrap = wrapRef.current;
+    const rect = wrap?.querySelector('svg')?.getBoundingClientRect();
+    if (!wrap || !rect) return;
+    const fx = ((e.clientX - rect.left) / rect.width) * W;
+    const i = Math.max(0, Math.min(n - 1, Math.round(((fx - L) / (W - L - R)) * (n - 1))));
+    const wr = wrap.getBoundingClientRect();
+    setHover({ i, px: (x(i) / W) * rect.width, py: Math.max(8, Math.min(e.clientY - wr.top, wr.height - 8)) });
+  };
+  const wrapW = wrapRef.current?.clientWidth ?? 800;
 
   /* 鼠标滚轮切换时间范围（与品控趋势图交互一致） */
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -204,7 +218,8 @@ function AppTrendModal({ app, onClose }: { app: AppItem; onClose: () => void }) 
           </span>
           {tr === 'custom' && <ApDateRangePicker value={custom} onChange={setCustom} />}
         </div>
-        <svg className="ap-trend-svg" viewBox={`0 0 ${W} ${H}`}>
+        <div className="ap-trend-chartwrap" ref={wrapRef}>
+        <svg className="ap-trend-svg" viewBox={`0 0 ${W} ${H}`} onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
           {[0, 0.25, 0.5, 0.75, 1].map((f) => {
             const gy = T + (1 - f) * (H - T - B);
             return (
@@ -232,12 +247,34 @@ function AppTrendModal({ app, onClose }: { app: AppItem; onClose: () => void }) 
           )}
           {!hidden.has('use') && <polyline points={line(data.usePts)} fill="none" stroke="#2e7cf6" strokeWidth={2.2} />}
           {!hidden.has('new') && <polyline points={line(data.newPts)} fill="none" stroke="#22a06b" strokeWidth={2.2} />}
-          {!hidden.has('use') && data.usePts.map((v, i) => <circle key={`u${i}`} cx={x(i)} cy={y(v)} r={2.4} fill="#2e7cf6" />)}
-          {!hidden.has('new') && data.newPts.map((v, i) => <circle key={`n${i}`} cx={x(i)} cy={y(v)} r={2.4} fill="#22a06b" />)}
+          {!hidden.has('use') && data.usePts.map((v, i) => <circle key={`u${i}`} cx={x(i)} cy={y(v)} r={hover?.i === i ? 4 : 2.4} fill="#2e7cf6" />)}
+          {!hidden.has('new') && data.newPts.map((v, i) => <circle key={`n${i}`} cx={x(i)} cy={y(v)} r={hover?.i === i ? 4 : 2.4} fill="#22a06b" />)}
+          {hover && (!hidden.has('use') || !hidden.has('new')) && (
+            <line x1={x(hover.i)} x2={x(hover.i)} y1={T} y2={H - B} stroke="#8a94a6" strokeDasharray="4 4" opacity={0.5} />
+          )}
           {data.labels.map((lb, i) => (i % step === 0 || i === n - 1 ? (
             <text key={`${lb}-${i}`} x={x(i)} y={H - 10} textAnchor="middle" className="ax">{lb}</text>
           ) : null))}
         </svg>
+        {hover && (!hidden.has('use') || !hidden.has('new')) && (
+          <div
+            className="ap-trend-tip"
+            style={{
+              left: hover.px,
+              top: hover.py,
+              transform: hover.px > wrapW - 190 ? 'translate(calc(-100% - 12px), -50%)' : 'translate(12px, -50%)',
+            }}
+          >
+            <div className="ap-trend-tip-date">{data.labels[hover.i]}</div>
+            {!hidden.has('use') && (
+              <div className="ap-trend-tip-line"><i style={{ background: '#2e7cf6' }} />总使用人次<b>{fmt(Math.round(data.usePts[hover.i]))}</b></div>
+            )}
+            {!hidden.has('new') && (
+              <div className="ap-trend-tip-line"><i style={{ background: '#22a06b' }} />新增人数<b>{fmt(Math.round(data.newPts[hover.i]))}</b></div>
+            )}
+          </div>
+        )}
+        </div>
         <div className="ap-trend-foot">
           <span className="pd">{data.labels[0]} → {data.labels[n - 1]}</span>
           <button type="button" className="ap-trend-closebtn" onClick={onClose}>关闭</button>

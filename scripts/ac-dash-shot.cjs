@@ -68,6 +68,16 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(250);
   const pdTxt = (await page.locator('.ap-trend-foot .pd').textContent()) || '';
   const customOk = pdTxt.includes(`${lbl(22)} → ${lbl(8)}`);
+  // 悬浮交互（与品控一致）：悬浮出 tooltip+参考线，移开消失
+  await page.hover('.ap-trend-svg', { position: { x: 450, y: 150 } });
+  await page.waitForTimeout(200);
+  const tipLines = await page.locator('.ap-trend-tip .ap-trend-tip-line').count();
+  const tipGuide = (await page.locator('.ap-trend-svg line[stroke="#8a94a6"]').count()) === 1;
+  await page.screenshot({ path: `${OUT}/ac-trend-tip.png` });
+  await page.hover('.ap-trend-head');
+  await page.waitForTimeout(200);
+  const tipGone = (await page.locator('.ap-trend-tip').count()) === 0;
+  const tipOk = tipLines === 2 && tipGuide && tipGone;
   await page.click('.ap-trend-modal .ap-dash-range button:has-text("近7天")');
   await page.waitForTimeout(250);
   await page.screenshot({ path: `${OUT}/ac-dash-trend.png` });
@@ -118,6 +128,6 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/ac-mine-gap.png`, clip: { x: 0, y: 60, width: 1600, height: 420 } });
 
-  console.log(`ovl=${ovlTitles.join('|')} lbs=${ovlLbs.join('/')} ovlTotal=${ovlTotal} entry=${entry} rangeOn=${on7} topN=${topN} sparkRemoved=${sparkRemoved} trendBtn=${trendBtnTxt} headOk=${headOk} alignOk=${alignOk} customOk=${customOk} bands=${bandTxt.join('/')} noVer=${!chipTxt.includes('版本时间段')} chipToggle=${chipToggle} trendClosed=${trendClosed} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catsNavWide=${catsNavWide} catsNavNarrow=${catsNavNarrow} scrolled=${scrolled}`);
+  console.log(`ovl=${ovlTitles.join('|')} lbs=${ovlLbs.join('/')} ovlTotal=${ovlTotal} entry=${entry} rangeOn=${on7} topN=${topN} sparkRemoved=${sparkRemoved} trendBtn=${trendBtnTxt} headOk=${headOk} alignOk=${alignOk} customOk=${customOk} tipOk=${tipOk} bands=${bandTxt.join('/')} noVer=${!chipTxt.includes('版本时间段')} chipToggle=${chipToggle} trendClosed=${trendClosed} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catsNavWide=${catsNavWide} catsNavNarrow=${catsNavNarrow} scrolled=${scrolled}`);
   await browser.close();
 })().catch((e) => { console.error(e); process.exit(1); });
