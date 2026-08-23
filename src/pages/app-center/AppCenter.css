@@ -1543,6 +1543,56 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-dash-dayavg { display: block; font-style: normal; font-size: 11px; color: #98a0b3; font-weight: 400; }
 
+/* 使用趋势单元格按钮 */
+.ap-dash-trendcell { display: flex; flex-direction: column; gap: 2px; align-items: stretch; background: none; border: none; padding: 2px 4px; border-radius: 6px; cursor: pointer; }
+
+.ap-dash-trendcell:hover { background: #f2f6ff; }
+
+.ap-dash-trendcell span { font-size: 11px; color: #2e7cf6; text-align: left; }
+
+.ap-dash-trendcell:hover span { text-decoration: underline; }
+
+/* 使用趋势弹窗（参考品控中心趋势图） */
+.ap-trend-mask { position: fixed; inset: 0; background: rgba(20, 26, 40, .45); display: flex; align-items: center; justify-content: center; z-index: 60; }
+
+.ap-trend-modal { width: 880px; max-width: calc(100vw - 80px); background: #fff; border-radius: 12px; padding: 20px 24px; box-shadow: 0 18px 50px rgba(15, 25, 45, .25); }
+
+.ap-trend-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+
+.ap-trend-head b { display: block; font-size: 16px; color: #1f2329; }
+
+.ap-trend-head i { font-style: normal; font-size: 12px; color: #98a0b3; }
+
+.ap-trend-close { border: none; background: none; font-size: 18px; color: #98a0b3; cursor: pointer; line-height: 1; }
+
+.ap-trend-close:hover { color: #1f2329; }
+
+.ap-trend-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+
+.ap-trend-chips { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; }
+
+.ap-trend-chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #e5e7ef; border-radius: 999px; padding: 5px 12px; font-size: 12px; color: #565d6b; background: #fff; }
+
+.ap-trend-chip i { width: 8px; height: 8px; border-radius: 50%; }
+
+.ap-trend-chip b { color: #1f2329; font-weight: 600; }
+
+.ap-trend-svg { width: 100%; height: auto; background: #f7f8fa; border-radius: 8px; }
+
+.ap-trend-svg .ax { font-size: 11px; fill: #98a0ae; }
+
+.ap-trend-foot { display: flex; align-items: center; gap: 16px; margin-top: 12px; font-size: 12px; color: #565d6b; }
+
+.ap-trend-foot .lg { display: inline-flex; align-items: center; gap: 6px; }
+
+.ap-trend-foot .lg i { width: 8px; height: 8px; border-radius: 50%; }
+
+.ap-trend-foot .pd { margin-left: auto; color: #98a0b3; }
+
+.ap-trend-closebtn { border: 1px solid #e5e7ef; background: #fff; border-radius: 8px; padding: 6px 18px; font-size: 13px; color: #333; cursor: pointer; }
+
+.ap-trend-closebtn:hover { border-color: #2e7cf6; color: #2e7cf6; }
+
 .ap-dash-card > h3 .ap-dash-range { margin-left: auto; }
 
 /* 类目筛选：与页面切换统一的分段样式；溢出时右侧出现左右滚动按钮 */

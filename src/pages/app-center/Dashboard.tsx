@@ -57,12 +57,95 @@ const Spark = ({ id, use, range }: { id: string; use: number; range: number }) =
   );
 };
 
+/* 使用趋势弹窗：参考品控中心趋势图——指标 pills + 周期切换 + 双线趋势 */
+function AppTrendModal({ app, onClose }: { app: AppItem; onClose: () => void }) {
+  const [tr, setTr] = useState<Range>(30);
+  const data = useMemo(() => {
+    const useN = Math.round(app.users * FACTOR[tr] * noise(app.id));
+    const usePts = daySeries(app.id, useN, tr);
+    const newPts = daySeries(`${app.id}:new`, Math.round(useN * 0.18), tr);
+    const labels: string[] = [];
+    const end = new Date();
+    for (let i = tr - 1; i >= 0; i--) {
+      const d = new Date(end);
+      d.setDate(d.getDate() - i);
+      labels.push(`${d.getMonth() + 1}/${d.getDate()}`);
+    }
+    const sum = (a: number[]) => Math.round(a.reduce((s, v) => s + v, 0));
+    return { usePts, newPts, labels, useSum: sum(usePts), newSum: sum(newPts) };
+  }, [app, tr]);
+
+  const W = 960;
+  const H = 300;
+  const L = 48;
+  const R = 16;
+  const T = 18;
+  const B = 34;
+  const n = tr;
+  const mx = Math.max(...data.usePts, ...data.newPts, 1) * 1.15;
+  const x = (i: number) => L + (i * (W - L - R)) / (n - 1);
+  const y = (v: number) => T + (1 - v / mx) * (H - T - B);
+  const step = Math.max(1, Math.ceil(n / 8));
+  const line = (pts: number[]) => pts.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+
+  return (
+    <div className="ap-trend-mask" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="ap-trend-modal">
+        <div className="ap-trend-head">
+          <div>
+            <b>趋势图</b>
+            <i>{app.name} · {app.category}</i>
+          </div>
+          <button type="button" className="ap-trend-close" onClick={onClose}>×</button>
+        </div>
+        <div className="ap-trend-bar">
+          <div className="ap-trend-chips">
+            <span className="ap-trend-chip"><i style={{ background: '#f7a634' }} />版本时间段<b>v{app.version ?? '1.0.0'} · {app.release} 上线</b></span>
+            <span className="ap-trend-chip"><i style={{ background: '#22a06b' }} />新增人数<b>{fmt(data.newSum)}</b></span>
+            <span className="ap-trend-chip"><i style={{ background: '#2e7cf6' }} />总使用人次<b>{fmt(data.useSum)}</b></span>
+          </div>
+          <span className="ap-dash-range">
+            {RANGES.map((r) => (
+              <button key={r} type="button" className={tr === r ? 'on' : ''} onClick={() => setTr(r)}>近{r}天</button>
+            ))}
+          </span>
+        </div>
+        <svg className="ap-trend-svg" viewBox={`0 0 ${W} ${H}`}>
+          {[0, 0.25, 0.5, 0.75, 1].map((f) => {
+            const gy = T + (1 - f) * (H - T - B);
+            return (
+              <g key={f}>
+                <line x1={L} x2={W - R} y1={gy} y2={gy} stroke="#e7eaf0" strokeDasharray="3 4" />
+                <text x={L - 8} y={gy + 3} textAnchor="end" className="ax">{Math.round(f * mx)}</text>
+              </g>
+            );
+          })}
+          <polyline points={line(data.usePts)} fill="none" stroke="#2e7cf6" strokeWidth={2.2} />
+          <polyline points={line(data.newPts)} fill="none" stroke="#22a06b" strokeWidth={2.2} />
+          {data.usePts.map((v, i) => <circle key={`u${i}`} cx={x(i)} cy={y(v)} r={2.4} fill="#2e7cf6" />)}
+          {data.newPts.map((v, i) => <circle key={`n${i}`} cx={x(i)} cy={y(v)} r={2.4} fill="#22a06b" />)}
+          {data.labels.map((lb, i) => (i % step === 0 || i === n - 1 ? (
+            <text key={`${lb}-${i}`} x={x(i)} y={H - 10} textAnchor="middle" className="ax">{lb}</text>
+          ) : null))}
+        </svg>
+        <div className="ap-trend-foot">
+          <span className="lg"><i style={{ background: '#2e7cf6' }} />每日使用人次</span>
+          <span className="lg"><i style={{ background: '#22a06b' }} />每日新增人数</span>
+          <span className="pd">{data.labels[0]} → {data.labels[n - 1]}</span>
+          <button type="button" className="ap-trend-closebtn" onClick={onClose}>关闭</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* 数据看板：领导视角——哪些应用好用、范围内总人次与使用占比 */
 export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[]; reviews: AppReview[]; onBack: () => void }) {
   const [range, setRange] = useState<Range>(30);
   const [sort, setSort] = useState<'use' | 'rate'>('use');
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('all');
+  const [trendApp, setTrendApp] = useState<AppItem | null>(null);
 
   /* 按应用聚合评价：均分 / 条数 / 好评率 */
   const rateByApp = useMemo(() => {
@@ -222,7 +305,7 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
               <span>应用</span>
               <span>近{range}天使用人次</span>
               <span>应用总人次 / 日均占比</span>
-              <span>每日使用趋势</span>
+              <span>使用趋势</span>
               <span>平均评分</span>
               <span>好评率</span>
               <span>标记</span>
@@ -240,7 +323,10 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
                     <span className="tr"><i style={{ width: `${Math.max(2, Math.round((r.app.users / maxUsers) * 100))}%` }} /></span>
                     <span className="pc">总 {fmt(r.app.users)} 人次 · 日均占 {(r.share * 100).toFixed(1)}%</span>
                   </span>
-                  <Spark id={r.app.id} use={r.use} range={range} />
+                  <button type="button" className="ap-dash-trendcell" title="点击查看使用趋势" onClick={() => setTrendApp(r.app)}>
+                    <Spark id={r.app.id} use={r.use} range={range} />
+                    <span>趋势图</span>
+                  </button>
                   <span className="ct-strong">{r.cnt ? r.avg.toFixed(1) : '--'}</span>
                   <span className="ct-strong">{r.cnt ? `${Math.round(r.goodRate * 100)}%` : '--'}</span>
                   <span className="ap-dash-badges">
@@ -254,6 +340,8 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
           </section>
         </div>
       </div>
+
+      {trendApp && <AppTrendModal app={trendApp} onClose={() => setTrendApp(null)} />}
     </div>
   );
 }

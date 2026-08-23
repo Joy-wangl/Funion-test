@@ -30,6 +30,17 @@ const OUT = 'd:/Qoder/Funion';
   const topN = await page.locator('.ap-dash-top3-row').count();
   const sparks = await page.locator('.ap-dash-spark').count();
 
+  // 使用趋势弹窗：点击行内趋势图按钮 → 弹窗含指标 pills，可切周期，可关闭
+  await page.click('.ap-dash-trendcell');
+  await page.waitForSelector('.ap-trend-modal');
+  const chipTxt = (await page.locator('.ap-trend-chips').textContent()) || '';
+  await page.click('.ap-trend-modal .ap-dash-range button:has-text("近7天")');
+  await page.waitForTimeout(250);
+  await page.screenshot({ path: `${OUT}/ac-dash-trend.png` });
+  await page.click('.ap-trend-closebtn');
+  await page.waitForTimeout(250);
+  const trendClosed = (await page.locator('.ap-trend-modal').count()) === 0;
+
   // 搜索：ERP
   await page.fill('.ap-dash-search input', 'ERP');
   await page.waitForTimeout(200);
@@ -73,6 +84,6 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/ac-mine-gap.png`, clip: { x: 0, y: 60, width: 1600, height: 420 } });
 
-  console.log(`entry=${entry} rangeOn=${on7} topN=${topN} sparks=${sparks} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catsNavWide=${catsNavWide} catsNavNarrow=${catsNavNarrow} scrolled=${scrolled}`);
+  console.log(`entry=${entry} rangeOn=${on7} topN=${topN} sparks=${sparks} chipVer=${chipTxt.includes('版本时间段')} trendClosed=${trendClosed} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catsNavWide=${catsNavWide} catsNavNarrow=${catsNavNarrow} scrolled=${scrolled}`);
   await browser.close();
 })().catch((e) => { console.error(e); process.exit(1); });
