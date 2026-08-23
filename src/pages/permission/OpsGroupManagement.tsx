@@ -226,6 +226,25 @@ export default function OpsGroupManagement() {
     setModal(null);
   };
 
+  const transferSpecialist = (group: OpsGroup, oldSpec: OpsMember, newSpecId: string) => {
+    if (isMemberTaken(newSpecId)) {
+      pushToast('该成员在当前平台已有运营归属', 'error');
+      return;
+    }
+    const src = opsMemberSource(newSpecId);
+    if (!src) return;
+    mutateMembers((list) => [
+      ...list.map((m) => {
+        if (m.memberId === oldSpec.memberId) return { ...m, role: 'assistant' as OpsRole, parentId: newSpecId };
+        if (m.role === 'assistant' && m.parentId === oldSpec.memberId) return { ...m, parentId: newSpecId };
+        return m;
+      }),
+      { memberId: newSpecId, name: src.name, role: 'specialist' as OpsRole, groupId: group.id, parentId: oldSpec.parentId, addedBy: oldSpec.name, addedAt: nowStamp() },
+    ]);
+    pushToast(`已将专员转交给「${src.name}」`);
+    setModal(null);
+  };
+
   const closeModal = () => setModal(null);
 
   return (
@@ -305,8 +324,8 @@ export default function OpsGroupManagement() {
                       <div className="og-cell og-td-dim">{activeLeader.addedBy}</div>
                       <div className="og-cell">
                         <ActionStack items={[
-                          { label: '添加专员', onClick: () => setModal({ kind: 'addSub', role: 'specialist', parentId: activeLeader.memberId, group: activeGroup }) },
                           { label: '转交组长', onClick: () => setModal({ kind: 'transfer', entry: activeLeader, group: activeGroup }) },
+                          { label: '添加专员', onClick: () => setModal({ kind: 'addSub', role: 'specialist', parentId: activeLeader.memberId, group: activeGroup }) },
                         ]} />
                       </div>
                     </div>
@@ -330,8 +349,8 @@ export default function OpsGroupManagement() {
                           <div className="og-cell og-td-dim">{sp.addedBy}</div>
                           <div className="og-cell" onClick={(e) => e.stopPropagation()}>
                             <ActionStack items={[
-                              { label: '添加助理', onClick: () => setModal({ kind: 'addSub', role: 'assistant', parentId: sp.memberId, group: activeGroup }) },
                               { label: '转交专员', onClick: () => setModal({ kind: 'transfer', entry: sp, group: activeGroup }) },
+                              { label: '添加助理', onClick: () => setModal({ kind: 'addSub', role: 'assistant', parentId: sp.memberId, group: activeGroup }) },
                             ]} />
                           </div>
                         </div>
@@ -412,21 +431,24 @@ export default function OpsGroupManagement() {
           onClose={closeModal}
         />
       )}
-      {modal?.kind === 'transfer' && (modal.entry.role === 'leader' ? (
-        <TransferLeaderModal
-          entry={modal.entry}
-          group={modal.group}
-          taken={new Set(channelMembers.map((m) => m.memberId))}
-          onConfirm={(memberId) => transferLeader(modal.group, modal.entry, memberId)}
-          onClose={closeModal}
-        />
-      ) : (
+      {modal?.kind === 'transfer' && (modal.entry.role === 'assistant' ? (
         <TransferModal
           entry={modal.entry}
           group={modal.group}
           channelGroups={channelGroups}
           channelMembers={channelMembers}
           onConfirm={(targetGroupId, targetParentId) => transferRole(modal.entry, modal.group, targetGroupId, targetParentId)}
+          onClose={closeModal}
+        />
+      ) : (
+        <TransferPersonModal
+          entry={modal.entry}
+          group={modal.group}
+          role={modal.entry.role === 'leader' ? 'leader' : 'specialist'}
+          taken={new Set(channelMembers.map((m) => m.memberId))}
+          onConfirm={(memberId) => (modal.entry.role === 'leader'
+            ? transferLeader(modal.group, modal.entry, memberId)
+            : transferSpecialist(modal.group, modal.entry, memberId))}
           onClose={closeModal}
         />
       ))}
@@ -631,10 +653,11 @@ function TransferModal({ entry, group, channelGroups, channelMembers, onConfirm,
   );
 }
 
-/* 转交组长：唤起成员选择组件（仅可选人、已有归属禁选），不含运营组配置 */
-function TransferLeaderModal({ entry, group, taken, onConfirm, onClose }: {
+/* 转交组长/专员：唤起成员选择组件（仅可选人、已有归属禁选），一对一交接 */
+function TransferPersonModal({ entry, group, role, taken, onConfirm, onClose }: {
   entry: OpsMember;
   group: OpsGroup;
+  role: 'leader' | 'specialist';
   taken: Set<string>;
   onConfirm: (memberId: string) => void;
   onClose: () => void;
@@ -645,9 +668,12 @@ function TransferLeaderModal({ entry, group, taken, onConfirm, onClose }: {
   const disabled = useMemo(() => new Set([...taken, entry.memberId]), [taken, entry.memberId]);
   const pickedMembers = pool.filter((m) => picked.has(m.id));
   const pickedSrc = pickedMembers[0];
+  const roleLabel = role === 'leader' ? '组长' : '专员';
+  const oldLabel = role === 'leader' ? '原组长' : '原专员';
+  const demoteLabel = role === 'leader' ? '专员' : '助理';
 
   return (
-    <Modal title="转交运营组长" sub={`当前：${entry.name} · 组：${group.name}`} size="xl" onClose={onClose} foot={
+    <Modal title={`转交运营${roleLabel}`} sub={`当前：${entry.name} · 组：${group.name}`} size="xl" onClose={onClose} foot={
       <>
         <button className="btn" onClick={onClose}>取消</button>
         <button className="btn primary" onClick={() => { if (!pickedSrc) return; onConfirm(pickedSrc.id); }}>确认转交</button>
@@ -665,7 +691,7 @@ function TransferLeaderModal({ entry, group, taken, onConfirm, onClose }: {
         <PickedSide picked={pickedMembers} max={1} onRemove={() => setPicked(new Set())} />
       </div>
       {pickedSrc && (
-        <div className="form-tip" style={{ marginTop: 10 }}>转交后：<b>{pickedSrc.name}</b> 将成为「{group.name}」组长，原组长 {entry.name} 转为专员。</div>
+        <div className="form-tip" style={{ marginTop: 10 }}>转交后：<b>{pickedSrc.name}</b> 将成为「{group.name}」{roleLabel}，{oldLabel} {entry.name} 转为{demoteLabel}。</div>
       )}
     </Modal>
   );

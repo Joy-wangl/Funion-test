@@ -38,7 +38,7 @@ const OUT = 'd:/Qoder/Funion';
   // 4. 详情 + 收藏
   await page.click('.ap-cell:has-text("海贼王ERP")');
   await page.waitForSelector('.ap-detail');
-  await page.click('.ap-fav');
+  await page.click('.ap-stat-fav');
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/ac-verify-4-detail-fav.png` });
   await page.click('.ap-back');

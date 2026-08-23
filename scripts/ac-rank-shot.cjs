@@ -9,7 +9,7 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
   await page.click('.top-tabs-item:has-text("应用中心")');
   await page.waitForSelector('.ap-home', { timeout: 15000 });
   await page.waitForTimeout(400);
-  const card = await page.$('.ap-home > .ap-home-card:last-of-type');
+  const card = await page.$('.ap-home-rank-row');
   await card.scrollIntoViewIfNeeded();
   await page.waitForTimeout(300);
   await card.screenshot({ path: 'd:/Qoder/Funion/ac-verify-17-rank-person.png' });
@@ -25,6 +25,13 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
   await page.click('.ap-rank-tabs button:has-text("最佳应用榜")');
   await page.waitForTimeout(300);
   await card.screenshot({ path: 'd:/Qoder/Funion/ac-verify-20-rank-best.png' });
+
+  // 切换时间维度近7天 → 个人榜
+  await page.click('.ap-rank-bar .bselect-trigger');
+  await page.click('.bselect-opt:has-text("近7天")');
+  await page.click('.ap-rank-tabs button:has-text("个人贡献榜")');
+  await page.waitForTimeout(300);
+  await card.screenshot({ path: 'd:/Qoder/Funion/ac-verify-21-rank-7d.png' });
 
   await browser.close();
   console.log('rank shots ok');

@@ -20,6 +20,7 @@ import {
   OPS_CHANNELS,
   OPS_ROLE_LABEL,
   getMemberAllAssignments,
+  newGroupId,
   nowStamp,
   opsMemberSource,
   type OpsChannel,
@@ -367,6 +368,7 @@ function EditOpsAssignmentModal({ memberId, opsGroups, opsMembers, onChange, onC
   const [role, setRole] = useState<OpsRole | ''>('');
   const [groupId, setGroupId] = useState<string>('');
   const [parentId, setParentId] = useState<string>('');
+  const [groupName, setGroupName] = useState<string>('');
 
   const currentGroups = opsGroups[channel];
   const currentMembers = opsMembers[channel];
@@ -378,20 +380,23 @@ function EditOpsAssignmentModal({ memberId, opsGroups, opsMembers, onChange, onC
       setRole(existing.role);
       setGroupId(existing.groupId);
       setParentId(existing.parentId ?? '');
+      setGroupName('');
     } else {
       setRole('');
       setGroupId('');
       setParentId('');
+      setGroupName('');
     }
   }, [channel, existing]);
 
-  const leaderOptions = currentMembers.filter((m) => m.role === 'leader' && m.memberId !== memberId);
   const specialistOptions = currentMembers.filter((m) => m.role === 'specialist' && m.groupId === groupId && m.memberId !== memberId);
+  const selGroup = currentGroups.find((g) => g.id === groupId);
+  const selGroupLeader = selGroup ? currentMembers.find((m) => m.groupId === selGroup.id && m.role === 'leader') : undefined;
 
   const save = () => {
     if (!role) { notify('请选择职位', 'error'); return; }
-    if (role !== 'leader' && !parentId) { notify('请选择挂靠上级', 'error'); return; }
-    if (role === 'leader' && !groupId) { notify('请选择目标运营组', 'error'); return; }
+    if (role === 'leader' && !groupName.trim()) { notify('请输入新建运营组名称', 'error'); return; }
+    if (role !== 'leader' && !groupId) { notify('请选择运营组', 'error'); return; }
 
     // 限制：组长必须先转交才能变更角色
     if (existing?.role === 'leader' && role !== 'leader') {
@@ -403,32 +408,28 @@ function EditOpsAssignmentModal({ memberId, opsGroups, opsMembers, onChange, onC
       const hasAssist = currentMembers.some((m) => m.role === 'assistant' && m.parentId === memberId);
       if (hasAssist) { notify('该专员名下仍有助理，不能降为助理', 'error'); return; }
     }
+    if (role === 'specialist' && !selGroupLeader) { notify('该组暂无组长，请选择其它组', 'error'); return; }
+    if (role === 'assistant' && !parentId) { notify('请选择挂靠专员', 'error'); return; }
 
     const nextGroups: OpsChannelGroups = { ...opsGroups, [channel]: [...opsGroups[channel]] };
     const nextMembers: OpsChannelMembers = { ...opsMembers, [channel]: [...opsMembers[channel]] };
     const srcName = opsMemberSource(memberId)?.name ?? '';
 
+    nextMembers[channel] = nextMembers[channel].filter((m) => m.memberId !== memberId);
+
     if (role === 'leader') {
-      const group = nextGroups[channel].find((g) => g.id === groupId);
-      if (!group) { notify('运营组不存在', 'error'); return; }
-      const oldLeaderId = group.leaderId;
-      if (oldLeaderId && oldLeaderId !== memberId) {
-        const oldLeaderIdx = nextMembers[channel].findIndex((m) => m.memberId === oldLeaderId);
-        if (oldLeaderIdx >= 0) {
-          nextMembers[channel][oldLeaderIdx] = {
-            ...nextMembers[channel][oldLeaderIdx],
-            role: 'specialist',
-            parentId: memberId,
-          };
-        }
-      }
-      nextGroups[channel] = nextGroups[channel].map((g) => (g.id === groupId ? { ...g, leaderId: memberId } : g));
-      nextMembers[channel] = nextMembers[channel].filter((m) => m.memberId !== memberId);
+      // 组长职位：确定后新建运营组
+      const gid = newGroupId();
+      nextGroups[channel] = [...nextGroups[channel], { id: gid, channel, name: groupName.trim(), leaderId: memberId, createdAt: nowStamp() }];
       nextMembers[channel].push({
-        memberId, name: srcName, role: 'leader', groupId, parentId: null, addedBy: '管理员', addedAt: nowStamp(),
+        memberId, name: srcName, role: 'leader', groupId: gid, parentId: null, addedBy: '管理员', addedAt: nowStamp(),
+      });
+    } else if (role === 'specialist') {
+      // 专员：自动挂靠该组组长
+      nextMembers[channel].push({
+        memberId, name: srcName, role, groupId, parentId: selGroupLeader!.memberId, addedBy: '管理员', addedAt: nowStamp(),
       });
     } else {
-      nextMembers[channel] = nextMembers[channel].filter((m) => m.memberId !== memberId);
       nextMembers[channel].push({
         memberId, name: srcName, role, groupId, parentId, addedBy: '管理员', addedAt: nowStamp(),
       });
@@ -470,41 +471,36 @@ function EditOpsAssignmentModal({ memberId, opsGroups, opsMembers, onChange, onC
       </div>
 
       {role === 'leader' && (
-        <div className="form-item">
-          <label>目标运营组</label>
-          <BubbleSelect
-            className="input"
-            value={groupId || '请选择要转交为组长的组'}
-            onChange={(v) => setGroupId(v)}
-            options={currentGroups.map((g) => ({
-              value: g.id,
-              label: `${g.name}（当前组长：${currentMembers.find((m) => m.memberId === g.leaderId)?.name ?? '未指定'}）`,
-            }))}
-          />
-        </div>
-      )}
-
-      {role === 'specialist' && (
         <>
+          <div className="form-tip" style={{ margin: '2px 0 10px' }}>一个运营组仅设一名组长，组长职位将在保存后新建运营组。</div>
           <div className="form-item">
-            <label>运营组</label>
-            <BubbleSelect
+            <label>新建运营组名称</label>
+            <input
               className="input"
-              value={groupId || '请选择'}
-              onChange={(v) => { setGroupId(v); setParentId(''); }}
-              options={currentGroups.map((g) => ({ value: g.id, label: g.name }))}
-            />
-          </div>
-          <div className="form-item">
-            <label>挂靠组长</label>
-            <BubbleSelect
-              className="input"
-              value={parentId || '请选择'}
-              onChange={(v) => setParentId(v)}
-              options={leaderOptions.map((m) => ({ value: m.memberId, label: m.name }))}
+              value={groupName}
+              placeholder="请输入组名"
+              maxLength={20}
+              onChange={(e) => setGroupName(e.target.value)}
             />
           </div>
         </>
+      )}
+
+      {role === 'specialist' && (
+        <div className="form-item">
+          <label>运营组</label>
+          <BubbleSelect
+            className="input"
+            value={groupId || '请选择'}
+            onChange={(v) => { setGroupId(v); setParentId(''); }}
+            options={currentGroups.map((g) => ({ value: g.id, label: g.name }))}
+          />
+          <div className="form-tip" style={{ marginTop: 6 }}>
+            {selGroup
+              ? (selGroupLeader ? `将自动挂靠该组组长：${selGroupLeader.name}` : '该组暂无组长，请选择其它组')
+              : '选择运营组后自动挂靠该组组长'}
+          </div>
+        </div>
       )}
 
       {role === 'assistant' && (
