@@ -1444,7 +1444,7 @@ button.ap-home-app { cursor: pointer; }
   font-size: 14px;
   font-weight: 600;
   color: #1f2329;
-  margin: 0 0 12px;
+  margin: 0 0 16px;
 }
 
 .ap-dash-range { display: flex; gap: 4px; background: #f2f3f7; padding: 3px; border-radius: 6px; }
@@ -1626,7 +1626,8 @@ button.ap-home-app { cursor: pointer; }
 /* 明细卡头部右侧：类目下拉 + 排序分段 */
 .ap-dash-head-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 
-.ap-dash-cat-select { width: 132px; flex: none; }
+/* 下拉宽度随选中项自适应，避免「全部」时文本与箭头间大片空白 */
+.ap-dash-cat-select { width: auto; min-width: 76px; flex: none; }
 
 .ap-dash-empty { padding: 32px 0; text-align: center; color: #98a0b3; font-size: 12px; }
 
