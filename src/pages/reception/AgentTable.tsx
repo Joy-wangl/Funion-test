@@ -186,17 +186,14 @@ export default function AgentTable({
               <tr>
                 <th className="check" />
                 <th>所属公司</th>
-                <th>接待状态</th>
-                <th className="center">AI接待量</th>
-                <th className="center">人工接待量</th>
-                <th className="center">均响</th>
-                <th className="center">未回复</th>
-                <th className="center">3分钟回复率</th>
-                <th className="center">30秒响应率</th>
-                <th className="center">在线时长</th>
-                <th className="center">接待排名</th>
-                <th>策略状态</th>
-                <th>操作</th>
+                <th>AI接待量</th>
+                <th>人工接待量</th>
+                <th>均响</th>
+                <th>未回复</th>
+                <th>3分钟回复率</th>
+                <th>30秒响应率</th>
+                <th>在线时长</th>
+                <th>接待排名</th>
               </tr>
             </thead>
             <tbody>
@@ -212,7 +209,6 @@ export default function AgentTable({
                   >▾</span>
                   <b>{RC_COMPANY}</b>
                 </td>
-                <td />
                 <td>{companySum.ai}</td>
                 <td>{companySum.human}</td>
                 <td>{companySum.resp}s</td>
@@ -221,12 +217,10 @@ export default function AgentTable({
                 <td>{companySum.r30s}%</td>
                 <td>{companySum.hours}</td>
                 <td>{companySum.rank}</td>
-                <td />
-                <td />
               </tr>
               {companyOpen ? (
                 <tr className="expand-row">
-                  <td colSpan={13}>
+                  <td colSpan={10}>
                     <div className="qc-range-toggle rc-group-tabs">
                       <button
                         type="button"

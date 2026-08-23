@@ -39,6 +39,14 @@ const daySeries = (id: string, use: number, range: number) => {
 /* 使用趋势弹窗：参考品控中心趋势图——指标 pills + 周期切换 + 双线趋势 */
 function AppTrendModal({ app, onClose }: { app: AppItem; onClose: () => void }) {
   const [tr, setTr] = useState<Range>(30);
+  /* 指标显隐（参考品控：chip 点击切换） */
+  const [hidden, setHidden] = useState<Set<'use' | 'new'>>(new Set());
+  const toggle = (k: 'use' | 'new') => setHidden((prev) => {
+    const next = new Set(prev);
+    if (next.has(k)) next.delete(k);
+    else next.add(k);
+    return next;
+  });
   const data = useMemo(() => {
     const useN = Math.round(app.users * FACTOR[tr] * noise(app.id));
     const usePts = daySeries(app.id, useN, tr);
@@ -65,15 +73,35 @@ function AppTrendModal({ app, onClose }: { app: AppItem; onClose: () => void }) 
   const T = 18;
   const B = 34;
   const n = tr;
-  const mx = Math.max(...data.usePts, ...data.newPts, 1) * 1.15;
+  const mx = Math.max(...(hidden.has('use') ? [] : data.usePts), ...(hidden.has('new') ? [] : data.newPts), 1) * 1.15;
   const x = (i: number) => L + (i * (W - L - R)) / (n - 1);
   const y = (v: number) => T + (1 - v / mx) * (H - T - B);
   const step = Math.max(1, Math.ceil(n / 8));
   const line = (pts: number[]) => pts.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
 
+  /* 鼠标滚轮切换时间范围（与品控趋势图交互一致） */
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const lastWheel = useRef(0);
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const now = Date.now();
+      if (now - lastWheel.current < 260) return;
+      lastWheel.current = now;
+      setTr((prev) => {
+        const idx = RANGES.indexOf(prev);
+        return RANGES[(idx + (e.deltaY > 0 ? 1 : 2)) % RANGES.length];
+      });
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
   return (
     <div className="ap-trend-mask" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="ap-trend-modal">
+      <div className="ap-trend-modal" ref={bodyRef}>
         <div className="ap-trend-head">
           <div>
             <b>趋势图</b>
@@ -83,10 +111,24 @@ function AppTrendModal({ app, onClose }: { app: AppItem; onClose: () => void }) 
         </div>
         <div className="ap-trend-bar">
           <div className="ap-trend-chips">
-            <span className="ap-trend-chip"><i style={{ background: '#f7a634' }} />版本时间段<b>v{app.version ?? '1.0.0'} · {app.release} 上线</b></span>
-            <span className="ap-trend-chip"><i style={{ background: '#22a06b' }} />新增人数<b>{fmt(data.newSum)}</b></span>
-            <span className="ap-trend-chip"><i style={{ background: '#2e7cf6' }} />总使用人次<b>{fmt(data.useSum)}</b></span>
+            <button
+              type="button"
+              className={`ap-trend-chip ${hidden.has('new') ? 'off' : ''}`}
+              title={hidden.has('new') ? '显示「新增人数」' : '隐藏「新增人数」'}
+              onClick={() => toggle('new')}
+            >
+              <i style={{ background: hidden.has('new') ? '#d5d9e0' : '#22a06b' }} />新增人数<b>{fmt(data.newSum)}</b>
+            </button>
+            <button
+              type="button"
+              className={`ap-trend-chip ${hidden.has('use') ? 'off' : ''}`}
+              title={hidden.has('use') ? '显示「总使用人次」' : '隐藏「总使用人次」'}
+              onClick={() => toggle('use')}
+            >
+              <i style={{ background: hidden.has('use') ? '#d5d9e0' : '#2e7cf6' }} />总使用人次<b>{fmt(data.useSum)}</b>
+            </button>
           </div>
+          <span className="ap-trend-wheeltip">滚轮切换时间范围</span>
           <span className="ap-dash-range">
             {RANGES.map((r) => (
               <button key={r} type="button" className={tr === r ? 'on' : ''} onClick={() => setTr(r)}>近{r}天</button>
@@ -119,10 +161,10 @@ function AppTrendModal({ app, onClose }: { app: AppItem; onClose: () => void }) 
               <text x={x(Math.max(data.relIdx, 0)) + 4} y={T + 10} fill="#2e7cf6" className="band-lb">v{app.version ?? '1.0.0'}·运行中</text>
             </g>
           )}
-          <polyline points={line(data.usePts)} fill="none" stroke="#2e7cf6" strokeWidth={2.2} />
-          <polyline points={line(data.newPts)} fill="none" stroke="#22a06b" strokeWidth={2.2} />
-          {data.usePts.map((v, i) => <circle key={`u${i}`} cx={x(i)} cy={y(v)} r={2.4} fill="#2e7cf6" />)}
-          {data.newPts.map((v, i) => <circle key={`n${i}`} cx={x(i)} cy={y(v)} r={2.4} fill="#22a06b" />)}
+          {!hidden.has('use') && <polyline points={line(data.usePts)} fill="none" stroke="#2e7cf6" strokeWidth={2.2} />}
+          {!hidden.has('new') && <polyline points={line(data.newPts)} fill="none" stroke="#22a06b" strokeWidth={2.2} />}
+          {!hidden.has('use') && data.usePts.map((v, i) => <circle key={`u${i}`} cx={x(i)} cy={y(v)} r={2.4} fill="#2e7cf6" />)}
+          {!hidden.has('new') && data.newPts.map((v, i) => <circle key={`n${i}`} cx={x(i)} cy={y(v)} r={2.4} fill="#22a06b" />)}
           {data.labels.map((lb, i) => (i % step === 0 || i === n - 1 ? (
             <text key={`${lb}-${i}`} x={x(i)} y={H - 10} textAnchor="middle" className="ax">{lb}</text>
           ) : null))}

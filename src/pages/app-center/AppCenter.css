@@ -1570,11 +1570,19 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-trend-chips { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; }
 
-.ap-trend-chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #e5e7ef; border-radius: 999px; padding: 5px 12px; font-size: 12px; color: #565d6b; background: #fff; }
+.ap-trend-chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #e5e7ef; border-radius: 999px; padding: 5px 12px; font-size: 12px; color: #565d6b; background: #fff; cursor: pointer; font-family: inherit; }
+
+.ap-trend-chip:hover { border-color: #2e7cf6; }
 
 .ap-trend-chip i { width: 8px; height: 8px; border-radius: 50%; }
 
 .ap-trend-chip b { color: #1f2329; font-weight: 600; }
+
+.ap-trend-chip.off { color: #98a0ae; background: transparent; }
+
+.ap-trend-chip.off b { color: #98a0ae; text-decoration: line-through; }
+
+.ap-trend-wheeltip { font-size: 12px; color: #98a0ae; }
 
 .ap-trend-svg { width: 100%; height: auto; background: #f7f8fa; border-radius: 8px; }
 

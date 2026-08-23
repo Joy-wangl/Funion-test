@@ -41,6 +41,15 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForSelector('.ap-trend-modal');
   const chipTxt = (await page.locator('.ap-trend-chips').textContent()) || '';
   const bandTxt = await page.$$eval('.ap-trend-svg .band-lb', els => els.map(e => e.textContent));
+  // chips 可选择：点击隐藏总使用人次折线，再点恢复（参考品控交互）
+  await page.click('.ap-trend-chip:has-text("总使用人次")');
+  await page.waitForTimeout(200);
+  const useOff = (await page.locator('.ap-trend-chip.off:has-text("总使用人次")').count()) === 1;
+  const useLineHidden = (await page.locator('.ap-trend-svg polyline[stroke="#2e7cf6"]').count()) === 0;
+  await page.click('.ap-trend-chip:has-text("总使用人次")');
+  await page.waitForTimeout(200);
+  const useBack = (await page.locator('.ap-trend-svg polyline[stroke="#2e7cf6"]').count()) === 1;
+  const chipToggle = useOff && useLineHidden && useBack;
   await page.click('.ap-trend-modal .ap-dash-range button:has-text("近7天")');
   await page.waitForTimeout(250);
   await page.screenshot({ path: `${OUT}/ac-dash-trend.png` });
@@ -91,6 +100,6 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/ac-mine-gap.png`, clip: { x: 0, y: 60, width: 1600, height: 420 } });
 
-  console.log(`ovl=${ovlTitles.join('|')} lbs=${ovlLbs.join('/')} ovlTotal=${ovlTotal} entry=${entry} rangeOn=${on7} topN=${topN} sparkRemoved=${sparkRemoved} trendBtn=${trendBtnTxt} bands=${bandTxt.join('/')} chipVer=${chipTxt.includes('版本时间段')} trendClosed=${trendClosed} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catsNavWide=${catsNavWide} catsNavNarrow=${catsNavNarrow} scrolled=${scrolled}`);
+  console.log(`ovl=${ovlTitles.join('|')} lbs=${ovlLbs.join('/')} ovlTotal=${ovlTotal} entry=${entry} rangeOn=${on7} topN=${topN} sparkRemoved=${sparkRemoved} trendBtn=${trendBtnTxt} bands=${bandTxt.join('/')} noVer=${!chipTxt.includes('版本时间段')} chipToggle=${chipToggle} trendClosed=${trendClosed} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catsNavWide=${catsNavWide} catsNavNarrow=${catsNavNarrow} scrolled=${scrolled}`);
   await browser.close();
 })().catch((e) => { console.error(e); process.exit(1); });

@@ -187,7 +187,7 @@
 
 /* 展开区白色子表（复用 .matrix，尺寸向图二看齐） */
 .rc-page .matrix.rc-sub th,
-.rc-page .matrix.rc-sub td { padding: 10px 12px; white-space: nowrap; }
+.rc-page .matrix.rc-sub td { padding: 16px 12px; white-space: nowrap; }
 .rc-page .matrix.rc-sub th.check,
 .rc-page .matrix.rc-sub td.check { width: 40px; text-align: center; }
 .rc-page .matrix.rc-sub tr.rc-row-group td { background: #f7f8fa; }
@@ -217,6 +217,8 @@
 }
 .rc-caret:not(.open) { transform: rotate(-90deg); }
 .rc-row-company td { background: #fff; }
+/* 展开区参考品控系列展开：嵌套块整体缩进，形成层级感 */
+.rc-page .rc-tree .expand-row > td { padding: 12px 20px 16px 48px; }
 .rc-row-group td { background: #f7f8fa; }
 .rc-row-agent:hover td { background: #f5f9ff; }
 .rc-group-name { padding-left: 30px; }
