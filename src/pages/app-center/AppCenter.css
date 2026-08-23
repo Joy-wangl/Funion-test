@@ -1408,7 +1408,7 @@ button.ap-home-app { cursor: pointer; }
 .ap-dash-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 
 .ap-dash-kpi {
-  background: #fff;
+  background: #f7f8fa;
   border-radius: 10px;
   padding: 16px 18px;
   display: flex;
@@ -1425,6 +1425,9 @@ button.ap-home-app { cursor: pointer; }
 .ap-dash-kpi .sb b { color: #2e7cf6; font-weight: 600; }
 
 .ap-dash-ovmod { display: flex; flex-direction: column; gap: 10px; }
+
+/* 概览双模块通底白卡（参考品控数据总览呈现） */
+.ap-dash-ovcard { background: #fff; border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 18px; }
 
 .ap-dash-ovmod > h3 { margin: 0; font-size: 14px; font-weight: 600; color: #1f2329; }
 

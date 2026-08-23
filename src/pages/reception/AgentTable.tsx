@@ -1,13 +1,15 @@
 /* =========================================================
    聚合接待 · 视图①「宝妈接待」表格页（面包屑：基础数据 › 客服管理）
-   筛选 / 公司树形表（单排列表头） / 分页 / 导出 / 转移会话
+   多公司树形表：公司父行（可展开）→ 分组标签 → 成员子表
+   筛选 / 分页（按公司行）/ 导出 / 转移会话
    ========================================================= */
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import {
-  RC_COMPANY, RC_GROUPS, rcAgentLabel, rcCompanySumOf, rcCsvOf,
-  rcTargetOptions, type RcAgent, type RcGroup,
+  RC_COMPANY, RC_COMPANIES, RC_COMPANY_GROUPS, RC_ALL_GROUPS,
+  rcAgentLabel, rcCompanySumOf, rcCsvOf, rcTargetOptions, type RcAgent,
 } from './data';
 import { Modal } from '../permission/shared';
+import BubbleSelect from '../../components/BubbleSelect';
 
 interface Props {
   agents: RcAgent[];
@@ -19,7 +21,7 @@ interface Props {
 type Filter = { company: string; group: string; name: string; status: string };
 const EMPTY_FILTER: Filter = { company: '', group: '', name: '', status: '' };
 
-const STATUS_CLS: Record<string, string> = { 在线: 'rc-st.on', 小休: 'rc-st.rest', 离线: 'rc-st.off' };
+const STATUS_CLS: Record<string, string> = { 在线: 'rc-st on', 小休: 'rc-st rest', 离线: 'rc-st off' };
 
 /** AI 回复占比 = AI 回复数 ÷ 总会话数（人工+AI） */
 const aiRateOf = (ai: number, human: number) => (ai + human > 0 ? Math.round((ai / (ai + human)) * 100) : 0);
@@ -32,9 +34,10 @@ export default function AgentTable({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [sel, setSel] = useState<Set<number>>(new Set());
-  const [companyOpen, setCompanyOpen] = useState(true);
-  /** 分组维度切换标签（系列=公司 / 商品编码=分组 / 平台=成员 的图二映射） */
-  const [groupTab, setGroupTab] = useState<'all' | RcGroup>('all');
+  /** 各公司行展开状态（默认展开宝妈） */
+  const [openMap, setOpenMap] = useState<Record<string, boolean>>({ [RC_COMPANY]: true });
+  /** 各公司子表分组维度标签 */
+  const [tabMap, setTabMap] = useState<Record<string, string>>({});
   /** 子表「接待状态」列头筛选菜单 */
   const [statusMenu, setStatusMenu] = useState(false);
   const [transfer, setTransfer] = useState<{ mode: 'single'; agent: RcAgent } | { mode: 'batch' } | null>(null);
@@ -42,24 +45,41 @@ export default function AgentTable({
   const [batchSel, setBatchSel] = useState<Set<number>>(new Set());
 
   const filtered = useMemo(() => agents.filter((a) => {
-    if (applied.company !== '' && !(RC_COMPANY === applied.company)) return false;
+    if (applied.company !== '' && a.company !== applied.company) return false;
     if (applied.group !== '' && a.group !== applied.group) return false;
     if (applied.name !== '' && !a.name.includes(applied.name)) return false;
     if (applied.status !== '' && a.status !== applied.status) return false;
     return true;
   }), [agents, applied]);
 
-  const tabFiltered = useMemo(
-    () => (groupTab === 'all' ? filtered : filtered.filter((a) => a.group === groupTab)),
-    [filtered, groupTab],
+  /* 外层公司行（公司筛选后），分页按公司行数 */
+  const companies = useMemo(
+    () => RC_COMPANIES.filter((c) => applied.company === '' || c === applied.company),
+    [applied.company],
   );
-
-  const pages = Math.max(1, Math.ceil(tabFiltered.length / pageSize));
+  const pages = Math.max(1, Math.ceil(companies.length / pageSize));
   const safePage = Math.min(page, pages);
-  const pageAgents = useMemo(
-    () => tabFiltered.slice((safePage - 1) * pageSize, safePage * pageSize),
-    [tabFiltered, safePage, pageSize],
-  );
+  const pageCompanies = companies.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  /** 展开子表行：本公司 + 分组标签 + 名称/状态筛选 */
+  const rowsOf = (c: string) => {
+    const tab = tabMap[c] ?? 'all';
+    return filtered.filter((a) => a.company === c && (tab === 'all' || a.group === tab));
+  };
+
+  const idsOf = (list: RcAgent[]) => list.map((a) => a.id);
+  const toggleIds = (ids: number[]) => setSel((s) => {
+    const next = new Set(s);
+    const all = ids.length > 0 && ids.every((id) => next.has(id));
+    ids.forEach((id) => (all ? next.delete(id) : next.add(id)));
+    return next;
+  });
+  const toggleOne = (id: number) => setSel((s) => {
+    const next = new Set(s);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+  });
 
   const openTransfer = (t: typeof transfer) => {
     setTransferSel('');
@@ -75,30 +95,6 @@ export default function AgentTable({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [transfer]);
-
-  /* ---------- 勾选 ---------- */
-  const pageIds = pageAgents.map((a) => a.id);
-  const allPage = pageIds.length > 0 && pageIds.every((id) => sel.has(id));
-  const somePage = pageIds.some((id) => sel.has(id));
-  const toggleAllPage = () => setSel((s) => {
-    const next = new Set(s);
-    if (allPage) pageIds.forEach((id) => next.delete(id));
-    else pageIds.forEach((id) => next.add(id));
-    return next;
-  });
-  const allFiltered = filtered.length > 0 && filtered.every((a) => sel.has(a.id));
-  const toggleAllFiltered = () => setSel((s) => {
-    const next = new Set(s);
-    if (allFiltered) filtered.forEach((a) => next.delete(a.id));
-    else filtered.forEach((a) => next.add(a.id));
-    return next;
-  });
-  const toggleOne = (id: number) => setSel((s) => {
-    const next = new Set(s);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    return next;
-  });
 
   /* ---------- 导出 / 批量分流 ---------- */
   const doExport = () => {
@@ -142,21 +138,23 @@ export default function AgentTable({
     setSel(new Set());
   };
 
-  const companySum = rcCompanySumOf(filtered);
-
   return (
     <div className="rc-view">
       <div className="qc-body rc-table-card">
         {/* 筛选区 */}
         <div className="qc-filters rc-filter-row">
-          <select className="select" value={draft.company} onChange={(e) => setDraft((d) => ({ ...d, company: e.target.value }))}>
-            <option value="">公司</option>
-            <option value={RC_COMPANY}>{RC_COMPANY}</option>
-          </select>
-          <select className="select" value={draft.group} onChange={(e) => setDraft((d) => ({ ...d, group: e.target.value }))}>
-            <option value="">分组</option>
-            {RC_GROUPS.map((g) => <option key={g} value={g}>{g}</option>)}
-          </select>
+          <BubbleSelect
+            className="input rc-bs"
+            value={draft.company || '公司'}
+            onChange={(v) => setDraft((d) => ({ ...d, company: v }))}
+            options={[...RC_COMPANIES]}
+          />
+          <BubbleSelect
+            className="input rc-bs"
+            value={draft.group || '分组'}
+            onChange={(v) => setDraft((d) => ({ ...d, group: v }))}
+            options={[...RC_ALL_GROUPS]}
+          />
           <input
             className="input rc-input"
             placeholder="请输入客服名称"
@@ -164,12 +162,12 @@ export default function AgentTable({
             onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
             onKeyDown={(e) => { if (e.key === 'Enter') { setApplied(draft); setPage(1); } }}
           />
-          <select className="select" value={draft.status} onChange={(e) => setDraft((d) => ({ ...d, status: e.target.value }))}>
-            <option value="">接待状态</option>
-            <option value="在线">在线</option>
-            <option value="小休">小休</option>
-            <option value="离线">离线</option>
-          </select>
+          <BubbleSelect
+            className="input rc-bs"
+            value={draft.status || '接待状态'}
+            onChange={(v) => setDraft((d) => ({ ...d, status: v }))}
+            options={['在线', '小休', '离线']}
+          />
           <div className="rc-actions">
             <button type="button" className="btn primary" onClick={() => { setApplied(draft); setPage(1); }}>查询</button>
             <button type="button" className="btn" onClick={() => { setDraft(EMPTY_FILTER); setApplied(EMPTY_FILTER); setPage(1); pushToast('筛选条件已重置'); }}>重置</button>
@@ -178,7 +176,7 @@ export default function AgentTable({
           </div>
         </div>
 
-        {/* 树形表格 */}
+        {/* 树形表格：公司父行 × N */}
         <div className="rc-wide">
           <table className="table rc-tree">
             <thead>
@@ -196,143 +194,162 @@ export default function AgentTable({
               </tr>
             </thead>
             <tbody>
-              <tr className="rc-row-company">
-                <td className="check">
-                  <span
-                    className={`rc-caret ${companyOpen ? 'open' : ''}`}
-                    title="展开/收起"
-                    onClick={() => setCompanyOpen((v) => !v)}
-                  >▾</span>
-                  <input type="checkbox" title="全选/清空全部客服" checked={allFiltered} onChange={toggleAllFiltered} />
-                </td>
-                <td><b>{RC_COMPANY}</b></td>
-                <td>
-                  <div className="rc-duo"><span className="tag green rc-tagw">人工</span>{companySum.human}</div>
-                  <div className="rc-duo"><span className="tag orange rc-tagw">AI</span>{companySum.ai}</div>
-                </td>
-                <td>{aiRateOf(companySum.ai, companySum.human)}%</td>
-                <td>{companySum.resp}s</td>
-                <td>{companySum.unreplied}</td>
-                <td>{companySum.r3m}%</td>
-                <td>{companySum.r30s}%</td>
-                <td>{companySum.hours}</td>
-                <td>{companySum.rank}</td>
-              </tr>
-              {companyOpen ? (
-                <tr className="expand-row">
-                  <td colSpan={10}>
-                    <div className="qc-range-toggle rc-group-tabs">
-                      <button
-                        type="button"
-                        className={groupTab === 'all' ? 'active' : ''}
-                        onClick={() => { setGroupTab('all'); setPage(1); }}
-                      >全部</button>
-                      {RC_GROUPS.map((g) => (
-                        <button
-                          key={g}
-                          type="button"
-                          className={groupTab === g ? 'active' : ''}
-                          onClick={() => { setGroupTab(g); setPage(1); }}
-                        >{g}</button>
-                      ))}
-                    </div>
-                    <table className="matrix rc-sub">
-                      <thead>
-                        <tr>
-                          <th className="check">
-                            <input type="checkbox" title="全选本页" checked={allPage} ref={(el) => { if (el) el.indeterminate = !allPage && somePage; }} onChange={toggleAllPage} />
-                          </th>
-                          <th>客服</th>
-                          <th className="rc-th-st">
-                            接待状态
-                            <span
-                              className={`rc-col-filter ${applied.status ? 'on' : ''}`}
-                              title="筛选接待状态"
-                              onClick={() => setStatusMenu((v) => !v)}
-                            >
-                              <svg viewBox="0 0 1024 1024" width="12" height="12" aria-hidden="true">
-                                <path fill="currentColor" d="M880 128H144c-13.3 0-20 16-10.7 25.4L416 448v320c0 12.7 10.3 23 23 23h146c12.7 0 23-10.3 23-23V448l282.7-294.6C900 144 893.3 128 880 128z" />
-                              </svg>
-                            </span>
-                            {statusMenu ? (
-                              <>
-                                <div className="rc-col-mask" onClick={() => setStatusMenu(false)} />
-                                <div className="rc-col-menu">
-                                  {[{ v: '', t: '全部' }, { v: '在线', t: '在线' }, { v: '小休', t: '小休' }, { v: '离线', t: '离线' }].map((o) => (
-                                    <div
-                                      key={o.t}
-                                      className={`rc-col-opt ${applied.status === o.v ? 'cur' : ''}`}
-                                      onClick={() => {
-                                        setDraft((d) => ({ ...d, status: o.v }));
-                                        setApplied((f) => ({ ...f, status: o.v }));
-                                        setPage(1);
-                                        setStatusMenu(false);
-                                      }}
-                                    >{o.t}</div>
-                                  ))}
-                                </div>
-                              </>
-                            ) : null}
-                          </th>
-                          <th>接待数据(条)</th>
-                          <th>AI回复占比</th>
-                          <th>均响</th>
-                          <th>未回复</th>
-                          <th>3分钟回复率</th>
-                          <th>30秒响应率</th>
-                          <th>在线时长</th>
-                          <th>接待排名</th>
-                          <th>策略状态</th>
-                          <th>操作</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-              {pageAgents.map((a) => (
-                  <tr key={a.id} className="rc-row-agent">
-                    <td className="check">
-                      <input type="checkbox" checked={sel.has(a.id)} onChange={() => toggleOne(a.id)} />
-                    </td>
-                    <td>{a.name}</td>
-                    <td><span className={STATUS_CLS[a.status]}>{a.status}</span></td>
-                    <td>
-                      <div className="rc-duo"><span className="tag green rc-tagw">人工</span>{a.human}</div>
-                      <div className="rc-duo"><span className="tag orange rc-tagw">AI</span>{a.ai}</div>
-                    </td>
-                    <td>{aiRateOf(a.ai, a.human)}%</td>
-                    <td>{a.resp}s</td>
-                    <td>{a.unreplied}</td>
-                    <td>{a.r3m}%</td>
-                    <td>{a.r30s}%</td>
-                    <td>{a.hours}</td>
-                    <td>{a.rank}</td>
-                    <td>
-                      <span
-                        className={`rc-switch ${a.strategy ? 'on' : ''}`}
-                        title="启用/禁用策略"
-                        onClick={() => toggleAgentStrategy(a.id)}
-                      ><i /></span>
-                    </td>
-                    <td>
-                      <button type="button" className="rc-btn-manual" onClick={() => openTransfer({ mode: 'single', agent: a })}>手动分流</button>
-                    </td>
-                  </tr>
-              ))}
-                      {tabFiltered.length === 0 ? (
-                        <tr><td colSpan={13} className="rc-sub-empty">暂无数据</td></tr>
-                      ) : null}
-                      </tbody>
-                    </table>
-                  </td>
-                </tr>
-              ) : null}
+              {pageCompanies.map((c) => {
+                const open = !!openMap[c];
+                const sum = rcCompanySumOf(c, filtered);
+                const cIds = idsOf(filtered.filter((a) => a.company === c));
+                const rows = rowsOf(c);
+                const rIds = idsOf(rows);
+                const allRows = rIds.length > 0 && rIds.every((id) => sel.has(id));
+                const someRows = rIds.some((id) => sel.has(id));
+                const tab = tabMap[c] ?? 'all';
+                return (
+                  <Fragment key={c}>
+                    <tr className="rc-row-company">
+                      <td className="check">
+                        <span
+                          className={`rc-caret ${open ? 'open' : ''}`}
+                          title="展开/收起"
+                          onClick={() => setOpenMap((v) => ({ ...v, [c]: !open }))}
+                        >▾</span>
+                        <input
+                          type="checkbox"
+                          title={`全选/清空${c}客服`}
+                          checked={cIds.length > 0 && cIds.every((id) => sel.has(id))}
+                          onChange={() => toggleIds(cIds)}
+                        />
+                      </td>
+                      <td><b>{c}</b></td>
+                      <td>
+                        <div className="rc-duo"><span className="tag green rc-tagw">人工</span>{sum.human}</div>
+                        <div className="rc-duo"><span className="tag orange rc-tagw">AI</span>{sum.ai}</div>
+                      </td>
+                      <td>{aiRateOf(sum.ai, sum.human)}%</td>
+                      <td>{sum.resp}s</td>
+                      <td>{sum.unreplied}</td>
+                      <td>{sum.r3m}%</td>
+                      <td>{sum.r30s}%</td>
+                      <td>{sum.hours}</td>
+                      <td>{sum.rank}</td>
+                    </tr>
+                    {open ? (
+                      <tr className="expand-row">
+                        <td colSpan={10}>
+                          <div className="qc-range-toggle rc-group-tabs">
+                            <button
+                              type="button"
+                              className={tab === 'all' ? 'active' : ''}
+                              onClick={() => setTabMap((v) => ({ ...v, [c]: 'all' }))}
+                            >全部</button>
+                            {(RC_COMPANY_GROUPS[c] ?? []).map((g) => (
+                              <button
+                                key={g}
+                                type="button"
+                                className={tab === g ? 'active' : ''}
+                                onClick={() => setTabMap((v) => ({ ...v, [c]: g }))}
+                              >{g}</button>
+                            ))}
+                          </div>
+                          <table className="matrix rc-sub">
+                            <thead>
+                              <tr>
+                                <th className="check">
+                                  <input type="checkbox" title="全选子表" checked={allRows} ref={(el) => { if (el) el.indeterminate = !allRows && someRows; }} onChange={() => toggleIds(rIds)} />
+                                </th>
+                                <th>客服</th>
+                                <th className="rc-th-st">
+                                  接待状态
+                                  <span
+                                    className={`rc-col-filter ${applied.status ? 'on' : ''}`}
+                                    title="筛选接待状态"
+                                    onClick={() => setStatusMenu((v) => !v)}
+                                  >
+                                    <svg viewBox="0 0 1024 1024" width="12" height="12" aria-hidden="true">
+                                      <path fill="currentColor" d="M880 128H144c-13.3 0-20 16-10.7 25.4L416 448v320c0 12.7 10.3 23 23 23h146c12.7 0 23-10.3 23-23V448l282.7-294.6C900 144 893.3 128 880 128z" />
+                                    </svg>
+                                  </span>
+                                  {statusMenu ? (
+                                    <>
+                                      <div className="rc-col-mask" onClick={() => setStatusMenu(false)} />
+                                      <div className="rc-col-menu">
+                                        {[{ v: '', t: '全部' }, { v: '在线', t: '在线' }, { v: '小休', t: '小休' }, { v: '离线', t: '离线' }].map((o) => (
+                                          <div
+                                            key={o.t}
+                                            className={`rc-col-opt ${applied.status === o.v ? 'cur' : ''}`}
+                                            onClick={() => {
+                                              setDraft((d) => ({ ...d, status: o.v }));
+                                              setApplied((f) => ({ ...f, status: o.v }));
+                                              setPage(1);
+                                              setStatusMenu(false);
+                                            }}
+                                          >{o.t}</div>
+                                        ))}
+                                      </div>
+                                    </>
+                                  ) : null}
+                                </th>
+                                <th>接待数据(条)</th>
+                                <th>AI回复占比</th>
+                                <th>均响</th>
+                                <th>未回复</th>
+                                <th>3分钟回复率</th>
+                                <th>30秒响应率</th>
+                                <th>在线时长</th>
+                                <th>接待排名</th>
+                                <th>策略状态</th>
+                                <th>操作</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {rows.map((a) => (
+                                <tr key={a.id} className="rc-row-agent">
+                                  <td className="check">
+                                    <input type="checkbox" checked={sel.has(a.id)} onChange={() => toggleOne(a.id)} />
+                                  </td>
+                                  <td>{a.name}</td>
+                                  <td><span className={STATUS_CLS[a.status]}>{a.status}</span></td>
+                                  <td>
+                                    <div className="rc-duo"><span className="tag green rc-tagw">人工</span>{a.human}</div>
+                                    <div className="rc-duo"><span className="tag orange rc-tagw">AI</span>{a.ai}</div>
+                                  </td>
+                                  <td>{aiRateOf(a.ai, a.human)}%</td>
+                                  <td>{a.resp}s</td>
+                                  <td>{a.unreplied}</td>
+                                  <td>{a.r3m}%</td>
+                                  <td>{a.r30s}%</td>
+                                  <td>{a.hours}</td>
+                                  <td>{a.rank}</td>
+                                  <td>
+                                    <span
+                                      className={`rc-switch ${a.strategy ? 'on' : ''}`}
+                                      title="启用/禁用策略"
+                                      onClick={() => toggleAgentStrategy(a.id)}
+                                    ><i /></span>
+                                  </td>
+                                  <td>
+                                    <button type="button" className="rc-btn-manual" onClick={() => openTransfer({ mode: 'single', agent: a })}>手动分流</button>
+                                  </td>
+                                </tr>
+                              ))}
+                              {rows.length === 0 ? (
+                                <tr><td colSpan={13} className="rc-sub-empty">暂无数据</td></tr>
+                              ) : null}
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
 
-        {/* 表尾：列配置齿轮 + 分页器 */}
+        {/* 表尾：分页器（按公司行） */}
         <div className="rc-table-foot">
           <div className="rc-pager">
-            <span className="rc-pg-total">共{tabFiltered.length}条</span>
+            <span className="rc-pg-total">共{companies.length}条</span>
             <select
               className="select rc-pg-size"
               value={pageSize}
@@ -351,7 +368,7 @@ export default function AgentTable({
               前往
               <input
                 defaultValue={safePage}
-                key={`${safePage}-${filtered.length}-${pageSize}`}
+                key={`${safePage}-${companies.length}-${pageSize}`}
                 onKeyDown={(e) => {
                   if (e.key !== 'Enter') return;
                   const v = Number((e.target as HTMLInputElement).value);

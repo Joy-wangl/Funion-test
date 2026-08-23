@@ -61,7 +61,7 @@
 .rc-menu-arrow:not(.open) { transform: rotate(-90deg); }
 
 /* ---------- 筛选行 ---------- */
-.rc-filter-row .select { width: 148px; }
+.rc-filter-row .rc-bs { width: 148px; flex: none; }
 
 /* 分组维度切换标签（参考品控中心系列展开行内嵌 tab 样式） */
 .rc-page .qc-range-toggle { display: flex; gap: 8px; }
@@ -121,7 +121,7 @@
 /* 父行 caret 与勾选同列（图二树形缩进）：首列加宽，名称列自然缩进 */
 .rc-page .rc-tree th.check,
 .rc-page .rc-tree td.check { width: 56px; }
-.rc-row-company td.check .rc-caret { margin-right: 0; margin-left: 4px; }
+.rc-row-company td.check .rc-caret { margin-right: 10px; margin-left: 4px; }
 .rc-row-group td { background: #f7f8fa; }
 .rc-row-agent:hover td { background: #f5f9ff; }
 /* 接待数据单元格：人工/AI 等宽标签 + 数值对齐 */

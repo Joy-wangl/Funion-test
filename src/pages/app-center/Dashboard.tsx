@@ -377,6 +377,7 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
         </span>
       </div>
 
+      <div className="ap-dash-ovcard">
       <section className="ap-dash-ovmod">
         <h3>应用数据概览<span>应用资产与更新状态</span></h3>
         <div className="ap-dash-kpis">
@@ -428,6 +429,7 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
           </div>
         </div>
       </section>
+      </div>
 
       <div className="ap-dash-duo">
         <section className="ap-dash-card ap-dash-top3-mod">
