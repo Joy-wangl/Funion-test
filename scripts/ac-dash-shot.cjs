@@ -26,6 +26,25 @@ const OUT = 'd:/Qoder/Funion';
   const on7 = await page.evaluate(() => document.querySelector('.ap-dash-range button.on')?.textContent);
   await page.screenshot({ path: `${OUT}/ac-dash-7d.png`, clip: { x: 200, y: 200, width: 1200, height: 500 } });
 
+  // TOP3 重心区
+  const top3 = await page.locator('.ap-dash-top3-card').count();
+
+  // 搜索：ERP
+  await page.fill('.ap-dash-search input', 'ERP');
+  await page.waitForTimeout(200);
+  const rowsErp = await page.locator('.ap-dash-trow').count();
+  await page.fill('.ap-dash-search input', '');
+  await page.waitForTimeout(200);
+
+  // 类目筛选：数据管理类
+  await page.click('.ap-dash-cats button:has-text("数据管理类")');
+  await page.waitForTimeout(200);
+  const rowsCat = await page.locator('.ap-dash-trow').count();
+  const cntTxt = await page.locator('.ap-dash-cnt').textContent();
+  await page.screenshot({ path: `${OUT}/ac-dash-filter.png`, fullPage: true });
+  await page.click('.ap-dash-cats button:has-text("全部")');
+  await page.waitForTimeout(200);
+
   // 返回首页
   await page.click('.ap-dash-head .ap-back');
   await page.waitForSelector('.ap-home-rank-row');
@@ -35,6 +54,6 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/ac-mine-gap.png`, clip: { x: 0, y: 60, width: 1600, height: 420 } });
 
-  console.log(`entry=${entry} rangeOn=${on7}`);
+  console.log(`entry=${entry} rangeOn=${on7} top3=${top3} rowsErp=${rowsErp} rowsCat=${rowsCat} cnt=${(cntTxt || '').trim()}`);
   await browser.close();
 })().catch((e) => { console.error(e); process.exit(1); });

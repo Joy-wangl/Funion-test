@@ -1452,7 +1452,92 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-dash-range button.on { background: #fff; color: #1f2329; font-weight: 600; }
 
-.ap-dash-head .ap-dash-range { margin-left: auto; }
+.ap-dash-head .ap-dash-search { margin-left: auto; }
+
+/* 看板搜索框 */
+.ap-dash-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid #e5e7ef;
+  border-radius: 6px;
+  padding: 0 10px;
+  height: 30px;
+  color: #98a0b3;
+}
+
+.ap-dash-search input { border: none; outline: none; background: transparent; font-size: 12px; width: 150px; color: #1f2329; }
+
+.ap-dash-search input::placeholder { color: #b6bcc9; }
+
+/* TOP3 重心区 */
+.ap-dash-top3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+.ap-dash-top3-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(135deg, #f4f8ff, #fff);
+  border: 1px solid #e2e9f8;
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.ap-dash-top3-card .medal {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: #c0c6d4;
+  flex-shrink: 0;
+}
+
+.ap-dash-top3-card.r1 .medal { background: #f7a634; }
+
+.ap-dash-top3-card.r2 .medal { background: #8f9ab0; }
+
+.ap-dash-top3-card.r3 .medal { background: #d8a06a; }
+
+.ap-dash-top3-card .inf { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.ap-dash-top3-card .inf b { font-size: 14px; color: #1f2329; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.ap-dash-top3-card .inf i { font-style: normal; font-size: 11px; color: #98a0b3; }
+
+.ap-dash-top3-card .nums { margin-left: auto; text-align: right; display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+
+.ap-dash-top3-card .nums b { font-size: 18px; color: #1f2329; }
+
+.ap-dash-top3-card .nums b em { font-style: normal; font-size: 11px; color: #98a0b3; margin-left: 2px; }
+
+.ap-dash-top3-card .nums i { font-style: normal; font-size: 11px; color: #98a0b3; }
+
+/* 类目筛选 */
+.ap-dash-cats { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; }
+
+.ap-dash-cats button {
+  border: 1px solid #e5e7ef;
+  background: #fff;
+  color: #565d6b;
+  font-size: 12px;
+  border-radius: 999px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.ap-dash-cats button:hover { border-color: #2e7cf6; color: #2e7cf6; }
+
+.ap-dash-cats button.on { border-color: #2e7cf6; background: #2e7cf6; color: #fff; font-weight: 600; }
+
+.ap-dash-cnt { font-size: 12px; color: #98a0b3; font-weight: 400; margin-left: 8px; }
+
+.ap-dash-empty { padding: 32px 0; text-align: center; color: #98a0b3; font-size: 12px; }
 
 .ap-dash-thead,
 .ap-dash-trow {

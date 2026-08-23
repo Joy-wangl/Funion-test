@@ -27,6 +27,8 @@ type Row = { app: AppItem; use: number; share: number; avg: number; cnt: number;
 export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[]; reviews: AppReview[]; onBack: () => void }) {
   const [range, setRange] = useState<Range>(30);
   const [sort, setSort] = useState<'use' | 'rate'>('use');
+  const [q, setQ] = useState('');
+  const [cat, setCat] = useState('all');
 
   /* 按应用聚合评价：均分 / 条数 / 好评率 */
   const rateByApp = useMemo(() => {
@@ -62,11 +64,21 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
   }, [apps, rateByApp, range, sort]);
 
   const rangeTotal = rows.reduce((s, r) => s + r.use, 0);
+  /* 全局人次排序 → 排名 / TOP3 重心 / 热门标记 */
+  const useSorted = useMemo(() => [...rows].sort((a, b) => b.use - a.use), [rows]);
+  const rankOf = useMemo(() => new Map(useSorted.map((r, i) => [r.app.id, i + 1])), [useSorted]);
+  const top3 = useSorted.slice(0, 3);
+  const maxUse = useSorted[0]?.use ?? 1;
+  const cats = useMemo(() => [...new Set(apps.map((a) => a.category))], [apps]);
+  const kw = q.trim().toLowerCase();
+  const view = rows.filter((r) =>
+    (cat === 'all' || r.app.category === cat) &&
+    (!kw || r.app.name.toLowerCase().includes(kw)));
   const allTotal = apps.reduce((s, a) => s + a.users, 0);
   const avgAll = reviews.length ? reviews.reduce((s, r) => s + r.stars, 0) / reviews.length : 0;
   const goodAll = reviews.length ? reviews.filter((r) => r.stars >= 4).length / reviews.length : 0;
   const goodApps = rows.filter((r) => r.avg >= 4.5 && r.cnt >= 3);
-  const hotIds = new Set([...rows].sort((a, b) => b.use - a.use).slice(0, 3).map((r) => r.app.id));
+  const hotIds = new Set(top3.map((r) => r.app.id));
 
   return (
     <div className="ap-dash">
@@ -74,6 +86,10 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
         <button type="button" className="ap-back" onClick={onBack}><Ic d="M15 19l-7-7 7-7" size={16} /></button>
         <h2>数据看板</h2>
         <span className="ap-dash-sub">近{range}天使用人次与占比，一眼看出哪些应用好用</span>
+        <span className="ap-dash-search">
+          <Ic d="M11 4a7 7 0 100 14 7 7 0 000-14zM21 21l-4.35-4.35" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜索应用名称" />
+        </span>
         <span className="ap-dash-range">
           {RANGES.map((d) => (
             <button key={d} type="button" className={range === d ? 'on' : ''} onClick={() => setRange(d)}>近{d}天</button>
@@ -104,14 +120,37 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
         </div>
       </div>
 
+      <section className="ap-dash-top3">
+        {top3.map((r, i) => (
+          <div className={`ap-dash-top3-card r${i + 1}`} key={r.app.id}>
+            <span className="medal">{i + 1}</span>
+            <span className="inf">
+              <b>{r.app.name}</b>
+              <i>{r.app.category}</i>
+            </span>
+            <span className="nums">
+              <b>{r.use}<em>人次</em></b>
+              <i>占比 {(r.share * 100).toFixed(1)}% · 均分 {r.cnt ? r.avg.toFixed(1) : '--'}</i>
+            </span>
+          </div>
+        ))}
+      </section>
+
       <section className="ap-dash-card">
         <h3>
-          应用使用明细（按{sort === 'use' ? '使用人次' : '平均评分'}排序）
+          应用使用明细
+          <span className="ap-dash-cnt">{view.length} 个应用</span>
           <span className="ap-dash-range">
             <button type="button" className={sort === 'use' ? 'on' : ''} onClick={() => setSort('use')}>按使用人次</button>
             <button type="button" className={sort === 'rate' ? 'on' : ''} onClick={() => setSort('rate')}>按评分</button>
           </span>
         </h3>
+        <div className="ap-dash-cats">
+          <button type="button" className={cat === 'all' ? 'on' : ''} onClick={() => setCat('all')}>全部</button>
+          {cats.map((c) => (
+            <button key={c} type="button" className={cat === c ? 'on' : ''} onClick={() => setCat(c)}>{c}</button>
+          ))}
+        </div>
         <div className="ap-dash-thead">
           <span>排名</span>
           <span>应用</span>
@@ -121,16 +160,16 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
           <span>好评率</span>
           <span>标记</span>
         </div>
-        {rows.map((r, i) => (
+        {view.map((r) => (
           <div className="ap-dash-trow" key={r.app.id}>
-            <span className={`rk${i < 3 ? ' top' : ''}`}>{i + 1}</span>
+            <span className={`rk${(rankOf.get(r.app.id) ?? 0) <= 3 ? ' top' : ''}`}>{rankOf.get(r.app.id)}</span>
             <span className="nm">
               <b>{r.app.name}</b>
               <i>{r.app.category}</i>
             </span>
             <span className="ct-strong">{r.use} 人次</span>
             <span className="ap-dash-share">
-              <span className="tr"><i style={{ width: `${Math.max(2, Math.round((r.use / Math.max(1, rows[0]?.use ?? 1)) * 100))}%` }} /></span>
+              <span className="tr"><i style={{ width: `${Math.max(2, Math.round((r.use / maxUse) * 100))}%` }} /></span>
               <span className="pc">{(r.share * 100).toFixed(1)}%</span>
             </span>
             <span className="ct-strong">{r.cnt ? r.avg.toFixed(1) : '--'}</span>
@@ -141,6 +180,7 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
             </span>
           </div>
         ))}
+        {view.length === 0 && <div className="ap-dash-empty">未找到匹配应用，调整搜索或类目试试</div>}
       </section>
     </div>
   );
