@@ -22,6 +22,9 @@ const EMPTY_FILTER: Filter = { company: '', group: '', name: '', status: '' };
 
 const STATUS_CLS: Record<string, string> = { 在线: 'rc-st.on', 小休: 'rc-st.rest', 离线: 'rc-st.off' };
 
+/** AI 回复占比 = AI 回复数 ÷ 总会话数（人工+AI） */
+const aiRateOf = (ai: number, human: number) => (ai + human > 0 ? Math.round((ai / (ai + human)) * 100) : 0);
+
 export default function AgentTable({
   agents, setAgents, toggleAgentStrategy, pushToast, onGoStrategyView,
 }: Props) {
@@ -186,8 +189,8 @@ export default function AgentTable({
               <tr>
                 <th className="check" />
                 <th>所属公司</th>
-                <th>AI接待量</th>
-                <th>人工接待量</th>
+                <th>接待数据(条)</th>
+                <th>AI回复占比</th>
                 <th>均响</th>
                 <th>未回复</th>
                 <th>3分钟回复率</th>
@@ -207,8 +210,11 @@ export default function AgentTable({
                   >▾</span>
                 </td>
                 <td><b>{RC_COMPANY}</b></td>
-                <td>{companySum.ai}</td>
-                <td>{companySum.human}</td>
+                <td>
+                  <div className="rc-duo"><span className="tag green rc-tagw">人工</span>{companySum.human}</div>
+                  <div className="rc-duo"><span className="tag orange rc-tagw">AI</span>{companySum.ai}</div>
+                </td>
+                <td>{aiRateOf(companySum.ai, companySum.human)}%</td>
                 <td>{companySum.resp}s</td>
                 <td>{companySum.unreplied}</td>
                 <td>{companySum.r3m}%</td>
@@ -242,8 +248,8 @@ export default function AgentTable({
                           </th>
                           <th>客服</th>
                           <th>接待状态</th>
-                          <th>AI接待量</th>
-                          <th>人工接待量</th>
+                          <th>接待数据(条)</th>
+                          <th>AI回复占比</th>
                           <th>均响</th>
                           <th>未回复</th>
                           <th>3分钟回复率</th>
@@ -262,8 +268,11 @@ export default function AgentTable({
                     </td>
                     <td>{a.name}</td>
                     <td><span className={STATUS_CLS[a.status]}>{a.status}</span></td>
-                    <td>{a.ai}</td>
-                    <td>{a.human}</td>
+                    <td>
+                      <div className="rc-duo"><span className="tag green rc-tagw">人工</span>{a.human}</div>
+                      <div className="rc-duo"><span className="tag orange rc-tagw">AI</span>{a.ai}</div>
+                    </td>
+                    <td>{aiRateOf(a.ai, a.human)}%</td>
                     <td>{a.resp}s</td>
                     <td>{a.unreplied}</td>
                     <td>{a.r3m}%</td>
@@ -296,7 +305,6 @@ export default function AgentTable({
 
         {/* 表尾：列配置齿轮 + 分页器 */}
         <div className="rc-table-foot">
-          <span className="rc-gear" onClick={() => pushToast('演示原型：表格列配置暂未开放')}>⚙</span>
           <div className="rc-pager">
             <span className="rc-pg-total">共{tabFiltered.length}条</span>
             <select

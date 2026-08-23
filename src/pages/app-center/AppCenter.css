@@ -1542,7 +1542,7 @@ button.ap-home-app { cursor: pointer; }
 .ap-dash-scroll { flex: 1; min-height: 0; overflow-y: auto; }
 
 .ap-dash-duo .ap-dash-thead,
-.ap-dash-duo .ap-dash-trow { grid-template-columns: 36px 1.2fr 92px 1.5fr 64px 56px 56px 88px; gap: 10px; }
+.ap-dash-duo .ap-dash-trow { grid-template-columns: 36px 1.2fr 92px 1.5fr 56px 56px 64px; gap: 10px; }
 
 .ap-dash-dayavg { display: block; font-style: normal; font-size: 11px; color: #98a0b3; font-weight: 400; }
 
@@ -1616,10 +1616,13 @@ button.ap-home-app { cursor: pointer; }
 .ap-dash-thead,
 .ap-dash-trow {
   display: grid;
-  grid-template-columns: 40px 1.5fr 120px 1.6fr 90px 80px 110px;
+  grid-template-columns: 36px 1.2fr 92px 1.5fr 56px 56px 64px;
   gap: 12px;
   align-items: center;
 }
+
+.ap-dash-thead span,
+.ap-dash-trow > * { text-align: left; }
 
 .ap-dash-thead {
   font-size: 12px;
@@ -1669,14 +1672,6 @@ button.ap-home-app { cursor: pointer; }
 }
 
 .ap-dash-share .pc { width: auto; text-align: left; color: #666; font-size: 11px; }
-
-.ap-dash-badges { display: flex; gap: 6px; }
-
-.ap-dash-badge { font-style: normal; font-size: 11px; padding: 2px 8px; border-radius: 4px; }
-
-.ap-dash-badge.good { color: #00b42a; background: #e8ffea; }
-
-.ap-dash-badge.hot { color: #fa8c16; background: #fff7e8; }
 
 .ap-rank-head .ap-home-title { margin-bottom: 0; }
 

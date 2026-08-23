@@ -35,6 +35,8 @@ const OUT = 'd:/Qoder/Funion';
   const topN = await page.locator('.ap-dash-top3-row').count();
   const sparkRemoved = (await page.locator('.ap-dash-spark').count()) === 0;
   const trendBtnTxt = ((await page.locator('.ap-dash-trendcell').first().textContent()) || '').trim();
+    const headTxt = ((await page.locator('.ap-dash-thead').textContent()) || '').trim();
+    const headOk = !headTxt.includes('标记') && headTxt.endsWith('使用趋势');
 
   // 使用趋势弹窗：点击行内趋势图按钮 → 弹窗含指标 pills，可切周期，可关闭
   await page.click('.ap-dash-trendcell');
@@ -100,6 +102,6 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/ac-mine-gap.png`, clip: { x: 0, y: 60, width: 1600, height: 420 } });
 
-  console.log(`ovl=${ovlTitles.join('|')} lbs=${ovlLbs.join('/')} ovlTotal=${ovlTotal} entry=${entry} rangeOn=${on7} topN=${topN} sparkRemoved=${sparkRemoved} trendBtn=${trendBtnTxt} bands=${bandTxt.join('/')} noVer=${!chipTxt.includes('版本时间段')} chipToggle=${chipToggle} trendClosed=${trendClosed} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catsNavWide=${catsNavWide} catsNavNarrow=${catsNavNarrow} scrolled=${scrolled}`);
+  console.log(`ovl=${ovlTitles.join('|')} lbs=${ovlLbs.join('/')} ovlTotal=${ovlTotal} entry=${entry} rangeOn=${on7} topN=${topN} sparkRemoved=${sparkRemoved} trendBtn=${trendBtnTxt} headOk=${headOk} bands=${bandTxt.join('/')} noVer=${!chipTxt.includes('版本时间段')} chipToggle=${chipToggle} trendClosed=${trendClosed} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catsNavWide=${catsNavWide} catsNavNarrow=${catsNavNarrow} scrolled=${scrolled}`);
   await browser.close();
 })().catch((e) => { console.error(e); process.exit(1); });

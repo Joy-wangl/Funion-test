@@ -225,6 +225,10 @@
 .rc-row-company td.check .rc-caret { margin-right: 0; margin-left: 4px; }
 .rc-row-group td { background: #f7f8fa; }
 .rc-row-agent:hover td { background: #f5f9ff; }
+/* 接待数据单元格：人工/AI 等宽标签 + 数值对齐 */
+.rc-duo { display: flex; align-items: center; gap: 8px; white-space: nowrap; line-height: 1.6; }
+.rc-duo + .rc-duo { margin-top: 6px; }
+.rc-duo .rc-tagw { flex: none; width: 40px; justify-content: center; margin: 0; }
 .rc-group-name { padding-left: 30px; }
 .rc-st { font-weight: 600; }
 .rc-st.on { color: #52c41a; }
@@ -256,32 +260,27 @@
 .rc-switch.on { background: var(--primary); }
 .rc-switch.on i { left: 18px; }
 
-/* 分流操作按钮 */
-.rc-btn-route,
+/* 分流操作：文字链接样式 */
 .rc-btn-manual {
-  height: 26px;
-  padding: 0 12px;
   border: none;
-  border-radius: 6px;
-  color: #fff;
-  font-size: 12px;
+  background: none;
+  padding: 0;
+  color: var(--primary);
+  font-size: 12.5px;
   cursor: pointer;
   white-space: nowrap;
 }
-.rc-btn-route { background: var(--primary); }
-.rc-btn-route:hover { background: var(--primary-hover); }
-.rc-btn-manual { background: #f5222d; }
-.rc-btn-manual:hover { background: #ff4d4f; }
+.rc-btn-manual:hover { color: var(--primary-hover); text-decoration: underline; }
 
 .rc-empty { text-align: center; color: #8b92a1; padding: 28px 0; }
 .rc-empty-sm { text-align: center; color: #8b92a1; font-size: 12px; padding: 8px 0; }
 .rc-dim { color: #8b92a1; }
 
-/* ---------- 表尾：齿轮 + 分页器 ---------- */
-.rc-table-foot { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
-.rc-gear { color: #5b6475; cursor: pointer; font-size: 15px; }
-.rc-gear:hover { color: var(--primary); }
-.rc-pager { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #445066; }
+/* ---------- 表尾：分页器置底居中 ---------- */
+.rc-page .rc-table-card { display: flex; flex-direction: column; }
+.rc-page .rc-table-card .rc-wide { flex: 1; }
+.rc-table-foot { display: flex; align-items: center; margin-top: auto; padding-top: 12px; }
+.rc-pager { margin: 0 auto; display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #445066; }
 .rc-pg-size { width: 98px; height: 32px; border-radius: 8px; }
 .rc-pg-btn {
   min-width: 30px;

@@ -219,10 +219,9 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
   }, [apps, rateByApp, range, sort]);
 
   const rangeTotal = rows.reduce((s, r) => s + r.use, 0);
-  /* 全局人次排序 → 排名 / TOP3 重心 / 热门标记 */
+  /* 全局人次排序 → 排名 */
   const useSorted = useMemo(() => [...rows].sort((a, b) => b.use - a.use), [rows]);
   const rankOf = useMemo(() => new Map(useSorted.map((r, i) => [r.app.id, i + 1])), [useSorted]);
-  const top3 = useSorted.slice(0, 3);
   const top10 = useSorted.slice(0, 10);
   const maxUsers = Math.max(1, ...apps.map((a) => a.users));
   const cats = useMemo(() => [...new Set(apps.map((a) => a.category))], [apps]);
@@ -248,7 +247,7 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
   const avgAll = reviews.length ? reviews.reduce((s, r) => s + r.stars, 0) / reviews.length : 0;
   const goodAll = reviews.length ? reviews.filter((r) => r.stars >= 4).length / reviews.length : 0;
   const goodApps = rows.filter((r) => r.avg >= 4.5 && r.cnt >= 3);
-  const hotIds = new Set(top3.map((r) => r.app.id));
+  
   /* 应用数据概览：新增按上线日期判、更新按名称去重、蒙尘=日均使用不足 2 人次 */
   const newApps = apps.filter((a) => Date.now() - new Date(a.release).getTime() <= range * 86400000).length;
   const updatedApps = new Set(apps.filter((a) => a.hasUpdate || a.releaseNote).map((a) => a.name)).size;
@@ -376,10 +375,9 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
               <span>应用</span>
               <span>近{range}天使用人次</span>
               <span>应用总人次 / 日均占比</span>
-              <span>使用趋势</span>
               <span>平均评分</span>
               <span>好评率</span>
-              <span>标记</span>
+              <span>使用趋势</span>
             </div>
             <div className="ap-dash-scroll">
               {view.map((r) => (
@@ -394,13 +392,9 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
                     <span className="tr"><i style={{ width: `${Math.max(2, Math.round((r.app.users / maxUsers) * 100))}%` }} /></span>
                     <span className="pc">总 {fmt(r.app.users)} 人次 · 日均占 {(r.share * 100).toFixed(1)}%</span>
                   </span>
-                  <button type="button" className="ap-dash-trendcell" title="点击查看使用趋势" onClick={() => setTrendApp(r.app)}>趋势图</button>
                   <span className="ct-strong">{r.cnt ? r.avg.toFixed(1) : '--'}</span>
                   <span className="ct-strong">{r.cnt ? `${Math.round(r.goodRate * 100)}%` : '--'}</span>
-                  <span className="ap-dash-badges">
-                    {r.avg >= 4.5 && r.cnt >= 3 && <em className="ap-dash-badge good">好评</em>}
-                    {hotIds.has(r.app.id) && <em className="ap-dash-badge hot">热门</em>}
-                  </span>
+                  <button type="button" className="ap-dash-trendcell" title="点击查看使用趋势" onClick={() => setTrendApp(r.app)}>趋势图</button>
                 </div>
               ))}
               {view.length === 0 && <div className="ap-dash-empty">未找到匹配应用，调整搜索或类目试试</div>}
