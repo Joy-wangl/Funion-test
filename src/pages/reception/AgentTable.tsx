@@ -6,28 +6,59 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import {
   RC_COMPANY, RC_COMPANIES, RC_COMPANY_GROUPS, RC_ALL_GROUPS,
-  rcAgentLabel, rcCompanySumOf, rcCsvOf, rcTargetOptions, type RcAgent,
+  RC_GROUP_STRATEGY_INIT, RC_STRATEGIES,
+  rcAgentLabel, rcCompanySumOf, rcCsvOf, rcHoursLabel, rcMonitorOf, rcOrderOf, rcSalesLabel, rcTimeoutOf, type RcAgent,
 } from './data';
 import { Modal } from '../permission/shared';
 import BubbleSelect from '../../components/BubbleSelect';
+import MoreActions from '../../components/MoreActions';
 
 interface Props {
   agents: RcAgent[];
   setAgents: React.Dispatch<React.SetStateAction<RcAgent[]>>;
   toggleAgentStrategy: (id: number) => void;
   pushToast: (msg: string, type?: 'success' | 'error') => void;
+  /** 关联策略点击：跳转智能分流页并打开对应策略卡抽屉 */
+  onGoStrategy: (cardId: number) => void;
 }
 
 type Filter = { company: string; group: string; name: string; status: string };
 const EMPTY_FILTER: Filter = { company: '', group: '', name: '', status: '' };
+
+/** 子表可排序数值列 */
+type SortKey = 'sessions' | 'aiRate' | 'resp' | 'unreplied' | 'r3m' | 'r30s' | 'hours' | 'rank' | 'conv' | 'sales' | 'refund';
+const sortValOf = (a: RcAgent, k: SortKey): number => {
+  switch (k) {
+    case 'sessions': return a.human + a.ai;
+    case 'aiRate': return aiRateOf(a.ai, a.human);
+    case 'resp': return a.resp;
+    case 'unreplied': return a.unreplied;
+    case 'r3m': return a.r3m;
+    case 'r30s': return a.r30s;
+    case 'hours': return a.hours;
+    case 'rank': return a.rank;
+    case 'conv': return rcOrderOf(a).conv;
+    case 'sales': return rcOrderOf(a).sales;
+    case 'refund': return rcOrderOf(a).refund;
+  }
+};
 
 const STATUS_CLS: Record<string, string> = { 在线: 'rc-st on', 小休: 'rc-st rest', 离线: 'rc-st off' };
 
 /** AI 回复占比 = AI 回复数 ÷ 总会话数（人工+AI） */
 const aiRateOf = (ai: number, human: number) => (ai + human > 0 ? Math.round((ai / (ai + human)) * 100) : 0);
 
+/** 饼图扇形 path（起/止角为弧度） */
+const piePath = (cx: number, cy: number, r: number, a0: number, a1: number) => {
+  const x0 = (cx + r * Math.cos(a0)).toFixed(3);
+  const y0 = (cy + r * Math.sin(a0)).toFixed(3);
+  const x1 = (cx + r * Math.cos(a1)).toFixed(3);
+  const y1 = (cy + r * Math.sin(a1)).toFixed(3);
+  return `M${cx},${cy} L${x0},${y0} A${r},${r} 0 ${a1 - a0 > Math.PI ? 1 : 0} 1 ${x1},${y1} Z`;
+};
+
 export default function AgentTable({
-  agents, setAgents, toggleAgentStrategy, pushToast,
+  agents, setAgents, toggleAgentStrategy, pushToast, onGoStrategy,
 }: Props) {
   const [draft, setDraft] = useState<Filter>(EMPTY_FILTER);
   const [applied, setApplied] = useState<Filter>(EMPTY_FILTER);
@@ -38,11 +69,39 @@ export default function AgentTable({
   const [openMap, setOpenMap] = useState<Record<string, boolean>>({ [RC_COMPANY]: true });
   /** 各公司子表分组维度标签 */
   const [tabMap, setTabMap] = useState<Record<string, string>>({});
+  /** 分组级策略总开关（key: 公司::分组；关闭后组内客服不可开启） */
+  const [groupStrategy, setGroupStrategy] = useState<Record<string, boolean>>(() => {
+    const m: Record<string, boolean> = {};
+    RC_COMPANIES.forEach((c) => (RC_COMPANY_GROUPS[c] ?? []).forEach((g) => {
+      m[`${c}::${g}`] = RC_GROUP_STRATEGY_INIT[g] ?? true;
+    }));
+    return m;
+  });
   /** 子表「接待状态」列头筛选菜单 */
   const [statusMenu, setStatusMenu] = useState(false);
+  /** 子表列头排序（默认降序，再点切换升/降） */
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const toggleSort = (k: SortKey) => {
+    if (sortKey !== k) { setSortKey(k); setSortDir('desc'); }
+    else if (sortDir === 'desc') setSortDir('asc');
+    else { setSortKey(null); setSortDir('desc'); }
+  };
+  const thSort = (k: SortKey, label: string) => (
+    <th className={`rc-th-sort ${sortKey === k ? 'on' : ''}`} onClick={() => toggleSort(k)}>
+      {label}
+      <span className="rc-sort-ico">{sortKey === k ? (sortDir === 'desc' ? '↓' : '↑') : '⇅'}</span>
+    </th>
+  );
   const [transfer, setTransfer] = useState<{ mode: 'single'; agent: RcAgent } | { mode: 'batch' } | null>(null);
-  const [transferSel, setTransferSel] = useState('');
-  const [batchSel, setBatchSel] = useState<Set<number>>(new Set());
+  /** 转移目标级联选择：组 或 组内成员（单选） */
+  const [pick, setPick] = useState<{ kind: 'group'; group: string } | { kind: 'agent'; id: number } | null>(null);
+  /** 级联：右栏当前预览的分组（默认第一组） */
+  const [cascActive, setCascActive] = useState<string>(RC_COMPANY_GROUPS[RC_COMPANY]?.[0] ?? '');
+  /** 值班监控弹窗（操作列点击） */
+  const [monitor, setMonitor] = useState<RcAgent | null>(null);
+  /** 值班监控饼图 tab：值班/登录/WS */
+  const [monTab, setMonTab] = useState<'duty' | 'login' | 'ws'>('duty');
 
   const filtered = useMemo(() => agents.filter((a) => {
     if (applied.company !== '' && a.company !== applied.company) return false;
@@ -81,20 +140,27 @@ export default function AgentTable({
     return next;
   });
 
+  /** 分组级策略总开关：关闭后组内客服统一停用且不可开启（个人设置保留，开启后恢复） */
+  const toggleGroupStrategy = (c: string, tab: string) => {
+    const key = `${c}::${tab}`;
+    const next = !groupStrategy[key];
+    setGroupStrategy((v) => ({ ...v, [key]: next }));
+    pushToast(`已${next ? '启用' : '禁用'}「${tab}」的策略状态${next ? '，组内客服策略已恢复' : '，组内客服已同步停用'}`);
+  };
+
   const openTransfer = (t: typeof transfer) => {
-    setTransferSel('');
-    setBatchSel(new Set());
+    setPick(null);
     setTransfer(t);
   };
 
-  /** Esc：关闭转移会话弹窗 */
+  /** Esc：关闭转移会话 / 值班监控弹窗 */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && transfer) setTransfer(null);
+      if (e.key === 'Escape') { setTransfer(null); setMonitor(null); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [transfer]);
+  }, []);
 
   /* ---------- 导出 / 批量分流 ---------- */
   const doExport = () => {
@@ -109,33 +175,22 @@ export default function AgentTable({
     pushToast(`已导出 ${filtered.length} 条数据`);
   };
   const doBatchRoute = () => {
-    if (sel.size === 0) { pushToast('请先勾选需要批量手动分流的客服', 'error'); return; }
+    if (sel.size === 0) { pushToast('请先勾选需要批量转移会话的客服', 'error'); return; }
     openTransfer({ mode: 'batch' });
   };
 
   /* ---------- 转移会话确认 ---------- */
   const confirmTransfer = () => {
     if (!transfer) return;
-    if (transfer.mode === 'single') {
-      if (!transferSel) { pushToast('请选择转移客服', 'error'); return; }
-      const n = transfer.agent.unreplied;
-      if (n === 0) { pushToast('暂无会话可转移', 'error'); return; }
-      const target = transferSel.split('（')[0];
-      setAgents((v) => v.map((a) => (a.id === transfer.agent.id ? { ...a, unreplied: 0 } : a)));
-      pushToast(`已将 ${n} 个会话转移给「${target}」`);
-      setTransfer(null);
-      return;
-    }
-    if (batchSel.size === 0) { pushToast('请选择转移客服', 'error'); return; }
-    const checked = agents.filter((a) => sel.has(a.id));
-    const n = checked.reduce((t, a) => t + a.unreplied, 0);
+    if (!pick) { pushToast('请选择转移客服', 'error'); return; }
+    const sources = transfer.mode === 'single' ? [transfer.agent] : agents.filter((a) => sel.has(a.id));
+    const n = sources.reduce((t, a) => t + a.unreplied, 0);
     if (n === 0) { pushToast('暂无会话可转移', 'error'); return; }
-    const targetId = [...batchSel][0];
-    const target = agents.find((a) => a.id === targetId);
-    setAgents((v) => v.map((a) => (sel.has(a.id) ? { ...a, unreplied: 0 } : a)));
-    pushToast(`已将 ${n} 个会话转移给「${target?.name ?? ''}」`);
+    const targetName = pick.kind === 'group' ? pick.group : (agents.find((a) => a.id === pick.id)?.name ?? '');
+    setAgents((v) => v.map((a) => (sources.some((s) => s.id === a.id) ? { ...a, unreplied: 0 } : a)));
+    pushToast(`已将 ${n} 个会话转移给「${targetName}」`);
     setTransfer(null);
-    setSel(new Set());
+    if (transfer.mode === 'batch') setSel(new Set());
   };
 
   return (
@@ -172,7 +227,7 @@ export default function AgentTable({
             <button type="button" className="btn primary" onClick={() => { setApplied(draft); setPage(1); }}>查询</button>
             <button type="button" className="btn" onClick={() => { setDraft(EMPTY_FILTER); setApplied(EMPTY_FILTER); setPage(1); pushToast('筛选条件已重置'); }}>重置</button>
             <button type="button" className="btn" onClick={doExport}>导出</button>
-            <button type="button" className="btn" onClick={doBatchRoute}>批量手动分流</button>
+            <button type="button" className="btn" onClick={doBatchRoute}>批量转移会话</button>
           </div>
         </div>
 
@@ -183,12 +238,16 @@ export default function AgentTable({
               <tr>
                 <th className="check" />
                 <th>所属公司</th>
+                <th>接待会话数</th>
                 <th>接待数据(条)</th>
                 <th>AI回复平均占比</th>
                 <th>平均均响</th>
                 <th>未回复</th>
                 <th>3分钟平均回复率</th>
                 <th>30秒平均响应率</th>
+                <th>平均转化率</th>
+                <th>销售额</th>
+                <th>平均退款率</th>
                 <th>平均在线时长</th>
                 <th>接待排名</th>
               </tr>
@@ -198,7 +257,12 @@ export default function AgentTable({
                 const open = !!openMap[c];
                 const sum = rcCompanySumOf(c, filtered);
                 const cIds = idsOf(filtered.filter((a) => a.company === c));
-                const rows = rowsOf(c);
+                const rowsRaw = rowsOf(c);
+                const rows = sortKey
+                  ? [...rowsRaw].sort((x, y) => (sortDir === 'desc'
+                    ? sortValOf(y, sortKey) - sortValOf(x, sortKey)
+                    : sortValOf(x, sortKey) - sortValOf(y, sortKey)))
+                  : rowsRaw;
                 const rIds = idsOf(rows);
                 const allRows = rIds.length > 0 && rIds.every((id) => sel.has(id));
                 const someRows = rIds.some((id) => sel.has(id));
@@ -220,6 +284,7 @@ export default function AgentTable({
                         />
                       </td>
                       <td><b>{c}</b></td>
+                      <td>{sum.human + sum.ai}</td>
                       <td>
                         <div className="rc-duo"><span className="tag green rc-tagw">人工</span>{sum.human}</div>
                         <div className="rc-duo"><span className="tag orange rc-tagw">AI</span>{sum.ai}</div>
@@ -229,12 +294,16 @@ export default function AgentTable({
                       <td>{sum.unreplied}</td>
                       <td>{sum.r3m}%</td>
                       <td>{sum.r30s}%</td>
+                      <td>{sum.conv}%</td>
+                      <td>{rcSalesLabel(sum.sales)}</td>
+                      <td>{sum.refund}%</td>
                       <td>{sum.hours}</td>
                       <td>{sum.rank}</td>
                     </tr>
                     {open ? (
                       <tr className="expand-row">
-                        <td colSpan={10}>
+                        <td colSpan={14}>
+                          <div className="rc-expand-head">
                           <div className="qc-range-toggle rc-group-tabs">
                             <button
                               type="button"
@@ -249,6 +318,17 @@ export default function AgentTable({
                                 onClick={() => setTabMap((v) => ({ ...v, [c]: g }))}
                               >{g}</button>
                             ))}
+                          </div>
+                          {tab !== 'all' ? (
+                            <div className="rc-group-strategy">
+                              <span>策略状态</span>
+                              <span
+                                className={`rc-switch ${groupStrategy[`${c}::${tab}`] ? 'on' : ''}`}
+                                title={`启用/禁用${tab}策略`}
+                                onClick={() => toggleGroupStrategy(c, tab)}
+                              ><i /></span>
+                            </div>
+                          ) : null}
                           </div>
                           <table className="matrix rc-sub">
                             <thead>
@@ -288,14 +368,19 @@ export default function AgentTable({
                                     </>
                                   ) : null}
                                 </th>
+                                {thSort('sessions', '接待会话数')}
                                 <th>接待数据(条)</th>
-                                <th>AI回复占比</th>
-                                <th>均响</th>
-                                <th>未回复</th>
-                                <th>3分钟回复率</th>
-                                <th>30秒响应率</th>
-                                <th>在线时长</th>
-                                <th>接待排名</th>
+                                {thSort('aiRate', 'AI回复占比')}
+                                {thSort('resp', '均响')}
+                                {thSort('unreplied', '未回复')}
+                                <th>三分钟回复数据(条)</th>
+                                {thSort('r3m', '3分钟回复率')}
+                                {thSort('r30s', '30秒响应率')}
+                                {thSort('conv', '转化率')}
+                                {thSort('sales', '销售额')}
+                                {thSort('refund', '退款率')}
+                                {thSort('hours', '在线时长(h)')}
+                                {thSort('rank', '接待排名')}
                                 <th>策略状态</th>
                                 <th>操作</th>
                               </tr>
@@ -308,6 +393,7 @@ export default function AgentTable({
                                   </td>
                                   <td>{a.name}</td>
                                   <td><span className={STATUS_CLS[a.status]}>{a.status}</span></td>
+                                  <td>{a.human + a.ai}</td>
                                   <td>
                                     <div className="rc-duo"><span className="tag green rc-tagw">人工</span>{a.human}</div>
                                     <div className="rc-duo"><span className="tag orange rc-tagw">AI</span>{a.ai}</div>
@@ -315,24 +401,62 @@ export default function AgentTable({
                                   <td>{aiRateOf(a.ai, a.human)}%</td>
                                   <td>{a.resp}s</td>
                                   <td>{a.unreplied}</td>
+                                  <td>
+                                    <div className="rc-duo"><span className="tag green rc-tagw">未回复</span>{a.unreplied}</div>
+                                    <div className="rc-duo"><span className="tag orange rc-tagw">超时</span>{rcTimeoutOf(a)}</div>
+                                  </td>
                                   <td>{a.r3m}%</td>
                                   <td>{a.r30s}%</td>
-                                  <td>{a.hours}</td>
+                                  <td>{rcOrderOf(a).conv}%</td>
+                                  <td>{rcSalesLabel(rcOrderOf(a).sales)}</td>
+                                  <td>{rcOrderOf(a).refund}%</td>
+                                  <td>{rcHoursLabel(a)}</td>
                                   <td>{a.rank}</td>
                                   <td>
                                     <span
-                                      className={`rc-switch ${a.strategy ? 'on' : ''}`}
-                                      title="启用/禁用策略"
-                                      onClick={() => toggleAgentStrategy(a.id)}
+                                      className={`rc-switch ${groupStrategy[`${a.company}::${a.group}`] ?? true ? (a.strategy ? 'on' : '') : 'disabled'}`}
+                                      title={groupStrategy[`${a.company}::${a.group}`] ?? true ? '启用/禁用策略' : '分组策略已关闭，请先开启分组策略状态'}
+                                      onClick={() => {
+                                        if (!(groupStrategy[`${a.company}::${a.group}`] ?? true)) {
+                                          pushToast('该分组策略已关闭，请先开启分组策略状态', 'error');
+                                          return;
+                                        }
+                                        toggleAgentStrategy(a.id);
+                                      }}
                                     ><i /></span>
                                   </td>
                                   <td>
-                                    <button type="button" className="rc-btn-manual" onClick={() => openTransfer({ mode: 'single', agent: a })}>手动分流</button>
+                                    <div className="rc-ops">
+                                      {(() => {
+                                        const relOk = (groupStrategy[`${a.company}::${a.group}`] ?? true) && a.strategy && RC_STRATEGIES.some((s) => s.group === a.group);
+                                        const ops: { label: string; kind: 'btn' | 'link'; cls?: string; onClick: () => void }[] = [
+                                          { label: '转移会话', kind: 'btn', onClick: () => openTransfer({ mode: 'single', agent: a }) },
+                                        ];
+                                        if (relOk) ops.push({
+                                          label: '关联策略', kind: 'link',
+                                          onClick: () => { const rel = RC_STRATEGIES.find((s) => s.group === a.group); if (rel) onGoStrategy(rel.id); },
+                                        });
+                                        ops.push({ label: '值班监控', kind: 'link', cls: 'rc-op-mon', onClick: () => { setMonTab('duty'); setMonitor(a); } });
+                                        /* 操作列约定：直出最多 3 个，超出收进「更多」气泡 */
+                                        const direct = ops.length > 3 ? ops.slice(0, 3) : ops;
+                                        const more = ops.length > 3 ? ops.slice(3) : [];
+                                        return (
+                                          <>
+                                            {direct.map((o) => (o.kind === 'btn' ? (
+                                              <button key={o.label} type="button" className="rc-btn-manual" onClick={o.onClick}>{o.label}</button>
+                                            ) : (
+                                              <a key={o.label} className={`rc-rel-link ${o.cls ?? ''}`} onClick={o.onClick}>{o.label}</a>
+                                            )))}
+                                            {more.length > 0 ? <MoreActions items={more.map((o) => ({ label: o.label, onClick: o.onClick }))} /> : null}
+                                          </>
+                                        );
+                                      })()}
+                                    </div>
                                   </td>
                                 </tr>
                               ))}
                               {rows.length === 0 ? (
-                                <tr><td colSpan={13} className="rc-sub-empty">暂无数据</td></tr>
+                                <tr><td colSpan={18} className="rc-sub-empty">暂无数据</td></tr>
                               ) : null}
                             </tbody>
                           </table>
@@ -385,6 +509,7 @@ export default function AgentTable({
       {transfer ? (
         <Modal
           title="转移会话"
+          size="lg"
           foot={(
             <>
               <button type="button" className="btn" onClick={() => setTransfer(null)}>取消</button>
@@ -398,7 +523,7 @@ export default function AgentTable({
               <span className="f-label">目标客服：</span>
               {transfer.mode === 'single' ? (
                 <select className="select" disabled value={rcAgentLabel(transfer.agent)}>
-                  {rcTargetOptions(agents).map((o) => <option key={o} value={o}>{o}</option>)}
+                  <option>{rcAgentLabel(transfer.agent)}</option>
                 </select>
               ) : (
                 <select className="select" disabled value={`已选 ${sel.size} 名客服（批量）`}>
@@ -408,38 +533,142 @@ export default function AgentTable({
             </div>
             <div className="f-row">
               <span className="f-label">转移客服：</span>
-              {transfer.mode === 'single' ? (
-                <select className="select" value={transferSel} onChange={(e) => setTransferSel(e.target.value)}>
-                  <option value="">请选择转移客服</option>
-                  {agents.filter((a) => a.id !== transfer.agent.id).map((a) => (
-                    <option key={a.id} value={rcAgentLabel(a)}>{rcAgentLabel(a)}</option>
-                  ))}
-                </select>
-              ) : (
-                <div className="rc-batch-list">
-                  {agents.filter((a) => !sel.has(a.id)).length === 0 ? (
-                    <div className="rc-empty-sm">暂无可选客服</div>
-                  ) : agents.filter((a) => !sel.has(a.id)).map((a) => (
-                    <label className="rc-batch-item" key={a.id}>
-                      <input
-                        type="checkbox"
-                        checked={batchSel.has(a.id)}
-                        onChange={() => setBatchSel((s) => {
-                          const next = new Set(s);
-                          if (next.has(a.id)) next.delete(a.id);
-                          else { next.clear(); next.add(a.id); }
-                          return next;
-                        })}
-                      />
-                      {rcAgentLabel(a)}
-                    </label>
-                  ))}
+              <div className="rc-casc">
+                <div className="rc-casc-col rc-casc-groups">
+                  {RC_COMPANIES.flatMap((c) => (RC_COMPANY_GROUPS[c] ?? []).map((g) => {
+                    const excl = transfer.mode === 'single' ? new Set([transfer.agent.id]) : sel;
+                    const count = agents.filter((a) => a.company === c && a.group === g && !excl.has(a.id)).length;
+                    const gPick = pick?.kind === 'group' && pick.group === g;
+                    return (
+                      <div
+                        key={`${c}::${g}`}
+                        className={`rc-casc-g ${cascActive === g ? 'on' : ''}`}
+                        onClick={() => setCascActive(g)}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={gPick}
+                          onChange={() => setPick(gPick ? null : { kind: 'group', group: g })}
+                        />
+                        <span className="rc-casc-gname">{g}</span>
+                        <span className="rc-casc-count">{count}</span>
+                      </div>
+                    );
+                  }))}
                 </div>
-              )}
+                <div className="rc-casc-col rc-casc-members">
+                  {(() => {
+                    const excl = transfer.mode === 'single' ? new Set([transfer.agent.id]) : sel;
+                    const members = agents.filter((a) => a.group === cascActive && !excl.has(a.id));
+                    if (members.length === 0) return <div className="rc-casc-empty">暂无可选成员</div>;
+                    return members.map((a) => {
+                      const aPick = pick?.kind === 'agent' && pick.id === a.id;
+                      return (
+                        <label className="rc-casc-m" key={a.id}>
+                          <input
+                            type="checkbox"
+                            checked={aPick}
+                            onChange={() => setPick(aPick ? null : { kind: 'agent', id: a.id })}
+                          />
+                          {a.name}
+                          <span className={STATUS_CLS[a.status]}>{a.status}</span>
+                        </label>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
             </div>
           </div>
         </Modal>
       ) : null}
+
+      {/* ---------- 值班监控弹窗（左统计 + 右 tab 切换饼图） ---------- */}
+      {monitor ? (() => {
+        const m = rcMonitorOf(monitor);
+        const segs = monTab === 'duty' ? [
+          { label: '在线', value: m.online, color: '#52c41a' },
+          { label: '小休', value: m.rest, color: '#faad14' },
+          { label: '离线', value: m.offline, color: '#9aa1ae' },
+        ] : monTab === 'login' ? [
+          { label: '登录', value: m.login, color: '#52c41a' },
+          { label: '登出', value: m.logout, color: '#9aa1ae' },
+        ] : [
+          { label: '在线', value: m.wsOn, color: '#52c41a' },
+          { label: '离线', value: m.wsOff, color: '#9aa1ae' },
+        ];
+        const total = segs.reduce((t, s) => t + s.value, 0) || 1;
+        const live = segs.filter((s) => s.value > 0);
+        let ang = -Math.PI / 2;
+        const arcs = live.map((s) => {
+          const a0 = ang;
+          const a1 = ang + (s.value / total) * Math.PI * 2;
+          ang = a1;
+          return { ...s, a0, a1 };
+        });
+        const stats = [
+          { label: '在线时长', value: m.online, color: '#52c41a' },
+          { label: '小休时长', value: m.rest, color: '#faad14' },
+          { label: '离线时长', value: m.offline, color: '#9aa1ae' },
+          { label: '登录时长', value: m.login, color: '#52c41a' },
+          { label: '登出时长', value: m.logout, color: '#9aa1ae' },
+          { label: 'WS在线时长', value: m.wsOn, color: '#52c41a' },
+          { label: 'WS离线时长', value: m.wsOff, color: '#9aa1ae' },
+        ];
+        return (
+          <Modal
+            title="值班监控"
+            size="lg"
+            foot={<button type="button" className="btn" onClick={() => setMonitor(null)}>关闭</button>}
+            onClose={() => setMonitor(null)}
+          >
+            <div className="rc-mon">
+              <div className="rc-mon-side">
+                <div className="rc-mon-name">{monitor.name}（{monitor.group}）</div>
+                <div className="rc-mon-id">ID: {monitor.id}</div>
+                <div className="rc-mon-stats">
+                  {stats.map((s) => (
+                    <div key={s.label} className="rc-mon-stat">
+                      <i style={{ background: s.color }} />
+                      <span>{s.label}</span>
+                      <b>{s.value.toFixed(2)}h</b>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="rc-mon-main">
+                <div className="rc-mon-tabs">
+                  {([{ k: 'duty', t: '值班状态' }, { k: 'login', t: '登录状态' }, { k: 'ws', t: 'WS状态' }] as const).map((t) => (
+                    <button
+                      key={t.k}
+                      type="button"
+                      className={`rc-mon-tab ${monTab === t.k ? 'on' : ''}`}
+                      onClick={() => setMonTab(t.k)}
+                    >{t.t}</button>
+                  ))}
+                </div>
+                <div className="rc-mon-pie">
+                  <svg viewBox="0 0 160 160" width="160" height="160">
+                    {live.length === 1
+                      ? <circle cx="80" cy="80" r="70" fill={live[0].color} />
+                      : arcs.map((s) => <path key={s.label} d={piePath(80, 80, 70, s.a0, s.a1)} fill={s.color} />)}
+                  </svg>
+                  <div className="rc-mon-legend">
+                    {segs.map((s) => (
+                      <div key={s.label} className="rc-mon-lg">
+                        <i style={{ background: s.color }} />
+                        <span>{s.label}</span>
+                        <b>{s.value.toFixed(2)}h</b>
+                        <em>{Math.round((s.value / total) * 100)}%</em>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Modal>
+        );
+      })() : null}
     </div>
   );
 }

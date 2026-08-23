@@ -97,8 +97,42 @@ export const RC_AGENTS: RcAgent[] = [
 
 export const rcAgentLabel = (a: RcAgent) => `${a.name}（${a.group}）`;
 
+/** 超时回复条数（演示口径：人工接待中超出 3 分钟回复的部分） */
+export const rcTimeoutOf = (a: RcAgent) => Math.round((a.human * (100 - a.r3m)) / 100);
+
+/** 在线时长展示：1.2h 格式 */
+export const rcHoursLabel = (a: RcAgent) => `${(a.hours / 10).toFixed(1)}h`;
+
+/** 值班监控统计（今日 0:00 至当前窗口，单位 h，两位小数） */
+export interface RcMonitor {
+  win: number;
+  online: number; rest: number; offline: number;
+  login: number; logout: number; wsOn: number; wsOff: number;
+}
+const r2 = (n: number) => Math.round(n * 100) / 100;
+export const rcMonitorOf = (a: RcAgent): RcMonitor => {
+  const win = 11.5;
+  const online = r2(Math.min(win, a.hours / 10 + (a.id % 3) * 0.13));
+  const rest = r2((a.id % 4) * 0.06);
+  const offline = r2(Math.max(0, win - online - rest));
+  const login = a.status === '离线' ? r2(Math.max(0, online - 0.4)) : r2(Math.min(win, online + rest));
+  const logout = r2(win - login);
+  const wsOn = r2(Math.min(win, online + (a.id % 2) * 0.02));
+  const wsOff = r2(win - wsOn);
+  return { win, online, rest, offline, login, logout, wsOn, wsOff };
+};
+
+/** 订单指标（演示口径）：转化率(%) / 销售额(元) / 退款率(%) */
+export interface RcOrder { conv: number; sales: number; refund: number }
+export const rcOrderOf = (a: RcAgent): RcOrder => ({
+  conv: Math.round(((a.r3m + a.r30s) / 2) * 0.6 * 10) / 10,
+  sales: Math.round((a.human + a.ai) * (40 + a.r3m) * 1.6),
+  refund: Math.round((100 - a.r3m) * 0.15 * 10) / 10,
+});
+export const rcSalesLabel = (n: number) => `¥${n.toLocaleString('zh-CN')}`;
+
 /* ---------- 汇总口径（数量列实时聚合；均响/比率有线上转录值时用转录值，其余按成员均值；排名按接待量排序） ---------- */
-export interface RcSum { ai: number; human: number; resp: number; unreplied: number; r3m: number; r30s: number; hours: number; rank: number }
+export interface RcSum { ai: number; human: number; resp: number; unreplied: number; r3m: number; r30s: number; hours: number; rank: number; conv: number; sales: number; refund: number }
 
 const RC_GROUP_SUM_FIXED: Record<string, Pick<RcSum, 'resp' | 'r3m' | 'r30s' | 'rank'>> = {
   宝妈一组: { resp: 4, r3m: 53, r30s: 53, rank: 1 },
@@ -118,6 +152,17 @@ const rcTotalsOf = (list: RcAgent[]) => list.reduce(
 const avgOf = (list: RcAgent[], k: 'resp' | 'r3m' | 'r30s') =>
   (list.length ? Math.round(list.reduce((t, a) => t + a[k], 0) / list.length) : 0);
 
+/** 订单指标聚合：销售额求和，转化率/退款率取均值 */
+const orderSumOf = (list: RcAgent[]) => {
+  const os = list.map(rcOrderOf);
+  const n = list.length || 1;
+  return {
+    conv: Math.round((os.reduce((t, o) => t + o.conv, 0) / n) * 10) / 10,
+    sales: os.reduce((t, o) => t + o.sales, 0),
+    refund: Math.round((os.reduce((t, o) => t + o.refund, 0) / n) * 10) / 10,
+  };
+};
+
 /** 按接待量（AI+人工）降序排名 */
 const ranksByTotal = (keys: string[], list: RcAgent[], keyOf: (a: RcAgent) => string): Record<string, number> => {
   const sorted = keys
@@ -132,6 +177,7 @@ export const rcGroupSumOf = (company: string, group: string, agents: RcAgent[]):
   const ranks = ranksByTotal(RC_COMPANY_GROUPS[company] ?? [], agents.filter((a) => a.company === company), (a) => a.group);
   return {
     ...rcTotalsOf(list),
+    ...orderSumOf(list),
     resp: fixed?.resp ?? avgOf(list, 'resp'),
     r3m: fixed?.r3m ?? avgOf(list, 'r3m'),
     r30s: fixed?.r30s ?? avgOf(list, 'r30s'),
@@ -144,6 +190,7 @@ export const rcCompanySumOf = (company: string, agents: RcAgent[]): RcSum => {
   const fixed = RC_COMPANY_SUM_FIXED[company];
   return {
     ...rcTotalsOf(list),
+    ...orderSumOf(list),
     resp: fixed?.resp ?? avgOf(list, 'resp'),
     r3m: fixed?.r3m ?? avgOf(list, 'r3m'),
     r30s: fixed?.r30s ?? avgOf(list, 'r30s'),
@@ -239,9 +286,12 @@ export const rcTimelineOf = (a: RcAgent): RcTimeline => ({
 
 /* ---------- CSV 导出（表头与线上逐字一致，带 BOM） ---------- */
 export const rcCsvOf = (list: RcAgent[]): string => {
-  const head = '所属公司,分组,客服,接待状态,AI接待量,人工接待量,均响,未回复,3分钟回复率,30秒响应率,在线时长,接待排名,策略状态';
-  const rows = list.map((a) => [
-    a.company, a.group, a.name, a.status, a.ai, a.human, `${a.resp}s`, a.unreplied, `${a.r3m}%`, `${a.r30s}%`, a.hours, a.rank, a.strategy ? '启用' : '禁用',
-  ].join(','));
+  const head = '所属公司,分组,客服,接待状态,AI接待量,人工接待量,均响,未回复,3分钟回复率,30秒响应率,转化率,销售额,退款率,在线时长,接待排名,策略状态';
+  const rows = list.map((a) => {
+    const o = rcOrderOf(a);
+    return [
+      a.company, a.group, a.name, a.status, a.ai, a.human, `${a.resp}s`, a.unreplied, `${a.r3m}%`, `${a.r30s}%`, `${o.conv}%`, o.sales, `${o.refund}%`, a.hours, a.rank, a.strategy ? '启用' : '禁用',
+    ].join(',');
+  });
   return `\ufeff${[head, ...rows].join('\n')}`;
 };

@@ -25,7 +25,15 @@ export default function ReceptionCenter({ sidebarCollapsed }: { sidebarCollapsed
   const [sideOpen] = useState(!sidebarCollapsed);
   const [groupsOpen, setGroupsOpen] = useState<Record<string, boolean>>({ 聚合接待: true, 分流设置: false });
   const [agents, setAgents] = useState<RcAgent[]>(RC_AGENTS);
+  /** 表格页关联策略跳转：打开对应策略卡抽屉 */
+  const [jump, setJump] = useState<{ id: number | null; seq: number }>({ id: null, seq: 0 });
   const { toasts, pushToast } = useToasts();
+
+  const goStrategy = (cardId: number) => {
+    setJump((j) => ({ id: cardId, seq: j.seq + 1 }));
+    setGroupsOpen((v) => ({ ...v, 分流设置: true }));
+    setView('strategy');
+  };
 
   const toggleAgentStrategy = (id: number) => {
     const agent = agents.find((a) => a.id === id);
@@ -98,7 +106,7 @@ export default function ReceptionCenter({ sidebarCollapsed }: { sidebarCollapsed
           {groupsOpen['分流设置'] ? (
             <div
               className={`rc-menu-item child ${view === 'strategy' ? 'active' : ''}`}
-              onClick={() => setView('strategy')}
+              onClick={() => { setJump({ id: null, seq: 0 }); setView('strategy'); }}
             >
               <span className="rc-menu-text">智能分流</span>
             </div>
@@ -121,9 +129,10 @@ export default function ReceptionCenter({ sidebarCollapsed }: { sidebarCollapsed
             setAgents={setAgents}
             toggleAgentStrategy={toggleAgentStrategy}
             pushToast={pushToast}
+            onGoStrategy={goStrategy}
           />
         ) : view === 'strategy' ? (
-          <StrategyBoard pushToast={pushToast} openGroupId={null} jumpSeq={0} />
+          <StrategyBoard pushToast={pushToast} openGroupId={jump.id} jumpSeq={jump.seq} />
         ) : (
           <LiveReception />
         )}

@@ -98,6 +98,8 @@
 .app-content {
   flex: 1;
   overflow-y: auto;
+  /* 预留滚动条轨道，内容高矮变化时不出现横向抦动 */
+  scrollbar-gutter: stable;
   background: var(--color-bg);
 }
 

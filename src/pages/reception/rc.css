@@ -84,6 +84,40 @@
 }
 .rc-group-tabs { margin-bottom: 12px; }
 
+/* 展开区头部：分组标签 + 右侧分组策略总开关 */
+.rc-expand-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.rc-expand-head .rc-group-tabs { margin-bottom: 0; }
+.rc-group-strategy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #5b6475;
+  flex: none;
+}
+.rc-rel-link {
+  color: var(--primary);
+  cursor: pointer;
+}
+.rc-rel-link:hover { text-decoration: underline; }
+/* 操作列竖排：手动分流 / 关联策略 */
+.rc-ops {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.rc-switch.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* 展开区白色子表（复用 .matrix，尺寸向图二看齐） */
 .rc-page .matrix.rc-sub th,
 .rc-page .matrix.rc-sub td { padding: 16px 12px; white-space: nowrap; }
@@ -160,6 +194,41 @@
 .rc-col-opt { padding: 6px 10px; font-size: 12px; font-weight: 400; color: #445066; border-radius: 6px; cursor: pointer; white-space: nowrap; text-align: left; }
 .rc-col-opt:hover { background: #f5f8ff; color: var(--primary); }
 .rc-col-opt.cur { background: #f0f5ff; color: var(--primary); font-weight: 600; }
+
+/* 子表列头排序 */
+.rc-th-sort { cursor: pointer; user-select: none; white-space: nowrap; }
+.rc-th-sort:hover { color: var(--primary); }
+.rc-th-sort.on { color: var(--primary); }
+.rc-sort-ico { margin-left: 4px; font-size: 11px; color: #b6bcc8; }
+.rc-th-sort.on .rc-sort-ico { color: var(--primary); }
+
+/* 值班监控弹窗：左统计 + 右 tab 饼图 */
+.rc-mon { display: flex; gap: 24px; min-width: 620px; }
+.rc-mon-side { width: 190px; flex: none; border-right: 1px solid #eef1f6; padding-right: 20px; }
+.rc-mon-name { font-size: 14px; font-weight: 600; color: #202532; }
+.rc-mon-id { font-size: 12px; color: #98a1b3; margin: 4px 0 12px; }
+.rc-mon-stat { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #5b6475; padding: 5px 0; }
+.rc-mon-stat i { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+.rc-mon-stat b { margin-left: auto; color: #202532; font-weight: 600; }
+.rc-mon-main { flex: 1; }
+.rc-mon-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+.rc-mon-tab {
+  padding: 5px 14px;
+  border: 1px solid #e3e8f0;
+  background: #fff;
+  border-radius: 999px;
+  font-size: 12.5px;
+  color: #5b6475;
+  cursor: pointer;
+}
+.rc-mon-tab:hover { color: var(--primary); border-color: var(--primary); }
+.rc-mon-tab.on { color: var(--primary); border-color: var(--primary); background: #f0f5ff; font-weight: 600; }
+.rc-mon-pie { display: flex; align-items: center; gap: 28px; }
+.rc-mon-legend { display: flex; flex-direction: column; gap: 10px; }
+.rc-mon-lg { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #5b6475; }
+.rc-mon-lg i { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+.rc-mon-lg b { color: #202532; margin-left: 2px; }
+.rc-mon-lg em { font-style: normal; color: #98a1b3; margin-left: 2px; }
 
 /* 策略开关 */
 .rc-switch {
@@ -259,18 +328,48 @@
 .rc-form .f-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
 .rc-form .f-label { width: 84px; flex: none; color: #5b6475; line-height: 40px; font-size: 13px; }
 .rc-form .select { flex: 1; }
-.rc-batch-list {
+/* 左右式级联：左栏分组 / 右栏成员 */
+.rc-casc {
   flex: 1;
-  max-height: 240px;
-  overflow-y: auto;
+  display: flex;
+  height: 320px;
   border: 1px solid #e5e9f0;
   border-radius: 10px;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  overflow: hidden;
+  background: #fff;
 }
-.rc-batch-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #445066; cursor: pointer; }
+.rc-casc-col { overflow-y: auto; padding: 8px; }
+.rc-casc-groups { width: 46%; flex: none; background: #f7f9fc; border-right: 1px solid #eef1f6; }
+.rc-casc-g {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #445066;
+}
+.rc-casc-g + .rc-casc-g { margin-top: 2px; }
+.rc-casc-g:hover { background: #eef3fb; }
+.rc-casc-g.on { background: #e8f0ff; color: var(--primary); font-weight: 600; }
+.rc-casc-gname { flex: 1; }
+.rc-casc-count { font-size: 12px; color: #98a1b3; }
+.rc-casc-g.on .rc-casc-count { color: var(--primary); }
+.rc-casc-m {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #445066;
+}
+.rc-casc-m + .rc-casc-m { margin-top: 2px; }
+.rc-casc-m:hover { background: #f5f8ff; }
+.rc-casc-m .rc-st { margin-left: auto; font-size: 12px; color: #98a1b3; }
+.rc-casc-empty { padding: 24px 0; text-align: center; font-size: 12.5px; color: #a3aab8; }
 
 /* ---------- 智能分流页：分区 + 策略卡片 ---------- */
 .rc-sec-title {
