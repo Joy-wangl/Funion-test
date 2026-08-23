@@ -92,32 +92,20 @@ const OUT = 'd:/Qoder/Funion';
   await page.fill('.ap-dash-search input', '');
   await page.waitForTimeout(200);
 
-  // 类目筛选：数据管理类
-  await page.click('.ap-dash-cats button:has-text("数据管理类")');
+  // 类目筛选：下拉（BubbleSelect）选数据管理类
+  await page.click('.ap-dash-cat-select .bselect-trigger');
+  await page.waitForSelector('.bselect-menu');
+  await page.click('.bselect-menu .bselect-opt:has-text("数据管理类")');
   await page.waitForTimeout(200);
+  const catSelTxt = ((await page.locator('.ap-dash-cat-select .bselect-text').textContent()) || '').trim();
   const rowsCat = await page.locator('.ap-dash-trow').count();
   const cntN = await page.locator('.ap-dash-cnt').count();
   await page.screenshot({ path: `${OUT}/ac-dash-filter.png`, fullPage: true });
-  await page.click('.ap-dash-cats button:has-text("全部")');
+  await page.click('.ap-dash-cat-select .bselect-trigger');
+  await page.waitForSelector('.bselect-menu');
+  await page.click('.bselect-menu .bselect-opt:has-text("全部")');
   await page.waitForTimeout(200);
-
-  // 类目条滚动按钮：宽屏隐藏，窄屏溢出出现且可滚
-  const catsNavWide = await page.locator('.ap-dash-cats-nav').count();
-  await page.setViewportSize({ width: 1000, height: 900 });
-  await page.waitForTimeout(400);
-  const catsNavNarrow = await page.locator('.ap-dash-cats-nav').count();
-  let scrolled = false;
-  if (catsNavNarrow) {
-    await page.click('.ap-dash-cats-nav button[title="向右滚动"]');
-    await page.waitForTimeout(600);
-    scrolled = await page.evaluate(() => {
-      const el = document.querySelector('.ap-dash-cats-scroll');
-      return el ? el.scrollLeft > 0 : false;
-    });
-  }
-  await page.screenshot({ path: `${OUT}/ac-dash-catsnav.png`, clip: { x: 0, y: 150, width: 1000, height: 620 } });
-  await page.setViewportSize({ width: 1600, height: 900 });
-  await page.waitForTimeout(300);
+  const catReset = ((await page.locator('.ap-dash-cat-select .bselect-text').textContent()) || '').trim() === '全部';
 
   // 返回首页
   await page.click('.ap-dash-head .ap-back');
@@ -128,6 +116,6 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/ac-mine-gap.png`, clip: { x: 0, y: 60, width: 1600, height: 420 } });
 
-  console.log(`ovl=${ovlTitles.join('|')} lbs=${ovlLbs.join('/')} ovlTotal=${ovlTotal} entry=${entry} rangeOn=${on7} topN=${topN} sparkRemoved=${sparkRemoved} trendBtn=${trendBtnTxt} headOk=${headOk} alignOk=${alignOk} customOk=${customOk} tipOk=${tipOk} bands=${bandTxt.join('/')} noVer=${!chipTxt.includes('版本时间段')} chipToggle=${chipToggle} trendClosed=${trendClosed} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catsNavWide=${catsNavWide} catsNavNarrow=${catsNavNarrow} scrolled=${scrolled}`);
+  console.log(`ovl=${ovlTitles.join('|')} lbs=${ovlLbs.join('/')} ovlTotal=${ovlTotal} entry=${entry} rangeOn=${on7} topN=${topN} sparkRemoved=${sparkRemoved} trendBtn=${trendBtnTxt} headOk=${headOk} alignOk=${alignOk} customOk=${customOk} tipOk=${tipOk} bands=${bandTxt.join('/')} noVer=${!chipTxt.includes('版本时间段')} chipToggle=${chipToggle} trendClosed=${trendClosed} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catSelOk=${catSelTxt === '数据管理类'} catReset=${catReset}`);
   await browser.close();
 })().catch((e) => { console.error(e); process.exit(1); });

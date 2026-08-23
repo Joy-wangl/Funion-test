@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AppItem, AppReview } from './data';
+import BubbleSelect from '../../components/BubbleSelect';
 
 /* 全局时间范围：所有指标按范围联动 */
 const RANGES = [7, 30, 90] as const;
@@ -289,7 +290,7 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
   const [range, setRange] = useState<Range>(30);
   const [sort, setSort] = useState<'use' | 'rate'>('use');
   const [q, setQ] = useState('');
-  const [cat, setCat] = useState('all');
+  const [cat, setCat] = useState('全部');
   const [trendApp, setTrendApp] = useState<AppItem | null>(null);
 
   /* 按应用聚合评价：均分 / 条数 / 好评率 */
@@ -333,22 +334,10 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
   const maxUsers = Math.max(1, ...apps.map((a) => a.users));
   const cats = useMemo(() => [...new Set(apps.map((a) => a.category))], [apps]);
 
-  /* 类目条横向滚动：仅溢出时显示左右滚动按钮（参考应用商城交互） */
-  const catScrollRef = useRef<HTMLDivElement | null>(null);
-  const [catNav, setCatNav] = useState({ l: false, r: false });
-  const updateCatNav = () => {
-    const el = catScrollRef.current;
-    if (!el) { setCatNav({ l: false, r: false }); return; }
-    setCatNav({ l: el.scrollLeft > 4, r: el.scrollLeft + el.clientWidth < el.scrollWidth - 4 });
-  };
-  useEffect(() => {
-    const t = requestAnimationFrame(updateCatNav);
-    window.addEventListener('resize', updateCatNav);
-    return () => { cancelAnimationFrame(t); window.removeEventListener('resize', updateCatNav); };
-  }, [cats]);
+  /* 类目筛选改下拉（BubbleSelect）：默认全部 */
   const kw = q.trim().toLowerCase();
   const view = rows.filter((r) =>
-    (cat === 'all' || r.app.category === cat) &&
+    (cat === '全部' || r.app.category === cat) &&
     (!kw || r.app.name.toLowerCase().includes(kw)));
   const allTotal = apps.reduce((s, a) => s + a.users, 0);
   const avgAll = reviews.length ? reviews.reduce((s, r) => s + r.stars, 0) / reviews.length : 0;
@@ -458,27 +447,14 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
           <section className="ap-dash-card">
             <h3>
               应用使用明细
-              <span className="ap-dash-range">
-                <button type="button" className={sort === 'use' ? 'on' : ''} onClick={() => setSort('use')}>按使用人次</button>
-                <button type="button" className={sort === 'rate' ? 'on' : ''} onClick={() => setSort('rate')}>按评分</button>
+              <span className="ap-dash-head-right">
+                <BubbleSelect className="ap-dash-cat-select" options={['全部', ...cats]} value={cat} onChange={setCat} />
+                <span className="ap-dash-range">
+                  <button type="button" className={sort === 'use' ? 'on' : ''} onClick={() => setSort('use')}>按使用人次</button>
+                  <button type="button" className={sort === 'rate' ? 'on' : ''} onClick={() => setSort('rate')}>按评分</button>
+                </span>
               </span>
             </h3>
-            <div className="ap-dash-cats-row">
-              <div className="ap-dash-cats-scroll" ref={catScrollRef} onScroll={updateCatNav}>
-                <div className="ap-dash-range ap-dash-cats">
-                  <button type="button" className={cat === 'all' ? 'on' : ''} onClick={() => setCat('all')}>全部</button>
-                  {cats.map((c) => (
-                    <button key={c} type="button" className={cat === c ? 'on' : ''} onClick={() => setCat(c)}>{c}</button>
-                  ))}
-                </div>
-              </div>
-              {(catNav.l || catNav.r) && (
-                <span className="ap-rev-nav ap-dash-cats-nav">
-                  <button type="button" title="向左滚动" disabled={!catNav.l} onClick={() => catScrollRef.current?.scrollBy({ left: -240, behavior: 'smooth' })}><Ic d="M15 18l-6-6 6-6" size={13} /></button>
-                  <button type="button" title="向右滚动" disabled={!catNav.r} onClick={() => catScrollRef.current?.scrollBy({ left: 240, behavior: 'smooth' })}><Ic d="M9 18l6-6-6-6" size={13} /></button>
-                </span>
-              )}
-            </div>
             <div className="ap-dash-scroll">
               <div className="ap-dash-thead">
                 <span>排名</span>
