@@ -182,6 +182,7 @@ const transferRole = (entry: OpsMember, fromGroup: OpsGroup, targetGroupId: stri
   modal.value = null;
 };
 
+/* 转交＝替换：B 接任 A 的职位并接管 A 的下属，A 退出该运营组 */
 const transferLeader = (group: OpsGroup, oldLeader: OpsMember, newLeaderId: string) => {
   if (isMemberTaken(newLeaderId)) {
     pushToast('该成员在当前平台已有运营归属', 'error');
@@ -191,7 +192,11 @@ const transferLeader = (group: OpsGroup, oldLeader: OpsMember, newLeaderId: stri
   if (!src) return;
   mutateGroups((list) => list.map((g) => (g.id === group.id ? { ...g, leaderId: newLeaderId } : g)));
   mutateMembers((list) => [
-    ...list.map((m) => (m.memberId === oldLeader.memberId ? { ...m, role: 'specialist' as OpsRole, parentId: newLeaderId } : m)),
+    ...list
+      .filter((m) => m.memberId !== oldLeader.memberId)
+      .map((m) => (m.groupId === group.id && m.role === 'specialist' && m.parentId === oldLeader.memberId
+        ? { ...m, parentId: newLeaderId }
+        : m)),
     { memberId: newLeaderId, name: src.name, role: 'leader' as OpsRole, groupId: group.id, parentId: null, addedBy: oldLeader.name, addedAt: nowStamp() },
   ]);
   pushToast(`已将组长转交给「${src.name}」`);
@@ -206,11 +211,11 @@ const transferSpecialist = (group: OpsGroup, oldSpec: OpsMember, newSpecId: stri
   const src = opsMemberSource(newSpecId);
   if (!src) return;
   mutateMembers((list) => [
-    ...list.map((m) => {
-      if (m.memberId === oldSpec.memberId) return { ...m, role: 'assistant' as OpsRole, parentId: newSpecId };
-      if (m.role === 'assistant' && m.parentId === oldSpec.memberId) return { ...m, parentId: newSpecId };
-      return m;
-    }),
+    ...list
+      .filter((m) => m.memberId !== oldSpec.memberId)
+      .map((m) => (m.role === 'assistant' && m.parentId === oldSpec.memberId
+        ? { ...m, parentId: newSpecId }
+        : m)),
     { memberId: newSpecId, name: src.name, role: 'specialist' as OpsRole, groupId: group.id, parentId: oldSpec.parentId, addedBy: oldSpec.name, addedAt: nowStamp() },
   ]);
   pushToast(`已将专员转交给「${src.name}」`);

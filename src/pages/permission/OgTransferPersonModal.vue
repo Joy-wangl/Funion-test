@@ -6,7 +6,7 @@ import type { OpsGroup, OpsMember } from './opsGroupData';
 import MemberPickPanel from './MemberPickPanel.vue';
 import OgPickedSide from './OgPickedSide.vue';
 
-/* 转交组长/专员：唤起成员选择组件（仅可选人、已有归属禁选），一对一交接 */
+/* 转交组长/专员：唤起成员选择组件（仅可选人、已有归属禁选）；转交＝替换：B 接任并接管 A 的下属，A 退出该组 */
 const props = defineProps<{
   entry: OpsMember;
   group: OpsGroup;
@@ -26,7 +26,6 @@ const pickedMembers = computed(() => pool.filter((m) => picked.value.has(m.id)))
 const pickedSrc = computed(() => pickedMembers.value[0]);
 const roleLabel = props.role === 'leader' ? '组长' : '专员';
 const oldLabel = props.role === 'leader' ? '原组长' : '原专员';
-const demoteLabel = props.role === 'leader' ? '专员' : '助理';
 
 const toggleSingle = (id: string) => {
   picked.value = picked.value.has(id) ? new Set() : new Set([id]);
@@ -47,7 +46,7 @@ const confirm = () => { if (!pickedSrc.value) return; emit('confirm', pickedSrc.
       />
       <OgPickedSide :picked="pickedMembers" :max="1" :on-remove="() => picked = new Set()" />
     </div>
-    <div v-if="pickedSrc" class="form-tip" :style="{ marginTop: '10px' }">转交后：<b>{{ pickedSrc.name }}</b> 将成为「{{ group.name }}」{{ roleLabel }}，{{ oldLabel }} {{ entry.name }} 转为{{ demoteLabel }}。</div>
+    <div v-if="pickedSrc" class="form-tip" :style="{ marginTop: '10px' }">转交后：<b>{{ pickedSrc.name }}</b> 将接任「{{ group.name }}」{{ roleLabel }}，接管{{ oldLabel }} {{ entry.name }} 的下属；{{ entry.name }} 退出该运营组。</div>
     <template #foot>
       <button class="btn" @click="emit('close')">取消</button>
       <button class="btn primary" @click="confirm">确认转交</button>
