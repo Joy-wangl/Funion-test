@@ -37,6 +37,10 @@ const OUT = 'd:/Qoder/Funion';
   const trendBtnTxt = ((await page.locator('.ap-dash-trendcell').first().textContent()) || '').trim();
     const headTxt = ((await page.locator('.ap-dash-thead').textContent()) || '').trim();
     const headOk = !headTxt.includes('标记') && headTxt.endsWith('使用趋势');
+  // 表头/内容对齐：同列表头与首行字段左缘同 x（表头入滚动容器后不受滚动条挤压）
+  const headX = await page.$eval('.ap-dash-thead', el => Array.from(el.children).map(c => Math.round(c.getBoundingClientRect().x)));
+  const rowX = await page.$eval('.ap-dash-trow', el => Array.from(el.children).map(c => Math.round(c.getBoundingClientRect().x)));
+  const alignOk = headX.length === rowX.length && headX.every((x, i) => Math.abs(x - rowX[i]) <= 2);
 
   // 使用趋势弹窗：点击行内趋势图按钮 → 弹窗含指标 pills，可切周期，可关闭
   await page.click('.ap-dash-trendcell');
@@ -52,6 +56,18 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(200);
   const useBack = (await page.locator('.ap-trend-svg polyline[stroke="#2e7cf6"]').count()) === 1;
   const chipToggle = useOff && useLineHidden && useBack;
+  // 自定义时间（与品控一致）：点自定义 → 日期触发器 → 改区间生效
+  await page.click('.ap-trend-modal .ap-dash-range button:has-text("自定义")');
+  await page.waitForSelector('.ap-date-trigger');
+  await page.click('.ap-date-trigger');
+  await page.waitForSelector('.ap-date-pop');
+  const isoLocal = (off) => { const t = new Date(); t.setDate(t.getDate() - off); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
+  const lbl = (off) => { const t = new Date(); t.setDate(t.getDate() - off); return `${t.getMonth() + 1}/${t.getDate()}`; };
+  await page.locator('.ap-date-pop input').nth(0).fill(isoLocal(22));
+  await page.locator('.ap-date-pop input').nth(1).fill(isoLocal(8));
+  await page.waitForTimeout(250);
+  const pdTxt = (await page.locator('.ap-trend-foot .pd').textContent()) || '';
+  const customOk = pdTxt.includes(`${lbl(22)} → ${lbl(8)}`);
   await page.click('.ap-trend-modal .ap-dash-range button:has-text("近7天")');
   await page.waitForTimeout(250);
   await page.screenshot({ path: `${OUT}/ac-dash-trend.png` });
@@ -102,6 +118,6 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/ac-mine-gap.png`, clip: { x: 0, y: 60, width: 1600, height: 420 } });
 
-  console.log(`ovl=${ovlTitles.join('|')} lbs=${ovlLbs.join('/')} ovlTotal=${ovlTotal} entry=${entry} rangeOn=${on7} topN=${topN} sparkRemoved=${sparkRemoved} trendBtn=${trendBtnTxt} headOk=${headOk} bands=${bandTxt.join('/')} noVer=${!chipTxt.includes('版本时间段')} chipToggle=${chipToggle} trendClosed=${trendClosed} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catsNavWide=${catsNavWide} catsNavNarrow=${catsNavNarrow} scrolled=${scrolled}`);
+  console.log(`ovl=${ovlTitles.join('|')} lbs=${ovlLbs.join('/')} ovlTotal=${ovlTotal} entry=${entry} rangeOn=${on7} topN=${topN} sparkRemoved=${sparkRemoved} trendBtn=${trendBtnTxt} headOk=${headOk} alignOk=${alignOk} customOk=${customOk} bands=${bandTxt.join('/')} noVer=${!chipTxt.includes('版本时间段')} chipToggle=${chipToggle} trendClosed=${trendClosed} rowsErp=${rowsErp} rowsCat=${rowsCat} cntRemoved=${cntN === 0} catsNavWide=${catsNavWide} catsNavNarrow=${catsNavNarrow} scrolled=${scrolled}`);
   await browser.close();
 })().catch((e) => { console.error(e); process.exit(1); });

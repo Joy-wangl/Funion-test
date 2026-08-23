@@ -14,7 +14,6 @@ interface Props {
   setAgents: React.Dispatch<React.SetStateAction<RcAgent[]>>;
   toggleAgentStrategy: (id: number) => void;
   pushToast: (msg: string, type?: 'success' | 'error') => void;
-  onGoStrategyView: () => void;
 }
 
 type Filter = { company: string; group: string; name: string; status: string };
@@ -26,7 +25,7 @@ const STATUS_CLS: Record<string, string> = { 在线: 'rc-st.on', 小休: 'rc-st.
 const aiRateOf = (ai: number, human: number) => (ai + human > 0 ? Math.round((ai / (ai + human)) * 100) : 0);
 
 export default function AgentTable({
-  agents, setAgents, toggleAgentStrategy, pushToast, onGoStrategyView,
+  agents, setAgents, toggleAgentStrategy, pushToast,
 }: Props) {
   const [draft, setDraft] = useState<Filter>(EMPTY_FILTER);
   const [applied, setApplied] = useState<Filter>(EMPTY_FILTER);
@@ -36,6 +35,8 @@ export default function AgentTable({
   const [companyOpen, setCompanyOpen] = useState(true);
   /** 分组维度切换标签（系列=公司 / 商品编码=分组 / 平台=成员 的图二映射） */
   const [groupTab, setGroupTab] = useState<'all' | RcGroup>('all');
+  /** 子表「接待状态」列头筛选菜单 */
+  const [statusMenu, setStatusMenu] = useState(false);
   const [transfer, setTransfer] = useState<{ mode: 'single'; agent: RcAgent } | { mode: 'batch' } | null>(null);
   const [transferSel, setTransferSel] = useState('');
   const [batchSel, setBatchSel] = useState<Set<number>>(new Set());
@@ -145,11 +146,6 @@ export default function AgentTable({
 
   return (
     <div className="rc-view">
-      {/* 视图①顶部窗口 tab：点击进入智能分流策略页 */}
-      <div className="rc-wtabs">
-        <div className="rc-wtab single" onClick={onGoStrategyView}>智能分流</div>
-      </div>
-
       <div className="qc-body rc-table-card">
         {/* 筛选区 */}
         <div className="qc-filters rc-filter-row">
@@ -190,24 +186,24 @@ export default function AgentTable({
                 <th className="check" />
                 <th>所属公司</th>
                 <th>接待数据(条)</th>
-                <th>AI回复占比</th>
-                <th>均响</th>
+                <th>AI回复平均占比</th>
+                <th>平均均响</th>
                 <th>未回复</th>
-                <th>3分钟回复率</th>
-                <th>30秒响应率</th>
-                <th>在线时长</th>
+                <th>3分钟平均回复率</th>
+                <th>30秒平均响应率</th>
+                <th>平均在线时长</th>
                 <th>接待排名</th>
               </tr>
             </thead>
             <tbody>
               <tr className="rc-row-company">
                 <td className="check">
-                  <input type="checkbox" title="全选/清空全部客服" checked={allFiltered} onChange={toggleAllFiltered} />
                   <span
                     className={`rc-caret ${companyOpen ? 'open' : ''}`}
                     title="展开/收起"
                     onClick={() => setCompanyOpen((v) => !v)}
                   >▾</span>
+                  <input type="checkbox" title="全选/清空全部客服" checked={allFiltered} onChange={toggleAllFiltered} />
                 </td>
                 <td><b>{RC_COMPANY}</b></td>
                 <td>
@@ -247,7 +243,37 @@ export default function AgentTable({
                             <input type="checkbox" title="全选本页" checked={allPage} ref={(el) => { if (el) el.indeterminate = !allPage && somePage; }} onChange={toggleAllPage} />
                           </th>
                           <th>客服</th>
-                          <th>接待状态</th>
+                          <th className="rc-th-st">
+                            接待状态
+                            <span
+                              className={`rc-col-filter ${applied.status ? 'on' : ''}`}
+                              title="筛选接待状态"
+                              onClick={() => setStatusMenu((v) => !v)}
+                            >
+                              <svg viewBox="0 0 1024 1024" width="12" height="12" aria-hidden="true">
+                                <path fill="currentColor" d="M880 128H144c-13.3 0-20 16-10.7 25.4L416 448v320c0 12.7 10.3 23 23 23h146c12.7 0 23-10.3 23-23V448l282.7-294.6C900 144 893.3 128 880 128z" />
+                              </svg>
+                            </span>
+                            {statusMenu ? (
+                              <>
+                                <div className="rc-col-mask" onClick={() => setStatusMenu(false)} />
+                                <div className="rc-col-menu">
+                                  {[{ v: '', t: '全部' }, { v: '在线', t: '在线' }, { v: '小休', t: '小休' }, { v: '离线', t: '离线' }].map((o) => (
+                                    <div
+                                      key={o.t}
+                                      className={`rc-col-opt ${applied.status === o.v ? 'cur' : ''}`}
+                                      onClick={() => {
+                                        setDraft((d) => ({ ...d, status: o.v }));
+                                        setApplied((f) => ({ ...f, status: o.v }));
+                                        setPage(1);
+                                        setStatusMenu(false);
+                                      }}
+                                    >{o.t}</div>
+                                  ))}
+                                </div>
+                              </>
+                            ) : null}
+                          </th>
                           <th>接待数据(条)</th>
                           <th>AI回复占比</th>
                           <th>均响</th>

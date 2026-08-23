@@ -1568,6 +1568,18 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-trend-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
 
+.ap-date-picker { position: relative; }
+
+.ap-date-trigger { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #e5e7ef; background: #fff; border-radius: 8px; padding: 5px 10px; font-size: 12px; color: #333; cursor: pointer; }
+
+.ap-date-trigger span { color: #98a0ae; }
+
+.ap-date-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 10; display: flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #e5e7ef; border-radius: 10px; padding: 10px; box-shadow: 0 6px 18px rgba(26, 34, 56, 0.12); }
+
+.ap-date-pop span { color: #98a0ae; font-size: 12px; }
+
+.ap-date-pop input { width: 140px; height: 30px; border: 1px solid #e5e7ef; border-radius: 6px; font-size: 12px; padding: 0 8px; color: #333; }
+
 .ap-trend-chips { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; }
 
 .ap-trend-chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #e5e7ef; border-radius: 999px; padding: 5px 12px; font-size: 12px; color: #565d6b; background: #fff; cursor: pointer; font-family: inherit; }
@@ -1625,6 +1637,10 @@ button.ap-home-app { cursor: pointer; }
 .ap-dash-trow > * { text-align: left; }
 
 .ap-dash-thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #fff;
   font-size: 12px;
   color: #98a0b3;
   padding: 0 12px 10px;

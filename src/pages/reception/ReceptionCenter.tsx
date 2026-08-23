@@ -1,6 +1,6 @@
 /* =========================================================
    聚合接待（宝妈接待）· 模块外壳
-   左侧菜单 + 顶栏 + 两个视图：
+   左侧菜单 + 两个视图：
    ① 宝妈接待表格页（基础数据 › 客服管理）
    ② 智能分流策略页（分流设置 › 智能分流）
    ========================================================= */
@@ -22,7 +22,7 @@ const JUHE_CHILDREN = ['绩效统计', '接待排名', '实时客服接待', '�
 
 export default function ReceptionCenter({ sidebarCollapsed }: { sidebarCollapsed: boolean }) {
   const [view, setView] = useState<View>('table');
-  const [sideOpen, setSideOpen] = useState(!sidebarCollapsed);
+  const [sideOpen] = useState(!sidebarCollapsed);
   const [groupsOpen, setGroupsOpen] = useState<Record<string, boolean>>({ 聚合接待: true, 分流设置: false });
   const [agents, setAgents] = useState<RcAgent[]>(RC_AGENTS);
   const { toasts, pushToast } = useToasts();
@@ -34,12 +34,6 @@ export default function ReceptionCenter({ sidebarCollapsed }: { sidebarCollapsed
     setAgents((v) => v.map((a) => (a.id === id ? { ...a, strategy: next } : a)));
     pushToast(`已${next ? '启用' : '禁用'}「${agent.name}」的策略，组内客服已同步`);
   };
-
-  const goFullscreen = () => {
-    document.documentElement.requestFullscreen?.().catch(() => {});
-  };
-
-  const crumb = view === 'table' ? '基础数据 › 客服管理' : view === 'strategy' ? '分流设置 › 智能分流' : '聚合接待 › 实时客服接待';
 
   return (
     <div className="pm-page qc-page rc-page">
@@ -121,34 +115,12 @@ export default function ReceptionCenter({ sidebarCollapsed }: { sidebarCollapsed
 
       {/* ---------- 主区 ---------- */}
       <div className="qc-main rc-main">
-        {/* 顶栏 */}
-        <div className="rc-top">
-          <span className="rc-top-ico" title="收起/展开菜单" onClick={() => setSideOpen((v) => !v)}>☰</span>
-          <span className="rc-top-ico" title="刷新" onClick={() => pushToast('已刷新')}>↻</span>
-          <span className="rc-crumb">
-            <span className="rc-crumb-ico">▤</span>
-            {crumb}
-          </span>
-          <span className="rc-search" onClick={() => pushToast('演示原型：全局搜索暂未开放')}>
-            🔍 搜索 <kbd>Ctrl K</kbd>
-          </span>
-          <div className="rc-top-right">
-            <span className="rc-top-ico" title="设置" onClick={() => pushToast('演示原型：系统设置暂未开放')}>⚙</span>
-            <span className="rc-top-ico" title="暗色模式" onClick={() => pushToast('演示原型：暗色模式暂未开放')}>☾</span>
-            <span className="rc-top-lang" onClick={() => pushToast('演示原型：多语言切换暂未开放')}>文A</span>
-            <span className="rc-top-ico" title="全屏" onClick={goFullscreen}>⛶</span>
-            <span className="rc-top-ico" title="通知" onClick={() => pushToast('演示原型：暂无新通知')}>🔔</span>
-            <span className="rc-top-avatar" onClick={() => pushToast('演示原型：个人中心暂未开放')}><i /></span>
-          </div>
-        </div>
-
         {view === 'table' ? (
           <AgentTable
             agents={agents}
             setAgents={setAgents}
             toggleAgentStrategy={toggleAgentStrategy}
             pushToast={pushToast}
-            onGoStrategyView={() => setView('strategy')}
           />
         ) : view === 'strategy' ? (
           <StrategyBoard pushToast={pushToast} openGroupId={null} jumpSeq={0} />

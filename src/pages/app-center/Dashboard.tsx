@@ -23,22 +23,73 @@ const Ic = ({ d, size = 14 }: { d: string; size?: number }) => (
 
 type Row = { app: AppItem; use: number; share: number; avg: number; cnt: number; goodRate: number };
 
-/* 按应用确定性每日波动：日粒度曲线稳定 */
-const daySeries = (id: string, use: number, range: number) => {
-  const avg = use / range || 0;
-  const out: number[] = [];
-  for (let i = 0; i < range; i++) {
-    let h = 0;
-    const s = `${id}:${i}`;
-    for (let c = 0; c < s.length; c++) h = (h * 31 + s.charCodeAt(c)) % 997;
-    out.push(avg * (0.5 + (h % 100) / 100));
-  }
-  return out;
+/* 按应用确定性每日波动：同一日期同一值，任意窗口下曲线稳定 */
+const dayFactor = (id: string, daysAgo: number) => {
+  let h = 0;
+  const s = `${id}:${daysAgo}`;
+  for (let c = 0; c < s.length; c++) h = (h * 31 + s.charCodeAt(c)) % 997;
+  return 0.5 + (h % 100) / 100;
 };
+
+const daySeries = (id: string, use: number, n: number, off: number) => {
+  const avg = use / n || 0;
+  return Array.from({ length: n }, (_, i) => avg * dayFactor(id, off + n - 1 - i));
+};
+
+/* 任意天数的总人次折算系数（7/30/90 锚点分段线性插值） */
+const factorOf = (n: number) => (n <= 7 ? 0.12 : n <= 30 ? 0.12 + ((n - 7) / 23) * 0.23 : n <= 90 ? 0.35 + ((n - 30) / 60) * 0.37 : 0.72);
+
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/* 自定义日期区间：点击触发器弹出日期组件（与品控趋势图交互一致） */
+function ApDateRangePicker({ value, onChange }: { value: { start: string; end: string }; onChange: (v: { start: string; end: string }) => void }) {
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  const max = iso(new Date());
+  const minD = new Date();
+  minD.setDate(minD.getDate() - 89);
+  const min = iso(minD);
+  return (
+    <div className="ap-date-picker" ref={boxRef}>
+      <button type="button" className="ap-date-trigger" onClick={() => setOpen((o) => !o)}>
+        {value.start}
+        <span>→</span>
+        {value.end}
+      </button>
+      {open && (
+        <div className="ap-date-pop">
+          <input type="date" value={value.start} min={min} max={max} onChange={(e) => onChange({ ...value, start: e.target.value })} />
+          <span>→</span>
+          <input type="date" value={value.end} min={min} max={max} onChange={(e) => onChange({ ...value, end: e.target.value })} />
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* 使用趋势弹窗：参考品控中心趋势图——指标 pills + 周期切换 + 双线趋势 */
 function AppTrendModal({ app, onClose }: { app: AppItem; onClose: () => void }) {
-  const [tr, setTr] = useState<Range>(30);
+  const [tr, setTr] = useState<Range | 'custom'>(30);
+  /* 自定义区间（限近 90 天内） */
+  const [custom, setCustom] = useState(() => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 29);
+    return { start: iso(start), end: iso(end) };
+  });
   /* 指标显隐（参考品控：chip 点击切换） */
   const [hidden, setHidden] = useState<Set<'use' | 'new'>>(new Set());
   const toggle = (k: 'use' | 'new') => setHidden((prev) => {
@@ -48,23 +99,40 @@ function AppTrendModal({ app, onClose }: { app: AppItem; onClose: () => void }) 
     return next;
   });
   const data = useMemo(() => {
-    const useN = Math.round(app.users * FACTOR[tr] * noise(app.id));
-    const usePts = daySeries(app.id, useN, tr);
-    const newPts = daySeries(`${app.id}:new`, Math.round(useN * 0.18), tr);
+    /* 窗口：预设=近 N 天；自定义=选定区间（钳制近 90 天、反序交换） */
+    let n: number;
+    let off: number;
+    if (tr !== 'custom') {
+      n = tr; off = 0;
+    } else {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const parse = (s: string) => { const d = new Date(`${s}T00:00:00`); return Number.isNaN(+d) ? new Date(today) : d; };
+      let s = parse(custom.start);
+      let e = parse(custom.end);
+      const min = new Date(today); min.setDate(min.getDate() - 89);
+      if (+s < +min) s = min;
+      if (+e > +today) e = today;
+      if (+s > +e) { const t = s; s = e; e = t; }
+      n = Math.max(2, Math.round((+e - +s) / 86400000) + 1);
+      off = Math.round((+today - +e) / 86400000);
+    }
+    const useN = Math.round(app.users * factorOf(n) * noise(app.id));
+    const usePts = daySeries(app.id, useN, n, off);
+    const newPts = daySeries(`${app.id}:new`, Math.round(useN * 0.18), n, off);
     const labels: string[] = [];
     const end = new Date();
-    for (let i = tr - 1; i >= 0; i--) {
+    for (let i = n - 1; i >= 0; i--) {
       const d = new Date(end);
-      d.setDate(d.getDate() - i);
+      d.setDate(d.getDate() - (off + i));
       labels.push(`${d.getMonth() + 1}/${d.getDate()}`);
     }
     const sum = (a: number[]) => Math.round(a.reduce((s, v) => s + v, 0));
     /* 版本上线日在图表窗口内的下标：之前=旧版完成带，之后=当前版本运行中带 */
     const first = new Date();
-    first.setDate(first.getDate() - (tr - 1));
+    first.setDate(first.getDate() - (off + n - 1));
     const relIdx = Math.round((new Date(app.release).getTime() - first.getTime()) / 86400000);
-    return { usePts, newPts, labels, useSum: sum(usePts), newSum: sum(newPts), relIdx };
-  }, [app, tr]);
+    return { usePts, newPts, labels, useSum: sum(usePts), newSum: sum(newPts), relIdx, n };
+  }, [app, tr, custom]);
 
   const W = 960;
   const H = 300;
@@ -72,7 +140,7 @@ function AppTrendModal({ app, onClose }: { app: AppItem; onClose: () => void }) 
   const R = 16;
   const T = 18;
   const B = 34;
-  const n = tr;
+  const n = data.n;
   const mx = Math.max(...(hidden.has('use') ? [] : data.usePts), ...(hidden.has('new') ? [] : data.newPts), 1) * 1.15;
   const x = (i: number) => L + (i * (W - L - R)) / (n - 1);
   const y = (v: number) => T + (1 - v / mx) * (H - T - B);
@@ -91,7 +159,7 @@ function AppTrendModal({ app, onClose }: { app: AppItem; onClose: () => void }) 
       if (now - lastWheel.current < 260) return;
       lastWheel.current = now;
       setTr((prev) => {
-        const idx = RANGES.indexOf(prev);
+        const idx = prev === 'custom' ? -1 : RANGES.indexOf(prev);
         return RANGES[(idx + (e.deltaY > 0 ? 1 : 2)) % RANGES.length];
       });
     };
@@ -132,7 +200,9 @@ function AppTrendModal({ app, onClose }: { app: AppItem; onClose: () => void }) 
             {RANGES.map((r) => (
               <button key={r} type="button" className={tr === r ? 'on' : ''} onClick={() => setTr(r)}>近{r}天</button>
             ))}
+            <button type="button" className={tr === 'custom' ? 'on' : ''} onClick={() => setTr('custom')}>自定义</button>
           </span>
+          {tr === 'custom' && <ApDateRangePicker value={custom} onChange={setCustom} />}
         </div>
         <svg className="ap-trend-svg" viewBox={`0 0 ${W} ${H}`}>
           {[0, 0.25, 0.5, 0.75, 1].map((f) => {
@@ -370,16 +440,16 @@ export default function AppDashboard({ apps, reviews, onBack }: { apps: AppItem[
                 </span>
               )}
             </div>
-            <div className="ap-dash-thead">
-              <span>排名</span>
-              <span>应用</span>
-              <span>近{range}天使用人次</span>
-              <span>应用总人次 / 日均占比</span>
-              <span>平均评分</span>
-              <span>好评率</span>
-              <span>使用趋势</span>
-            </div>
             <div className="ap-dash-scroll">
+              <div className="ap-dash-thead">
+                <span>排名</span>
+                <span>应用</span>
+                <span>近{range}天使用人次</span>
+                <span>应用总人次 / 日均占比</span>
+                <span>平均评分</span>
+                <span>好评率</span>
+                <span>使用趋势</span>
+              </div>
               {view.map((r) => (
                 <div className="ap-dash-trow" key={r.app.id}>
                   <span className={`rk${(rankOf.get(r.app.id) ?? 0) <= 3 ? ' top' : ''}`}>{rankOf.get(r.app.id)}</span>
