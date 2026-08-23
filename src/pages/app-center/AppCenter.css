@@ -1545,7 +1545,7 @@ button.ap-home-app { cursor: pointer; }
 .ap-dash-scroll { flex: 1; min-height: 0; overflow-y: auto; }
 
 .ap-dash-duo .ap-dash-thead,
-.ap-dash-duo .ap-dash-trow { grid-template-columns: 32px 1.1fr 96px 1.4fr 64px 64px 72px; gap: 16px; }
+.ap-dash-duo .ap-dash-trow { grid-template-columns: 32px 0.8fr 128px 1.4fr 64px 64px 72px; gap: 16px; }
 
 .ap-dash-dayavg { display: block; font-style: normal; font-size: 11px; color: #98a0b3; font-weight: 400; }
 
@@ -1629,12 +1629,17 @@ button.ap-home-app { cursor: pointer; }
 /* 下拉宽度随选中项自适应，避免「全部」时文本与箭头间大片空白 */
 .ap-dash-cat-select { width: auto; min-width: 76px; flex: none; }
 
+/* 触发器文字右对齐贴近箭头，空白留在左侧 */
+.ap-dash-cat-select .bselect-trigger { justify-content: flex-end; }
+
+.ap-dash-cat-select .bselect-text { flex: none; text-align: right; }
+
 .ap-dash-empty { padding: 32px 0; text-align: center; color: #98a0b3; font-size: 12px; }
 
 .ap-dash-thead,
 .ap-dash-trow {
   display: grid;
-  grid-template-columns: 32px 1.1fr 96px 1.4fr 64px 64px 72px;
+  grid-template-columns: 32px 0.8fr 128px 1.4fr 64px 64px 72px;
   gap: 16px;
   align-items: center;
 }
