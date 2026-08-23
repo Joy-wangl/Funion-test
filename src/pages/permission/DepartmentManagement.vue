@@ -59,8 +59,9 @@ const dq = ref('');
 const ctx = ref<{ x: number; y: number; id: string; name: string } | null>(null);
 const addCtx = ref<{ x: number; y: number } | null>(null);
 const modal = ref<ModalState | null>(null);
-/* 部门成员列表（本地维护，添加成员时从 SOURCE_MEMBERS 选择） */
-const deptMembers = ref<DeptMember[]>(DP_MEMBERS.map((m, i) => ({ ...m, id: `m${i + 1}` })));
+/* 部门成员列表（本地维护，添加成员时从 SOURCE_MEMBERS 选择）
+   注：本地行 id 用 dm* 命名空间，避免与全局成员 id（m*）冲撞导致归属串改 */
+const deptMembers = ref<DeptMember[]>(DP_MEMBERS.map((m, i) => ({ ...m, id: `dm${i + 1}` })));
 
 /* 运营组数据（作为全局状态提升，后续可抽离到上层 context） */
 const opsGroups = ref<OpsChannelGroups>(INITIAL_OPS_GROUPS);

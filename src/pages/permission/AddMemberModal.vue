@@ -55,14 +55,20 @@ const bulkSetMembers = (ids: string[], checked: boolean) => {
 const confirm = () => {
   if (selectedMembers.value.length === 0) { pushToast('请至少选择一名成员', 'error'); return; }
 
+  /* 渠道隔离：归属按平台可选配置（可只配一个平台），但每名成员至少须在一个平台分配职位 */
+  const assignedAny = new Set<string>();
+  for (const { key } of OPS_CHANNELS) {
+    const c = opsCfg.value[key];
+    [...c.leader.memberIds, ...c.specialist.memberIds, ...c.assistant.memberIds].forEach((id) => assignedAny.add(id));
+  }
+  const missing = selectedMembers.value.filter((m) => !assignedAny.has(m.id));
+  if (missing.length > 0) { pushToast(`请为所有成员分配至少一个平台的职位（${missing.map((m) => m.name).join('、')}）`, 'error'); return; }
+
   const patchGroups = { ...props.opsGroups };
   const patchMembers: OpsChannelMembers = { ...props.opsMembers };
 
   for (const { key, label } of OPS_CHANNELS) {
     const ch = opsCfg.value[key];
-    /* 归属必选：每个平台都须为所有成员分配职位 */
-    const assigned = new Set([...ch.leader.memberIds, ...ch.specialist.memberIds, ...ch.assistant.memberIds]);
-    if (selectedMembers.value.some((m) => !assigned.has(m.id))) { pushToast(`请为${label}平台所有成员分配职位`, 'error'); return; }
 
     if (ch.leader.memberIds.length > 0) {
       /* 一个组只有一个组长：组长职位新建运营组 */

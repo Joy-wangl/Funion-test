@@ -3,40 +3,40 @@
    ========================================================= */
 
 .pm-page {
-  /* 主色 */
-  --primary: #165DFF;
-  --primary-hover: #4080FF;
-  --primary-light: #E8F3FF;
-  --primary-light-2: #F2F7FF;
+  /* 主色（统一引用全局 token） */
+  --primary: var(--color-primary);
+  --primary-hover: var(--color-primary-hover);
+  --primary-light: var(--color-primary-light);
+  --primary-light-2: var(--color-primary-light-2);
 
   /* 功能色 */
-  --success: #00B42A;
-  --success-light: #E8FFEA;
-  --danger: #F53F3F;
-  --danger-light: #FFECE8;
-  --warning: #FF7D00;
-  --warning-light: #FFF7E8;
+  --success: var(--color-success);
+  --success-light: var(--color-success-light);
+  --danger: var(--color-danger);
+  --danger-light: var(--color-danger-light);
+  --warning: var(--color-warning);
+  --warning-light: var(--color-warning-light);
 
   /* 文本 */
-  --text-1: #1D2129;
-  --text-2: #4E5969;
-  --text-3: #86909C;
-  --text-4: #C9CDD4;
+  --text-1: var(--color-text);
+  --text-2: var(--color-text-2);
+  --text-3: var(--color-text-3);
+  --text-4: var(--color-text-4);
 
   /* 边框 & 背景 */
-  --border: #E5E6EB;
-  --border-2: #F2F3F5;
-  --fill-1: #F7F8FA;
-  --fill-2: #F2F3F5;
-  --fill-3: #E5E6EB;
+  --border: var(--color-border);
+  --border-2: var(--color-border-2);
+  --fill-1: var(--color-fill);
+  --fill-2: var(--color-fill-2);
+  --fill-3: #e5e6eb;
   --white: #FFFFFF;
 
   /* 尺寸 */
-  --radius-sm: 4px;
-  --radius: 6px;
-  --radius-lg: 8px;
-  --shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --radius-sm: var(--radius-xs);
+  --radius: var(--radius-sm);
+  --radius-lg: var(--radius-md);
+  --shadow: var(--shadow-sm);
+  --shadow-lg: var(--shadow-lg);
 
   display: flex;
   flex-direction: column;
@@ -44,7 +44,7 @@
   min-width: 0;
   font-size: 13px;
   color: var(--text-1);
-  background: #F5F6F8;
+  background: var(--color-bg);
 }
 
 .pm-page button,
@@ -679,7 +679,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #4080FF, #165DFF);
+  background: linear-gradient(135deg, var(--color-primary-hover), var(--color-primary));
 }
 
 .pm-page .detail-hero .info .n { font-size: 17px; font-weight: 600; }
@@ -820,10 +820,7 @@
    对齐运营中心设计语言：16px 圆角卡片 / #e8ebf1 边框 / 柔和阴影 / #4f7cff 主色
    ========================================================= */
 .ops-center .pm-page {
-  --primary: #4f7cff;
-  --primary-hover: #6b90ff;
-  --primary-light: #eef3ff;
-  --primary-light-2: #f5f8ff;
+  /* 主色已由 .pm-page 统一引用全局 token，此处仅保留嵌入态布局覆盖 */
   height: auto;
   background: transparent;
   font-family: Arial, "Microsoft YaHei", sans-serif;
@@ -912,7 +909,7 @@
    ========================================================= */
 /* 左侧组列表人数角标 */
 .pm-page .og-count { margin-left: auto; font-size: 12px; color: var(--text-3); background: var(--fill-2); border-radius: 999px; padding: 2px 8px; flex-shrink: 0; }
-.pm-page .tree-item.active .og-count { background: rgba(22, 93, 255, 0.12); color: var(--primary); }
+.pm-page .tree-item.active .og-count { background: var(--color-primary-10); color: var(--primary); }
 
 /* 表格单元格：头像 + 层级缩进 */
 .pm-page .og-cell { display: flex; align-items: center; gap: 8px; }
