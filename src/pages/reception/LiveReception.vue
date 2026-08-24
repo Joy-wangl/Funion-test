@@ -116,9 +116,9 @@ const query = () => {
       <section v-for="s in shown" :key="s.name" class="qc-body rc-store">
         <header class="rc-store-head">
           <b class="rc-store-name">{{ s.name }}</b>
-          <span class="rc-store-m">接待 <b>{{ s.recv }}</b></span>
-          <span class="rc-store-m">未回复 <b :class="{ red: s.unreplied > 0 }">{{ s.unreplied }}</b></span>
-          <span class="rc-store-m">回复率 <b>{{ s.rate }}</b></span>
+          <span class="rc-store-m"><b>{{ s.recv }}</b> 接待</span>
+          <span class="rc-store-m"><b :class="{ red: s.unreplied > 0 }">{{ s.unreplied }}</b> 未回复</span>
+          <span class="rc-store-m"><b>{{ s.rate }}</b> 回复率</span>
           <a class="rc-link">平台订单分流</a>
           <span class="rc-store-sp" />
           <span class="rc-store-m">总数 {{ s.total }}</span>
@@ -126,8 +126,8 @@ const query = () => {
         </header>
 
         <div class="rc-noroute">
-          <b>不分流账号</b>
-          <span class="rc-noroute-txt">{{ s.noRoute.join('、') }}</span>
+          <b>不分流 {{ s.noRoute.length }}</b>
+          <span class="rc-noroute-txt" :title="s.noRoute.join('、')">{{ s.noRoute.join('、') }}</span>
           <a class="rc-link">修改</a>
         </div>
 
@@ -141,33 +141,34 @@ const query = () => {
             <div class="rc-acc-head">
               <span class="rc-acc-name">{{ a.name }}</span>
               <span v-if="a.transfer" class="rc-transfer">转移</span>
-              <span class="rc-acc-id">ID: {{ a.id }}</span>
-            </div>
-            <div class="rc-acc-status">
-              <span class="rc-live-chip" :class="{ on: a.pc }"><i />PC · {{ a.pc ? '在线' : '离线' }}</span>
-              <span class="rc-live-chip" :class="{ on: a.mobile }"><i />移动 · {{ a.mobile ? '在线' : '离线' }}</span>
+              <span class="rc-acc-id" :title="`ID: ${a.id}`">{{ a.id }}</span>
             </div>
             <div class="rc-acc-foot">
               <span class="rc-acc-stats">
-                <span>接待 <b>{{ a.recv }}</b></span>
-                <span>未回复 <b :class="{ red: a.unreplied > 0 }">{{ a.unreplied }}</b></span>
+                <span><b>{{ a.recv }}</b>接待</span>
+                <span><b :class="{ red: a.unreplied > 0 }">{{ a.unreplied }}</b>未回复</span>
               </span>
-              <button v-if="a.pull" class="rc-pull">拉取未回复</button>
+              <button v-if="a.pull" class="rc-pull" title="拉取未回复">拉取</button>
             </div>
-            <div v-if="a.full" class="rc-acc-sw">
-              <span class="rc-sw-pair">
-                接待开关
-                <span class="rc-switch" :class="{ on: a.recvSwitch }" @click="toggleSwitch(s.name, a.id, 'recvSwitch')">
-                  <i />
+            <div class="rc-acc-sw">
+              <span class="rc-net" :class="{ on: a.pc }" :title="`PC ${a.pc ? '在线' : '离线'}`"><i />PC</span>
+              <span class="rc-net" :class="{ on: a.mobile }" :title="`移动 ${a.mobile ? '在线' : '离线'}`"><i />移动</span>
+              <template v-if="a.full">
+                <span class="rc-sw-ctrl">
+                  <span class="rc-sw-pair">
+                    接待
+                    <span class="rc-switch" :class="{ on: a.recvSwitch }" @click="toggleSwitch(s.name, a.id, 'recvSwitch')">
+                      <i />
+                    </span>
+                  </span>
+                  <span class="rc-sw-pair">
+                    登录
+                    <span class="rc-switch" :class="{ on: a.loginSwitch }" @click="toggleSwitch(s.name, a.id, 'loginSwitch')">
+                      <i />
+                    </span>
+                  </span>
                 </span>
-              </span>
-              <span class="rc-sw-pair">
-                登录开关
-                <span class="rc-switch" :class="{ on: a.loginSwitch }" @click="toggleSwitch(s.name, a.id, 'loginSwitch')">
-                  <i />
-                </span>
-              </span>
-              <span class="rc-sw-online">在线</span>
+              </template>
             </div>
           </article>
         </div>

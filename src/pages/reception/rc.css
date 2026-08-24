@@ -721,40 +721,24 @@
   flex: 1;
   min-width: 0;
 }
-.rc-acc-id { font-size: 11.5px; color: var(--primary); white-space: nowrap; }
-/* 状态：圆点 + 文本紧凑徽章 */
-.rc-acc-status { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.rc-live-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 8px;
-  border-radius: var(--radius-xs);
-  background: var(--color-fill-2);
-  font-size: 11.5px;
-  color: var(--color-text-3);
-  white-space: nowrap;
-}
-.rc-live-chip i { width: 6px; height: 6px; border-radius: 50%; background: var(--color-text-4); }
-.rc-live-chip.on { color: var(--color-success); background: var(--color-success-light); }
-.rc-live-chip.on i { background: currentColor; }
-/* 底行：指标左 + 拉取操作右 */
+.rc-acc-id { font-size: 11.5px; color: var(--color-text-4); white-space: nowrap; }
+/* 底行：数字前置作重心 + 拉取文本链 */
 .rc-acc-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.rc-acc-stats { display: flex; gap: 12px; font-size: 12.5px; color: var(--color-text-3); }
-.rc-acc-stats b { color: var(--color-text-2); }
+.rc-acc-stats { display: flex; gap: 12px; font-size: 12px; color: var(--color-text-3); }
+.rc-acc-stats b { font-size: 16px; font-weight: 700; color: var(--color-text); margin-right: 3px; }
 .rc-acc-stats b.red { color: var(--color-danger); }
 .rc-pull {
-  padding: 2px 10px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: #fff;
-  font-size: 11.5px;
-  color: var(--color-text-2);
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--primary);
   cursor: pointer;
   white-space: nowrap;
-  transition: color .15s, border-color .15s, background .15s;
+  transition: color .15s;
 }
-.rc-pull:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+.rc-pull:hover { color: var(--primary-hover); text-decoration: underline; }
 .rc-transfer {
   padding: 2px 10px;
   border-radius: 999px;
@@ -763,19 +747,25 @@
   font-size: 11.5px;
   white-space: nowrap;
 }
-/* 开关行：虚线分隔 */
+/* 底条：浅底信息条（在线圆点左 + 开关右），不用线条分隔 */
 .rc-acc-sw {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   font-size: 12px;
-  color: var(--color-text-2);
+  color: var(--color-text-3);
   flex-wrap: wrap;
-  border-top: 1px dashed var(--color-border-2);
-  padding-top: 10px;
+  background: var(--color-fill);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
 }
+.rc-acc.hot .rc-acc-sw { background: rgba(255, 255, 255, 0.65); }
+.rc-net { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.rc-net i { width: 6px; height: 6px; border-radius: 50%; background: var(--color-text-4); }
+.rc-net.on { color: var(--color-success); }
+.rc-net.on i { background: currentColor; }
+.rc-sw-ctrl { display: inline-flex; align-items: center; gap: 10px; margin-left: auto; }
 .rc-sw-pair { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-.rc-sw-online { color: var(--color-text-3); }
 
 /* 查看更多 */
 .rc-more {

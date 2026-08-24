@@ -41,6 +41,17 @@ const OUT = 'd:/Qoder/Funion';
   const alertShadow = await page.locator('.rc-acc.alert').first().evaluate((el) => getComputedStyle(el).boxShadow).catch(() => '');
   results['ux.alertAccent'] = alertShadow.includes('inset');
 
+  /* 布局：账号卡语义压缩—无线条分隔 / 状态圆点代替在线离线文案 / 数字前置作重心 */
+  const swBar = await page.locator('.rc-acc .rc-acc-sw').first().evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return `${cs.borderTopStyle}|${cs.backgroundColor}`;
+  });
+  results['ux.noDashedLine'] = !swBar.startsWith('dashed') && swBar.split('|')[1] !== 'rgba(0, 0, 0, 0)';
+  results['ux.netDots'] = (await page.locator('.rc-acc .rc-net').count()) >= 2;
+  results['ux.noOfflineText'] = (await page.locator('.rc-acc :text("离线")').count()) === 0;
+  const numSize = await page.locator('.rc-acc-stats b').first().evaluate((el) => getComputedStyle(el).fontSize);
+  results['ux.numbersAnchor'] = numSize === '16px';
+
   /* 功能不变：平台切换 / 开关 / 查看更多 / 拉取未回复 */
   await page.click('.rc-live-tab:has-text("抖音")');
   await page.waitForTimeout(150);
@@ -51,7 +62,7 @@ const OUT = 'd:/Qoder/Funion';
   const swOn = await sw.evaluate((el) => el.classList.contains('on'));
   await sw.click();
   results['func.switchToggle'] = (await sw.evaluate((el) => el.classList.contains('on'))) !== swOn;
-  results['func.pullVisible'] = (await page.locator('.rc-pull:has-text("拉取未回复")').count()) >= 1;
+  results['func.pullVisible'] = (await page.locator('.rc-pull:has-text("拉取")').count()) >= 1;
   const more = page.locator('.rc-more').first();
   if ((await more.count()) > 0) {
     const n0 = await page.locator('.rc-store').first().locator('.rc-acc').count();
