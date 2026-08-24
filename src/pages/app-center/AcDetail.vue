@@ -151,10 +151,6 @@ watch(() => props.reviews, () => requestAnimationFrame(updateRevNav));
     <h3 class="ap-detail-sub ap-sec-head">
       <span>评分及评论</span>
       <span v-if="rvs.length > 0" class="ap-sec-acts">
-        <span class="ap-rev-nav">
-          <button type="button" title="上一条" :disabled="!revNav.l" @click="revStripRef?.scrollBy({ left: -480, behavior: 'smooth' })"><AcSvg :d="IC.back" :size="13" /></button>
-          <button type="button" title="下一条" :disabled="!revNav.r" @click="revStripRef?.scrollBy({ left: 480, behavior: 'smooth' })"><AcSvg :d="IC.chevR" :size="13" /></button>
-        </span>
         <button type="button" class="ap-link" @click="onOpenRevAll(app.id)">查看全部</button>
       </span>
     </h3>
@@ -173,21 +169,29 @@ watch(() => props.reviews, () => requestAnimationFrame(updateRevNav));
           </div>
         </div>
       </div>
-      <div ref="revStripRef" class="ap-rev-cards" @scroll="updateRevNav">
-        <div v-for="r in rvs" :key="r.id" class="ap-rev-card">
-          <div class="ap-rev-head">
-            <b>{{ r.title }}</b>
-            <div class="ap-rev-meta"><i>{{ agoText(r.date) }}</i><span>{{ r.user }}</span><em>v{{ r.version }}</em></div>
+      <div class="ap-rev-wrap">
+        <button v-if="revNav.l" type="button" class="ap-rev-arrow l" title="上一条" @click="revStripRef?.scrollBy({ left: -480, behavior: 'smooth' })">
+          <AcSvg :d="IC.back" :size="22" />
+        </button>
+        <div ref="revStripRef" class="ap-rev-cards" @scroll="updateRevNav">
+          <div v-for="r in rvs" :key="r.id" class="ap-rev-card">
+            <div class="ap-rev-head">
+              <b>{{ r.title }}</b>
+              <div class="ap-rev-meta"><i>{{ agoText(r.date) }}</i><span>{{ r.user }}</span><em>v{{ r.version }}</em></div>
+            </div>
+            <div class="ap-rev-stars">
+              <AcSvg v-for="n in ([1, 2, 3, 4, 5].filter((x) => x <= r.stars))" :key="n" :d="IC.star" :size="14" filled class-name="ap-star" />
+            </div>
+            <p>{{ r.text }}</p>
+            <div v-if="r.images && r.images.length > 0" class="ap-rev-imgs">
+              <img v-for="(src, i) in r.images" :key="i" :src="src" alt="">
+            </div>
+            <div v-if="r.reply" class="ap-rev-reply"><i>开发者回复</i><p>{{ r.reply.text }}</p></div>
           </div>
-          <div class="ap-rev-stars">
-            <AcSvg v-for="n in ([1, 2, 3, 4, 5].filter((x) => x <= r.stars))" :key="n" :d="IC.star" :size="14" filled class-name="ap-star" />
-          </div>
-          <p>{{ r.text }}</p>
-          <div v-if="r.images && r.images.length > 0" class="ap-rev-imgs">
-            <img v-for="(src, i) in r.images" :key="i" :src="src" alt="">
-          </div>
-          <div v-if="r.reply" class="ap-rev-reply"><i>开发者回复</i><p>{{ r.reply.text }}</p></div>
         </div>
+        <button v-if="revNav.r" type="button" class="ap-rev-arrow r" title="下一条" @click="revStripRef?.scrollBy({ left: 480, behavior: 'smooth' })">
+          <AcSvg :d="IC.chevR" :size="22" />
+        </button>
       </div>
     </template>
     <template v-if="app.added">
