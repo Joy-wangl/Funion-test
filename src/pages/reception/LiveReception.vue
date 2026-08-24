@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /* =========================================================
    聚合接待 · 实时客服接待（平台账号接待监控）
-   按用户截图 1:1 还原：8 平台 tab + 筛选统计 + 店铺卡/账号卡
-   功能先按截图搭好，待用户后续重构指令
+   8 平台 tab + 筛选统计 + 店铺卡/账号卡
+   样式已按项目 token 重构，功能与截图版一致
    ========================================================= */
 import { computed, ref } from 'vue';
 import { LIVE_PLATFORMS, liveStoresOf, type LivePlatform, type LiveStore } from './liveData';
@@ -111,7 +111,7 @@ const query = () => {
             <br />
             可能会导致账号异常
           </span>
-          <button class="btn primary" @click="updatedAt = nowStr()">拉取全部未回复</button>
+          <button class="btn" @click="updatedAt = nowStr()">拉取全部未回复</button>
           <span class="rc-updated">最近更新： {{ updatedAt }}</span>
         </div>
       </div>

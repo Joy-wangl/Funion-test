@@ -1,0 +1,65 @@
+/* 临时验证：实时客服接待样式重构—视觉升级且功能不变 */
+const { chromium } = require('D:/Funion/.playwright/package/index.js');
+
+const OUT = 'd:/Qoder/Funion';
+
+(async () => {
+  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1080 } });
+  page.on('pageerror', (e) => console.log('PAGEERROR:', e.message));
+  await page.goto('http://localhost:5173/', { waitUntil: 'networkidle' });
+  await page.waitForSelector('.app-layout .top-tabs');
+  await page.click('.top-tabs-item:has-text("聚合接待")');
+  await page.waitForSelector('.rc-page');
+  await page.click('.rc-menu-item.child:has-text("实时客服接待")');
+  await page.waitForSelector('.rc-live');
+
+  const results = {};
+
+  /* 样式：tab 主色 / 同区单主按钮 / 店铺卡阴影 / 账号卡悬浮 */
+  const tabBg = await page.locator('.rc-live-tab.cur').evaluate((el) => getComputedStyle(el).backgroundColor);
+  results['style.tabPrimary'] = tabBg === 'rgb(79, 124, 255)';
+  results['style.singlePrimary'] =
+    (await page.locator('.rc-live-actions .btn.primary').count()) === 1 &&
+    (await page.locator('.rc-live-actions .btn:not(.primary):has-text("拉取全部未回复")').count()) === 1;
+  const storeShadow = await page.locator('.rc-store').first().evaluate((el) => getComputedStyle(el).boxShadow);
+  results['style.storeShadow'] = storeShadow !== 'none';
+  const acc = page.locator('.rc-acc').first();
+  const before = await acc.evaluate((el) => getComputedStyle(el).boxShadow + '|' + getComputedStyle(el).borderColor);
+  await acc.hover();
+  await page.waitForTimeout(250);
+  const after = await acc.evaluate((el) => getComputedStyle(el).boxShadow + '|' + getComputedStyle(el).borderColor);
+  results['style.accHover'] = before !== after;
+
+  /* 功能不变：平台切换 / 开关 / 查看更多 / 拉取未回复 */
+  await page.click('.rc-live-tab:has-text("抖音")');
+  await page.waitForTimeout(150);
+  results['func.platformSwitch'] = (await page.locator('.rc-live-tab.cur:has-text("抖音")').count()) === 1;
+  await page.click('.rc-live-tab:has-text("拼多多")');
+  await page.waitForTimeout(150);
+  const sw = page.locator('.rc-acc .rc-switch').first();
+  const swOn = await sw.evaluate((el) => el.classList.contains('on'));
+  await sw.click();
+  results['func.switchToggle'] = (await sw.evaluate((el) => el.classList.contains('on'))) !== swOn;
+  results['func.pullVisible'] = (await page.locator('.rc-pull:has-text("拉取未回复")').count()) >= 1;
+  const more = page.locator('.rc-more').first();
+  if ((await more.count()) > 0) {
+    const n0 = await page.locator('.rc-store').first().locator('.rc-acc').count();
+    await more.click();
+    await page.waitForTimeout(150);
+    const n1 = await page.locator('.rc-store').first().locator('.rc-acc').count();
+    results['func.moreExpand'] = n1 > n0;
+  } else {
+    results['func.moreExpand'] = true;
+  }
+
+  await page.screenshot({ path: `${OUT}/rc-live-refactor.png`, fullPage: false });
+  await browser.close();
+  let fail = 0;
+  for (const [k, v] of Object.entries(results)) {
+    if (!v) fail++;
+    console.log(`${v ? 'PASS' : 'FAIL'} ${k}`);
+  }
+  console.log(fail === 0 ? 'RCLIVE VERIFY OK' : `RCLIVE VERIFY FAIL(${fail})`);
+  process.exit(fail === 0 ? 0 : 1);
+})().catch((e) => { console.error(e); process.exit(1); });
