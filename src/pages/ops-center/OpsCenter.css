@@ -31,28 +31,35 @@
   background: #fff;
   border-right: 1px solid #e8ebf1;
   padding: 20px 14px;
-  /* 侧边栏铺满屏幕高度并固定（顶部 TAB 栏之下），内容在其上滚动，超出时内部滚动 */
+  /* 侧边栏顶到模块最上、铺满屏幕高度并固定，内容在其上滚动，超出时内部滚动 */
   position: sticky;
-  top: 56px;
+  top: 0;
   align-self: flex-start;
-  height: calc(100vh - var(--header-height) - 56px);
+  height: calc(100vh - var(--header-height));
   overflow: hidden;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   transition: width 0.2s, padding 0.2s, border 0.2s;
 }
+/* 右侧列：顶栏 + 内容区 */
+.ops-center .ops-right {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
 .ops-center .ops-body > .side.collapsed {
   width: 64px;
   padding: 12px 8px;
 }
-/* 收起态：仅展示路由图标轨（隐藏文字/子菜单/版本号/品牌） */
-.ops-center .side.collapsed .ops-brand,
+/* 收起态：仅展示路由图标轨（隐藏文字/子菜单/版本号/品牌名），logo 与图标居中 */
+.ops-center .side.collapsed .ops-brand-name,
 .ops-center .side.collapsed .nav-text,
 .ops-center .side.collapsed .nav-arrow,
 .ops-center .side.collapsed .subnav-wrap,
 .ops-center .side.collapsed .side-version { display: none; }
-.ops-center .side.collapsed .side-head { justify-content: center; padding: 0 0 10px; }
+.ops-center .side.collapsed .side-head { flex-direction: column; align-items: center; gap: 10px; padding: 0 0 10px; }
 .ops-center .side.collapsed .nav { justify-content: center; padding: 12px 0; gap: 0; min-height: 42px; }
 .ops-center .side.collapsed .nav-parent { padding-right: 0; }
 /* 侧边栏头部：品牌标识 + 收起按钮（导航列表之上） */

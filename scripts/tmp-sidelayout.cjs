@@ -20,6 +20,10 @@ const OUT = 'd:/Qoder/Funion';
   results['head.brandAboveNav'] = !!brandBox && !!navBox && brandBox.y < navBox.y;
   results['head.toggleInSide'] = (await page.locator('.ops-center .side-head .ops-side-toggle').count()) === 1;
   results['head.topbarNoBrand'] = (await page.locator('.ops-center .ops-topbar .ops-brand').count()) === 0;
+  /* 侧边栏顶到模块最上：与右侧顶栏同一起始线 */
+  const sideTop = await page.locator('.ops-center .side').boundingBox();
+  const topbarTop = await page.locator('.ops-center .ops-topbar').boundingBox();
+  results['head.sideFlushTop'] = !!sideTop && !!topbarTop && Math.abs(sideTop.y - topbarTop.y) <= 2;
   await page.screenshot({ path: `${OUT}/vue-verify-sidelayout.png` });
 
   /* 收起：左侧保留路由图标轨 */
@@ -31,6 +35,11 @@ const OUT = 'd:/Qoder/Funion';
   results['collapsed.textHidden'] = !(await page.locator('.ops-center .side.collapsed .nav-text').first().isVisible().catch(() => false));
   results['collapsed.iconsVisible'] = (await page.locator('.ops-center .side.collapsed .nav .nav-ico:visible').count()) >= 10;
   results['collapsed.toggleVisible'] = await page.locator('.ops-center .side.collapsed .ops-side-toggle').isVisible();
+  /* 收起态：logo 可见且与路由图标居中对齐 */
+  const logoBox = await page.locator('.ops-center .side.collapsed .ops-brand-logo').boundingBox();
+  const icoBox = await page.locator('.ops-center .side.collapsed .nav .nav-ico').first().boundingBox();
+  results['collapsed.logoVisible'] = !!logoBox;
+  results['collapsed.logoCentered'] = !!logoBox && !!icoBox && Math.abs((logoBox.x + logoBox.width / 2) - (icoBox.x + icoBox.width / 2)) <= 3;
   await page.screenshot({ path: `${OUT}/vue-verify-sidelayout-collapsed.png` });
 
   /* 收起态点叶子路由：切页且保持收起 */

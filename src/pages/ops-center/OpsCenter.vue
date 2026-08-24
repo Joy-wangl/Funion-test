@@ -87,12 +87,6 @@ const permItems: { name: string; target?: PageKey }[] = [
 
 <template>
   <div class="ops-center app" :class="sidebarCollapsed ? 'side-collapsed' : ''">
-    <div class="ops-topbar">
-      <div class="ops-topbar-right">
-        <button class="ops-bell" title="通知">🔔</button>
-        <span class="ops-avatar">管</span>
-      </div>
-    </div>
     <div class="ops-body">
       <aside class="side" :class="sidebarCollapsed ? 'collapsed' : ''">
         <div class="side-head">
@@ -204,7 +198,14 @@ const permItems: { name: string; target?: PageKey }[] = [
         <div class="side-version">客户端 v1.0.1</div>
       </aside>
 
-      <main class="main">
+      <div class="ops-right">
+        <div class="ops-topbar">
+          <div class="ops-topbar-right">
+            <button class="ops-bell" title="通知">🔔</button>
+            <span class="ops-avatar">管</span>
+          </div>
+        </div>
+        <main class="main">
         <div class="content">
           <section :class="pageCls('dashboard')">
             <DashboardPage />
@@ -267,7 +268,8 @@ const permItems: { name: string; target?: PageKey }[] = [
             </div>
           </section>
         </div>
-      </main>
+        </main>
+      </div>
     </div>
   </div>
 </template>
