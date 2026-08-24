@@ -131,47 +131,67 @@ const query = () => {
           <a class="rc-link">修改</a>
         </div>
 
-        <div class="rc-accs">
-          <article
-            v-for="a in (expanded[s.name] ? s.accounts : s.accounts.slice(0, PAGE))"
-            :key="a.id"
-            class="rc-acc"
-            :class="{ hot: a.pc, alert: a.unreplied > 0 }"
-          >
-            <div class="rc-acc-head">
-              <span class="rc-acc-name">{{ a.name }}</span>
-              <span v-if="a.transfer" class="rc-transfer">转移</span>
-              <span class="rc-acc-id" :title="`ID: ${a.id}`">{{ a.id }}</span>
-            </div>
-            <div class="rc-acc-foot">
-              <span class="rc-acc-stats">
-                <span><b>{{ a.recv }}</b>接待</span>
-                <span><b :class="{ red: a.unreplied > 0 }">{{ a.unreplied }}</b>未回复</span>
-              </span>
-              <button v-if="a.pull" class="rc-pull" title="拉取未回复">拉取</button>
-            </div>
-            <div class="rc-acc-sw">
-              <span class="rc-net" :class="{ on: a.pc }" :title="`PC ${a.pc ? '在线' : '离线'}`"><i />PC</span>
-              <span class="rc-net" :class="{ on: a.mobile }" :title="`移动 ${a.mobile ? '在线' : '离线'}`"><i />移动</span>
-              <template v-if="a.full">
-                <span class="rc-sw-ctrl">
-                  <span class="rc-sw-pair">
-                    接待
-                    <span class="rc-switch" :class="{ on: a.recvSwitch }" @click="toggleSwitch(s.name, a.id, 'recvSwitch')">
-                      <i />
-                    </span>
-                  </span>
-                  <span class="rc-sw-pair">
-                    登录
-                    <span class="rc-switch" :class="{ on: a.loginSwitch }" @click="toggleSwitch(s.name, a.id, 'loginSwitch')">
-                      <i />
-                    </span>
-                  </span>
+        <table class="rc-acc-table">
+          <thead>
+            <tr>
+              <th>账号</th>
+              <th>在线状态</th>
+              <th>接待</th>
+              <th>未回复</th>
+              <th>接待开关</th>
+              <th>登录开关</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="a in (expanded[s.name] ? s.accounts : s.accounts.slice(0, PAGE))"
+              :key="a.id"
+              :class="{ alert: a.unreplied > 0 }"
+            >
+              <td>
+                <div class="rc-td-name">
+                  <span class="rc-acc-name">{{ a.name }}</span>
+                  <span v-if="a.transfer" class="rc-transfer">转移</span>
+                </div>
+                <div class="rc-acc-id">ID: {{ a.id }}</div>
+              </td>
+              <td>
+                <span class="rc-td-net">
+                  <span class="rc-net" :class="{ on: a.pc }" :title="`PC ${a.pc ? '在线' : '离线'}`"><i />PC</span>
+                  <span class="rc-net" :class="{ on: a.mobile }" :title="`移动 ${a.mobile ? '在线' : '离线'}`"><i />移动</span>
                 </span>
-              </template>
-            </div>
-          </article>
-        </div>
+              </td>
+              <td class="rc-td-num">{{ a.recv }}</td>
+              <td class="rc-td-num"><b :class="{ red: a.unreplied > 0 }">{{ a.unreplied }}</b></td>
+              <td>
+                <span
+                  v-if="a.full"
+                  class="rc-switch"
+                  :class="{ on: a.recvSwitch }"
+                  @click="toggleSwitch(s.name, a.id, 'recvSwitch')"
+                ><i /></span>
+                <span v-else class="rc-td-dash">—</span>
+              </td>
+              <td>
+                <span
+                  v-if="a.full"
+                  class="rc-switch"
+                  :class="{ on: a.loginSwitch }"
+                  @click="toggleSwitch(s.name, a.id, 'loginSwitch')"
+                ><i /></span>
+                <span v-else class="rc-td-dash">—</span>
+              </td>
+              <td>
+                <button v-if="a.pull" class="rc-pull" title="拉取未回复">拉取</button>
+                <span v-else class="rc-td-dash">—</span>
+              </td>
+            </tr>
+            <tr v-if="s.accounts.length === 0">
+              <td colspan="7" class="rc-td-empty">暂无账号</td>
+            </tr>
+          </tbody>
+        </table>
 
         <div v-if="s.total > PAGE" class="rc-more" @click="expanded = { ...expanded, [s.name]: !expanded[s.name] }">
           {{ expanded[s.name] ? '收起' : `查看更多(${s.total - PAGE}个)` }}
