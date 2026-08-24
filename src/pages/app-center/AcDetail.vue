@@ -130,12 +130,6 @@ watch(() => props.reviews, () => requestAnimationFrame(updateRevNav));
       <AcPreviewCard v-for="(p, i) in app.previews" :key="i" :p="p" />
     </div>
     <div class="ap-detail-divider" />
-    <h3 class="ap-detail-sub">最新版更新内容</h3>
-    <div class="ap-whatsnew">
-      <div class="ap-wn-meta"><b>版本 {{ versionOf(app) }}</b><span>{{ app.release }}</span></div>
-      <p>{{ app.releaseNote ?? '感谢使用！本次更新包含性能优化与体验改进。' }}</p>
-    </div>
-    <div class="ap-detail-divider" />
     <h3 class="ap-detail-sub ap-sec-head">
       <span>新功能介绍</span>
       <button type="button" class="ap-link" @click="onOpenVerHist(app.id)">版本历史记录</button>
