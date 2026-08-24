@@ -646,22 +646,39 @@
   pointer-events: none;
 }
 
+/* 气泡式提示：深色小泡 + 底部箭头，成功=深底绿图标 / 失败=红底白字 */
 .toast {
-  background: var(--color-fill);
-  box-shadow: var(--shadow-sm);
-  border-radius: var(--radius-sm);
-  padding: 10px 16px;
+  position: relative;
+  background: var(--color-text);
+  color: var(--color-fill);
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: var(--fs-base);
-  border: 1px solid var(--color-border-2);
+  box-shadow: var(--shadow-lg);
   animation: pmToastIn .2s ease;
 }
 
-.toast.success { color: var(--color-text); }
+.toast::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--color-text);
+  transform: translate(-50%, -55%) rotate(45deg);
+}
+
+.toast .ic { display: flex; }
 .toast.success .ic { color: var(--color-success); }
-.toast.error .ic { color: var(--color-danger); }
+
+.toast.error { background: var(--color-danger); }
+.toast.error::after { background: var(--color-danger); }
+.toast.error .ic { color: var(--color-fill); }
 
 @keyframes pmToastIn {
   from { opacity: 0; transform: translateY(-8px); }
