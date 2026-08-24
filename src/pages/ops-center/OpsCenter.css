@@ -166,6 +166,7 @@
   color: #667082;
   font-size: 14px;
 }
+.ops-center .nav-ico svg { display: block; margin: 0 auto; }
 .ops-center .nav-text {
   flex: 1;
   min-width: 0;

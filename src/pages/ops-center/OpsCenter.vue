@@ -129,16 +129,16 @@ watch(() => props.sidebarCollapsed, () => { railPop.value = null; });
         </div>
         <div class="side-scroll">
           <div :class="navCls('dashboard')" @click="onSubnav('dashboard', 'dashboard')" @mouseenter="railEnter('dashboard', $event)" @mouseleave="railLeave()">
-            <span class="nav-ico">▦</span>
+            <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></svg></span>
             <span class="nav-text">运营驾驶舱</span>
           </div>
           <div :class="navCls('operationManage')" @click="onSubnav('operationManage', 'operationManage')" @mouseenter="railEnter('operationManage', $event)" @mouseleave="railLeave()">
-            <span class="nav-ico">◫</span>
+            <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M3 12h18" /></svg></span>
             <span class="nav-text">运营管理</span>
           </div>
           <div class="nav nav-parent" :class="productOpen ? 'open' : ''" @click.stop="toggleGroup('product')" @mouseenter="railEnter('product', $event)" @mouseleave="railLeave()">
             <div class="nav-left">
-              <span class="nav-ico">▣</span>
+              <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4.5" /><circle cx="12" cy="12" r="0.5" fill="currentColor" /></svg></span>
               <span class="nav-text">商机中心</span>
             </div>
             <span class="nav-arrow">▶</span>
@@ -155,12 +155,12 @@ watch(() => props.sidebarCollapsed, () => { railPop.value = null; });
             </div>
           </div>
           <div :class="navCls('shopGoods')" @click="onSubnav('shopGoods', 'shopGoods')" @mouseenter="railEnter('shopGoods', $event)" @mouseleave="railLeave()">
-            <span class="nav-ico">▥</span>
+            <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" /></svg></span>
             <span class="nav-text">店铺商品</span>
           </div>
           <div class="nav nav-parent" :class="createOpen ? 'open' : ''" @click.stop="toggleGroup('create')" @mouseenter="railEnter('create', $event)" @mouseleave="railLeave()">
             <div class="nav-left">
-              <span class="nav-ico">✚</span>
+              <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v8" /><path d="M8 12h8" /></svg></span>
               <span class="nav-text">商品创建</span>
             </div>
             <span class="nav-arrow">▶</span>
@@ -182,24 +182,24 @@ watch(() => props.sidebarCollapsed, () => { railPop.value = null; });
             </div>
           </div>
           <div :class="navCls('taskCenter')" @click="onSubnav('taskCenter', 'taskCenter')" @mouseenter="railEnter('taskCenter', $event)" @mouseleave="railLeave()">
-            <span class="nav-ico">▧</span>
+            <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="m9 13 2 2 4-4" /></svg></span>
             <span class="nav-text">任务中心</span>
           </div>
           <div class="nav" @mouseenter="railEnter('strategy', $event)" @mouseleave="railLeave()">
-            <span class="nav-ico">￥</span>
+            <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" /><path d="m7 14 4-4 3 3 5-6" /></svg></span>
             <span class="nav-text">商品策略</span>
           </div>
           <div :class="navCls('aiAssistant')" @click="onSubnav('aiAssistant', 'aiAssistant')" @mouseenter="railEnter('aiAssistant', $event)" @mouseleave="railLeave()">
-            <span class="nav-ico">✦</span>
+            <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l1.8 4.7 4.7 1.8-4.7 1.8L12 17l-1.8-4.7-4.7-1.8 4.7-1.8Z" /><path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8Z" /></svg></span>
             <span class="nav-text">AI助手</span>
           </div>
           <div class="nav" @mouseenter="railEnter('automation', $event)" @mouseleave="railLeave()">
-            <span class="nav-ico">⚙</span>
+            <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" /></svg></span>
             <span class="nav-text">自动化中心</span>
           </div>
           <div class="nav nav-parent" :class="permissionOpen ? 'open' : ''" @click.stop="toggleGroup('permission')" @mouseenter="railEnter('permission', $event)" @mouseleave="railLeave()">
             <div class="nav-left">
-              <span class="nav-ico">♟</span>
+              <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.4-2.9 7.5-7 9-4.1-1.5-7-4.6-7-9V6Z" /><path d="m9.3 11.8 2 2 3.4-3.6" /></svg></span>
               <span class="nav-text">权限设置</span>
             </div>
             <span class="nav-arrow">▶</span>
