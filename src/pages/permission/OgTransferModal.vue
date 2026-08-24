@@ -35,9 +35,12 @@ const parentCandidates = computed(() => {
 });
 
 watch([targetGroupId, parentCandidates], () => {
-  targetParentId.value = parentCandidates.value[0]?.memberId ?? '';
+  /* 默认挂靠上级不一刀切：目标组未变时保留当前上级，换组后取第一个候选 */
+  const cs = parentCandidates.value;
+  targetParentId.value = (targetGroupId.value === props.group.id && cs.some((m) => m.memberId === props.entry.parentId))
+    ? (props.entry.parentId ?? '')
+    : (cs[0]?.memberId ?? '');
 }, { immediate: true });
-
 const confirm = () => {
   if (!targetGroupId.value || !targetParentId.value) return;
   emit('confirm', targetGroupId.value, targetParentId.value);
@@ -60,7 +63,7 @@ const confirm = () => {
       <BubbleSelect
         class-name="input"
         :value="targetParentId || '请选择'"
-        :options="parentCandidates.map((m) => ({ value: m.memberId, label: m.role === 'leader' ? `${m.name}（组长）` : m.name }))"
+        :options="parentCandidates.map((m) => ({ value: m.memberId, label: m.role === 'leader' ? `${m.name}（组长）` : `${m.name}（专员）` }))"
         @change="(v: string) => targetParentId = v"
       />
     </div>

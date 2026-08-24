@@ -124,7 +124,7 @@ const sumParts = computed(() => (['leader', 'specialist', 'assistant'] as OpsRol
           <BubbleSelect
             class-name="input"
             :value="cfg.parentId || '请选择'"
-            :options="assistantParents.map((m) => ({ value: m.memberId, label: m.role === 'leader' ? `${m.name}（组长）` : m.name }))"
+            :options="assistantParents.map((m) => ({ value: m.memberId, label: m.role === 'leader' ? `${m.name}（组长）` : `${m.name}（专员）` }))"
             @change="(v: string) => update({ parentId: v })"
           />
         </div>

@@ -26,10 +26,14 @@ const BASE = process.argv[2] || 'http://localhost:5173/';
   await page.waitForSelector('.modal:has-text("移动助理")');
   results['move.modalTitle'] = (await page.locator('.modal .m-title:has-text("移动助理")').count()) === 1;
 
-  // 挂靠上级含组长选项
+  // 默认保留当前上级（孙倩·专员），不一刀切组长
+  results['move.defaultKeepsParent'] = (await page.locator('.modal .form-item:nth-child(2) .bselect-text:has-text("孙倩（专员）")').count()) === 1;
+
+  // 挂靠上级同时含组长与专员选项
   await page.click('.modal .form-item:nth-child(2) .bselect-trigger');
   await page.waitForSelector('.bselect-menu');
   results['move.parentIncludesLeader'] = (await page.locator('.bselect-opt:has-text("（组长）")').count()) >= 1;
+  results['move.parentIncludesSpecs'] = (await page.locator('.bselect-opt:has-text("（专员）")').count()) >= 2;
   await page.click('.bselect-opt:has-text("刘洋")');
   await page.click('.modal button:has-text("确认移动")');
 
