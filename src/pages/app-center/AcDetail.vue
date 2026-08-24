@@ -16,8 +16,8 @@ const props = defineProps<{
   loadingId: string | null;
   menuId: string | null;
   onBack: () => void;
-  onAct: (a: AppItem) => void;
-  onToggleFav: (id: string) => void;
+  onAct: (a: AppItem, e: MouseEvent) => void;
+  onToggleFav: (id: string, e: MouseEvent) => void;
   onOpenRevAll: (id: string) => void;
   onOpenVerHist: (id: string) => void;
   onOpenDevDrawer: (id: string) => void;
@@ -95,7 +95,7 @@ watch(() => props.reviews, () => requestAnimationFrame(updateRevNav));
         <h2>{{ app.name }}<i v-if="app.publishMode === 'test'" class="ap-badge-test">测试中</i></h2>
         <p>{{ app.desc }}</p>
         <div class="ap-detail-actions">
-          <button type="button" class="ap-btn-solid" @click="onAct(app)">
+          <button type="button" class="ap-btn-solid" @click="onAct(app, $event)">
             {{ actKind(app) === 'add' ? '添加' : actKind(app) === 'update' ? '更新' : '打开' }}
           </button>
         </div>
@@ -105,7 +105,7 @@ watch(() => props.reviews, () => requestAnimationFrame(updateRevNav));
         class="ap-detail-fav"
         :class="{ on: favIds.includes(app.id) }"
         :title="favIds.includes(app.id) ? '取消收藏' : '收藏'"
-        @click="onToggleFav(app.id)"
+        @click="onToggleFav(app.id, $event)"
       >
         <span>收藏</span>
         <b><AcSvg :d="IC.starFill" :size="16" filled vb="0 0 1024 1024" /></b>

@@ -142,23 +142,43 @@ const patchApp = (id: string, patch: Partial<AppItem>) => {
   apps.value = apps.value.map((a) => (a.id === id ? { ...a, ...patch } : a));
 };
 
+/* ---------- 微动作气泡：收藏/打开/移除等卡片级动作反馈锚在动作点上方，自动消退 ---------- */
+const bubble = ref<{ x: number; y: number; text: string } | null>(null);
+let bubbleTimer: number | undefined;
+const bubbleAt = (x: number, y: number, text: string) => {
+  bubble.value = { x, y, text };
+  if (bubbleTimer !== undefined) window.clearTimeout(bubbleTimer);
+  bubbleTimer = window.setTimeout(() => { bubble.value = null; }, 1800);
+};
+const showBubble = (e: Event, text: string) => {
+  const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  bubbleAt(r.left + r.width / 2, r.top - 8, text);
+};
+/* 点击时先记录动作点坐标，添加等加载后才反馈的场景也能原位弹出 */
+const anchorOf = (e?: Event) => {
+  if (!e) return null;
+  const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top - 8 };
+};
+
 /* 添加/更新：加载后落库；我创建的无添加操作，直接打开；打开即记入最近使用 */
-const act = (app: AppItem) => {
+const act = (app: AppItem, e?: Event) => {
   const kind = actKind(app);
   if (kind === 'open') {
     recent.value = [{ id: app.id, at: Date.now() }, ...recent.value.filter((r) => r.id !== app.id)].slice(0, 8);
-    pushToast(`正在打开「${app.name}」`);
+    if (e) showBubble(e, `正在打开「${app.name}」`);
     return;
   }
   if (kind === 'update') {
     updateId.value = app.id;
     return;
   }
+  const anchor = anchorOf(e);
   loadingId.value = app.id;
   window.setTimeout(() => {
     loadingId.value = null;
     patchApp(app.id, { added: true });
-    pushToast(`已添加「${app.name}」`);
+    if (anchor) bubbleAt(anchor.x, anchor.y, `已添加「${app.name}」`);
   }, 900);
 };
 
@@ -172,15 +192,15 @@ const openDetail = (id: string) => {
   view.value = { kind: 'detail', id };
 };
 
-const toggleFav = (id: string) => {
+const toggleFav = (id: string, e?: Event) => {
   const on = favIds.value.includes(id);
   favIds.value = on ? favIds.value.filter((x) => x !== id) : [...favIds.value, id];
-  pushToast(on ? '已取消收藏' : '已收藏，可在首页查看');
+  if (e) showBubble(e, on ? '已取消收藏' : '已收藏，可在首页查看');
 };
 
-const removeAdded = (id: string) => {
+const removeAdded = (id: string, e?: Event) => {
   patchApp(id, { added: false });
-  pushToast('已移除应用');
+  if (e) showBubble(e, '已移除应用');
 };
 
 const deleteApp = computed(() => (deleteId.value ? apps.value.find((a) => a.id === deleteId.value) ?? null : null));
@@ -658,14 +678,19 @@ const gotoFbDetail = (fbId: string) => {
 
     <ToastWrap />
 
+    <!-- 微动作气泡：锚在动作点上方自动消退（收藏/打开等卡片级反馈） -->
+    <Teleport to="body">
+      <div v-if="bubble" class="ap-bubble" :style="{ left: `${bubble.x}px`, top: `${bubble.y}px` }">{{ bubble.text }}</div>
+    </Teleport>
+
     <!-- 行操作菜单（React createPortal → Teleport） -->
     <Teleport to="body">
       <template v-if="menu && menuApp">
         <div class="ap-menu-mask" @click="menu = null" />
         <div class="ap-menu" :style="{ left: `${menu.x}px`, top: `${menu.y}px` }">
           <template v-if="view.kind === 'mine' && mineTab === 'added'">
-            <button type="button" @click="menu = null; pushToast('已添加到首页')">添加到首页</button>
-            <button type="button" class="danger" @click="menu = null; removeAdded(menuApp.id)">移除应用</button>
+            <button type="button" @click="showBubble($event, '已添加到首页'); menu = null">添加到首页</button>
+            <button type="button" class="danger" @click="removeAdded(menuApp.id, $event); menu = null">移除应用</button>
           </template>
           <template v-else-if="view.kind === 'mine'">
             <button type="button" @click="menu = null; openCreate(menuApp.id)">编辑应用</button>
@@ -673,7 +698,7 @@ const gotoFbDetail = (fbId: string) => {
             <button type="button" class="danger" @click="menu = null; deleteId = menuApp.id">删除应用</button>
           </template>
           <template v-else>
-            <button type="button" @click="menu = null; act(menuApp)">打开</button>
+            <button type="button" @click="act(menuApp, $event); menu = null">打开</button>
             <button type="button" @click="menu = null; pushToast('权限管理：演示')">权限管理</button>
             <button type="button" @click="menu = null; openCreate(menuApp.id)">编辑应用</button>
           </template>

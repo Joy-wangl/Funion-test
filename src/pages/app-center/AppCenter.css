@@ -2462,3 +2462,37 @@ button.ap-dev:hover { background: #eceef2; }
   margin: 16px 24px; padding: 12px 14px; border: 1px dashed #d7dbe2; border-radius: 8px;
   font-size: 12px; color: #98a0b3; text-align: center;
 }
+
+/* ---------- 微动作气泡：深色小泡锚在动作点上方，自动消退 ---------- */
+.ap-bubble {
+  position: fixed;
+  z-index: 4000;
+  transform: translate(-50%, -100%);
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-text);
+  color: var(--color-fill);
+  font-size: var(--fs-aux);
+  line-height: 16px;
+  white-space: nowrap;
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  animation: apBubbleIn 0.18s ease;
+}
+
+.ap-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--color-text);
+  transform: translate(-50%, -55%) rotate(45deg);
+}
+
+@keyframes apBubbleIn {
+  from { opacity: 0; transform: translate(-50%, calc(-100% - 4px)); }
+  to { opacity: 1; transform: translate(-50%, -100%); }
+}

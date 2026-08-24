@@ -30,8 +30,8 @@ const props = defineProps<{
   onFbFilter: (k: 'all' | 'pending' | 'replied') => void;
   onNewFb: () => void;
   onFbDetail: (id: string) => void;
-  onAct: (a: AppItem) => void;
-  onToggleFav: (id: string) => void;
+  onAct: (a: AppItem, e: MouseEvent) => void;
+  onToggleFav: (id: string, e: MouseEvent) => void;
   onOpenMenu: (id: string, e: MouseEvent) => void;
 }>();
 

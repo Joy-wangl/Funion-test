@@ -632,7 +632,8 @@
 .pm-page .ctx-menu .item.danger { color: var(--danger); }
 
 /* toast */
-.pm-page .toast-wrap {
+/* ---------- 全局 toast（ToastWrap 各模块挂载，样式统一定义于此，直引全局 token） ---------- */
+.toast-wrap {
   position: fixed;
   top: 68px;
   left: 50%;
@@ -642,24 +643,25 @@
   flex-direction: column;
   gap: 8px;
   align-items: center;
+  pointer-events: none;
 }
 
-.pm-page .toast {
-  background: #fff;
-  box-shadow: var(--shadow);
-  border-radius: var(--radius);
+.toast {
+  background: var(--color-fill);
+  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-sm);
   padding: 10px 16px;
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
-  border: 1px solid var(--border-2);
+  font-size: var(--fs-base);
+  border: 1px solid var(--color-border-2);
   animation: pmToastIn .2s ease;
 }
 
-.pm-page .toast.success { color: var(--text-1); }
-.pm-page .toast.success .ic { color: var(--success); }
-.pm-page .toast.error .ic { color: var(--danger); }
+.toast.success { color: var(--color-text); }
+.toast.success .ic { color: var(--color-success); }
+.toast.error .ic { color: var(--color-danger); }
 
 @keyframes pmToastIn {
   from { opacity: 0; transform: translateY(-8px); }

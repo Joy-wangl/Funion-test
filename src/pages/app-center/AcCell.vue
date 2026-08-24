@@ -14,8 +14,8 @@ defineProps<{
   /** 行菜单已打开（caret 箭头朝上） */
   menuOpen: boolean;
   onOpen: () => void;
-  onAct: (a: AppItem) => void;
-  onToggleFav: (id: string) => void;
+  onAct: (a: AppItem, e: MouseEvent) => void;
+  onToggleFav: (id: string, e: MouseEvent) => void;
   onOpenMenu: (id: string, e: MouseEvent) => void;
 }>();
 </script>
@@ -26,7 +26,7 @@ defineProps<{
       <AcLogo :icon="app.icon" />
       <span class="ap-row-name">{{ app.name }}<i v-if="app.publishMode === 'test'" class="ap-badge-test">测试中</i></span>
       <div v-if="caret" class="ap-open-wrap" @click.stop>
-        <button type="button" class="ap-act plain" @click="onAct(app)">打开</button>
+        <button type="button" class="ap-act plain" @click="onAct(app, $event)">打开</button>
         <button type="button" class="ap-act caret" @click="onOpenMenu(app.id, $event)">
           <AcSvg :d="IC.caret" :size="12" :class-name="menuOpen ? 'up' : ''" />
         </button>
@@ -38,7 +38,7 @@ defineProps<{
           type="button"
           class="ap-act"
           :class="actKind(app) === 'update' ? 'update' : 'plain'"
-          @click.stop="onAct(app)"
+          @click.stop="onAct(app, $event)"
         >
           {{ actKind(app) === 'add' ? '添加' : actKind(app) === 'update' ? '更新' : '打开' }}
         </button>
@@ -51,7 +51,7 @@ defineProps<{
         class="ap-fav"
         :class="{ on: favOn }"
         :title="favOn ? '取消收藏' : '收藏'"
-        @click.stop="onToggleFav(app.id)"
+        @click.stop="onToggleFav(app.id, $event)"
       >
         <AcSvg :d="IC.starFill" :size="16" filled vb="0 0 1024 1024" />
       </button>
