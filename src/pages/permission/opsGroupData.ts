@@ -4,6 +4,8 @@
    规则：
      - 每个人在同一平台内只能有唯一的职位归属
      - 同一人可在不同平台担任不同职位（含组长）
+     - 组长可兼任多个组的组长（同平台或其它平台）；专员/助理同平台唯一不变
+     - 助理可挂靠专员，也可直挂组长
      - 成员不能被移除，只能修改归属
    ========================================================= */
 
@@ -49,7 +51,7 @@ export interface OpsMember {
   role: OpsRole;
   /** 所属运营组 id */
   groupId: string;
-  /** 挂靠上级：专员 → 组长 memberId；助理 → 专员 memberId；组长为 null */
+  /** 挂靠上级：专员 → 组长 memberId；助理 → 专员或组长 memberId；组长为 null */
   parentId: string | null;
   addedBy: string;
   addedAt: string;

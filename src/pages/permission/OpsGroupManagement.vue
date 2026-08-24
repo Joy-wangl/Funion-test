@@ -89,9 +89,12 @@ const toggleSpec = (id: string) => {
 
 const isMemberTaken = (memberId: string) => channelMembers.value.some((m) => m.memberId === memberId);
 
+/* 组长可兼任多组（含跨平台）：选组长时仅本平台专员/助理不可选，已在任的组长可再选 */
+const isTakenForLeader = (memberId: string) => channelMembers.value.some((m) => m.memberId === memberId && m.role !== 'leader');
+
 const createGroup = (name: string, leaderId: string) => {
-  if (isMemberTaken(leaderId)) {
-    pushToast('该成员在当前平台已有运营归属', 'error');
+  if (isTakenForLeader(leaderId)) {
+    pushToast('该成员在当前平台已有专员/助理归属', 'error');
     return;
   }
   const src = opsMemberSource(leaderId);
@@ -182,10 +185,10 @@ const transferRole = (entry: OpsMember, fromGroup: OpsGroup, targetGroupId: stri
   modal.value = null;
 };
 
-/* 转交＝替换：B 接任 A 的职位并接管 A 的下属，A 退出该运营组 */
+/* 转交＝替换：B 接任 A 的职位并接管 A 的下属，A 退出该运营组（A 在其它组的组长归属保留） */
 const transferLeader = (group: OpsGroup, oldLeader: OpsMember, newLeaderId: string) => {
-  if (isMemberTaken(newLeaderId)) {
-    pushToast('该成员在当前平台已有运营归属', 'error');
+  if (isTakenForLeader(newLeaderId)) {
+    pushToast('该成员在当前平台已有专员/助理归属', 'error');
     return;
   }
   const src = opsMemberSource(newLeaderId);
@@ -193,8 +196,8 @@ const transferLeader = (group: OpsGroup, oldLeader: OpsMember, newLeaderId: stri
   mutateGroups((list) => list.map((g) => (g.id === group.id ? { ...g, leaderId: newLeaderId } : g)));
   mutateMembers((list) => [
     ...list
-      .filter((m) => m.memberId !== oldLeader.memberId)
-      .map((m) => (m.groupId === group.id && m.role === 'specialist' && m.parentId === oldLeader.memberId
+      .filter((m) => !(m.memberId === oldLeader.memberId && m.groupId === group.id))
+      .map((m) => (m.groupId === group.id && m.parentId === oldLeader.memberId
         ? { ...m, parentId: newLeaderId }
         : m)),
     { memberId: newLeaderId, name: src.name, role: 'leader' as OpsRole, groupId: group.id, parentId: null, addedBy: oldLeader.name, addedAt: nowStamp() },
@@ -231,6 +234,7 @@ const roleTagStyle = (role: OpsRole) => {
 };
 
 const takenIds = computed(() => new Set(channelMembers.value.map((m) => m.memberId)));
+const leaderTakenIds = computed(() => new Set(channelMembers.value.filter((m) => m.role !== 'leader').map((m) => m.memberId)));
 const assisOf = (sp: OpsMember) => channelMembers.value.filter((m) => m.parentId === sp.memberId && m.role === 'assistant');
 
 const openCreate = () => { modal.value = { kind: 'createGroup', step: 1 }; };
@@ -249,6 +253,9 @@ const openLeaderTransfer = () => {
 };
 const openLeaderAddSpec = () => {
   if (activeLeader.value && activeGroup.value) openAddSub('specialist', activeLeader.value.memberId, activeGroup.value);
+};
+const openLeaderAddAssis = () => {
+  if (activeLeader.value && activeGroup.value) openAddSub('assistant', activeLeader.value.memberId, activeGroup.value);
 };
 
 /* 弹窗确定入口（联合类型在模板回调中无法收窄，统一在此守卫） */
@@ -341,22 +348,51 @@ const transferPersonConfirm = (memberId: string) => {
                 <div class="og-cell">添加人</div>
                 <div class="og-cell">操作</div>
               </div>
-              <div v-if="activeLeader" class="og-tr">
+              <div v-if="activeLeader" class="og-tr spec" @click="toggleSpec(activeLeader.memberId)">
                 <div class="og-cell og-td-name">
+                  <span class="arrow" :class="(expSpecs.has(activeLeader.memberId) ? 'open' : '') + ' ' + (assisOf(activeLeader).length ? '' : 'leaf')"><IconArrow /></span>
                   <span class="og-ava" :style="{ background: avaColor(activeLeader.name) }">{{ activeLeader.name.slice(0, 1) }}</span>
                   <span class="og-cell-nm">{{ activeLeader.name }}</span>
+                  <span v-if="assisOf(activeLeader).length > 0" class="og-g-count">{{ assisOf(activeLeader).length }}助理</span>
                 </div>
                 <div class="og-cell"><span class="og-role-tag" :style="roleTagStyle('leader')">{{ OPS_ROLE_LABEL['leader'] }}</span></div>
                 <div class="og-cell og-td-dim">{{ activeLeader.addedAt }}</div>
                 <div class="og-cell og-td-dim">{{ activeLeader.addedBy }}</div>
-                <div class="og-cell">
+                <div class="og-cell" @click.stop>
                   <OgActionStack :items="[
                     { label: '转交组长', onClick: openLeaderTransfer },
                     { label: '添加专员', onClick: openLeaderAddSpec },
+                    { label: '添加助理', onClick: openLeaderAddAssis },
                   ]" />
                 </div>
               </div>
               <div v-else class="og-tr-empty">该组暂无组长</div>
+              <!-- 组长直挂助理展开区 -->
+              <template v-if="activeLeader && expSpecs.has(activeLeader.memberId)">
+                <template v-if="assisOf(activeLeader).length">
+                  <div v-for="a in assisOf(activeLeader)" :key="a.memberId" class="og-tr sub">
+                    <div class="og-cell og-td-name d2">
+                      <span class="arrow leaf"><IconArrow /></span>
+                      <span class="og-ava sm" :style="{ background: avaColor(a.name) }">{{ a.name.slice(0, 1) }}</span>
+                      <span class="og-cell-nm">{{ a.name }}</span>
+                    </div>
+                    <div class="og-cell"><span class="og-role-tag" :style="roleTagStyle('assistant')">{{ OPS_ROLE_LABEL['assistant'] }}</span></div>
+                    <div class="og-cell og-td-dim">{{ a.addedAt }}</div>
+                    <div class="og-cell og-td-dim">{{ a.addedBy }}</div>
+                    <div class="og-cell og-td-dim">-</div>
+                  </div>
+                </template>
+                <div v-else class="og-tr sub">
+                  <div class="og-cell og-td-name d2">
+                    <span class="arrow leaf"><IconArrow /></span>
+                    <span class="og-td-dim">暂无助理</span>
+                  </div>
+                  <div class="og-cell" />
+                  <div class="og-cell" />
+                  <div class="og-cell" />
+                  <div class="og-cell" />
+                </div>
+              </template>
               <template v-for="sp in activeSpecs" :key="sp.memberId">
                 <div class="og-tr spec" @click="toggleSpec(sp.memberId)">
                   <div class="og-cell og-td-name d1">
@@ -421,7 +457,7 @@ const transferPersonConfirm = (memberId: string) => {
     v-else-if="modal?.kind === 'createGroup' && modal.step === 2"
     :name="modal.name"
     :channel-label="channelLabel"
-    :taken="takenIds"
+    :taken="leaderTakenIds"
     @confirm="step2Confirm"
     @back="step2BackCur"
     @close="closeModal"
@@ -456,7 +492,7 @@ const transferPersonConfirm = (memberId: string) => {
     :entry="modal.entry"
     :group="modal.group"
     :role="modal.entry.role === 'leader' ? 'leader' : 'specialist'"
-    :taken="takenIds"
+    :taken="modal.entry.role === 'leader' ? leaderTakenIds : takenIds"
     @confirm="transferPersonConfirm"
     @close="closeModal"
   />

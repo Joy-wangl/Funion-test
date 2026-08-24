@@ -24,7 +24,8 @@ const parentCandidates = computed(() => {
     return props.channelMembers.filter((m) => m.groupId === targetGroupId.value && m.role === 'leader' && m.memberId !== props.entry.memberId);
   }
   if (props.entry.role === 'assistant') {
-    return props.channelMembers.filter((m) => m.groupId === targetGroupId.value && m.role === 'specialist' && m.memberId !== props.entry.memberId);
+    /* 助理可挂靠专员，也可直挂组长 */
+    return props.channelMembers.filter((m) => m.groupId === targetGroupId.value && (m.role === 'leader' || m.role === 'specialist') && m.memberId !== props.entry.memberId);
   }
   return [];
 });
@@ -51,11 +52,11 @@ const confirm = () => {
       />
     </div>
     <div class="form-item">
-      <label>{{ entry.role === 'specialist' ? '挂靠组长' : '挂靠专员' }}</label>
+      <label>{{ entry.role === 'specialist' ? '挂靠组长' : '挂靠上级' }}</label>
       <BubbleSelect
         class-name="input"
         :value="targetParentId || '请选择'"
-        :options="parentCandidates.map((m) => ({ value: m.memberId, label: m.name }))"
+        :options="parentCandidates.map((m) => ({ value: m.memberId, label: m.role === 'leader' ? `${m.name}（组长）` : m.name }))"
         @change="(v: string) => targetParentId = v"
       />
     </div>

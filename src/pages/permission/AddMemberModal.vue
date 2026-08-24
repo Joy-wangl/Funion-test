@@ -94,7 +94,7 @@ const confirm = () => {
         parentId = patchMembers[key].find((m) => m.groupId === group.id && m.role === 'leader')?.memberId ?? '';
         if (!parentId) { pushToast(`组「${group.name}」暂无组长，请选择其它组`, 'error'); return; }
       } else if (!parentId) {
-        pushToast(`请选择${label}平台${OPS_ROLE_LABEL[r]}的挂靠专员`, 'error'); return;
+        pushToast(`请选择${label}平台${OPS_ROLE_LABEL[r]}的挂靠上级（组长/专员）`, 'error'); return;
       }
       ids.forEach((id) => {
         const member = selectedMembers.value.find((m) => m.id === id);

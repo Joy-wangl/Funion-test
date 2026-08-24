@@ -31,6 +31,7 @@ const confirm = () => { if (!pickedSrc.value) return; emit('confirm', pickedSrc.
 
 <template>
   <Modal title="选择组长" :sub="`步骤 2/2 · 组名：${name} · 渠道：${channelLabel}`" size="xl" @close="emit('close')">
+    <div class="og-bind-tip">已在任组长（同平台或其它平台）可再被选为新组组长；本平台专员/助理不可选。</div>
     <div class="member-transfer">
       <MemberPickPanel
         :members="pool"

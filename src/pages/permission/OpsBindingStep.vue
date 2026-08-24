@@ -27,7 +27,8 @@ const update = (patch: Partial<RoleAssign>) => {
 
 const group = computed(() => props.opsGroups[tab.value].find((g) => g.id === cfg.value.groupId));
 const groupLeader = computed(() => group.value ? props.opsMembers[tab.value].find((m) => m.groupId === group.value!.id && m.role === 'leader') : undefined);
-const specialists = computed(() => props.opsMembers[tab.value].filter((m) => m.role === 'specialist' && m.groupId === cfg.value.groupId));
+/* 助理挂靠上级：专员或组长直挂 */
+const assistantParents = computed(() => props.opsMembers[tab.value].filter((m) => (m.role === 'leader' || m.role === 'specialist') && m.groupId === cfg.value.groupId));
 
 const assignedRoleOf = (id: string) =>
   (['leader', 'specialist', 'assistant'] as OpsRole[]).find((r) => ch.value[r].memberIds.includes(id));
@@ -119,11 +120,11 @@ const sumParts = computed(() => (['leader', 'specialist', 'assistant'] as OpsRol
           />
         </div>
         <div class="og-bind-field">
-          <label>挂靠专员</label>
+          <label>挂靠上级</label>
           <BubbleSelect
             class-name="input"
             :value="cfg.parentId || '请选择'"
-            :options="specialists.map((m) => ({ value: m.memberId, label: m.name }))"
+            :options="assistantParents.map((m) => ({ value: m.memberId, label: m.role === 'leader' ? `${m.name}（组长）` : m.name }))"
             @change="(v: string) => update({ parentId: v })"
           />
         </div>
