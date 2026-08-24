@@ -693,14 +693,14 @@ const gotoFbDetail = (fbId: string) => {
             <button type="button" class="danger" @click="removeAdded(menuApp.id, $event); menu = null">移除应用</button>
           </template>
           <template v-else-if="view.kind === 'mine'">
-            <button type="button" @click="menu = null; openCreate(menuApp.id)">编辑应用</button>
+            <button type="button" @click="openCreate(menuApp.id); menu = null">编辑应用</button>
             <button type="button" @click="menu = null; pushToast('权限管理：演示')">权限管理</button>
-            <button type="button" class="danger" @click="menu = null; deleteId = menuApp.id">删除应用</button>
+            <button type="button" class="danger" @click="deleteId = menuApp.id; menu = null">删除应用</button>
           </template>
           <template v-else>
             <button type="button" @click="act(menuApp, $event); menu = null">打开</button>
             <button type="button" @click="menu = null; pushToast('权限管理：演示')">权限管理</button>
-            <button type="button" @click="menu = null; openCreate(menuApp.id)">编辑应用</button>
+            <button type="button" @click="openCreate(menuApp.id); menu = null">编辑应用</button>
           </template>
         </div>
       </template>
