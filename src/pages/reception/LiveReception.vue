@@ -63,119 +63,119 @@ const query = () => {
 
 <template>
   <div class="rc-view rc-live">
-    <!-- ---------- 平台 tab ---------- -->
-    <div class="qc-body rc-live-tabs">
-      <span
-        v-for="p in LIVE_PLATFORMS"
-        :key="p"
-        class="rc-live-tab"
-        :class="{ cur: p === platform }"
-        @click="switchPlatform(p)"
-      >
-        {{ p }}
-      </span>
-    </div>
-
-    <!-- ---------- 筛选 + 统计 ---------- -->
-    <div class="qc-body rc-live-filter">
-      <div class="rc-live-filter-left">
-        <div class="rc-filter-row">
-          <BubbleSelect class-name="select rc-bs" default-value="公司" :options="[RC_COMPANY]" />
-          <BubbleSelect class-name="select rc-bs" default-value="分组" :options="[...RC_GROUPS]" />
-          <input
-            v-model="nameDraft"
-            class="input rc-input"
-            placeholder="店铺名称/登录账号"
-            @keydown.enter="query"
-          />
-        </div>
-        <div class="rc-filter-row">
-          <BubbleSelect class-name="select rc-bs" default-value="未回复筛选" :options="[]" />
-          <BubbleSelect class-name="select rc-bs" default-value="警告状态" :options="[]" />
-          <BubbleSelect class-name="select rc-bs" default-value="接待开关" :options="[]" />
-        </div>
+    <!-- ---------- 顶栏：平台 tab + 实时统计 ---------- -->
+    <div class="qc-body rc-live-top">
+      <div class="rc-live-tabs">
+        <span
+          v-for="p in LIVE_PLATFORMS"
+          :key="p"
+          class="rc-live-tab"
+          :class="{ cur: p === platform }"
+          @click="switchPlatform(p)"
+        >
+          {{ p }}
+        </span>
       </div>
-      <div class="rc-live-right">
-        <div class="rc-live-stats">
-          <span class="rc-live-stat green">在线： {{ stats.online }}</span>
-          <span class="rc-live-stat green">接待： {{ stats.recv }}</span>
-          <span class="rc-live-stat yellow">未回复： {{ stats.unreplied }}</span>
-          <span class="rc-live-stat yellow">聊天服务账号未回复： {{ stats.chat }}</span>
-          <span class="rc-live-stat red">紧急： 0</span>
-          <span class="rc-live-stat red">严重： 0</span>
-        </div>
-        <div class="rc-live-actions">
-          <button class="btn primary" @click="query">查询数据</button>
-          <span class="rc-warn-tip">
-            友情提醒：频繁刷新
-            <br />
-            可能会导致账号异常
-          </span>
-          <button class="btn" @click="updatedAt = nowStr()">拉取全部未回复</button>
-          <span class="rc-updated">最近更新： {{ updatedAt }}</span>
-        </div>
+      <div class="rc-live-stats">
+        <span class="rc-live-stat green">在线： {{ stats.online }}</span>
+        <span class="rc-live-stat green">接待： {{ stats.recv }}</span>
+        <span class="rc-live-stat yellow">未回复： {{ stats.unreplied }}</span>
+        <span class="rc-live-stat yellow">聊天服务账号未回复： {{ stats.chat }}</span>
+        <span class="rc-live-stat red">紧急： 0</span>
+        <span class="rc-live-stat red">严重： 0</span>
       </div>
     </div>
 
-    <!-- ---------- 店铺卡 ---------- -->
+    <!-- ---------- 工具栏：筛选 + 操作 ---------- -->
+    <div class="qc-body rc-live-toolbar">
+      <div class="rc-live-filters">
+        <BubbleSelect class-name="select rc-bs" default-value="公司" :options="[RC_COMPANY]" />
+        <BubbleSelect class-name="select rc-bs" default-value="分组" :options="[...RC_GROUPS]" />
+        <input
+          v-model="nameDraft"
+          class="input rc-input"
+          placeholder="店铺名称/登录账号"
+          @keydown.enter="query"
+        />
+        <span class="rc-toolbar-div" />
+        <BubbleSelect class-name="select rc-bs" default-value="未回复筛选" :options="[]" />
+        <BubbleSelect class-name="select rc-bs" default-value="警告状态" :options="[]" />
+        <BubbleSelect class-name="select rc-bs" default-value="接待开关" :options="[]" />
+      </div>
+      <div class="rc-live-actions">
+        <button class="btn primary" @click="query">查询数据</button>
+        <button class="btn" @click="updatedAt = nowStr()">拉取全部未回复</button>
+        <span class="rc-warn-tip">友情提醒：频繁刷新可能会导致账号异常</span>
+        <span class="rc-updated">最近更新： {{ updatedAt }}</span>
+      </div>
+    </div>
+
+    <!-- ---------- 店铺流：单列全宽卡 ---------- -->
     <div v-if="shown.length === 0" class="qc-body rc-live-empty">暂无数据</div>
     <div v-else class="rc-live-stores">
-      <div v-for="s in shown" :key="s.name" class="qc-body rc-store">
-        <div class="rc-store-head">
+      <section v-for="s in shown" :key="s.name" class="qc-body rc-store">
+        <header class="rc-store-head">
           <b class="rc-store-name">{{ s.name }}</b>
-          <span class="rc-store-m">接待： <b>{{ s.recv }}</b></span>
-          <span class="rc-store-m">未回复： <b :class="{ red: s.unreplied > 0 }">{{ s.unreplied }}</b></span>
-          <span class="rc-store-m">回复率： <b>{{ s.rate }}</b></span>
+          <span class="rc-store-m">接待 <b>{{ s.recv }}</b></span>
+          <span class="rc-store-m">未回复 <b :class="{ red: s.unreplied > 0 }">{{ s.unreplied }}</b></span>
+          <span class="rc-store-m">回复率 <b>{{ s.rate }}</b></span>
           <a class="rc-link">平台订单分流</a>
           <span class="rc-store-sp" />
+          <span class="rc-store-m">总数 {{ s.total }}</span>
           <button class="btn sm" @click="updatedAt = nowStr()">刷新店铺数据</button>
-          <span class="rc-store-m">总数： {{ s.total }}</span>
-        </div>
+        </header>
 
         <div class="rc-noroute">
-          <b>不分流账号：</b>
+          <b>不分流账号</b>
           <span class="rc-noroute-txt">{{ s.noRoute.join('、') }}</span>
           <a class="rc-link">修改</a>
         </div>
 
         <div class="rc-accs">
-          <div v-for="a in (expanded[s.name] ? s.accounts : s.accounts.slice(0, PAGE))" :key="a.id" class="rc-acc" :class="{ hot: a.pc }">
+          <article
+            v-for="a in (expanded[s.name] ? s.accounts : s.accounts.slice(0, PAGE))"
+            :key="a.id"
+            class="rc-acc"
+            :class="{ hot: a.pc, alert: a.unreplied > 0 }"
+          >
             <div class="rc-acc-head">
               <span class="rc-acc-name">{{ a.name }}</span>
+              <span v-if="a.transfer" class="rc-transfer">转移</span>
               <span class="rc-acc-id">ID: {{ a.id }}</span>
             </div>
-            <div class="rc-acc-chips">
-              <span class="rc-live-chip" :class="{ on: a.pc }">PC: {{ a.pc ? '在线' : '离线' }}</span>
-              <span class="rc-live-chip" :class="{ on: a.mobile }">移动: {{ a.mobile ? '在线' : '离线' }}</span>
-              <button v-if="a.pull" class="rc-pull">拉取未回复</button>
-              <span v-if="a.transfer" class="rc-transfer">转移</span>
+            <div class="rc-acc-status">
+              <span class="rc-live-chip" :class="{ on: a.pc }"><i />PC · {{ a.pc ? '在线' : '离线' }}</span>
+              <span class="rc-live-chip" :class="{ on: a.mobile }"><i />移动 · {{ a.mobile ? '在线' : '离线' }}</span>
             </div>
-            <div class="rc-acc-stats">
-              <span>接待： <b>{{ a.recv }}</b></span>
-              <span>未回复： <b :class="{ red: a.unreplied > 0 }">{{ a.unreplied }}</b></span>
+            <div class="rc-acc-foot">
+              <span class="rc-acc-stats">
+                <span>接待 <b>{{ a.recv }}</b></span>
+                <span>未回复 <b :class="{ red: a.unreplied > 0 }">{{ a.unreplied }}</b></span>
+              </span>
+              <button v-if="a.pull" class="rc-pull">拉取未回复</button>
             </div>
             <div v-if="a.full" class="rc-acc-sw">
               <span class="rc-sw-pair">
-                接待开关：
+                接待开关
                 <span class="rc-switch" :class="{ on: a.recvSwitch }" @click="toggleSwitch(s.name, a.id, 'recvSwitch')">
                   <i />
                 </span>
               </span>
               <span class="rc-sw-pair">
-                登录开关：
+                登录开关
                 <span class="rc-switch" :class="{ on: a.loginSwitch }" @click="toggleSwitch(s.name, a.id, 'loginSwitch')">
                   <i />
                 </span>
               </span>
-              <span>在线</span>
+              <span class="rc-sw-online">在线</span>
             </div>
-          </div>
+          </article>
         </div>
 
         <div v-if="s.total > PAGE" class="rc-more" @click="expanded = { ...expanded, [s.name]: !expanded[s.name] }">
           {{ expanded[s.name] ? '收起' : `查看更多(${s.total - PAGE}个)` }}
         </div>
-      </div>
+      </section>
     </div>
   </div>
 </template>

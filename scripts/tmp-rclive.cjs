@@ -31,6 +31,16 @@ const OUT = 'd:/Qoder/Funion';
   const after = await acc.evaluate((el) => getComputedStyle(el).boxShadow + '|' + getComputedStyle(el).borderColor);
   results['style.accHover'] = before !== after;
 
+  /* 布局：顶栏含 tab+统计 / 店铺流单列 / 未回复账号 danger 左条 */
+  results['ux.topbarStats'] =
+    (await page.locator('.rc-live-top .rc-live-tab').count()) >= 8 &&
+    (await page.locator('.rc-live-top .rc-live-stat').count()) >= 6;
+  const s0 = await page.locator('.rc-store').nth(0).boundingBox();
+  const s1 = await page.locator('.rc-store').nth(1).boundingBox();
+  results['ux.storeFeedSingleCol'] = !!s0 && !!s1 && Math.abs(s0.x - s1.x) <= 1 && s1.y > s0.y + s0.height - 4;
+  const alertShadow = await page.locator('.rc-acc.alert').first().evaluate((el) => getComputedStyle(el).boxShadow).catch(() => '');
+  results['ux.alertAccent'] = alertShadow.includes('inset');
+
   /* 功能不变：平台切换 / 开关 / 查看更多 / 拉取未回复 */
   await page.click('.rc-live-tab:has-text("抖音")');
   await page.waitForTimeout(150);
