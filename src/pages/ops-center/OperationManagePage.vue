@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onBeforeUnmount, ref, watch } from 'vue';
 import { omProducts } from './data';
 import ProductTable from './ProductTable.vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
@@ -51,6 +51,39 @@ const idSelectFields3 = [
 
 /** 运营管理页：仅保留 ID数据模块 */
 const checked = ref<boolean[]>(omProducts.map(() => false));
+
+/* ---------- 列表字段管理：▦ 气泡勾选列显隐（商品信息/操作列固定不可隐藏） ---------- */
+const COL_FIELDS = [
+  { key: 'store', label: '上架店铺' },
+  { key: 'category', label: '商品类目' },
+  { key: 'trend', label: '近30天销量趋势' },
+  { key: 'cloud', label: '云仓占比' },
+  { key: 'yesterday', label: '昨日销量' },
+  { key: 'week7', label: '近7日销量' },
+  { key: 'refund', label: '退款率' },
+  { key: 'refundAfter', label: '发货后退款率' },
+  { key: 'stock', label: '库存数' },
+  { key: 'created', label: '创建时间' },
+  { key: 'status', label: '状态' },
+];
+const hiddenCols = ref<string[]>([]);
+const colPop = ref<{ x: number; y: number } | null>(null);
+const closeColPop = () => { colPop.value = null; };
+watch(colPop, (v) => {
+  if (v) document.addEventListener('mousedown', closeColPop);
+  else document.removeEventListener('mousedown', closeColPop);
+});
+onBeforeUnmount(() => document.removeEventListener('mousedown', closeColPop));
+const openColPop = (e: MouseEvent) => {
+  const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  // 气泡高约 352px，底部越界时上收，保证整泡在视口内
+  colPop.value = { x: Math.max(8, r.left), y: Math.min(r.bottom + 6, window.innerHeight - 352) };
+};
+const toggleCol = (key: string) => {
+  hiddenCols.value = hiddenCols.value.includes(key)
+    ? hiddenCols.value.filter((k) => k !== key)
+    : [...hiddenCols.value, key];
+};
 
 const onLog = () => {
   alert('操作日志功能入口（演示）');
@@ -155,7 +188,7 @@ const onLog = () => {
 
           <!-- 按钮组作为筛选网格末位子项：列设置▦最左，业务操作居中，重置/查询居右（查询最右） -->
           <div class="id-actions">
-            <button class="id-btn icon">▦</button>
+            <button class="id-btn icon" :class="{ on: hiddenCols.length > 0 }" title="管理列表字段" @click="openColPop">▦</button>
             <BubbleSelect class-name="om-select" default-value="批量操作" :options="['批量涨价', '批量降价']" />
             <button class="om-log-btn" @click="onLog">
               操作日志
@@ -170,9 +203,21 @@ const onLog = () => {
           :check-width="42"
           :index-width="60"
           :checked="checked"
+          :hidden="hiddenCols"
           @check-change="(i: number, v: boolean) => checked[i] = v"
         />
       </div>
     </div>
+
+    <!-- 列表字段管理气泡 -->
+    <Teleport to="body">
+      <div v-if="colPop" class="om-col-pop" :style="{ left: `${colPop.x}px`, top: `${colPop.y}px` }" @mousedown.stop>
+        <div class="om-col-head">列表字段管理</div>
+        <label v-for="c in COL_FIELDS" :key="c.key" class="om-col-item">
+          <input type="checkbox" :checked="!hiddenCols.includes(c.key)" @change="toggleCol(c.key)">
+          {{ c.label }}
+        </label>
+      </div>
+    </Teleport>
   </div>
 </template>

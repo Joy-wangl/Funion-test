@@ -15,8 +15,12 @@ const props = defineProps<{
   checked?: boolean[];
   /** 操作列「详情」回调；不传时详情链接不响应 */
   onDetail?: (row: ProductRow) => void;
+  /** 列管理：隐藏的列 key（运营管理页 ▦ 气泡控制；不传则全列展示） */
+  hidden?: string[];
 }>();
 const emit = defineEmits<{ (e: 'checkChange', index: number, checked: boolean): void }>();
+
+const isHidden = (k: string) => (props.hidden ?? []).includes(k);
 
 /* 添加到：点击后气泡展示平台选项 */
 const addTip = ref<{ x: number; y: number } | null>(null);
@@ -45,17 +49,17 @@ const openAddTip = (e: MouseEvent) => {
             </th>
             <th :style="{ width: props.indexWidth + 'px' }">序号</th>
             <th>商品信息</th>
-            <th>上架店铺</th>
-            <th>商品类目</th>
-            <th>近30天销量趋势</th>
-            <th>云仓占比</th>
-            <th>昨日销量</th>
-            <th>近7日销量</th>
-            <th>退款率</th>
-            <th>发货后退款率</th>
-            <th>库存数</th>
-            <th>创建时间</th>
-            <th>状态</th>
+            <th v-if="!isHidden('store')">上架店铺</th>
+            <th v-if="!isHidden('category')">商品类目</th>
+            <th v-if="!isHidden('trend')">近30天销量趋势</th>
+            <th v-if="!isHidden('cloud')">云仓占比</th>
+            <th v-if="!isHidden('yesterday')">昨日销量</th>
+            <th v-if="!isHidden('week7')">近7日销量</th>
+            <th v-if="!isHidden('refund')">退款率</th>
+            <th v-if="!isHidden('refundAfter')">发货后退款率</th>
+            <th v-if="!isHidden('stock')">库存数</th>
+            <th v-if="!isHidden('created')">创建时间</th>
+            <th v-if="!isHidden('status')">状态</th>
             <th>操作</th>
           </tr>
         </thead>
@@ -86,23 +90,23 @@ const openAddTip = (e: MouseEvent) => {
                 </div>
               </div>
             </td>
-            <td>{{ row.storeCol }}</td>
-            <td>{{ row.category }}</td>
-            <td>
+            <td v-if="!isHidden('store')">{{ row.storeCol }}</td>
+            <td v-if="!isHidden('category')">{{ row.category }}</td>
+            <td v-if="!isHidden('trend')">
               <svg class="spark" viewBox="0 0 90 32">
                 <polyline fill="none" stroke="#68a1ff" stroke-width="2" :points="row.spark" />
               </svg>
             </td>
-            <td>{{ row.cloudRatio }}</td>
-            <td>{{ row.yesterday }}</td>
-            <td>{{ row.week7 }}</td>
-            <td>{{ row.refundRate }}</td>
-            <td>{{ row.refundAfter }}</td>
-            <td>
+            <td v-if="!isHidden('cloud')">{{ row.cloudRatio }}</td>
+            <td v-if="!isHidden('yesterday')">{{ row.yesterday }}</td>
+            <td v-if="!isHidden('week7')">{{ row.week7 }}</td>
+            <td v-if="!isHidden('refund')">{{ row.refundRate }}</td>
+            <td v-if="!isHidden('refundAfter')">{{ row.refundAfter }}</td>
+            <td v-if="!isHidden('stock')">
               {{ row.stock }} <span class="badge-red">库存紧张</span>
             </td>
-            <td>{{ row.created }}</td>
-            <td>
+            <td v-if="!isHidden('created')">{{ row.created }}</td>
+            <td v-if="!isHidden('status')">
               <span class="badge-green">在售</span>
             </td>
             <td class="actions-col">

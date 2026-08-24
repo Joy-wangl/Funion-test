@@ -3401,6 +3401,43 @@
   padding: 0;
   font-size: 14px;
 }
+.ops-center .id-btn.icon.on {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-light-2);
+}
+
+/* ---------- 列表字段管理气泡（▦ 按钮，Teleport 到 body，无作用域） ---------- */
+.om-col-pop {
+  position: fixed;
+  z-index: 999;
+  width: 176px;
+  max-height: 344px;
+  overflow: auto;
+  padding: 6px;
+  background: var(--color-fill);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+.om-col-head {
+  padding: 6px 10px 4px;
+  font-size: var(--fs-aux);
+  color: var(--color-text-3);
+}
+.om-col-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-base);
+  color: var(--color-text-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.om-col-item:hover { background: var(--color-primary-light-2); color: var(--color-primary); }
+.om-col-item input { accent-color: var(--color-primary); }
 @media (max-width: 1500px) {
   .ops-center .id-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
