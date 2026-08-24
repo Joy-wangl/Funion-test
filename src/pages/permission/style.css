@@ -1027,8 +1027,8 @@
 .pm-page .og-tr.sub { background: #fafbfd; }
 .pm-page .og-cell { font-size: 13px; color: var(--text-1); min-width: 0; }
 .pm-page .og-td-name { display: flex; align-items: center; gap: 8px; }
-.pm-page .og-td-name.d1 { padding-left: 0; }
-.pm-page .og-td-name.d2 { padding-left: 22px; }
+.pm-page .og-td-name.d1 { padding-left: 24px; }
+.pm-page .og-td-name.d2 { padding-left: 48px; }
 .pm-page .og-cell-nm { font-weight: 600; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; }
 .pm-page .og-td-name .arrow { display: inline-flex; width: 16px; height: 16px; align-items: center; justify-content: center; color: var(--text-3); transition: transform .15s; flex-shrink: 0; }
 .pm-page .og-td-name .arrow.open { transform: rotate(90deg); }

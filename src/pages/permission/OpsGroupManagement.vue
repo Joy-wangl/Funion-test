@@ -371,7 +371,7 @@ const transferPersonConfirm = (memberId: string) => {
               <template v-if="activeLeader && expSpecs.has(activeLeader.memberId)">
                 <template v-if="assisOf(activeLeader).length">
                   <div v-for="a in assisOf(activeLeader)" :key="a.memberId" class="og-tr sub">
-                    <div class="og-cell og-td-name d2">
+                    <div class="og-cell og-td-name d1">
                       <span class="arrow leaf"><IconArrow /></span>
                       <span class="og-ava sm" :style="{ background: avaColor(a.name) }">{{ a.name.slice(0, 1) }}</span>
                       <span class="og-cell-nm">{{ a.name }}</span>
@@ -387,7 +387,7 @@ const transferPersonConfirm = (memberId: string) => {
                   </div>
                 </template>
                 <div v-else class="og-tr sub">
-                  <div class="og-cell og-td-name d2">
+                  <div class="og-cell og-td-name d1">
                     <span class="arrow leaf"><IconArrow /></span>
                     <span class="og-td-dim">暂无助理</span>
                   </div>
