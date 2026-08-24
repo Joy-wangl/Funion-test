@@ -62,6 +62,8 @@
 .ops-center .side.collapsed .side-head { flex-direction: column; align-items: center; gap: 10px; padding: 0 0 10px; }
 .ops-center .side.collapsed .nav { justify-content: center; padding: 12px 0; gap: 0; min-height: 42px; }
 .ops-center .side.collapsed .nav-parent { padding-right: 0; }
+/* 分组行内层容器不拉伸，保证图标与叶子行同轴居中 */
+.ops-center .side.collapsed .nav-left { flex: none; gap: 0; }
 /* 侧边栏头部：品牌标识 + 收起按钮（导航列表之上） */
 .ops-center .side-head {
   flex: none;
@@ -81,6 +83,16 @@
 .ops-center .side-scroll::-webkit-scrollbar {
   display: none;
 }
+/* 侧边栏底部：收起按钮 + 版本号，居中竖排留间距 */
+.ops-center .side-foot {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding-top: 14px;
+}
+.ops-center .side-foot .side-version { padding-top: 0; }
 /* 侧边栏底部版本号 */
 .ops-center .side-version {
   flex: none;
@@ -3821,3 +3833,37 @@
     grid-template-columns: repeat(4, 1fr);
   }
 }
+
+/* ----- 收起态路由图标悬浮气泡（Teleport 到 body，不可加作用域前缀） ----- */
+.ops-rail-pop {
+  position: fixed;
+  z-index: 999;
+  min-width: 128px;
+  max-width: 200px;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #e8ebf1;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(31, 35, 41, 0.12);
+}
+.ops-rail-pop .rp-title {
+  padding: 6px 10px 4px;
+  font-size: 12px;
+  color: #98a0b3;
+  white-space: nowrap;
+}
+.ops-rail-pop .rp-item {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #4f5665;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ops-rail-pop .rp-item:hover { background: #f5f8ff; color: #4f7cff; }
+.ops-rail-pop .rp-item.on { background: #fff0f0; color: #ff5f62; font-weight: 700; }
