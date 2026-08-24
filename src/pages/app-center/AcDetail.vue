@@ -19,6 +19,7 @@ const props = defineProps<{
   onAct: (a: AppItem, e: MouseEvent) => void;
   onToggleFav: (id: string, e: MouseEvent) => void;
   onOpenRevAll: (id: string) => void;
+  onOpenFbAll: (id: string) => void;
   onOpenVerHist: (id: string) => void;
   onOpenDevDrawer: (id: string) => void;
   /** 提交评价：返回 true 表示成功（子组件随即可重置表单） */
@@ -100,16 +101,22 @@ watch(() => props.reviews, () => requestAnimationFrame(updateRevNav));
           </button>
         </div>
       </div>
-      <button
-        type="button"
-        class="ap-detail-fav"
-        :class="{ on: favIds.includes(app.id) }"
-        :title="favIds.includes(app.id) ? '取消收藏' : '收藏'"
-        @click="onToggleFav(app.id, $event)"
-      >
-        <span>收藏</span>
-        <b><AcSvg :d="IC.starFill" :size="16" filled vb="0 0 1024 1024" /></b>
-      </button>
+      <div class="ap-detail-head-acts">
+        <button type="button" class="ap-detail-fb" title="意见反馈" @click="onOpenFbAll(app.id)">
+          <span>意见反馈</span>
+          <b><AcSvg :d="IC.edit" :size="16" /></b>
+        </button>
+        <button
+          type="button"
+          class="ap-detail-fav"
+          :class="{ on: favIds.includes(app.id) }"
+          :title="favIds.includes(app.id) ? '取消收藏' : '收藏'"
+          @click="onToggleFav(app.id, $event)"
+        >
+          <span>收藏</span>
+          <b><AcSvg :d="IC.starFill" :size="16" filled vb="0 0 1024 1024" /></b>
+        </button>
+      </div>
     </div>
     <div class="ap-detail-stats">
       <div class="ap-stat">

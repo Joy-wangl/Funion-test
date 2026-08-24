@@ -243,6 +243,30 @@ export interface AppReview {
   read?: boolean;
 }
 
+/* ---------- 应用级意见反馈：使用者直接向开发者反馈（消息中心-使用者反馈-意见反馈模块） ---------- */
+export interface AppFeedback {
+  id: string;
+  appId: string;
+  user: string;
+  content: string;
+  date: string;
+  version: string;
+  /** 开发者回复（消息中心-意见反馈闭环） */
+  reply?: { text: string; date: string };
+  /** 反馈配图（最多 3 张） */
+  images?: string[];
+  /** 创作者已读标记（false=未读） */
+  read?: boolean;
+}
+
+export const seedAppFeedbacks: AppFeedback[] = [
+  { id: 'af-1', appId: 'c-1', user: '黄亚芳', content: '希望巡店报告支持一键导出周报，周一汇报会方便很多。', date: '2026/08/21', version: '1.0.0', read: false },
+  { id: 'af-2', appId: 'c-2', user: '杨帆', content: '希望灵感库支持按行业筛选，比如优先看美妆类的脚本。', date: '2026/08/21', version: '1.0.0', read: false },
+  { id: 'af-3', appId: 'c-1', user: '吴孝朝', content: '问题指派时希望能一次选多个人，现在只能逐个指派。', date: '2026/08/20', version: '1.0.0', reply: { text: '已收到，多人指派能力在排期中，预计下个版本上线。', date: '2026/08/21' } },
+  { id: 'af-4', appId: 'c-2', user: '郑婷', content: '脚本预览时字号偏小，希望增加字号调节。', date: '2026/08/19', version: '1.0.0', images: ['/products/serum.png'] },
+  { id: 'af-5', appId: 'c-1', user: '陈晓', content: '现场记录拍照上传压缩有点重，希望提供原图上传开关。', date: '2026/08/18', version: '1.0.0', reply: { text: '已确认，v1.1.0 会提供原图上传开关，敬请关注。', date: '2026/08/19' } },
+];
+
 /* ---------- 批量生成评价：同名演示应用每应用补齐 10 条，保证溢出演示不漏 ---------- */
 const GEN_USERS = ['杨帆', '郑婷', '陈晓', '徐佳华', '黄亚芳', '吴孝朝'];
 const GEN_TITLES = ['稳定好用', '整体满意', '效率提升', '值得推荐', '细节到位', '还有优化空间', '上手很快', '体验不错', '团队都在用', '期待更新'];

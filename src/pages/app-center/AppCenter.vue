@@ -5,8 +5,8 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import {
   CATEGORIES, FORM_CATEGORIES, PLATFORM_NOTICES,
   FB_TYPES, INITIAL_FEEDBACKS,
-  actKind, creatorDept, initialApps, seedReviews, versionOf,
-  type AppItem, type AppReview, type FeedbackItem,
+  actKind, creatorDept, initialApps, seedAppFeedbacks, seedReviews, versionOf,
+  type AppItem, type AppFeedback, type AppReview, type FeedbackItem,
 } from './data';
 import { CAT_ICONS, GLYPHS, IC, ICON_LIB, agoText, featLinesOf, isImgIcon, today, type AcForm, type CatDraft } from './acHelpers';
 import { pushToast } from '../../components/toast';
@@ -70,6 +70,11 @@ const rvReplyId = ref<string | null>(null);
 const rvReplyText = ref('');
 const fbReplyId = ref<string | null>(null);
 const fbReplyText = ref('');
+/* 使用者反馈-意见反馈（应用级） */
+const appFbList = ref<AppFeedback[]>(seedAppFeedbacks);
+const msgSubTab = ref<'review' | 'feedback'>('review');
+const afReplyId = ref<string | null>(null);
+const afReplyText = ref('');
 const devDrawerId = ref<string | null>(null);
 const loadingId = ref<string | null>(null);
 const backView = ref<View>({ kind: 'mine' });
@@ -400,16 +405,22 @@ const appendFbNote = (id: string) => {
 
 /* ---------- 消息中心：身份/维度/已读未读 ---------- */
 const myReviews = computed(() => reviews.value.filter((r) => apps.value.some((a) => a.id === r.appId && a.mine)));
+const myAppFbs = computed(() => appFbList.value.filter((f) => apps.value.some((a) => a.id === f.appId && a.mine)));
 const unreadReviewCount = computed(() => myReviews.value.filter((r) => r.read === false).length);
+const unreadAppFbCount = computed(() => myAppFbs.value.filter((f) => f.read === false).length);
+const unreadUserCount = computed(() => unreadReviewCount.value + unreadAppFbCount.value);
 const unreadFbCount = computed(() => fbList.value.filter((f) => f.read === false).length);
-const msgCount = computed(() => unreadReviewCount.value + unreadFbCount.value);
+const msgCount = computed(() => unreadUserCount.value + unreadFbCount.value);
 
 const markRevRead = (id: string) => { reviews.value = reviews.value.map((r) => (r.id === id ? { ...r, read: true } : r)); };
+const markAppFbRead = (id: string) => { appFbList.value = appFbList.value.map((f) => (f.id === id ? { ...f, read: true } : f)); };
 const markFbRead = (id: string) => { fbList.value = fbList.value.map((f) => (f.id === id ? { ...f, read: true } : f)); };
 const markAllRead = () => {
   if (msgTab.value === 'app') {
     const ids = new Set(myReviews.value.map((r) => r.id));
     reviews.value = reviews.value.map((r) => (ids.has(r.id) ? { ...r, read: true } : r));
+    const afIds = new Set(myAppFbs.value.map((f) => f.id));
+    appFbList.value = appFbList.value.map((f) => (afIds.has(f.id) ? { ...f, read: true } : f));
   } else {
     fbList.value = fbList.value.map((f) => ({ ...f, read: true }));
   }
@@ -423,6 +434,21 @@ const replyReview = (id: string) => {
   reviews.value = reviews.value.map((r) => (r.id === id ? { ...r, reply: { text, date: today() } } : r));
   rvReplyId.value = null; rvReplyText.value = '';
   pushToast('回复已提交');
+};
+
+/* 应用级意见反馈：开发者回复使用者反馈 */
+const replyAppFb = (id: string) => {
+  const text = afReplyText.value.trim();
+  if (!text) { pushToast('请先填写回复内容'); return; }
+  appFbList.value = appFbList.value.map((f) => (f.id === id ? { ...f, reply: { text, date: today() } } : f));
+  afReplyId.value = null; afReplyText.value = '';
+  pushToast('回复已提交');
+};
+
+/* 详情页意见反馈入口：打开消息中心并定位到 使用者反馈-意见反馈-当前应用 */
+const openFbAll = (appId: string) => {
+  msgTab.value = 'app'; msgSubTab.value = 'feedback'; msgAppFilter.value = appId; msgStatus.value = 'all';
+  msgOpen.value = true;
 };
 
 /* 系统开发者：以应用市场管理员身份回复意见反馈 */
@@ -623,6 +649,7 @@ const gotoFbDetail = (fbId: string) => {
           :on-act="act"
           :on-toggle-fav="toggleFav"
           :on-open-rev-all="(id) => (revAllId = id)"
+          :on-open-fb-all="openFbAll"
           :on-open-ver-hist="(id) => (verHistId = id)"
           :on-open-dev-drawer="(id) => (devDrawerId = id)"
           :on-submit-review="submitReview"
@@ -977,8 +1004,10 @@ const gotoFbDetail = (fbId: string) => {
       v-if="msgOpen"
       :apps="apps"
       :my-reviews="myReviews"
+      :app-fb-list="myAppFbs"
       :fb-list="fbList"
       :msg-tab="msgTab"
+      :msg-sub-tab="msgSubTab"
       :msg-app-filter="msgAppFilter"
       :msg-fb-type="msgFbType"
       :msg-status="msgStatus"
@@ -989,16 +1018,23 @@ const gotoFbDetail = (fbId: string) => {
       :on-close="() => (msgOpen = false)"
       :on-mark-all-read="markAllRead"
       :on-msg-tab="(t) => { msgTab = t; msgStatus = 'all'; }"
+      :on-msg-sub-tab="(t) => { msgSubTab = t; msgStatus = 'all'; }"
       :on-msg-app-filter="(id) => (msgAppFilter = id)"
       :on-msg-fb-type="(t) => (msgFbType = t)"
       :on-msg-status="(s) => (msgStatus = s)"
       :on-mark-rev-read="markRevRead"
+      :on-mark-af-read="markAppFbRead"
       :on-mark-fb-read="markFbRead"
       :on-goto-app="gotoAppDetail"
       :on-goto-fb="gotoFbDetail"
       :on-rv-reply-id="(id) => (rvReplyId = id)"
       :on-rv-reply-text="(v) => (rvReplyText = v)"
       :on-reply-review="replyReview"
+      :af-reply-id="afReplyId"
+      :af-reply-text="afReplyText"
+      :on-af-reply-id="(id) => (afReplyId = id)"
+      :on-af-reply-text="(v) => (afReplyText = v)"
+      :on-reply-app-fb="replyAppFb"
       :on-fb-reply-id="(id) => (fbReplyId = id)"
       :on-fb-reply-text="(v) => (fbReplyText = v)"
       :on-reply-fb="replyFb"
