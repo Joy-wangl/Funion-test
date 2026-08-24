@@ -64,6 +64,17 @@ const clickCreate = (key: 'createTaobao' | 'createVideo') => {
 const navCls = (key: PageKey) => `nav ${active.value === key ? 'active' : ''}`;
 const pageCls = (key: PageKey) => `page ${page.value === key ? 'show' : ''}`;
 
+/* 收起态点击分组：展开侧边栏并打开该组；展开态：正常收合切换 */
+const toggleGroup = (key: 'product' | 'create' | 'permission') => {
+  const open = key === 'product' ? productOpen : key === 'create' ? createOpen : permissionOpen;
+  if (props.sidebarCollapsed) {
+    open.value = true;
+    emit('toggle');
+  } else {
+    open.value = !open.value;
+  }
+};
+
 const permItems: { name: string; target?: PageKey }[] = [
   { name: '店铺管理' },
   { name: '账号管理' },
@@ -77,21 +88,6 @@ const permItems: { name: string; target?: PageKey }[] = [
 <template>
   <div class="ops-center app" :class="sidebarCollapsed ? 'side-collapsed' : ''">
     <div class="ops-topbar">
-      <div class="ops-brand">
-        <img class="ops-brand-logo" src="/logos/ops-logo.png" alt="" />
-        <span class="ops-brand-name">智能运营中心</span>
-      </div>
-      <button
-        type="button"
-        class="ops-side-toggle"
-        :class="sidebarCollapsed ? 'is-collapsed' : ''"
-        :title="sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'"
-        @click="emit('toggle')"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-          <path d="M15 6l-6 6 6 6" />
-        </svg>
-      </button>
       <div class="ops-topbar-right">
         <button class="ops-bell" title="通知">🔔</button>
         <span class="ops-avatar">管</span>
@@ -99,6 +95,23 @@ const permItems: { name: string; target?: PageKey }[] = [
     </div>
     <div class="ops-body">
       <aside class="side" :class="sidebarCollapsed ? 'collapsed' : ''">
+        <div class="side-head">
+          <div class="ops-brand">
+            <img class="ops-brand-logo" src="/logos/ops-logo.png" alt="" />
+            <span class="ops-brand-name">智能运营中心</span>
+          </div>
+          <button
+            type="button"
+            class="ops-side-toggle"
+            :class="sidebarCollapsed ? 'is-collapsed' : ''"
+            :title="sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'"
+            @click="emit('toggle')"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M15 6l-6 6 6 6" />
+            </svg>
+          </button>
+        </div>
         <div class="side-scroll">
           <div :class="navCls('dashboard')" @click="onSubnav('dashboard', 'dashboard')">
             <span class="nav-ico">▦</span>
@@ -108,7 +121,7 @@ const permItems: { name: string; target?: PageKey }[] = [
             <span class="nav-ico">◫</span>
             <span class="nav-text">运营管理</span>
           </div>
-          <div class="nav nav-parent" :class="productOpen ? 'open' : ''" @click.stop="productOpen = !productOpen">
+          <div class="nav nav-parent" :class="productOpen ? 'open' : ''" @click.stop="toggleGroup('product')">
             <div class="nav-left">
               <span class="nav-ico">▣</span>
               <span class="nav-text">商机中心</span>
@@ -130,7 +143,7 @@ const permItems: { name: string; target?: PageKey }[] = [
             <span class="nav-ico">▥</span>
             <span class="nav-text">店铺商品</span>
           </div>
-          <div class="nav nav-parent" :class="createOpen ? 'open' : ''" @click.stop="createOpen = !createOpen">
+          <div class="nav nav-parent" :class="createOpen ? 'open' : ''" @click.stop="toggleGroup('create')">
             <div class="nav-left">
               <span class="nav-ico">✚</span>
               <span class="nav-text">商品创建</span>
@@ -169,7 +182,7 @@ const permItems: { name: string; target?: PageKey }[] = [
             <span class="nav-ico">⚙</span>
             <span class="nav-text">自动化中心</span>
           </div>
-          <div class="nav nav-parent" :class="permissionOpen ? 'open' : ''" @click.stop="permissionOpen = !permissionOpen">
+          <div class="nav nav-parent" :class="permissionOpen ? 'open' : ''" @click.stop="toggleGroup('permission')">
             <div class="nav-left">
               <span class="nav-ico">♟</span>
               <span class="nav-text">权限设置</span>
