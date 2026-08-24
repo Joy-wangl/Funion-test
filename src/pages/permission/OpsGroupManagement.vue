@@ -180,7 +180,7 @@ const transferRole = (entry: OpsMember, fromGroup: OpsGroup, targetGroupId: stri
     mutateMembers((list) => list.map((m) =>
       m.memberId === entry.memberId ? { ...m, groupId: targetGroupId, parentId: targetParentId } : m
     ));
-    pushToast('已转交助理');
+    pushToast('已移动助理');
   }
   modal.value = null;
 };
@@ -379,7 +379,11 @@ const transferPersonConfirm = (memberId: string) => {
                     <div class="og-cell"><span class="og-role-tag" :style="roleTagStyle('assistant')">{{ OPS_ROLE_LABEL['assistant'] }}</span></div>
                     <div class="og-cell og-td-dim">{{ a.addedAt }}</div>
                     <div class="og-cell og-td-dim">{{ a.addedBy }}</div>
-                    <div class="og-cell og-td-dim">-</div>
+                    <div class="og-cell">
+                      <OgActionStack :items="[
+                        { label: '移动至', onClick: () => openTransfer(a, activeGroup) },
+                      ]" />
+                    </div>
                   </div>
                 </template>
                 <div v-else class="og-tr sub">
@@ -422,7 +426,11 @@ const transferPersonConfirm = (memberId: string) => {
                       <div class="og-cell"><span class="og-role-tag" :style="roleTagStyle('assistant')">{{ OPS_ROLE_LABEL['assistant'] }}</span></div>
                       <div class="og-cell og-td-dim">{{ a.addedAt }}</div>
                       <div class="og-cell og-td-dim">{{ a.addedBy }}</div>
-                      <div class="og-cell og-td-dim">-</div>
+                      <div class="og-cell">
+                        <OgActionStack :items="[
+                          { label: '移动至', onClick: () => openTransfer(a, activeGroup) },
+                        ]" />
+                      </div>
                     </div>
                   </template>
                   <div v-else class="og-tr sub">

@@ -19,6 +19,10 @@ const emit = defineEmits<{
 const targetGroupId = ref(props.group.id);
 const targetParentId = ref('');
 
+/* 助理为「移动至」语义：改挂其它组长/专员；专员为「转交」 */
+const title = computed(() => (props.entry.role === 'assistant' ? '移动助理' : `转交${OPS_ROLE_LABEL[props.entry.role]}`));
+const okText = computed(() => (props.entry.role === 'assistant' ? '确认移动' : '确认转交'));
+
 const parentCandidates = computed(() => {
   if (props.entry.role === 'specialist') {
     return props.channelMembers.filter((m) => m.groupId === targetGroupId.value && m.role === 'leader' && m.memberId !== props.entry.memberId);
@@ -41,7 +45,7 @@ const confirm = () => {
 </script>
 
 <template>
-  <Modal :title="`转交${OPS_ROLE_LABEL[entry.role]}`" :sub="`当前：${entry.name} · 组：${group.name}`" size="md" @close="emit('close')">
+  <Modal :title="title" :sub="`当前：${entry.name} · 组：${group.name}`" size="md" @close="emit('close')">
     <div class="form-item">
       <label>目标分组</label>
       <BubbleSelect
@@ -62,7 +66,7 @@ const confirm = () => {
     </div>
     <template #foot>
       <button class="btn" @click="emit('close')">取消</button>
-      <button class="btn primary" @click="confirm">确认转交</button>
+      <button class="btn primary" @click="confirm">{{ okText }}</button>
     </template>
   </Modal>
 </template>
