@@ -23,6 +23,8 @@ const OUT = 'd:/Qoder/Funion';
   const fbBox = await fbBtn.boundingBox();
   const favBox = await page.locator('.ap-detail .ap-detail-fav').boundingBox();
   results['detail.fbLeftOfFav'] = !!fbBox && !!favBox && fbBox.x < favBox.x;
+  /* 公开/隐私语义：详情评分及评论带公开标签 */
+  results['vis.detailPub'] = (await page.locator('.ap-detail-sub .ap-vis.pub:has-text("公开")').count()) === 1;
   await page.screenshot({ path: `${OUT}/vue-verify-acfb-detail.png` });
 
   /* 点击意见反馈：打开消息中心并定位 使用者反馈-意见反馈-当前应用 */
@@ -34,6 +36,10 @@ const OUT = 'd:/Qoder/Funion';
   const subOn = await page.locator('.ap-msg-subtabs button.on').textContent();
   results['drawer.subFeedbackOn'] = (subOn || '').includes('意见反馈');
   results['drawer.subBoth'] = (await page.locator('.ap-msg-subtabs button').count()) === 2;
+  /* 公开/隐私语义：子tab 双标签 */
+  results['vis.subTabs'] =
+    (await page.locator('.ap-msg-subtabs .ap-vis.pub:has-text("公开")').count()) === 1 &&
+    (await page.locator('.ap-msg-subtabs .ap-vis.priv:has-text("隐私")').count()) === 1;
   const railOn = await page.locator('.ap-msg-rail button.on .ap-rail-name').textContent();
   results['drawer.railCurApp'] = (railOn || '').includes('勤劳小蜜蜂');
   /* 当前应用（非 mine）无反馈：空态提示 */
@@ -44,6 +50,7 @@ const OUT = 'd:/Qoder/Funion';
   await page.locator('.ap-msg-rail button').nth(2).click();
   await page.waitForTimeout(200);
   results['drawer.fbItems'] = (await page.locator('.ap-msg-list .ap-msg-item').count()) >= 2;
+  results['vis.fbPriv'] = (await page.locator('.ap-msg-list .ap-msg-item .ap-vis.priv').count()) >= 1;
 
   /* 回复闭环：待回复项 -> 回复表单 -> 开发者回复 */
   await page.click('.ap-msg-list .ap-msg-item:has-text("待回复") .ap-msg-foot .ap-link');
@@ -58,6 +65,7 @@ const OUT = 'd:/Qoder/Funion';
   await page.click('.ap-msg-subtabs button:has-text("应用评价")');
   await page.waitForTimeout(200);
   results['drawer.reviewCards'] = (await page.locator('.ap-msg-list .ap-msg-stars').count()) >= 1;
+  results['vis.reviewPub'] = (await page.locator('.ap-msg-list .ap-msg-item .ap-vis.pub').count()) >= 1;
 
   await page.screenshot({ path: `${OUT}/vue-verify-acfb-review.png` });
 

@@ -2388,6 +2388,15 @@ button.ap-dev:hover { background: #eceef2; }
   border-radius: 8px; background: #fa5151; color: #fff; font-size: 10px; font-style: normal; line-height: 16px; text-align: center;
 }
 
+/* 公开/隐私语义标签：评价公开（绿）/ 意见反馈隐私（灰） */
+.ap-vis {
+  font-style: normal; font-weight: 400; font-size: 10.5px; line-height: 16px;
+  padding: 0 6px; border-radius: 999px; margin-left: 6px; vertical-align: 1px; white-space: nowrap;
+}
+.ap-vis.pub { color: var(--color-success); background: var(--color-success-light); }
+.ap-vis.priv { color: var(--color-text-3); background: var(--color-fill-2); }
+.ap-msg-subtabs .ap-vis { margin-left: 4px; }
+
 .ap-msg-body { padding: 4px 0 8px; }
 
 .ap-drawer-msg { width: min(1280px, 96vw); }

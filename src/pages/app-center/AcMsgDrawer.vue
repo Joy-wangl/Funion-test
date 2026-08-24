@@ -94,10 +94,10 @@ const shownFb = computed(() => (props.msgFbType === 'all' ? props.fbList : props
     </div>
     <div v-if="msgTab === 'app'" class="ap-msg-subtabs">
       <button type="button" :class="msgSubTab === 'review' ? 'on' : ''" @click="onMsgSubTab('review')">
-        应用评价<i v-if="unreadReviewCount > 0">{{ unreadReviewCount }}</i>
+        应用评价<em class="ap-vis pub">公开</em><i v-if="unreadReviewCount > 0">{{ unreadReviewCount }}</i>
       </button>
       <button type="button" :class="msgSubTab === 'feedback' ? 'on' : ''" @click="onMsgSubTab('feedback')">
-        意见反馈<i v-if="unreadAppFbCount > 0">{{ unreadAppFbCount }}</i>
+        意见反馈<em class="ap-vis priv">隐私</em><i v-if="unreadAppFbCount > 0">{{ unreadAppFbCount }}</i>
       </button>
     </div>
     <div class="ap-msg-pane">
@@ -158,6 +158,7 @@ const shownFb = computed(() => (props.msgFbType === 'all' ? props.fbList : props
                 <i v-if="r.read === false" class="ap-msg-dot" />
                 {{ apps.find((a) => a.id === r.appId)?.name ?? r.appId }}
                 <em class="ap-msg-st" :class="r.reply ? 'done' : 'pending'">{{ r.reply ? '已回复' : '待回复' }}</em>
+                <em class="ap-vis pub">公开</em>
               </b>
               <span class="ap-msg-top-act">
                 <i>{{ agoText(r.date) }} · v{{ r.version }}</i>
@@ -201,6 +202,7 @@ const shownFb = computed(() => (props.msgFbType === 'all' ? props.fbList : props
                 <i v-if="f.read === false" class="ap-msg-dot" />
                 {{ apps.find((a) => a.id === f.appId)?.name ?? f.appId }}
                 <em class="ap-msg-st" :class="f.reply ? 'done' : 'pending'">{{ f.reply ? '已回复' : '待回复' }}</em>
+                <em class="ap-vis priv">隐私</em>
               </b>
               <span class="ap-msg-top-act">
                 <i>{{ agoText(f.date) }} · v{{ f.version }}</i>

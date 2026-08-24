@@ -102,7 +102,7 @@ watch(() => props.reviews, () => requestAnimationFrame(updateRevNav));
         </div>
       </div>
       <div class="ap-detail-head-acts">
-        <button type="button" class="ap-detail-fb" title="意见反馈" @click="onOpenFbAll(app.id)">
+        <button type="button" class="ap-detail-fb" title="意见反馈 · 用户隐私反馈，仅开发者可见" @click="onOpenFbAll(app.id)">
           <span>意见反馈</span>
           <b><AcSvg :d="IC.edit" :size="16" /></b>
         </button>
@@ -150,7 +150,7 @@ watch(() => props.reviews, () => requestAnimationFrame(updateRevNav));
     </div>
     <div class="ap-detail-divider" />
     <h3 class="ap-detail-sub ap-sec-head">
-      <span>评分及评论</span>
+      <span>评分及评论<em class="ap-vis pub">公开</em></span>
       <span v-if="rvs.length > 0" class="ap-sec-acts">
         <button type="button" class="ap-link" @click="onOpenRevAll(app.id)">查看全部</button>
       </span>
