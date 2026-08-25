@@ -352,7 +352,7 @@ const confirmDelete = () => {
                   @change="togglePubCheck(s.id, ($event.target as HTMLInputElement).checked)"
                 />
               </td>
-              <td class="cp-task-id">{{ String(s.id).padStart(6, '0') }}</td>
+              <td>{{ String(s.id).padStart(6, '0') }}</td>
               <td>
                 <div class="tc-cell-lines">
                   <div>{{ s.publisher || '–' }}</div>

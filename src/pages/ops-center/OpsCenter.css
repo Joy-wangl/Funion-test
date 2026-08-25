@@ -3840,11 +3840,6 @@
   gap: 14px;
   margin: 0 0 12px;
 }
-.ops-center .cp-task-id {
-  font-family: Consolas, Menlo, monospace;
-  font-size: var(--fs-aux);
-  color: var(--color-text-2);
-}
 /* 抽屉内 tab 轻量变体：去卡片边框与固定高度，与查询行同排 */
 .cp-f-tabs.tc-tabs {
   background: transparent;
