@@ -3780,6 +3780,59 @@
 }
 .cp-sort-th { cursor: pointer; user-select: none; }
 .cp-sort-th:hover { color: #4f7cff; }
+/* 抽屉摘要区：商品/店铺/创建人等全局唯一信息上提展示 */
+.cp-drawer-summary {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 16px;
+  background: #fbfcfe;
+  border: 1px solid #eef1f6;
+  border-radius: 10px;
+  margin: 0 0 14px;
+}
+.cp-sum-main {
+  flex: 1;
+  min-width: 0;
+}
+.cp-sum-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #232b3a;
+}
+.cp-sum-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #8a94a6;
+}
+.cp-sum-item label {
+  display: block;
+  font-size: 12px;
+  color: #8a94a6;
+  margin-bottom: 4px;
+}
+.cp-sum-item span {
+  font-size: 13px;
+  color: #465064;
+}
+/* 抽屉查询条件行 */
+.cp-drawer-filter {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  margin: 0 0 12px;
+}
+.cp-f-field > label {
+  display: block;
+  font-size: 12px;
+  color: #5b6475;
+  margin-bottom: 6px;
+}
+.cp-f-acts {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
 /* 按钮行：快速铺货/竞品导入 与创建时间列（末列）左对齐，重置/查询 右对齐；窄屏回退整体右对齐 */
 .ops-center .create-actions-inline {
   grid-column: 1 / -1;

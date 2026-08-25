@@ -1,4 +1,4 @@
-/* 临时验证：商品创建-淘宝 关联发布任务抽屉（列表信息 + 失败重试 + 时间排序） */
+/* 临时验证：关联发布任务抽屉（摘要区上提 + 查询条件 + 排序 + 失败重试） */
 const { chromium } = require('D:/Funion/.playwright/package/index.js');
 
 (async () => {
@@ -16,40 +16,39 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
   await page.click('.subnav:has-text("淘宝")');
   await page.waitForSelector('.create-table tbody tr');
 
-  /* 更多菜单：关联发布任务在列 */
+  /* 更多菜单 */
   await page.locator('.create-ops a:has-text("更多")').first().click();
   await page.waitForSelector('.add-pop');
   const menuTexts = await page.locator('.add-pop .add-pop-item').allTextContents();
   results['menu.items'] = menuTexts.join(',') === '关联发布任务,复制,删除';
 
-  /* 点击关联发布任务：右侧抽屉打开，标题带商品名 */
+  /* 打开抽屉 */
   await page.click('.add-pop .add-pop-item:has-text("关联发布任务")');
   await page.waitForSelector('.cp-drawer');
-  results['drawer.open'] = (await page.locator('.cp-drawer').count()) === 1;
   results['drawer.title'] = ((await page.locator('.cp-drawer-head span').textContent()) || '').includes('玫瑰小众轻奢复古耳钉');
 
-  /* 表头九列与截图一致 */
-  const headTexts = await page.locator('.cp-drawer thead th').allTextContents();
-  const expectHead = ['商品信息', '任务状态', '店铺', '创建人', '执行起止时间 ⇅', '操作'];
-  results['drawer.head'] = headTexts.length === 6 && expectHead.every((h, i) => headTexts[i].replace(/\s+/g, ' ').trim() === h);
+  /* 摘要区：全局唯一信息上提（商品/竞品链接/店铺/创建人） */
+  const sumText = ((await page.locator('.cp-drawer-summary').textContent()) || '').replace(/\s+/g, '');
+  results['drawer.summary'] =
+    sumText.includes('玫瑰小众轻奢复古耳钉') &&
+    sumText.includes('竞品链接') &&
+    sumText.includes('小二的店铺') &&
+    sumText.includes('张三');
 
-  /* 行数据：6 条记录，含节点状态与平台店铺 */
+  /* 表格仅保留变化列 */
+  const headTexts = await page.locator('.cp-drawer thead th').allTextContents();
+  const expectHead = ['任务状态', '执行起止时间 ⇅', '操作'];
+  results['drawer.head'] = headTexts.length === 3 && expectHead.every((h, i) => headTexts[i].replace(/\s+/g, ' ').trim() === h);
+  const bodyText = ((await page.locator('.cp-drawer tbody').textContent()) || '').replace(/\s+/g, '');
+  results['drawer.noConstCols'] = !bodyText.includes('小二的店铺') && !bodyText.includes('张三') && !bodyText.includes('竞品链接');
+
   const trs = page.locator('.cp-drawer tbody tr');
   results['drawer.rows'] = (await trs.count()) === 6;
-  const firstText = ((await trs.first().textContent()) || '').replace(/\s+/g, '');
-  results['drawer.cells'] =
-    firstText.includes('玫瑰小众轻奢复古耳钉') &&
-    firstText.includes('小二的店铺') &&
-    !firstText.includes('获取链接信息') &&
-    !firstText.includes('快速铺货') &&
-    !firstText.includes('淘宝') &&
-    !firstText.includes('智能') &&
-    firstText.includes('起：');
   results['drawer.retry'] = (await page.locator('.cp-drawer .tc-link:has-text("重试")').count()) === 2;
   await page.waitForTimeout(300);
   await page.screenshot({ path: 'd:/Qoder/Funion/vue-verify-cplink.png' });
 
-  /* 执行起止时间排序：点击表头切换升降序 */
+  /* 执行起止时间排序 */
   const startCell = async (t) => ((((await t.textContent()) || '').match(/起：([^止]+)/) || [])[1] || '').trim();
   const before = await startCell(trs.first());
   await page.locator('.cp-drawer .cp-sort-th').click();
@@ -57,7 +56,18 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
   const after = await startCell(trs.first());
   results['sort.toggle'] = before !== after;
 
-  /* 失败重试：点击后进入重新发布，稍后变为已完成 */
+  /* 查询条件：任务状态筛选执行失败 → 2 行；重置恢复 6 行 */
+  await page.locator('.cp-drawer-filter .bselect-trigger').click();
+  await page.waitForSelector('.bselect-menu');
+  await page.locator('.bselect-menu .bselect-opt', { hasText: '执行失败' }).click();
+  await page.click('.cp-drawer-filter button:has-text("查询")');
+  await page.waitForTimeout(200);
+  results['filter.failed'] = (await trs.count()) === 2 && (await page.locator('.cp-drawer .tc-link:has-text("重试")').count()) === 2;
+  await page.click('.cp-drawer-filter button:has-text("重置")');
+  await page.waitForTimeout(200);
+  results['filter.reset'] = (await trs.count()) === 6;
+
+  /* 失败重试：重新发布中 → 已完成 */
   await page.locator('.cp-drawer .tc-link:has-text("重试")').first().click();
   await page.waitForTimeout(300);
   results['retry.toasting'] = (await page.locator(':text("重新发布中")').count()) >= 1;

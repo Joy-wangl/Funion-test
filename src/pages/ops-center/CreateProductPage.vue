@@ -25,8 +25,19 @@ const openPubDrawer = (row: CreateRow) => {
   pubRow.value = row;
   pubTasks.value = buildCreatePubTasks(row, rows.value.indexOf(row) + 1);
   pubSortAsc.value = true;
+  resetPubFilter();
 };
 const sortedPubTasks = computed(() => [...pubTasks.value].sort((a, b) => (pubSortAsc.value ? a.startTime.localeCompare(b.startTime) : b.startTime.localeCompare(a.startTime))));
+/* 商品/店铺/创建人抽屉内全局唯一，抽到列表上方摘要区；表格只留变化列并提供查询条件 */
+const pubLinkId = computed(() => pubTasks.value[0]?.linkId ?? '');
+const pubStatusOptions = ['全部', '已完成', '执行中', '队列中', '执行失败'];
+const pubStatus = ref('全部');
+const pubStatusApplied = ref('全部');
+const visiblePubTasks = computed(() => sortedPubTasks.value.filter((s) => pubStatusApplied.value === '全部' || pubStatusText[s.status] === pubStatusApplied.value));
+const resetPubFilter = () => {
+  pubStatus.value = '全部';
+  pubStatusApplied.value = '全部';
+};
 const pubStatusText: Record<SubTask['status'], string> = { queued: '队列中', running: '执行中', success: '已完成', failed: '执行失败' };
 const pubStatusCls: Record<SubTask['status'], string> = { queued: 'queued', running: 'running', success: 'done', failed: 'failed' };
 const retryPub = (sub: SubTask) => {
@@ -236,37 +247,51 @@ const confirmDelete = () => {
         <button type="button" title="关闭" @click="pubRow = null">✕</button>
       </div>
       <div class="cp-drawer-body">
+        <div class="cp-drawer-summary">
+          <img class="tc-thumb" :src="pubRow.thumb" />
+          <div class="cp-sum-main">
+            <div class="cp-sum-name">{{ pubRow.title }}</div>
+            <div class="cp-sum-meta">竞品链接：{{ pubLinkId }}</div>
+          </div>
+          <div class="cp-sum-item">
+            <label>店铺</label>
+            <span>小二的店铺</span>
+          </div>
+          <div class="cp-sum-item">
+            <label>创建人</label>
+            <span>张三 2026-04-04 12:00:00</span>
+          </div>
+        </div>
+        <div class="cp-drawer-filter">
+          <div class="cp-f-field">
+            <label>任务状态</label>
+            <BubbleSelect class-name="ib-select" :value="pubStatus" :options="pubStatusOptions" @change="(v: string) => (pubStatus = v)" />
+          </div>
+          <div class="cp-f-field">
+            <label>执行时间</label>
+            <div class="ib-range">
+              <input class="ib-input" value="2026-04-04" />
+              <span>→</span>
+              <input class="ib-input" value="2026-04-04" />
+            </div>
+          </div>
+          <div class="cp-f-acts">
+            <button class="lightBtn" @click="resetPubFilter">重置</button>
+            <button class="primaryBtn" @click="pubStatusApplied = pubStatus">查询</button>
+          </div>
+        </div>
         <table class="tc-table tc-detail">
           <thead>
             <tr>
-              <th>商品信息</th>
               <th>任务状态</th>
-              <th>店铺</th>
-              <th>创建人</th>
               <th class="cp-sort-th" @click="pubSortAsc = !pubSortAsc">执行起止时间 <span class="tc-sort">⇅</span></th>
               <th>操作</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="s in sortedPubTasks" :key="s.id">
-              <td>
-                <div class="tc-product">
-                  <img class="tc-thumb" :src="s.thumb" />
-                  <div>
-                    <div class="tc-pname">{{ s.name }}</div>
-                    <div class="tc-pmeta">竞品链接：{{ s.linkId }}</div>
-                  </div>
-                </div>
-              </td>
+            <tr v-for="s in visiblePubTasks" :key="s.id">
               <td>
                 <span class="tc-st" :class="pubStatusCls[s.status]"><i />{{ pubStatusText[s.status] }}</span>
-              </td>
-              <td>{{ s.shop }}</td>
-              <td>
-                <div class="tc-cell-lines">
-                  <div>张三</div>
-                  <div>2026-04-04 12:00:00</div>
-                </div>
               </td>
               <td>
                 <div class="tc-cell-lines">
