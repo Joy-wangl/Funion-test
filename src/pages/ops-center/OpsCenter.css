@@ -2940,6 +2940,19 @@
 
 /* ===== 商品创建详情页 cpd-*（查看/编辑态） ===== */
 .ops-center .cpd-top-acts { display: flex; align-items: center; gap: 8px; }
+/* 详情查看态：关联发布任务文字入口（编辑态隐藏） */
+.ops-center .cpd-pub-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--color-primary);
+  font-size: var(--fs-base);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.ops-center .cpd-pub-link:hover {
+  color: var(--color-primary-hover);
+}
 .ops-center .cpd-cat-edit { margin-left: auto; font-size: 12px; color: #4f7cff; text-decoration: none; }
 .ops-center .cpd-side-acts { flex: none; display: flex; flex-direction: column; gap: 10px; }
 .ops-center .cpd-side-btn {
@@ -3829,7 +3842,7 @@
 }
 .ops-center .cp-task-id {
   font-family: Consolas, Menlo, monospace;
-  font-size: var(--fs-md);
+  font-size: var(--fs-aux);
   color: var(--color-text-2);
 }
 /* 抽屉内 tab 轻量变体：去卡片边框与固定高度，与查询行同排 */

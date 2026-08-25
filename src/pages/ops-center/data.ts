@@ -429,6 +429,8 @@ export interface SubTask {
   linkId: string;
   platform: string;
   shop: string;
+  /** 发布人（商品创建-关联发布任务抽屉「发布信息」列） */
+  publisher?: string;
   status: SubStatus;
   /** 失败原因（失败tab筛选 chips：发品超限/库存不足/其它） */
   reason: string;
@@ -471,7 +473,7 @@ const subPattern: Record<ParentStatus, SubStatus[]> = {
 };
 
 /** 商品创建-关联发布任务：该商品在任务列表中的发布记录（复用子任务结构，节点状态由 tcSteps 推导） */
-export function buildCreatePubTasks(row: { title: string; thumb: string; link: string }, seed: number): SubTask[] {
+export function buildCreatePubTasks(row: { title: string; thumb: string; link: string; person?: string }, seed: number): SubTask[] {
   const m = row.link.match(/[?&]id=(\d+)/);
   const pattern: SubStatus[] = ['success', 'failed', 'success', 'success', 'failed', 'success'];
   return pattern.map((st, i) => ({
@@ -482,6 +484,7 @@ export function buildCreatePubTasks(row: { title: string; thumb: string; link: s
     linkId: m?.[1] ?? '888877776666',
     platform: '淘宝',
     shop: '小二的店铺',
+    publisher: row.person ?? '周梦琪',
     status: st,
     reason: st === 'failed' ? failReasons[(seed + i) % 3] : '',
     failStep: st === 'failed' ? 2 : undefined,

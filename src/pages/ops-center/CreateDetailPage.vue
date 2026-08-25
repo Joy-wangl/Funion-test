@@ -7,7 +7,7 @@ import ToastWrap from '../../components/ToastWrap.vue';
 import CpdMediaSec from './CpdMediaSec.vue';
 
 const props = defineProps<{ row: CreateRow }>();
-const emit = defineEmits<{ (e: 'back'): void }>();
+const emit = defineEmits<{ (e: 'back'): void; (e: 'openPub'): void }>();
 
 const SHIP_OPTIONS = ['今日发', '24小时内发货', '48小时内发货', '大于48小时发货'];
 const STUFF_OPTIONS = ['全新', '二手'];
@@ -36,7 +36,10 @@ const d = createDetail;
             <button class="sg-btn" @click="editing = false">取消编辑</button>
             <button class="sg-btn primary" @click="editing = false; pushToast('版本已保存')">保存版本</button>
           </template>
-          <button v-else class="sg-btn" @click="editing = true">编辑</button>
+          <template v-else>
+            <button class="cpd-pub-link" @click="emit('openPub')">关联发布任务 &gt;</button>
+            <button class="sg-btn" @click="editing = true">编辑</button>
+          </template>
         </div>
       </div>
 

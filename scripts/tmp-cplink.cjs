@@ -44,14 +44,15 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
 
   /* 表格列：任务ID/任务状态/节点状态/执行起止时间/操作 */
   const headTexts = await page.locator('.cp-drawer thead th').allTextContents();
-  const expectHead = ['任务ID', '任务状态', '节点状态', '执行起止时间 ⇅', '操作'];
+  const expectHead = ['任务ID', '发布信息', '任务状态', '节点状态', '执行起止时间 ⇅', '操作'];
   results['drawer.head'] =
-    headTexts.length === 6 &&
+    headTexts.length === 7 &&
     headTexts[0].trim() === '' &&
     expectHead.every((h, i) => headTexts[i + 1].replace(/\s+/g, ' ').trim() === h);
   const bodyText = ((await page.locator('.cp-drawer tbody').textContent()) || '').replace(/\s+/g, '');
   results['drawer.nodeSteps'] = bodyText.includes('获取链接信息') && bodyText.includes('商品发布店铺');
-  results['drawer.noConstCols'] = !bodyText.includes('小二的店铺') && !bodyText.includes('张三') && !bodyText.includes('竞品链接');
+  results['drawer.pubInfo'] = bodyText.includes('周梦琪') && bodyText.includes('小二的店铺');
+  results['drawer.noConstCols'] = !bodyText.includes('张三') && !bodyText.includes('竞品链接');
   results['drawer.taskId'] = bodyText.includes('000100') && bodyText.includes('000105');
 
   const trs = page.locator('.cp-drawer tbody tr');
@@ -105,6 +106,23 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
     (await page.locator('.cp-drawer .tc-link:has-text("重试")').count()) === 0 &&
     (await page.locator('.cp-drawer tbody .ib-check').count()) === 0 &&
     (await page.locator(':text("重新发布成功")').count()) >= 1;
+
+  /* 详情查看态：关联发布任务入口（编辑态隐藏）并可打开抽屉 */
+  await page.click('.cp-drawer-head button');
+  await page.waitForTimeout(200);
+  await page.locator('.create-ops a:has-text("详情")').first().click();
+  await page.waitForSelector('.sgd-top-title');
+  const pubLink = page.locator('.cpd-pub-link');
+  results['detail.pubBtn'] = (await pubLink.count()) === 1 && (((await pubLink.textContent()) || '').includes('关联发布任务'));
+  await page.click('.cpd-top-acts .sg-btn:has-text("编辑")');
+  await page.waitForTimeout(200);
+  results['detail.editNoPub'] = (await page.locator('.cpd-pub-link').count()) === 0;
+  await page.click('.cpd-top-acts .sg-btn:has-text("取消编辑")');
+  await page.waitForTimeout(200);
+  await page.click('.cpd-pub-link');
+  await page.waitForSelector('.cp-drawer');
+  results['detail.drawer'] = (((await page.locator('.cp-drawer-head').textContent()) || '').includes('关联发布任务')) &&
+    (await page.locator('.cp-drawer thead th').count()) === 7;
 
   await browser.close();
   let fail = 0;

@@ -103,6 +103,10 @@ const openPubTip = (e: MouseEvent) => {
   e.stopPropagation();
   open(e.currentTarget as HTMLElement);
 };
+/* 详情查看态入口：打开同一抽屉 */
+const openPubFromDetail = () => {
+  if (detail.value) openPubDrawer(detail.value);
+};
 
 const copyRow = (row: CreateRow) => {
   rows.value = rows.value.flatMap((r) => (r.link === row.link ? [r, { ...r, link: `${row.link}-copy-${Date.now()}` }] : [r]));
@@ -116,7 +120,7 @@ const confirmDelete = () => {
 </script>
 
 <template>
-  <CreateDetailPage v-if="detail" :row="detail" @back="detail = null" />
+  <CreateDetailPage v-if="detail" :row="detail" @back="detail = null" @open-pub="openPubFromDetail" />
   <div v-else class="create-page">
     <div class="ib-filters create-filter">
       <div class="ib-grid">
@@ -283,9 +287,10 @@ const confirmDelete = () => {
       </div>
 
     </Teleport>
+  </div>
 
-    <!-- 关联发布任务抽屉：置于 .ops-center 内以复用 tc-table 表格样式 -->
-    <div v-if="pubRow" class="cp-drawer-mask" @click="pubRow = null" />
+  <!-- 关联发布任务抽屉：置于 .ops-center 内复用 tc-table 样式；与列表/详情并列，详情查看态亦可打开 -->
+  <div v-if="pubRow" class="cp-drawer-mask" @click="pubRow = null" />
     <div v-if="pubRow" class="cp-drawer">
       <div class="cp-drawer-head">
         <span>关联发布任务</span>
@@ -329,6 +334,7 @@ const confirmDelete = () => {
                 />
               </th>
               <th>任务ID</th>
+              <th>发布信息</th>
               <th>任务状态</th>
               <th>节点状态</th>
               <th class="cp-sort-th" @click="pubSortAsc = !pubSortAsc">执行起止时间 <span class="tc-sort">⇅</span></th>
@@ -347,6 +353,12 @@ const confirmDelete = () => {
                 />
               </td>
               <td class="cp-task-id">{{ String(s.id).padStart(6, '0') }}</td>
+              <td>
+                <div class="tc-cell-lines">
+                  <div>{{ s.publisher || '–' }}</div>
+                  <div>{{ s.shop }}</div>
+                </div>
+              </td>
               <td>
                 <span class="tc-st" :class="pubStatusCls[s.status]"><i />{{ pubStatusText[s.status] }}</span>
               </td>
@@ -374,5 +386,4 @@ const confirmDelete = () => {
         </table>
       </div>
     </div>
-  </div>
 </template>
