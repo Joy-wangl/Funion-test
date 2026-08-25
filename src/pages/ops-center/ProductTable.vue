@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue';
 import type { ProductRow } from './data';
 import { PLATFORM_LOGO, platformOfStore } from './data';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
+import { useAnchorPop } from '../../hooks/useAnchorPop';
 
 const props = defineProps<{
   rows: ProductRow[];
@@ -22,19 +22,9 @@ const emit = defineEmits<{ (e: 'checkChange', index: number, checked: boolean): 
 
 const isHidden = (k: string) => (props.hidden ?? []).includes(k);
 
-/* 添加到：点击后气泡展示平台选项 */
-const addTip = ref<{ x: number; y: number } | null>(null);
-const closeAddTip = () => { addTip.value = null; };
-watch(addTip, (v) => {
-  if (v) document.addEventListener('mousedown', closeAddTip);
-  else document.removeEventListener('mousedown', closeAddTip);
-});
-onBeforeUnmount(() => document.removeEventListener('mousedown', closeAddTip));
-
-const openAddTip = (e: MouseEvent) => {
-  const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-  addTip.value = { x: Math.max(8, Math.min(r.left, window.innerWidth - 130)), y: r.bottom + 6 };
-};
+/* 添加到：点击后气泡展示平台选项（滚动时跟随触发链接） */
+const { pos: addTip, open, close: closeAddTip } = useAnchorPop();
+const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
 </script>
 
 <template>
@@ -155,7 +145,7 @@ const openAddTip = (e: MouseEvent) => {
         :style="{ left: `${addTip.x}px`, top: `${addTip.y}px` }"
         @mousedown.stop
       >
-        <div v-for="t in ['淘宝', '视频号']" :key="t" class="add-pop-item" @click="addTip = null">
+        <div v-for="t in ['淘宝', '视频号']" :key="t" class="add-pop-item" @click="closeAddTip()">
           {{ t }}
         </div>
       </div>

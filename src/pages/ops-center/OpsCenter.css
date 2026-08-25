@@ -497,18 +497,6 @@
   margin-left: auto;
 }
 
-/* ----- 模块顶部 TAB 栏（固定头部、背景连贯） ----- */
-.ops-center .ops-topbar {
-  position: sticky;
-  top: 0;
-  z-index: 80;
-  flex: none;
-  height: 56px;
-  background: #fff;
-  border-bottom: 1px solid #e8ebf1;
-  display: flex;
-  align-items: center;
-}
 /* ---------- 侧边栏收起按钮：侧栏头部右缘 ---------- */
 .ops-center .ops-side-toggle {
   flex: none;
@@ -546,37 +534,6 @@
   font-weight: 700;
   color: #232b3a;
   white-space: nowrap;
-}
-.ops-center .ops-topbar-right {
-  margin-left: auto;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 16px;
-}
-.ops-center .ops-bell {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  border: 1px solid #e8ebf1;
-  background: #fff;
-  font-size: 15px;
-  cursor: pointer;
-}
-.ops-center .ops-bell:hover {
-  border-color: #4f7cff;
-}
-.ops-center .ops-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: #2b3444;
-  color: #fff;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 /* ----- 全网搜索 ----- */

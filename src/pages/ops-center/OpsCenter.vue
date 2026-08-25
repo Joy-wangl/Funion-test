@@ -233,12 +233,6 @@ watch(() => props.sidebarCollapsed, () => { railPop.value = null; });
       </aside>
 
       <div class="ops-right">
-        <div class="ops-topbar">
-          <div class="ops-topbar-right">
-            <button class="ops-bell" title="通知">🔔</button>
-            <span class="ops-avatar">管</span>
-          </div>
-        </div>
         <main class="main">
         <div class="content">
           <section :class="pageCls('dashboard')">

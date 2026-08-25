@@ -1,32 +1,25 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue';
+import { ref } from 'vue';
 import { createTaobaoRows } from './data';
 import type { CreateRow } from './data';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
 import MoreActions from '../../components/MoreActions.vue';
 import CreateDetailPage from './CreateDetailPage.vue';
+import { useAnchorPop } from '../../hooks/useAnchorPop';
 
 /** 商品创建页 */
 const rows = ref<CreateRow[]>(createTaobaoRows);
 /* 详情态：复用内部商机/店铺商品详情样式 */
 const detail = ref<CreateRow | null>(null);
-/* 发布到：点击后气泡展示平台选项 */
-const pubTip = ref<{ x: number; y: number } | null>(null);
+/* 发布到：点击后气泡展示平台选项（滚动时跟随触发链接） */
+const { pos: pubTip, open, close: closePubTip } = useAnchorPop();
 /* 删除二次确认 */
 const delRow = ref<CreateRow | null>(null);
 
-const closePubTip = () => { pubTip.value = null; };
-watch(pubTip, (v) => {
-  if (v) document.addEventListener('mousedown', closePubTip);
-  else document.removeEventListener('mousedown', closePubTip);
-});
-onBeforeUnmount(() => document.removeEventListener('mousedown', closePubTip));
-
 const openPubTip = (e: MouseEvent) => {
   e.stopPropagation();
-  const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-  pubTip.value = { x: Math.max(8, Math.min(r.left, window.innerWidth - 130)), y: r.bottom + 6 };
+  open(e.currentTarget as HTMLElement);
 };
 
 const copyRow = (row: CreateRow) => {
@@ -186,7 +179,7 @@ const confirmDelete = () => {
         @mousedown.stop
       >
         <div class="add-pop-title">发布到指定店铺</div>
-        <div v-for="t in ['淘宝心选店', '天猫Funion旗舰店', 'AAA小店']" :key="t" class="add-pop-item" @click="pubTip = null">
+        <div v-for="t in ['淘宝心选店', '天猫Funion旗舰店', 'AAA小店']" :key="t" class="add-pop-item" @click="closePubTip()">
           {{ t }}
         </div>
       </div>
