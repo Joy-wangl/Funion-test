@@ -29,7 +29,7 @@ const openPubDrawer = (row: CreateRow) => {
   resetPubFilter();
 };
 const sortedPubTasks = computed(() => [...pubTasks.value].sort((a, b) => (pubSortAsc.value ? a.startTime.localeCompare(b.startTime) : b.startTime.localeCompare(a.startTime))));
-/* 商品全局唯一，抽到列表上方摘要区；表格留变化列，任务状态 tab 切换 + 执行时间查询 */
+/* 商品全局唯一，抽到列表上方摘要区；表格留变化列，任务状态 tab 即切即筛 */
 const pubLinkId = computed(() => pubTasks.value[0]?.linkId ?? '');
 const pubLastUpdate = computed(() => {
   const ts = pubTasks.value.map((t) => t.endTime).filter(Boolean).sort();
@@ -43,22 +43,11 @@ const pubTabs = computed(() => [
   { key: 'done', text: '已完成', n: pubTasks.value.filter((s) => s.status === 'success').length },
   { key: 'failed', text: '执行失败', n: pubTasks.value.filter((s) => s.status === 'failed').length },
 ]);
-const pubTimeStart = ref('2026-04-04');
-const pubTimeEnd = ref('2026-04-04');
-const pubTimeApplied = ref({ s: '2026-04-04', e: '2026-04-04' });
-const onPubSearch = () => {
-  pubTimeApplied.value = { s: pubTimeStart.value, e: pubTimeEnd.value };
-};
 const visiblePubTasks = computed(() => sortedPubTasks.value.filter((s) => {
-  const okTab = pubTab.value === 'all' || (pubTab.value === 'done' ? s.status === 'success' : s.status === pubTab.value);
-  const d = (s.startTime || '').slice(0, 10);
-  return okTab && d >= pubTimeApplied.value.s && d <= pubTimeApplied.value.e;
+  return pubTab.value === 'all' || (pubTab.value === 'done' ? s.status === 'success' : s.status === pubTab.value);
 }));
 const resetPubFilter = () => {
   pubTab.value = 'all';
-  pubTimeStart.value = '2026-04-04';
-  pubTimeEnd.value = '2026-04-04';
-  pubTimeApplied.value = { s: '2026-04-04', e: '2026-04-04' };
 };
 const pubStatusText: Record<SubTask['status'], string> = { queued: '队列中', running: '执行中', success: '已完成', failed: '执行失败' };
 const pubStatusCls: Record<SubTask['status'], string> = { queued: 'queued', running: 'running', success: 'done', failed: 'failed' };
@@ -291,18 +280,6 @@ const confirmDelete = () => {
             >
               {{ t.text }}<span class="tc-count">{{ t.n }}</span>
             </button>
-          </div>
-          <div class="cp-f-field">
-            <label>执行时间</label>
-            <div class="ib-range">
-              <input v-model="pubTimeStart" class="ib-input" />
-              <span>→</span>
-              <input v-model="pubTimeEnd" class="ib-input" />
-            </div>
-          </div>
-          <div class="cp-f-acts">
-            <button class="lightBtn" @click="resetPubFilter">重置</button>
-            <button class="primaryBtn" @click="onPubSearch">查询</button>
           </div>
         </div>
         <table class="tc-table tc-detail">

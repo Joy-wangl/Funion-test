@@ -69,15 +69,7 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
   await page.locator('.cp-drawer-filter .tc-tab', { hasText: '全部' }).click();
   await page.waitForTimeout(200);
   results['tabs.all'] = (await trs.count()) === 6;
-
-  /* 执行时间查询：起始改 04-05 → 0 行；重置恢复 6 行 */
-  await page.locator('.cp-drawer-filter .ib-range input').first().fill('2026-04-05');
-  await page.click('.cp-drawer-filter button:has-text("查询")');
-  await page.waitForTimeout(200);
-  results['filter.time'] = (await trs.count()) === 0;
-  await page.click('.cp-drawer-filter button:has-text("重置")');
-  await page.waitForTimeout(200);
-  results['filter.reset'] = (await trs.count()) === 6;
+  results['filter.noTime'] = (await page.locator('.cp-drawer-filter .ib-range').count()) === 0 && (await page.locator('.cp-drawer-filter button').count()) === 5;
 
   /* 失败重试：重新发布中 → 已完成 */
   await page.locator('.cp-drawer .tc-link:has-text("重试")').first().click();
