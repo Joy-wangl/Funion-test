@@ -71,6 +71,37 @@ const OUT = 'd:/Qoder/Funion';
     results['func.moreExpand'] = true;
   }
 
+  /* 视图层：分段切换 + 顶栏联动 + 零命中隐藏 */
+  results['view.seg'] = (await page.locator('.rc-viewseg button').count()) === 4;
+  await page.click('.rc-viewseg button:has-text("仅异常")');
+  await page.waitForTimeout(150);
+  const alertRows = await page.locator('.rc-acc-table tbody tr').count();
+  const alertHit = await page.locator('.rc-acc-table tbody tr.alert').count();
+  results['view.alertFilter'] = alertRows >= 1 && alertRows === alertHit;
+  results['view.hideZeroHit'] = (await page.locator('.rc-store').count()) === 1;
+  await page.screenshot({ path: `${OUT}/rc-live-alertview.png` });
+  /* 顶栏未回复点击联动分段器 */
+  await page.click('.rc-viewseg button:has-text("全部")');
+  await page.waitForTimeout(100);
+  await page.click('.rc-live-stat.click >> nth=1');
+  await page.waitForTimeout(150);
+  results['view.statLink'] = (await page.locator('.rc-viewseg button.on:has-text("仅异常")').count()) === 1;
+  /* 在线视图：每行 PC 圆点亮 */
+  await page.click('.rc-viewseg button:has-text("仅在线")');
+  await page.waitForTimeout(150);
+  const onRows = await page.locator('.rc-acc-table tbody tr').count();
+  const onPc = await page.locator('.rc-acc-table tbody tr .rc-td-net .rc-net:first-child.on').count();
+  results['view.onlineFilter'] = onRows >= 1 && onPc === onRows;
+  /* 离线视图：无行 PC 圆点亮 */
+  await page.click('.rc-viewseg button:has-text("仅离线")');
+  await page.waitForTimeout(150);
+  const offRows = await page.locator('.rc-acc-table tbody tr').count();
+  const offPc = await page.locator('.rc-acc-table tbody tr .rc-td-net .rc-net:first-child.on').count();
+  results['view.offlineFilter'] = offRows >= 1 && offPc === 0;
+  /* 还原全部视图 */
+  await page.click('.rc-viewseg button:has-text("全部")');
+  await page.waitForTimeout(150);
+
   await page.screenshot({ path: `${OUT}/rc-live-refactor.png`, fullPage: false });
   await browser.close();
   let fail = 0;
