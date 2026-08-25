@@ -2350,7 +2350,7 @@ button.ap-dev:hover { background: #eceef2; }
 .ap-rev-reply p { margin: 0; font-size: 13px; color: #445066; line-height: 1.6; }
 
 /* ---------- 消息中心 ---------- */
-.ap-msg-tabs { display: flex; gap: 26px; padding: 12px 24px 0; border-bottom: 1px solid #e8ebf1; }
+.ap-msg-tabs { display: flex; gap: 26px; padding: 16px 24px 0; border-bottom: 1px solid #e8ebf1; }
 
 .ap-msg-tabs button {
   position: relative; padding: 4px 2px 12px; border: none; background: transparent;
@@ -2372,7 +2372,7 @@ button.ap-dev:hover { background: #eceef2; }
 }
 
 /* 使用者反馈子模块切换：应用评价 / 意见反馈 */
-.ap-msg-subtabs { display: flex; gap: 8px; padding: 12px 24px 0; }
+.ap-msg-subtabs { display: flex; gap: 8px; padding: 16px 24px; }
 
 .ap-msg-subtabs button {
   position: relative; padding: 5px 14px; border: 1px solid #e4e5eb; border-radius: 16px;
@@ -2401,6 +2401,8 @@ button.ap-dev:hover { background: #eceef2; }
 
 .ap-drawer-msg { width: min(1280px, 96vw); }
 
+.ap-drawer-msg .ap-drawer-head { padding: 18px 24px; }
+
 .ap-msg-head-act { display: flex; align-items: center; gap: 14px; }
 
 /* 双栏：左维度栏 + 右消息列表 */
@@ -2408,12 +2410,12 @@ button.ap-dev:hover { background: #eceef2; }
 
 .ap-msg-rail {
   width: 240px; flex-shrink: 0; overflow-y: auto;
-  border-right: 1px solid #f0f1f4; padding: 16px 12px;
-  display: flex; flex-direction: column; gap: 8px;
+  border-right: 1px solid #f0f1f4; padding: 20px 14px;
+  display: flex; flex-direction: column; gap: 10px;
 }
 
 .ap-msg-rail button {
-  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px;
   border: none; border-radius: 8px; background: transparent; cursor: pointer;
   font-family: inherit; font-size: 13px; color: #445066; text-align: left;
 }
