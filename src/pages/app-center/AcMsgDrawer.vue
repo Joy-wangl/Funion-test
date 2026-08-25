@@ -210,7 +210,7 @@ const shownFb = computed(() => (props.msgFbType === 'all' ? props.fbList : props
               </span>
             </div>
             <div class="ap-msg-rev">
-              <span>{{ f.user }}</span>
+              <span>{{ f.user }}<em class="ap-fb-type" :class="f.type === 'BUG反馈' ? 'bug' : f.type === '体验反馈' ? 'ux' : ''">{{ f.type }}</em></span>
               <p>{{ f.content }}</p>
               <div v-if="f.images && f.images.length > 0" class="ap-rev-imgs">
                 <img v-for="(src, i) in f.images" :key="i" :src="src" alt="">

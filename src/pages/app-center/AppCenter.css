@@ -2463,6 +2463,8 @@ button.ap-dev:hover { background: #eceef2; }
 
 .ap-msg-rev > span:first-child { font-size: 13px; font-weight: 600; color: #333; }
 
+.ap-msg-rev > span:first-child .ap-fb-type { margin-left: 6px; vertical-align: 1px; font-weight: 400; }
+
 .ap-msg-stars { display: flex; gap: 2px; }
 
 .ap-msg-rev p { margin: 0; font-size: 13px; color: #555; line-height: 1.6; }

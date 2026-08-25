@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /* 应用详情（1:1 移植自 AppCenter.tsx 的 renderDetail） */
 import { computed, onMounted, ref, watch } from 'vue';
-import { actKind, creatorDept, versionOf, type AppItem, type AppReview } from './data';
+import { actKind, creatorDept, versionOf, APP_FB_TYPES, type AppItem, type AppReview } from './data';
 import { IC, agoText, featLinesOf } from './acHelpers';
+import { pushToast } from '../../components/toast';
 import AcSvg from './AcSvg.vue';
 import AcLogo from './AcLogo.vue';
 import AcPreviewCard from './AcPreviewCard.vue';
@@ -19,7 +20,8 @@ const props = defineProps<{
   onAct: (a: AppItem, e: MouseEvent) => void;
   onToggleFav: (id: string, e: MouseEvent) => void;
   onOpenRevAll: (id: string) => void;
-  onOpenFbAll: (id: string) => void;
+  /** 提交意见反馈（隐私，仅开发者可见） */
+  onSubmitFb: (app: AppItem, type: string, text: string, images: string[]) => void;
   onOpenVerHist: (id: string) => void;
   onOpenDevDrawer: (id: string) => void;
   /** 提交评价：返回 true 表示成功（子组件随即可重置表单） */
@@ -73,6 +75,35 @@ const onPickImages = (e: Event) => {
   input.value = '';
 };
 
+/* 意见反馈提交表单（详情页入口；提交后开发者在消息中心查看与回复） */
+const fbOpen = ref(false);
+const fbType = ref(APP_FB_TYPES[0]);
+const fbText = ref('');
+const fbImages = ref<string[]>([]);
+const openFbForm = () => {
+  fbType.value = APP_FB_TYPES[0]; fbText.value = ''; fbImages.value = [];
+  fbOpen.value = true;
+};
+const submitFbForm = () => {
+  const text = fbText.value.trim();
+  if (!text) { pushToast('请先填写反馈内容'); return; }
+  props.onSubmitFb(props.app, fbType.value, text, fbImages.value);
+  fbOpen.value = false;
+};
+const onPickFbImages = (e: Event) => {
+  const input = e.target as HTMLInputElement;
+  const files = Array.from(input.files ?? []).slice(0, 3 - fbImages.value.length);
+  files.forEach((f) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (fbImages.value.length >= 3) return;
+      fbImages.value = [...fbImages.value, String(reader.result)];
+    };
+    reader.readAsDataURL(f);
+  });
+  input.value = '';
+};
+
 /* 评价横滑条：超出展示区域的左右滚动交互 */
 const revStripRef = ref<HTMLDivElement | null>(null);
 const revNav = ref({ l: false, r: false });
@@ -102,7 +133,7 @@ watch(() => props.reviews, () => requestAnimationFrame(updateRevNav));
         </div>
       </div>
       <div class="ap-detail-head-acts">
-        <button type="button" class="ap-detail-fb" title="意见反馈 · 用户隐私反馈，仅开发者可见" @click="onOpenFbAll(app.id)">
+        <button type="button" class="ap-detail-fb" title="提交意见反馈 · 仅开发者可见" @click="openFbForm()">
           <span>意见反馈</span>
           <b><AcSvg :d="IC.edit" :size="16" /></b>
         </button>
@@ -268,5 +299,42 @@ watch(() => props.reviews, () => requestAnimationFrame(updateRevNav));
         :on-open-menu="onOpenMenu"
       />
     </div>
+
+    <!-- 意见反馈提交抽屉（与系统反馈同构：类型 + 内容 + 配图） -->
+    <Teleport to="body">
+      <template v-if="fbOpen">
+        <div class="ap-drawer-mask" @click="fbOpen = false" />
+        <div class="ap-drawer">
+          <div class="ap-drawer-head">
+            <span>意见反馈<em class="ap-vis priv">隐私</em></span>
+            <button type="button" @click="fbOpen = false"><AcSvg :d="IC.clear" :size="14" /></button>
+          </div>
+          <div class="ap-drawer-body">
+            <div class="ap-fb-field-label">反馈类型</div>
+            <div class="ap-fb-types">
+              <button v-for="t in APP_FB_TYPES" :key="t" type="button" :class="fbType === t ? 'on' : ''" @click="fbType = t">{{ t }}</button>
+            </div>
+            <div class="ap-fb-field-label">反馈内容</div>
+            <textarea v-model="fbText" class="ap-fb-input" rows="6" :maxlength="200" placeholder="描述你的使用体验、遇到的问题或新需求，提交后仅开发者可见…" />
+            <div class="ap-fb-tip right">{{ fbText.length }}/200</div>
+            <div class="ap-rev-up">
+              <span v-for="(src, i) in fbImages" :key="i" class="ap-rev-thumb">
+                <img :src="src" alt="">
+                <button type="button" title="移除图片" @click="fbImages = fbImages.filter((_, j) => j !== i)"><AcSvg :d="IC.clear" :size="10" /></button>
+              </span>
+              <label v-if="fbImages.length < 3" class="ap-rev-up-add">
+                <AcSvg :d="IC.plus" :size="14" />
+                <em>添加图片</em>
+                <input type="file" accept="image/*" multiple @change="onPickFbImages">
+              </label>
+            </div>
+          </div>
+          <div class="ap-drawer-foot">
+            <button type="button" class="ap-btn-plain" @click="fbOpen = false">取 消</button>
+            <button type="button" class="ap-btn-blue" @click="submitFbForm()">提交反馈</button>
+          </div>
+        </div>
+      </template>
+    </Teleport>
   </div>
 </template>

@@ -445,10 +445,13 @@ const replyAppFb = (id: string) => {
   pushToast('回复已提交');
 };
 
-/* 详情页意见反馈入口：打开消息中心并定位到 使用者反馈-意见反馈-当前应用 */
-const openFbAll = (appId: string) => {
-  msgTab.value = 'app'; msgSubTab.value = 'feedback'; msgAppFilter.value = appId; msgStatus.value = 'all';
-  msgOpen.value = true;
+/* 详情页意见反馈提交：写入应用级反馈列表（开发者在消息中心-使用者反馈-意见反馈 查看与回复） */
+const submitAppFb = (app: AppItem, type: string, text: string, images: string[]) => {
+  appFbList.value = [{
+    id: `af-${Date.now()}`, appId: app.id, user: '七妮妮', content: text,
+    date: today(), version: versionOf(app), type, images: images.length ? images : undefined, read: false,
+  }, ...appFbList.value];
+  pushToast('反馈已提交，仅开发者可见');
 };
 
 /* 系统开发者：以应用市场管理员身份回复意见反馈 */
@@ -649,7 +652,7 @@ const gotoFbDetail = (fbId: string) => {
           :on-act="act"
           :on-toggle-fav="toggleFav"
           :on-open-rev-all="(id) => (revAllId = id)"
-          :on-open-fb-all="openFbAll"
+          :on-submit-fb="submitAppFb"
           :on-open-ver-hist="(id) => (verHistId = id)"
           :on-open-dev-drawer="(id) => (devDrawerId = id)"
           :on-submit-review="submitReview"
