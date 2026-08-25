@@ -8,7 +8,6 @@ import MoreActions from '../../components/MoreActions.vue';
 import CreateDetailPage from './CreateDetailPage.vue';
 import { useAnchorPop } from '../../hooks/useAnchorPop';
 import { pushToast } from '../../components/toast';
-import { stepsOf, stepLabels } from './tcSteps';
 
 /** 商品创建页 */
 const rows = ref<CreateRow[]>(createTaobaoRows);
@@ -241,7 +240,6 @@ const confirmDelete = () => {
           <thead>
             <tr>
               <th>商品信息</th>
-              <th>节点状态</th>
               <th>任务状态</th>
               <th>店铺</th>
               <th>创建人</th>
@@ -257,15 +255,6 @@ const confirmDelete = () => {
                   <div>
                     <div class="tc-pname">{{ s.name }}</div>
                     <div class="tc-pmeta">竞品链接：{{ s.linkId }}</div>
-                  </div>
-                </div>
-              </td>
-              <td>
-                <div class="tc-steps">
-                  <div v-for="(st, si) in stepsOf(s)" :key="stepLabels[si]" class="tc-step">
-                    <i :class="st.dot" />
-                    <span>{{ stepLabels[si] }}：</span>
-                    <span class="v" :class="st.cls">{{ st.v }}</span>
                   </div>
                 </div>
               </td>

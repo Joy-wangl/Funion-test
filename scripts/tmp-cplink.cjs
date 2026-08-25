@@ -30,8 +30,8 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
 
   /* 表头九列与截图一致 */
   const headTexts = await page.locator('.cp-drawer thead th').allTextContents();
-  const expectHead = ['商品信息', '节点状态', '任务状态', '店铺', '创建人', '执行起止时间 ⇅', '操作'];
-  results['drawer.head'] = headTexts.length === 7 && expectHead.every((h, i) => headTexts[i].replace(/\s+/g, ' ').trim() === h);
+  const expectHead = ['商品信息', '任务状态', '店铺', '创建人', '执行起止时间 ⇅', '操作'];
+  results['drawer.head'] = headTexts.length === 6 && expectHead.every((h, i) => headTexts[i].replace(/\s+/g, ' ').trim() === h);
 
   /* 行数据：6 条记录，含节点状态与平台店铺 */
   const trs = page.locator('.cp-drawer tbody tr');
@@ -39,8 +39,8 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
   const firstText = ((await trs.first().textContent()) || '').replace(/\s+/g, '');
   results['drawer.cells'] =
     firstText.includes('玫瑰小众轻奢复古耳钉') &&
-    firstText.includes('获取链接信息') &&
     firstText.includes('小二的店铺') &&
+    !firstText.includes('获取链接信息') &&
     !firstText.includes('快速铺货') &&
     !firstText.includes('淘宝') &&
     !firstText.includes('智能') &&
