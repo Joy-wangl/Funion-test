@@ -60,13 +60,31 @@ const viewCounts = computed(() => {
 });
 /* 非全部视图：不分页直出命中行，零命中店铺整组隐藏 */
 const shownStores = computed(() => shown.value
-  .map((s) => ({ ...s, rows: view.value === 'all' ? (expanded.value[s.name] ? s.accounts : s.accounts.slice(0, PAGE)) : s.accounts.filter(matchView) }))
+  .map((s) => {
+    let rows = view.value === 'all' ? (expanded.value[s.name] ? s.accounts : s.accounts.slice(0, PAGE)) : s.accounts.filter(matchView);
+    if (sort.value) {
+      const { key, dir } = sort.value;
+      rows = [...rows].sort((a, b) => (dir === 'asc' ? sortVal(a, key) - sortVal(b, key) : sortVal(b, key) - sortVal(a, key)));
+    }
+    return { ...s, rows };
+  })
   .filter((s) => view.value === 'all' || s.rows.length > 0));
 const emptyViewText = computed(() => (view.value === 'alert' ? '暂无异常账号（未回复）'
   : view.value === 'online' ? '暂无在线账号'
     : view.value === 'offline' ? '暂无离线账号' : '暂无数据'));
 /* 顶栏统计可点：再点还原全部 */
 const statView = (v: ViewMode) => { view.value = view.value === v ? 'all' : v; };
+
+/* ── 列排序：在线状态/接待/未回复（降序 → 升序 → 取消） ── */
+type SortKey = 'net' | 'recv' | 'unreplied';
+const sort = ref<{ key: SortKey; dir: 'asc' | 'desc' } | null>(null);
+const sortVal = (a: LiveStore['accounts'][number], key: SortKey) =>
+  key === 'net' ? (a.pc ? 2 : 0) + (a.mobile ? 1 : 0) : key === 'recv' ? a.recv : a.unreplied;
+const clickSort = (key: SortKey) => {
+  sort.value = !sort.value || sort.value.key !== key ? { key, dir: 'desc' }
+    : sort.value.dir === 'desc' ? { key, dir: 'asc' } : null;
+};
+const sortCls = (key: SortKey) => (sort.value && sort.value.key === key ? sort.value.dir : '');
 
 const switchPlatform = (p: LivePlatform) => {
   platform.value = p;
@@ -174,9 +192,9 @@ const query = () => {
           <thead>
             <tr>
               <th>账号</th>
-              <th>在线状态</th>
-              <th>接待</th>
-              <th>未回复</th>
+              <th class="rc-th-sort" :class="sortCls('net')" title="点击排序：在线端数" @click="clickSort('net')">在线状态<span class="rc-sorter"><i class="up" /><i class="down" /></span></th>
+              <th class="rc-th-sort" :class="sortCls('recv')" title="点击排序：接待数" @click="clickSort('recv')">接待<span class="rc-sorter"><i class="up" /><i class="down" /></span></th>
+              <th class="rc-th-sort" :class="sortCls('unreplied')" title="点击排序：未回复数" @click="clickSort('unreplied')">未回复<span class="rc-sorter"><i class="up" /><i class="down" /></span></th>
               <th>接待开关</th>
               <th>登录开关</th>
               <th>操作</th>

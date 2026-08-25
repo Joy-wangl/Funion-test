@@ -71,6 +71,26 @@ const OUT = 'd:/Qoder/Funion';
     results['func.moreExpand'] = true;
   }
 
+  /* 排序：三列 sorter / 未回复 降序 → 升序 → 取消还原 */
+  const firstTable = page.locator('.rc-store').first();
+  results['sort.three'] = (await firstTable.locator('thead th.rc-th-sort').count()) === 3;
+  const thUn = firstTable.locator('thead th', { hasText: '未回复' });
+  const colVals = () => firstTable.locator('.rc-acc-table tbody tr').evaluateAll((trs) => trs.map((tr) => Number(tr.children[3].textContent)));
+  const rowIds = () => firstTable.locator('.rc-acc-table tbody tr').evaluateAll((trs) => trs.map((tr) => tr.querySelector('.rc-acc-id').textContent));
+  const origIds = await rowIds();
+  await thUn.click();
+  await page.waitForTimeout(150);
+  let sv = await colVals();
+  results['sort.descFirst'] = (await thUn.evaluate((el) => el.classList.contains('desc'))) && sv[0] === 1 && sv.every((n, i) => i === 0 || sv[i - 1] >= n);
+  await thUn.click();
+  await page.waitForTimeout(150);
+  sv = await colVals();
+  results['sort.ascNext'] = (await thUn.evaluate((el) => el.classList.contains('asc'))) && sv.every((n, i) => i === 0 || sv[i - 1] <= n);
+  await thUn.click();
+  await page.waitForTimeout(150);
+  const thCls = await thUn.evaluate((el) => el.className);
+  results['sort.reset'] = !thCls.includes('asc') && !thCls.includes('desc') && JSON.stringify(await rowIds()) === JSON.stringify(origIds);
+
   /* 视图层：分段切换 + 顶栏联动 + 零命中隐藏 */
   results['view.seg'] = (await page.locator('.rc-viewseg button').count()) === 4;
   await page.click('.rc-viewseg button:has-text("仅异常")');

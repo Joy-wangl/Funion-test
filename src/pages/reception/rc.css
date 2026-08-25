@@ -726,6 +726,15 @@
 }
 .rc-acc-table thead th:first-child { border-radius: var(--radius-md) 0 0 var(--radius-md); }
 .rc-acc-table thead th:last-child { border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+/* 列排序（Ant sorter 双 caret，激活主色） */
+.rc-acc-table thead th.rc-th-sort { cursor: pointer; user-select: none; transition: color .15s; }
+.rc-acc-table thead th.rc-th-sort:hover { color: var(--primary); }
+.rc-sorter { display: inline-flex; flex-direction: column; gap: 2px; margin-left: 6px; vertical-align: middle; }
+.rc-sorter i { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; }
+.rc-sorter i.up { border-bottom: 5px solid var(--color-text-4); }
+.rc-sorter i.down { border-top: 5px solid var(--color-text-4); }
+.rc-acc-table thead th.asc .rc-sorter i.up { border-bottom-color: var(--primary); }
+.rc-acc-table thead th.desc .rc-sorter i.down { border-top-color: var(--primary); }
 .rc-acc-table tbody td { padding: 10px 12px; border-bottom: 1px solid var(--color-border-2); vertical-align: middle; }
 .rc-acc-table tbody tr { transition: background .15s; }
 .rc-acc-table tbody tr:hover { background: var(--color-fill-2); }
