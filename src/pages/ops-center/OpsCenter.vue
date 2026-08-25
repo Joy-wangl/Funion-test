@@ -31,9 +31,17 @@ type PageKey =
   | 'permOpsGroup'
   | 'aiAssistant';
 
-/** 智能运营中心外壳：侧边栏 + 顶栏 + 页面切换（与 preview.html 行为一致） */
-const props = defineProps<{ sidebarCollapsed: boolean }>();
-const emit = defineEmits<{ (e: 'toggle'): void }>();
+/** 智能运营中心外壳：侧边栏 + 页面切换（与 preview.html 行为一致） */
+/* 收起状态仅本模块内生效并独立持久化，不影响其他顶部 tab 的侧边栏 */
+const readOpsCollapsed = () => {
+  try { return localStorage.getItem('funion:opsSidebarCollapsed') === 'true'; }
+  catch { return false; }
+};
+const collapsed = ref(readOpsCollapsed());
+const toggleCollapsed = () => {
+  collapsed.value = !collapsed.value;
+  try { localStorage.setItem('funion:opsSidebarCollapsed', String(collapsed.value)); } catch { /* 忽略隐私模式异常 */ }
+};
 
 /* 默认展示内部商机（原版末尾 showPage('internal')） */
 const page = ref<PageKey>('internal');
@@ -67,9 +75,9 @@ const pageCls = (key: PageKey) => `page ${page.value === key ? 'show' : ''}`;
 /* 收起态点击分组：展开侧边栏并打开该组；展开态：正常收合切换 */
 const toggleGroup = (key: 'product' | 'create' | 'permission') => {
   const open = key === 'product' ? productOpen : key === 'create' ? createOpen : permissionOpen;
-  if (props.sidebarCollapsed) {
+  if (collapsed.value) {
     open.value = true;
-    emit('toggle');
+    toggleCollapsed();
   } else {
     open.value = !open.value;
   }
@@ -103,7 +111,7 @@ let railTimer: number | undefined;
 const railStay = () => { if (railTimer) { window.clearTimeout(railTimer); railTimer = undefined; } };
 const railLeave = () => { railStay(); railTimer = window.setTimeout(() => { railPop.value = null; }, 150); };
 const railEnter = (key: string, e: MouseEvent) => {
-  if (!props.sidebarCollapsed) return;
+  if (!collapsed.value) return;
   railStay();
   const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
   railPop.value = { key, x: r.right + 6, y: Math.min(r.top, window.innerHeight - 200) };
@@ -114,13 +122,13 @@ const railGo = (sub: RailSub) => {
   else if (sub.target) onSubnav(sub.name, sub.target);
   else onSubnav(sub.name);
 };
-watch(() => props.sidebarCollapsed, () => { railPop.value = null; });
+watch(collapsed, () => { railPop.value = null; });
 </script>
 
 <template>
-  <div class="ops-center app" :class="sidebarCollapsed ? 'side-collapsed' : ''">
+  <div class="ops-center app" :class="collapsed ? 'side-collapsed' : ''">
     <div class="ops-body">
-      <aside class="side" :class="sidebarCollapsed ? 'collapsed' : ''">
+      <aside class="side" :class="collapsed ? 'collapsed' : ''">
         <div class="side-head">
           <div class="ops-brand">
             <img class="ops-brand-logo" src="/logos/ops-logo.png" alt="" />
@@ -220,9 +228,9 @@ watch(() => props.sidebarCollapsed, () => { railPop.value = null; });
           <button
             type="button"
             class="ops-side-toggle"
-            :class="sidebarCollapsed ? 'is-collapsed' : ''"
-            :title="sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'"
-            @click="emit('toggle')"
+            :class="collapsed ? 'is-collapsed' : ''"
+            :title="collapsed ? '展开侧边栏' : '收起侧边栏'"
+            @click="toggleCollapsed()"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
               <path d="M15 6l-6 6 6 6" />
@@ -303,7 +311,7 @@ watch(() => props.sidebarCollapsed, () => { railPop.value = null; });
     <!-- 收起态路由图标悬浮气泡：路由名 + 二级路由（有则展示），点击跳转 -->
     <Teleport to="body">
       <div
-        v-if="railPop && sidebarCollapsed && railMenus[railPop.key]"
+        v-if="railPop && collapsed && railMenus[railPop.key]"
         class="ops-rail-pop"
         :style="{ left: `${railPop.x}px`, top: `${railPop.y}px` }"
         @mouseenter="railStay()"

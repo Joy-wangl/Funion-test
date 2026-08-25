@@ -74,7 +74,7 @@ defineExpose({ toggleSidebar });
       </template>
       <template v-else-if="activeTabKey === 'ops-center'">
         <main class="app-content">
-          <OpsCenter :sidebar-collapsed="sidebarCollapsed" @toggle="toggleSidebar" />
+          <OpsCenter />
         </main>
       </template>
     </div>
