@@ -2378,7 +2378,10 @@ button.ap-dev:hover { background: #eceef2; }
 /* 使用者反馈子模块切换：与左上角 tab 同形式（文字 + 角标 + 下划线高亮） */
 .ap-msg-subtabs { display: flex; gap: 26px; }
 
-.ap-msg-filter .ap-fb-tabs { margin-top: 10px; }
+/* 回复状态筛选改为下拉：与子 tab 同行、右端对齐 */
+.ap-msg-filter-row { display: flex; align-items: center; }
+
+.ap-msg-status-select { margin-left: auto; }
 
 .ap-msg-subtabs button {
   position: relative; padding: 4px 2px 10px; border: none; background: transparent;

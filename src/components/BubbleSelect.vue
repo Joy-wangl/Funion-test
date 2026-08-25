@@ -92,7 +92,8 @@ const menuStyle = computed<CSSProperties>(() => pos.value
     left: `${pos.value.left}px`,
     minWidth: `${pos.value.width}px`,
     maxHeight: `${pos.value.maxH}px`,
-    zIndex: 2500,
+    /* 浮层 Teleport 到 body，层级需高于抽屉（ap-drawer 2801）/气泡（ap-bubble 4000）等容器 */
+    zIndex: 4100,
     transform: pos.value.up ? 'translateY(-100%)' : undefined,
   }
   : { position: 'fixed', visibility: 'hidden' });

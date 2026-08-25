@@ -5,6 +5,7 @@ import { FB_TYPES, APP_FB_TYPES, type AppItem, type AppFeedback, type AppReview,
 import { IC, agoText } from './acHelpers';
 import AcSvg from './AcSvg.vue';
 import AcLogo from './AcLogo.vue';
+import BubbleSelect from '../../components/BubbleSelect.vue';
 
 const props = defineProps<{
   apps: AppItem[];
@@ -78,6 +79,13 @@ const shownAppFbs = computed(() => (props.msgAppFilter === 'all' ? props.appFbLi
 const shownFb = computed(() => (props.msgFbType === 'all' ? props.fbList : props.fbList.filter((f) => f.type === props.msgFbType))
   .filter((f) => props.msgStatus === 'all' || (props.msgStatus === 'pending' ? f.msgs[f.msgs.length - 1].role === 'user' : f.msgs[f.msgs.length - 1].role === 'admin')));
 
+/* 回复状态筛选：下拉形式（label ↔ key 映射） */
+const STATUS_LABEL: Record<'all' | 'pending' | 'done', string> = { all: '全部', pending: '待回复', done: '已回复' };
+const onStatusPick = (label: string) => {
+  const key = (['all', 'pending', 'done'] as const).find((k) => STATUS_LABEL[k] === label);
+  if (key) props.onMsgStatus(key);
+};
+
 /* 意见反馈回复配图：最多 3 张，与反馈提交同构 */
 const onPickAfReplyImages = (e: Event) => {
   const input = e.target as HTMLInputElement;
@@ -150,19 +158,22 @@ const onPickAfReplyImages = (e: Event) => {
       </div>
       <div class="ap-msg-list">
         <div class="ap-msg-filter">
-          <!-- 子模块切换在上，回复状态在下 -->
-          <div v-if="msgTab === 'app'" class="ap-msg-subtabs">
-            <button type="button" :class="msgSubTab === 'review' ? 'on' : ''" @click="onMsgSubTab('review')">
-              应用评价<em class="ap-vis pub">公开</em><i v-if="unreadReviewCount > 0">{{ unreadReviewCount }}</i>
-            </button>
-            <button type="button" :class="msgSubTab === 'feedback' ? 'on' : ''" @click="onMsgSubTab('feedback')">
-              意见反馈<em class="ap-vis priv">隐私</em><i v-if="unreadAppFbCount > 0">{{ unreadAppFbCount }}</i>
-            </button>
-          </div>
-          <div class="ap-fb-tabs">
-            <button type="button" :class="msgStatus === 'all' ? 'on' : ''" @click="onMsgStatus('all')">全部</button>
-            <button type="button" :class="msgStatus === 'pending' ? 'on' : ''" @click="onMsgStatus('pending')">待回复</button>
-            <button type="button" :class="msgStatus === 'done' ? 'on' : ''" @click="onMsgStatus('done')">已回复</button>
+          <!-- 子模块切换在左，回复状态下拉置于该行右端 -->
+          <div class="ap-msg-filter-row">
+            <div v-if="msgTab === 'app'" class="ap-msg-subtabs">
+              <button type="button" :class="msgSubTab === 'review' ? 'on' : ''" @click="onMsgSubTab('review')">
+                应用评价<em class="ap-vis pub">公开</em><i v-if="unreadReviewCount > 0">{{ unreadReviewCount }}</i>
+              </button>
+              <button type="button" :class="msgSubTab === 'feedback' ? 'on' : ''" @click="onMsgSubTab('feedback')">
+                意见反馈<em class="ap-vis priv">隐私</em><i v-if="unreadAppFbCount > 0">{{ unreadAppFbCount }}</i>
+              </button>
+            </div>
+            <BubbleSelect
+              class-name="ap-msg-status-select"
+              :value="STATUS_LABEL[msgStatus]"
+              :options="['全部', '待回复', '已回复']"
+              @change="onStatusPick"
+            />
           </div>
           <div v-if="msgTab === 'app' && msgSubTab === 'feedback'" class="ap-fb-types ap-msg-af-types">
             <button type="button" :class="msgAfType === 'all' ? 'on' : ''" @click="onMsgAfType('all')">全部</button>
