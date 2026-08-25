@@ -69,13 +69,18 @@ const OUT = 'd:/Qoder/Funion';
   results['vis.fbTypeTags'] = (await page.locator('.ap-msg-list .ap-fb-type').count()) >= 3;
   await page.screenshot({ path: `${OUT}/vue-verify-acfb-drawer.png` });
 
-  /* 回复闭环：回复新反馈 */
+  /* 回复闭环：回复新反馈（支持配图上传） */
   await firstCard.locator('.ap-msg-foot .ap-link').click();
   await page.waitForSelector('.ap-msg-replyform');
-  await page.fill('.ap-msg-replyform input', '已收到，卡顿原因排查中，下个版本修复。');
+  await page.fill('.ap-msg-replyform .ap-rf-row input', '已收到，卡顿原因排查中，下个版本修复。');
+  const PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  await page.locator('.ap-msg-replyform input[type="file"]').setInputFiles({ name: 'reply.png', mimeType: 'image/png', buffer: Buffer.from(PNG_B64, 'base64') });
+  await page.waitForSelector('.ap-msg-replyform .ap-rev-thumb');
+  results['reply.upload'] = (await page.locator('.ap-msg-replyform .ap-rev-thumb').count()) === 1;
   await page.click('.ap-msg-replyform button.on');
   await page.waitForTimeout(200);
   results['drawer.replyDone'] = (await page.locator('.ap-msg-list .ap-msg-reply:has-text("开发者回复")').count()) >= 1;
+  results['reply.imgShown'] = (await firstCard.locator('.ap-msg-reply .ap-rev-imgs img').count()) === 1;
 
   /* 切回应用评价子tab：评价卡片（星级）正常 */
   await page.click('.ap-msg-subtabs button:has-text("应用评价")');

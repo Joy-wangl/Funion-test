@@ -74,6 +74,7 @@ const fbReplyText = ref('');
 const appFbList = ref<AppFeedback[]>(seedAppFeedbacks);
 const msgSubTab = ref<'review' | 'feedback'>('review');
 const afReplyId = ref<string | null>(null);
+const afReplyImages = ref<string[]>([]);
 const afReplyText = ref('');
 const devDrawerId = ref<string | null>(null);
 const loadingId = ref<string | null>(null);
@@ -440,8 +441,8 @@ const replyReview = (id: string) => {
 const replyAppFb = (id: string) => {
   const text = afReplyText.value.trim();
   if (!text) { pushToast('请先填写回复内容'); return; }
-  appFbList.value = appFbList.value.map((f) => (f.id === id ? { ...f, reply: { text, date: today() } } : f));
-  afReplyId.value = null; afReplyText.value = '';
+  appFbList.value = appFbList.value.map((f) => (f.id === id ? { ...f, reply: { text, date: today(), images: afReplyImages.value.length ? afReplyImages.value : undefined } } : f));
+  afReplyId.value = null; afReplyText.value = ''; afReplyImages.value = [];
   pushToast('回复已提交');
 };
 
@@ -1035,8 +1036,10 @@ const gotoFbDetail = (fbId: string) => {
       :on-reply-review="replyReview"
       :af-reply-id="afReplyId"
       :af-reply-text="afReplyText"
-      :on-af-reply-id="(id) => (afReplyId = id)"
+      :af-reply-images="afReplyImages"
+      :on-af-reply-id="(id) => { afReplyId = id; if (!id) { afReplyText = ''; afReplyImages = []; } }"
       :on-af-reply-text="(v) => (afReplyText = v)"
+      :on-af-reply-images="(imgs) => (afReplyImages = imgs)"
       :on-reply-app-fb="replyAppFb"
       :on-fb-reply-id="(id) => (fbReplyId = id)"
       :on-fb-reply-text="(v) => (fbReplyText = v)"

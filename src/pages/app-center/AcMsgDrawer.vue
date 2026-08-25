@@ -23,6 +23,7 @@ const props = defineProps<{
   rvReplyText: string;
   afReplyId: string | null;
   afReplyText: string;
+  afReplyImages: string[];
   fbReplyId: string | null;
   fbReplyText: string;
   onClose: () => void;
@@ -42,6 +43,7 @@ const props = defineProps<{
   onReplyReview: (id: string) => void;
   onAfReplyId: (id: string | null) => void;
   onAfReplyText: (v: string) => void;
+  onAfReplyImages: (imgs: string[]) => void;
   onReplyAppFb: (id: string) => void;
   onFbReplyId: (id: string | null) => void;
   onFbReplyText: (v: string) => void;
@@ -72,6 +74,21 @@ const shownAppFbs = computed(() => (props.msgAppFilter === 'all' ? props.appFbLi
   .filter((f) => props.msgStatus === 'all' || (props.msgStatus === 'pending' ? !f.reply : !!f.reply)));
 const shownFb = computed(() => (props.msgFbType === 'all' ? props.fbList : props.fbList.filter((f) => f.type === props.msgFbType))
   .filter((f) => props.msgStatus === 'all' || (props.msgStatus === 'pending' ? f.msgs[f.msgs.length - 1].role === 'user' : f.msgs[f.msgs.length - 1].role === 'admin')));
+
+/* 意见反馈回复配图：最多 3 张，与反馈提交同构 */
+const onPickAfReplyImages = (e: Event) => {
+  const input = e.target as HTMLInputElement;
+  const files = Array.from(input.files ?? []).slice(0, 3 - props.afReplyImages.length);
+  files.forEach((f) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (props.afReplyImages.length >= 3) return;
+      props.onAfReplyImages([...props.afReplyImages, String(reader.result)]);
+    };
+    reader.readAsDataURL(f);
+  });
+  input.value = '';
+};
 </script>
 
 <template>
@@ -216,12 +233,31 @@ const shownFb = computed(() => (props.msgFbType === 'all' ? props.fbList : props
                 <img v-for="(src, i) in f.images" :key="i" :src="src" alt="">
               </div>
             </div>
-            <div v-if="f.reply" class="ap-msg-reply"><i>开发者回复 · {{ agoText(f.reply.date) }}</i><p>{{ f.reply.text }}</p></div>
-            <div v-else-if="afReplyId === f.id" class="ap-msg-replyform">
-              <input :value="afReplyText" :maxlength="100" placeholder="回复该用户的意见反馈" @input="onAfReplyText(($event.target as HTMLInputElement).value)">
-              <div>
-                <button type="button" @click="onAfReplyId(null)">取消</button>
-                <button type="button" class="on" @click="onReplyAppFb(f.id)">回复</button>
+            <div v-if="f.reply" class="ap-msg-reply">
+              <i>开发者回复 · {{ agoText(f.reply.date) }}</i>
+              <p>{{ f.reply.text }}</p>
+              <div v-if="f.reply.images && f.reply.images.length > 0" class="ap-rev-imgs">
+                <img v-for="(src, i) in f.reply.images" :key="i" :src="src" alt="">
+              </div>
+            </div>
+            <div v-else-if="afReplyId === f.id" class="ap-msg-replyform col">
+              <div class="ap-rf-row">
+                <input :value="afReplyText" :maxlength="100" placeholder="回复该用户的意见反馈" @input="onAfReplyText(($event.target as HTMLInputElement).value)">
+                <div>
+                  <button type="button" @click="onAfReplyId(null)">取消</button>
+                  <button type="button" class="on" @click="onReplyAppFb(f.id)">回复</button>
+                </div>
+              </div>
+              <div class="ap-rev-up">
+                <span v-for="(src, i) in afReplyImages" :key="i" class="ap-rev-thumb">
+                  <img :src="src" alt="">
+                  <button type="button" title="移除图片" @click="onAfReplyImages(afReplyImages.filter((_, j) => j !== i))"><AcSvg :d="IC.clear" :size="10" /></button>
+                </span>
+                <label v-if="afReplyImages.length < 3" class="ap-rev-up-add">
+                  <AcSvg :d="IC.plus" :size="14" />
+                  <em>添加图片</em>
+                  <input type="file" accept="image/*" multiple @change="onPickAfReplyImages">
+                </label>
               </div>
             </div>
             <div v-else class="ap-msg-foot">

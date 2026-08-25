@@ -257,7 +257,7 @@ export interface AppFeedback {
   /** 反馈分类（APP_FB_TYPES 之一） */
   type: string;
   /** 开发者回复（消息中心-意见反馈闭环） */
-  reply?: { text: string; date: string };
+  reply?: { text: string; date: string; images?: string[] };
   /** 反馈配图（最多 3 张） */
   images?: string[];
   /** 创作者已读标记（false=未读） */

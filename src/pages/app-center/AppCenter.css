@@ -2495,6 +2495,13 @@ button.ap-dev:hover { background: #eceef2; }
 
 .ap-msg-replyform button.on { border-color: var(--color-primary); background: var(--color-primary); color: #fff; }
 
+/* 意见反馈回复表单：输入行 + 配图行 纵排 */
+.ap-msg-replyform.col { flex-direction: column; align-items: stretch; gap: 8px; }
+.ap-msg-replyform .ap-rf-row { display: flex; align-items: center; gap: 8px; }
+.ap-msg-replyform .ap-rf-row > div { display: flex; gap: 6px; }
+.ap-msg-replyform .ap-rev-up { margin-top: 0; }
+.ap-msg-replyform .ap-rev-thumb, .ap-msg-replyform .ap-rev-up-add { width: 64px; height: 64px; }
+
 .ap-msg-foot { margin-top: 8px; text-align: right; }
 
 .ap-msg-thread { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
