@@ -283,6 +283,7 @@ const confirmDelete = () => {
         <table class="tc-table tc-detail">
           <thead>
             <tr>
+              <th>任务ID</th>
               <th>任务状态</th>
               <th class="cp-sort-th" @click="pubSortAsc = !pubSortAsc">执行起止时间 <span class="tc-sort">⇅</span></th>
               <th>操作</th>
@@ -290,6 +291,7 @@ const confirmDelete = () => {
           </thead>
           <tbody>
             <tr v-for="s in visiblePubTasks" :key="s.id">
+              <td class="cp-task-id">{{ String(s.id).padStart(6, '0') }}</td>
               <td>
                 <span class="tc-st" :class="pubStatusCls[s.status]"><i />{{ pubStatusText[s.status] }}</span>
               </td>

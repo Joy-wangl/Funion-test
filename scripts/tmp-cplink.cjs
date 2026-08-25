@@ -37,10 +37,11 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
 
   /* 表格仅保留变化列 */
   const headTexts = await page.locator('.cp-drawer thead th').allTextContents();
-  const expectHead = ['任务状态', '执行起止时间 ⇅', '操作'];
-  results['drawer.head'] = headTexts.length === 3 && expectHead.every((h, i) => headTexts[i].replace(/\s+/g, ' ').trim() === h);
+  const expectHead = ['任务ID', '任务状态', '执行起止时间 ⇅', '操作'];
+  results['drawer.head'] = headTexts.length === 4 && expectHead.every((h, i) => headTexts[i].replace(/\s+/g, ' ').trim() === h);
   const bodyText = ((await page.locator('.cp-drawer tbody').textContent()) || '').replace(/\s+/g, '');
   results['drawer.noConstCols'] = !bodyText.includes('小二的店铺') && !bodyText.includes('张三') && !bodyText.includes('竞品链接');
+  results['drawer.taskId'] = bodyText.includes('000100') && bodyText.includes('000105');
 
   const trs = page.locator('.cp-drawer tbody tr');
   results['drawer.rows'] = (await trs.count()) === 6;
