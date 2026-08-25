@@ -315,21 +315,18 @@ const confirmDelete = () => {
               {{ t.text }}<span class="tc-count">{{ t.n }}</span>
             </button>
           </div>
-          <button class="primaryBtn cp-repub-btn" @click="batchRetryPub">重新发布</button>
+          <button class="cp-repub-btn" @click="batchRetryPub">重新发布</button>
         </div>
         <table class="tc-table tc-detail">
           <thead>
             <tr>
-              <th :style="{ width: '64px' }">
-                <label class="tc-check">
-                  <input
-                    type="checkbox"
-                    class="ib-check"
-                    :checked="allFailedChecked"
-                    @change="toggleAllFailed(($event.target as HTMLInputElement).checked)"
-                  />
-                  选择
-                </label>
+              <th :style="{ width: '48px' }">
+                <input
+                  type="checkbox"
+                  class="ib-check"
+                  :checked="allFailedChecked"
+                  @change="toggleAllFailed(($event.target as HTMLInputElement).checked)"
+                />
               </th>
               <th>任务ID</th>
               <th>任务状态</th>

@@ -3788,36 +3788,37 @@
 .cp-drawer-summary {
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: 14px 16px;
-  background: #fbfcfe;
-  border: 1px solid #eef1f6;
+  gap: 12px;
+  padding: 16px 20px;
+  background: var(--color-fill);
+  border: 1px solid var(--color-border-2);
   border-radius: 10px;
-  margin: 0 0 14px;
+  margin: 0 0 16px;
 }
 .cp-sum-main {
   flex: 1;
   min-width: 0;
 }
 .cp-sum-name {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
-  color: #232b3a;
+  color: var(--color-text);
+  line-height: 1.5;
 }
 .cp-sum-meta {
   margin-top: 4px;
   font-size: 12px;
-  color: #8a94a6;
+  color: var(--color-text-3);
 }
 .cp-sum-item label {
   display: block;
   font-size: 12px;
-  color: #8a94a6;
-  margin-bottom: 4px;
+  color: var(--color-text-3);
+  margin-bottom: 6px;
 }
 .cp-sum-item span {
   font-size: 13px;
-  color: #465064;
+  color: var(--color-text-2);
 }
 /* 抽屉查询条件行 */
 .cp-drawer-filter {
@@ -3828,7 +3829,7 @@
 }
 .cp-task-id {
   font-family: Consolas, Menlo, monospace;
-  color: #465064;
+  color: var(--color-text-2);
 }
 /* 抽屉内 tab 轻量变体：去卡片边框与固定高度，与查询行同排 */
 .cp-f-tabs.tc-tabs {
@@ -3843,8 +3844,21 @@
   height: 40px;
   font-size: 13px;
 }
+/* 批量重新发布：基础层 .btn primary 同规格（token 色 + 6px 圆角 + 32px 高） */
 .cp-repub-btn {
   margin-left: auto;
+  height: 32px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.cp-repub-btn:hover {
+  background: var(--color-primary-hover);
 }
 /* 按钮行：快速铺货/竞品导入 与创建时间列（末列）左对齐，重置/查询 右对齐；窄屏回退整体右对齐 */
 .ops-center .create-actions-inline {

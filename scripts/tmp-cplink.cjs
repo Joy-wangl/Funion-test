@@ -44,8 +44,11 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
 
   /* 表格列：任务ID/任务状态/节点状态/执行起止时间/操作 */
   const headTexts = await page.locator('.cp-drawer thead th').allTextContents();
-  const expectHead = ['选择', '任务ID', '任务状态', '节点状态', '执行起止时间 ⇅', '操作'];
-  results['drawer.head'] = headTexts.length === 6 && expectHead.every((h, i) => headTexts[i].replace(/\s+/g, ' ').trim() === h);
+  const expectHead = ['任务ID', '任务状态', '节点状态', '执行起止时间 ⇅', '操作'];
+  results['drawer.head'] =
+    headTexts.length === 6 &&
+    headTexts[0].trim() === '' &&
+    expectHead.every((h, i) => headTexts[i + 1].replace(/\s+/g, ' ').trim() === h);
   const bodyText = ((await page.locator('.cp-drawer tbody').textContent()) || '').replace(/\s+/g, '');
   results['drawer.nodeSteps'] = bodyText.includes('获取链接信息') && bodyText.includes('商品发布店铺');
   results['drawer.noConstCols'] = !bodyText.includes('小二的店铺') && !bodyText.includes('张三') && !bodyText.includes('竞品链接');
