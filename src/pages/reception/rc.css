@@ -714,7 +714,15 @@
 }
 
 /* ── 账号表：Ant 风格高密监控表（表头承载语义，单元格只留状态） ── */
-.rc-acc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rc-acc-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+/* 固定列宽：各店铺卡同内容列位置一致（左对齐），不随内容伸缩 */
+.rc-acc-table thead th:nth-child(1) { width: 34%; }
+.rc-acc-table thead th:nth-child(2) { width: 18%; }
+.rc-acc-table thead th:nth-child(3) { width: 9%; }
+.rc-acc-table thead th:nth-child(4) { width: 10%; }
+.rc-acc-table thead th:nth-child(5) { width: 10%; }
+.rc-acc-table thead th:nth-child(6) { width: 10%; }
+.rc-acc-table thead th:nth-child(7) { width: 9%; }
 .rc-acc-table thead th {
   padding: 8px 12px;
   background: var(--color-fill);
