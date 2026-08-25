@@ -176,10 +176,11 @@ const query = () => {
           <span class="rc-store-m"><b>{{ s.recv }}</b> 接待</span>
           <span class="rc-store-m"><b :class="{ red: s.unreplied > 0 }">{{ s.unreplied }}</b> 未回复</span>
           <span class="rc-store-m"><b>{{ s.rate }}</b> 回复率</span>
-          <a class="rc-link">平台订单分流</a>
           <span class="rc-store-sp" />
           <span class="rc-store-m">总数 {{ s.total }}</span>
           <button class="btn sm" @click="updatedAt = nowStr()">刷新店铺数据</button>
+          <!-- 平台订单分流＝操作按钮，置于头部右端操作组 -->
+          <a class="rc-link">平台订单分流</a>
         </header>
 
         <div class="rc-noroute">
