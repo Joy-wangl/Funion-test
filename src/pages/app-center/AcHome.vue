@@ -54,15 +54,18 @@ const rankData = computed(() => {
   const rangedApps = rangeDays === 0 ? props.apps : props.apps.filter((a) => now - new Date(a.release).getTime() <= rangeDays * 86400000);
   const personMap = new Map<string, number>();
   rangedApps.forEach((a) => personMap.set(a.creator, (personMap.get(a.creator) ?? 0) + 1));
-  const personRank = [...personMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const personUsers = new Map<string, number>();
+  rangedApps.forEach((a) => personUsers.set(a.creator, (personUsers.get(a.creator) ?? 0) + usageInRange(a, props.rankRange)));
+  /* 个人榜：默认按创作数降序，创作数相同按使用人次降序 */
+  const personRank = [...personMap.entries()]
+    .sort((a, b) => (b[1] - a[1]) || ((personUsers.get(b[0]) ?? 0) - (personUsers.get(a[0]) ?? 0)))
+    .slice(0, 10);
   const deptMap = new Map<string, number>();
   rangedApps.forEach((a) => {
     const d = creatorDept(a.creator);
     deptMap.set(d, (deptMap.get(d) ?? 0) + 1);
   });
   const deptRank = [...deptMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
-  const personUsers = new Map<string, number>();
-  rangedApps.forEach((a) => personUsers.set(a.creator, (personUsers.get(a.creator) ?? 0) + usageInRange(a, props.rankRange)));
   const deptUsers = new Map<string, number>();
   rangedApps.forEach((a) => {
     const d = creatorDept(a.creator);
