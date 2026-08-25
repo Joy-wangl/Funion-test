@@ -16,6 +16,10 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
   await page.click('.subnav:has-text("淘宝")');
   await page.waitForSelector('.create-table tbody tr');
 
+  /* 商品创建列表：◉ 图标已删 + 列表截图看列间隔 */
+  results['list.noIcon'] = !(((await page.locator('.create-table .create-link').first().textContent()) || '').includes('◉'));
+  await page.screenshot({ path: 'd:/Qoder/Funion/vue-verify-cplist.png' });
+
   /* 更多菜单 */
   await page.locator('.create-ops a:has-text("更多")').first().click();
   await page.waitForSelector('.add-pop');

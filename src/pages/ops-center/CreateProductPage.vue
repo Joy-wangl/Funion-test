@@ -203,7 +203,6 @@ const confirmDelete = () => {
                     </div>
                     <div class="create-link">
                       竞品链接：<a href="#"><Ellipsis class-name="create-link-ell" :text="row.link" /></a>
-                      <span>◉</span>
                     </div>
                   </div>
                 </div>

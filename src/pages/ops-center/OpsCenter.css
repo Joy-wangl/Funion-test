@@ -3571,22 +3571,23 @@
 }
 .ops-center .create-table {
   min-width: 1080px;
+  table-layout: fixed;
 }
 /* 列表行距适当放宽，垂直呼吸感更舒适 */
 .ops-center .create-table tbody td {
   padding: 16px 12px;
 }
-/* 列宽按比例铺满全表，避免首列抻出大片空白 */
-.ops-center .create-table th:nth-child(1) { width: 38%; }
+/* 列宽按比例铺满全表，固定布局下列间隔均匀 */
+.ops-center .create-table th:nth-child(1) { width: 34%; }
 .ops-center .create-table th:nth-child(2) { width: 16%; }
 .ops-center .create-table th:nth-child(3) { width: 12%; }
 .ops-center .create-table th:nth-child(4) { width: 22%; }
-.ops-center .create-table th:nth-child(5) { width: 12%; }
+.ops-center .create-table th:nth-child(5) { width: 16%; }
 .ops-center .create-product {
   display: flex;
   gap: 12px;
   align-items: flex-start;
-  min-width: 420px;
+  min-width: 0;
 }
 .ops-center .create-thumb {
   width: 52px;
@@ -3613,6 +3614,7 @@
 }
 .ops-center .create-link a {
   min-width: 0;
+  overflow: hidden;
 }
 .ops-center .create-link-ell {
   max-width: 480px;
@@ -3624,6 +3626,8 @@
   font-size: 12px;
   color: #8b92a1;
   line-height: 1.6;
+  white-space: nowrap;
+  min-width: 0;
 }
 .ops-center .create-link a {
   color: var(--color-primary);
