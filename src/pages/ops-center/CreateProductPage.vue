@@ -8,6 +8,7 @@ import MoreActions from '../../components/MoreActions.vue';
 import CreateDetailPage from './CreateDetailPage.vue';
 import { useAnchorPop } from '../../hooks/useAnchorPop';
 import { pushToast } from '../../components/toast';
+import { stepsOf, stepLabels } from './tcSteps';
 
 /** 商品创建页 */
 const rows = ref<CreateRow[]>(createTaobaoRows);
@@ -28,15 +29,36 @@ const openPubDrawer = (row: CreateRow) => {
   resetPubFilter();
 };
 const sortedPubTasks = computed(() => [...pubTasks.value].sort((a, b) => (pubSortAsc.value ? a.startTime.localeCompare(b.startTime) : b.startTime.localeCompare(a.startTime))));
-/* 商品/店铺/创建人抽屉内全局唯一，抽到列表上方摘要区；表格只留变化列并提供查询条件 */
+/* 商品全局唯一，抽到列表上方摘要区；表格留变化列，任务状态 tab 切换 + 执行时间查询 */
 const pubLinkId = computed(() => pubTasks.value[0]?.linkId ?? '');
-const pubStatusOptions = ['全部', '已完成', '执行中', '队列中', '执行失败'];
-const pubStatus = ref('全部');
-const pubStatusApplied = ref('全部');
-const visiblePubTasks = computed(() => sortedPubTasks.value.filter((s) => pubStatusApplied.value === '全部' || pubStatusText[s.status] === pubStatusApplied.value));
+const pubLastUpdate = computed(() => {
+  const ts = pubTasks.value.map((t) => t.endTime).filter(Boolean).sort();
+  return ts.length ? ts[ts.length - 1] : '–';
+});
+const pubTab = ref('all');
+const pubTabs = computed(() => [
+  { key: 'all', text: '全部', n: pubTasks.value.length },
+  { key: 'queued', text: '队列中', n: pubTasks.value.filter((s) => s.status === 'queued').length },
+  { key: 'running', text: '执行中', n: pubTasks.value.filter((s) => s.status === 'running').length },
+  { key: 'done', text: '已完成', n: pubTasks.value.filter((s) => s.status === 'success').length },
+  { key: 'failed', text: '执行失败', n: pubTasks.value.filter((s) => s.status === 'failed').length },
+]);
+const pubTimeStart = ref('2026-04-04');
+const pubTimeEnd = ref('2026-04-04');
+const pubTimeApplied = ref({ s: '2026-04-04', e: '2026-04-04' });
+const onPubSearch = () => {
+  pubTimeApplied.value = { s: pubTimeStart.value, e: pubTimeEnd.value };
+};
+const visiblePubTasks = computed(() => sortedPubTasks.value.filter((s) => {
+  const okTab = pubTab.value === 'all' || (pubTab.value === 'done' ? s.status === 'success' : s.status === pubTab.value);
+  const d = (s.startTime || '').slice(0, 10);
+  return okTab && d >= pubTimeApplied.value.s && d <= pubTimeApplied.value.e;
+}));
 const resetPubFilter = () => {
-  pubStatus.value = '全部';
-  pubStatusApplied.value = '全部';
+  pubTab.value = 'all';
+  pubTimeStart.value = '2026-04-04';
+  pubTimeEnd.value = '2026-04-04';
+  pubTimeApplied.value = { s: '2026-04-04', e: '2026-04-04' };
 };
 const pubStatusText: Record<SubTask['status'], string> = { queued: '队列中', running: '执行中', success: '已完成', failed: '执行失败' };
 const pubStatusCls: Record<SubTask['status'], string> = { queued: 'queued', running: 'running', success: 'done', failed: 'failed' };
@@ -243,7 +265,7 @@ const confirmDelete = () => {
     <div v-if="pubRow" class="cp-drawer-mask" @click="pubRow = null" />
     <div v-if="pubRow" class="cp-drawer">
       <div class="cp-drawer-head">
-        <span>关联发布任务 · {{ pubRow.title }}</span>
+        <span>关联发布任务</span>
         <button type="button" title="关闭" @click="pubRow = null">✕</button>
       </div>
       <div class="cp-drawer-body">
@@ -254,30 +276,33 @@ const confirmDelete = () => {
             <div class="cp-sum-meta">竞品链接：{{ pubLinkId }}</div>
           </div>
           <div class="cp-sum-item">
-            <label>店铺</label>
-            <span>小二的店铺</span>
-          </div>
-          <div class="cp-sum-item">
-            <label>创建人</label>
-            <span>张三 2026-04-04 12:00:00</span>
+            <label>最近更新时间</label>
+            <span>{{ pubLastUpdate }}</span>
           </div>
         </div>
         <div class="cp-drawer-filter">
-          <div class="cp-f-field">
-            <label>任务状态</label>
-            <BubbleSelect class-name="ib-select" :value="pubStatus" :options="pubStatusOptions" @change="(v: string) => (pubStatus = v)" />
+          <div class="tc-tabs cp-f-tabs">
+            <button
+              v-for="t in pubTabs"
+              :key="t.key"
+              class="tc-tab"
+              :class="pubTab === t.key ? 'active' : ''"
+              @click="pubTab = t.key"
+            >
+              {{ t.text }}<span class="tc-count">{{ t.n }}</span>
+            </button>
           </div>
           <div class="cp-f-field">
             <label>执行时间</label>
             <div class="ib-range">
-              <input class="ib-input" value="2026-04-04" />
+              <input v-model="pubTimeStart" class="ib-input" />
               <span>→</span>
-              <input class="ib-input" value="2026-04-04" />
+              <input v-model="pubTimeEnd" class="ib-input" />
             </div>
           </div>
           <div class="cp-f-acts">
             <button class="lightBtn" @click="resetPubFilter">重置</button>
-            <button class="primaryBtn" @click="pubStatusApplied = pubStatus">查询</button>
+            <button class="primaryBtn" @click="onPubSearch">查询</button>
           </div>
         </div>
         <table class="tc-table tc-detail">
@@ -285,6 +310,7 @@ const confirmDelete = () => {
             <tr>
               <th>任务ID</th>
               <th>任务状态</th>
+              <th>节点状态</th>
               <th class="cp-sort-th" @click="pubSortAsc = !pubSortAsc">执行起止时间 <span class="tc-sort">⇅</span></th>
               <th>操作</th>
             </tr>
@@ -294,6 +320,15 @@ const confirmDelete = () => {
               <td class="cp-task-id">{{ String(s.id).padStart(6, '0') }}</td>
               <td>
                 <span class="tc-st" :class="pubStatusCls[s.status]"><i />{{ pubStatusText[s.status] }}</span>
+              </td>
+              <td>
+                <div class="tc-steps" :class="s.status === 'queued' ? 'gray' : ''">
+                  <div v-for="(st, si) in stepsOf(s)" :key="stepLabels[si]" class="tc-step">
+                    <i :class="st.dot" />
+                    <span>{{ stepLabels[si] }}：</span>
+                    <span class="v" :class="st.cls">{{ st.v }}</span>
+                  </div>
+                </div>
               </td>
               <td>
                 <div class="tc-cell-lines">

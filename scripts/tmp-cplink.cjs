@@ -22,24 +22,28 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
   const menuTexts = await page.locator('.add-pop .add-pop-item').allTextContents();
   results['menu.items'] = menuTexts.join(',') === '关联发布任务,复制,删除';
 
-  /* 打开抽屉 */
+  /* 打开抽屉：标题仅保留功能名 */
   await page.click('.add-pop .add-pop-item:has-text("关联发布任务")');
   await page.waitForSelector('.cp-drawer');
-  results['drawer.title'] = ((await page.locator('.cp-drawer-head span').textContent()) || '').includes('玫瑰小众轻奢复古耳钉');
+  const headTitle = ((await page.locator('.cp-drawer-head span').textContent()) || '').trim();
+  results['drawer.title'] = headTitle === '关联发布任务';
 
-  /* 摘要区：全局唯一信息上提（商品/竞品链接/店铺/创建人） */
+  /* 摘要区：商品+竞品链接+最近更新时间，无店铺/创建人 */
   const sumText = ((await page.locator('.cp-drawer-summary').textContent()) || '').replace(/\s+/g, '');
   results['drawer.summary'] =
     sumText.includes('玫瑰小众轻奢复古耳钉') &&
     sumText.includes('竞品链接') &&
-    sumText.includes('小二的店铺') &&
-    sumText.includes('张三');
+    sumText.includes('最近更新时间') &&
+    sumText.includes('2026-04-0412:06:00') &&
+    !sumText.includes('小二的店铺') &&
+    !sumText.includes('张三');
 
-  /* 表格仅保留变化列 */
+  /* 表格列：任务ID/任务状态/节点状态/执行起止时间/操作 */
   const headTexts = await page.locator('.cp-drawer thead th').allTextContents();
-  const expectHead = ['任务ID', '任务状态', '执行起止时间 ⇅', '操作'];
-  results['drawer.head'] = headTexts.length === 4 && expectHead.every((h, i) => headTexts[i].replace(/\s+/g, ' ').trim() === h);
+  const expectHead = ['任务ID', '任务状态', '节点状态', '执行起止时间 ⇅', '操作'];
+  results['drawer.head'] = headTexts.length === 5 && expectHead.every((h, i) => headTexts[i].replace(/\s+/g, ' ').trim() === h);
   const bodyText = ((await page.locator('.cp-drawer tbody').textContent()) || '').replace(/\s+/g, '');
+  results['drawer.nodeSteps'] = bodyText.includes('获取链接信息') && bodyText.includes('商品发布店铺');
   results['drawer.noConstCols'] = !bodyText.includes('小二的店铺') && !bodyText.includes('张三') && !bodyText.includes('竞品链接');
   results['drawer.taskId'] = bodyText.includes('000100') && bodyText.includes('000105');
 
@@ -57,13 +61,20 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
   const after = await startCell(trs.first());
   results['sort.toggle'] = before !== after;
 
-  /* 查询条件：任务状态筛选执行失败 → 2 行；重置恢复 6 行 */
-  await page.locator('.cp-drawer-filter .bselect-trigger').click();
-  await page.waitForSelector('.bselect-menu');
-  await page.locator('.bselect-menu .bselect-opt', { hasText: '执行失败' }).click();
+  /* 任务状态 tab 切换：执行失败 → 2 行；全部 → 6 行 */
+  results['tabs.count'] = (await page.locator('.cp-drawer-filter .tc-tab').count()) === 5;
+  await page.locator('.cp-drawer-filter .tc-tab', { hasText: '执行失败' }).click();
+  await page.waitForTimeout(200);
+  results['tabs.failed'] = (await trs.count()) === 2;
+  await page.locator('.cp-drawer-filter .tc-tab', { hasText: '全部' }).click();
+  await page.waitForTimeout(200);
+  results['tabs.all'] = (await trs.count()) === 6;
+
+  /* 执行时间查询：起始改 04-05 → 0 行；重置恢复 6 行 */
+  await page.locator('.cp-drawer-filter .ib-range input').first().fill('2026-04-05');
   await page.click('.cp-drawer-filter button:has-text("查询")');
   await page.waitForTimeout(200);
-  results['filter.failed'] = (await trs.count()) === 2 && (await page.locator('.cp-drawer .tc-link:has-text("重试")').count()) === 2;
+  results['filter.time'] = (await trs.count()) === 0;
   await page.click('.cp-drawer-filter button:has-text("重置")');
   await page.waitForTimeout(200);
   results['filter.reset'] = (await trs.count()) === 6;

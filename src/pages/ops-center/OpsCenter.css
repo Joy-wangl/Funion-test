@@ -3837,6 +3837,19 @@
   font-family: Consolas, Menlo, monospace;
   color: #465064;
 }
+/* 抽屉内 tab 轻量变体：去卡片边框与固定高度，与查询行同排 */
+.cp-f-tabs.tc-tabs {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  height: 40px;
+  gap: 20px;
+}
+.cp-f-tabs .tc-tab {
+  height: 40px;
+  font-size: 13px;
+}
 /* 按钮行：快速铺货/竞品导入 与创建时间列（末列）左对齐，重置/查询 右对齐；窄屏回退整体右对齐 */
 .ops-center .create-actions-inline {
   grid-column: 1 / -1;
