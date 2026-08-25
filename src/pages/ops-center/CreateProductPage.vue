@@ -241,12 +241,10 @@ const confirmDelete = () => {
           <thead>
             <tr>
               <th>商品信息</th>
-              <th>任务类型</th>
               <th>节点状态</th>
               <th>任务状态</th>
-              <th>平台/店铺</th>
+              <th>店铺</th>
               <th>创建人</th>
-              <th>渠道</th>
               <th class="cp-sort-th" @click="pubSortAsc = !pubSortAsc">执行起止时间 <span class="tc-sort">⇅</span></th>
               <th>操作</th>
             </tr>
@@ -262,7 +260,6 @@ const confirmDelete = () => {
                   </div>
                 </div>
               </td>
-              <td>快速铺货</td>
               <td>
                 <div class="tc-steps">
                   <div v-for="(st, si) in stepsOf(s)" :key="stepLabels[si]" class="tc-step">
@@ -275,19 +272,13 @@ const confirmDelete = () => {
               <td>
                 <span class="tc-st" :class="pubStatusCls[s.status]"><i />{{ pubStatusText[s.status] }}</span>
               </td>
-              <td>
-                <div class="tc-cell-lines">
-                  <div>{{ s.platform }}</div>
-                  <div>{{ s.shop }}</div>
-                </div>
-              </td>
+              <td>{{ s.shop }}</td>
               <td>
                 <div class="tc-cell-lines">
                   <div>张三</div>
                   <div>2026-04-04 12:00:00</div>
                 </div>
               </td>
-              <td>智能</td>
               <td>
                 <div class="tc-cell-lines">
                   <div>起：{{ s.startTime || '–' }}</div>
