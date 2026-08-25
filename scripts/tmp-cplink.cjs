@@ -40,8 +40,8 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
 
   /* 表格列：任务ID/任务状态/节点状态/执行起止时间/操作 */
   const headTexts = await page.locator('.cp-drawer thead th').allTextContents();
-  const expectHead = ['任务ID', '任务状态', '节点状态', '执行起止时间 ⇅', '操作'];
-  results['drawer.head'] = headTexts.length === 5 && expectHead.every((h, i) => headTexts[i].replace(/\s+/g, ' ').trim() === h);
+  const expectHead = ['选择', '任务ID', '任务状态', '节点状态', '执行起止时间 ⇅', '操作'];
+  results['drawer.head'] = headTexts.length === 6 && expectHead.every((h, i) => headTexts[i].replace(/\s+/g, ' ').trim() === h);
   const bodyText = ((await page.locator('.cp-drawer tbody').textContent()) || '').replace(/\s+/g, '');
   results['drawer.nodeSteps'] = bodyText.includes('获取链接信息') && bodyText.includes('商品发布店铺');
   results['drawer.noConstCols'] = !bodyText.includes('小二的店铺') && !bodyText.includes('张三') && !bodyText.includes('竞品链接');
@@ -50,8 +50,16 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
   const trs = page.locator('.cp-drawer tbody tr');
   results['drawer.rows'] = (await trs.count()) === 6;
   results['drawer.retry'] = (await page.locator('.cp-drawer .tc-link:has-text("重试")').count()) === 2;
+  /* 选择列：仅失败行可勾选 */
+  const rowChecks = page.locator('.cp-drawer tbody .ib-check');
+  results['check.onlyFailed'] = (await rowChecks.count()) === 2;
   await page.waitForTimeout(300);
   await page.screenshot({ path: 'd:/Qoder/Funion/vue-verify-cplink.png' });
+
+  /* 未勾选点重新发布 → 提示 */
+  await page.click('.cp-drawer-filter .cp-repub-btn');
+  await page.waitForTimeout(200);
+  results['batch.emptyHint'] = (await page.locator(':text("请先勾选")').count()) >= 1;
 
   /* 执行起止时间排序 */
   const startCell = async (t) => ((((await t.textContent()) || '').match(/起：([^止]+)/) || [])[1] || '').trim();
@@ -69,15 +77,27 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
   await page.locator('.cp-drawer-filter .tc-tab', { hasText: '全部' }).click();
   await page.waitForTimeout(200);
   results['tabs.all'] = (await trs.count()) === 6;
-  results['filter.noTime'] = (await page.locator('.cp-drawer-filter .ib-range').count()) === 0 && (await page.locator('.cp-drawer-filter button').count()) === 5;
+  results['filter.noTime'] = (await page.locator('.cp-drawer-filter .ib-range').count()) === 0 && (await page.locator('.cp-drawer-filter button').count()) === 6;
 
-  /* 失败重试：重新发布中 → 已完成 */
+  /* 失败重试：重新发布中 → 已完成，勾选随失败态清除 */
   await page.locator('.cp-drawer .tc-link:has-text("重试")').first().click();
   await page.waitForTimeout(300);
   results['retry.toasting'] = (await page.locator(':text("重新发布中")').count()) >= 1;
   await page.waitForTimeout(1500);
   results['retry.done'] = (await page.locator('.cp-drawer .tc-link:has-text("重试")').count()) === 1;
   results['retry.toast'] = (await page.locator(':text("重新发布成功")').count()) >= 1;
+  results['check.afterRetry'] = (await rowChecks.count()) === 1;
+
+  /* 表头全选勾选剩余失败 → 批量重新发布 */
+  await page.locator('.cp-drawer thead .ib-check').click();
+  await page.waitForTimeout(200);
+  results['check.all'] = (await rowChecks.count()) === 1 && (await rowChecks.first().isChecked());
+  await page.click('.cp-drawer-filter .cp-repub-btn');
+  await page.waitForTimeout(1600);
+  results['batch.done'] =
+    (await page.locator('.cp-drawer .tc-link:has-text("重试")').count()) === 0 &&
+    (await page.locator('.cp-drawer tbody .ib-check').count()) === 0 &&
+    (await page.locator(':text("重新发布成功")').count()) >= 1;
 
   await browser.close();
   let fail = 0;

@@ -3839,6 +3839,9 @@
   height: 40px;
   font-size: 13px;
 }
+.cp-repub-btn {
+  margin-left: auto;
+}
 /* 按钮行：快速铺货/竞品导入 与创建时间列（末列）左对齐，重置/查询 右对齐；窄屏回退整体右对齐 */
 .ops-center .create-actions-inline {
   grid-column: 1 / -1;

@@ -27,6 +27,7 @@ const openPubDrawer = (row: CreateRow) => {
   pubTasks.value = buildCreatePubTasks(row, rows.value.indexOf(row) + 1);
   pubSortAsc.value = true;
   resetPubFilter();
+  pubChecked.value = [];
 };
 const sortedPubTasks = computed(() => [...pubTasks.value].sort((a, b) => (pubSortAsc.value ? a.startTime.localeCompare(b.startTime) : b.startTime.localeCompare(a.startTime))));
 /* 商品全局唯一，抽到列表上方摘要区；表格留变化列，任务状态 tab 即切即筛 */
@@ -49,11 +50,45 @@ const visiblePubTasks = computed(() => sortedPubTasks.value.filter((s) => {
 const resetPubFilter = () => {
   pubTab.value = 'all';
 };
+/* 选择列：仅失败任务可勾选，勾选后支持批量重新发布 */
+const pubChecked = ref<number[]>([]);
+const failedVisible = computed(() => visiblePubTasks.value.filter((s) => s.status === 'failed'));
+const allFailedChecked = computed(() => failedVisible.value.length > 0 && failedVisible.value.every((s) => pubChecked.value.includes(s.id)));
+const togglePubCheck = (id: number, on: boolean) => {
+  pubChecked.value = on ? [...pubChecked.value, id] : pubChecked.value.filter((x) => x !== id);
+};
+const toggleAllFailed = (on: boolean) => {
+  const ids = failedVisible.value.map((s) => s.id);
+  pubChecked.value = on ? [...new Set([...pubChecked.value, ...ids])] : pubChecked.value.filter((x) => !ids.includes(x));
+};
+const batchRetryPub = () => {
+  if (!pubChecked.value.length) {
+    pushToast('请先勾选需要重新发布的任务');
+    return;
+  }
+  const subs = pubTasks.value.filter((s) => pubChecked.value.includes(s.id));
+  pubChecked.value = [];
+  subs.forEach((s) => {
+    s.status = 'running';
+    s.endTime = '';
+  });
+  pushToast('重新发布中…');
+  window.setTimeout(() => {
+    subs.forEach((s) => {
+      s.status = 'success';
+      s.failStep = undefined;
+      s.reason = '';
+      s.endTime = '2026-04-04 12:09:00';
+    });
+    pushToast(`重新发布成功（${subs.length} 个任务）`);
+  }, 1200);
+};
 const pubStatusText: Record<SubTask['status'], string> = { queued: '队列中', running: '执行中', success: '已完成', failed: '执行失败' };
 const pubStatusCls: Record<SubTask['status'], string> = { queued: 'queued', running: 'running', success: 'done', failed: 'failed' };
 const retryPub = (sub: SubTask) => {
   sub.status = 'running';
   sub.endTime = '';
+  pubChecked.value = pubChecked.value.filter((x) => x !== sub.id);
   pushToast('重新发布中…');
   window.setTimeout(() => {
     sub.status = 'success';
@@ -281,10 +316,22 @@ const confirmDelete = () => {
               {{ t.text }}<span class="tc-count">{{ t.n }}</span>
             </button>
           </div>
+          <button class="primaryBtn cp-repub-btn" @click="batchRetryPub">重新发布</button>
         </div>
         <table class="tc-table tc-detail">
           <thead>
             <tr>
+              <th :style="{ width: '64px' }">
+                <label class="tc-check">
+                  <input
+                    type="checkbox"
+                    class="ib-check"
+                    :checked="allFailedChecked"
+                    @change="toggleAllFailed(($event.target as HTMLInputElement).checked)"
+                  />
+                  选择
+                </label>
+              </th>
               <th>任务ID</th>
               <th>任务状态</th>
               <th>节点状态</th>
@@ -294,6 +341,15 @@ const confirmDelete = () => {
           </thead>
           <tbody>
             <tr v-for="s in visiblePubTasks" :key="s.id">
+              <td>
+                <input
+                  v-if="s.status === 'failed'"
+                  type="checkbox"
+                  class="ib-check"
+                  :checked="pubChecked.includes(s.id)"
+                  @change="togglePubCheck(s.id, ($event.target as HTMLInputElement).checked)"
+                />
+              </td>
               <td class="cp-task-id">{{ String(s.id).padStart(6, '0') }}</td>
               <td>
                 <span class="tc-st" :class="pubStatusCls[s.status]"><i />{{ pubStatusText[s.status] }}</span>
