@@ -3827,9 +3827,9 @@
   gap: 14px;
   margin: 0 0 12px;
 }
-.cp-task-id {
+.ops-center .cp-task-id {
   font-family: Consolas, Menlo, monospace;
-  font-size: var(--fs-base);
+  font-size: var(--fs-md);
   color: var(--color-text-2);
 }
 /* 抽屉内 tab 轻量变体：去卡片边框与固定高度，与查询行同排 */
@@ -3846,7 +3846,7 @@
   font-size: 13px;
 }
 /* 批量重新发布：基础层 .btn primary 同规格（token 色 + 6px 圆角 + 32px 高） */
-.cp-repub-btn {
+.ops-center .cp-repub-btn {
   margin-left: auto;
   height: 32px;
   padding: 0 16px;
@@ -3854,11 +3854,11 @@
   border-radius: var(--radius-sm);
   background: var(--color-primary);
   color: #fff;
-  font-size: 13px;
+  font-size: var(--fs-md);
   cursor: pointer;
   transition: background 0.15s;
 }
-.cp-repub-btn:hover {
+.ops-center .cp-repub-btn:hover {
   background: var(--color-primary-hover);
 }
 /* 按钮行：快速铺货/竞品导入 与创建时间列（末列）左对齐，重置/查询 右对齐；窄屏回退整体右对齐 */
