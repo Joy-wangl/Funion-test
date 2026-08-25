@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { createTaobaoRows } from './data';
-import type { CreateRow } from './data';
+import { computed, ref } from 'vue';
+import { createTaobaoRows, parentTasks } from './data';
+import type { CreateRow, ParentTask } from './data';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
 import MoreActions from '../../components/MoreActions.vue';
 import CreateDetailPage from './CreateDetailPage.vue';
 import { useAnchorPop } from '../../hooks/useAnchorPop';
+import { pushToast } from '../../components/toast';
 
 /** 商品创建页 */
 const rows = ref<CreateRow[]>(createTaobaoRows);
@@ -16,6 +17,13 @@ const detail = ref<CreateRow | null>(null);
 const { pos: pubTip, open, close: closePubTip } = useAnchorPop();
 /* 删除二次确认 */
 const delRow = ref<CreateRow | null>(null);
+/* 关联发布任务：选择执行中/队列中的任务批次 */
+const linkRow = ref<CreateRow | null>(null);
+const linkableTasks = computed(() => parentTasks.filter((t) => t.status !== 'done').slice(0, 6));
+const linkTask = (t: ParentTask) => {
+  linkRow.value = null;
+  pushToast(`已关联发布任务「任务 #${t.id} · ${t.type}」`);
+};
 
 const openPubTip = (e: MouseEvent) => {
   e.stopPropagation();
@@ -144,6 +152,7 @@ const confirmDelete = () => {
                 </a>
                 <MoreActions
                   :items="[
+                    { label: '关联发布任务', onClick: () => (linkRow = row) },
                     { label: '复制', onClick: () => copyRow(row) },
                     { label: '删除', danger: true, onClick: () => (delRow = row) },
                   ]"
@@ -196,6 +205,23 @@ const confirmDelete = () => {
             >
               确认删除
             </button>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="linkRow" class="cp-modal-mask">
+        <div class="cp-modal">
+          <div class="cp-modal-title">关联发布任务</div>
+          <div class="cp-modal-text">将「{{ linkRow.title }}」关联到以下发布任务：</div>
+          <div class="cp-task-list">
+            <button v-for="t in linkableTasks" :key="t.id" type="button" class="cp-task-item" @click="linkTask(t)">
+              <b>任务 #{{ t.id }}</b>
+              <span>{{ t.type }} · {{ t.channel }}渠道</span>
+              <em>{{ t.status === 'running' ? '执行中' : '队列中' }}</em>
+            </button>
+          </div>
+          <div class="cp-modal-foot">
+            <button class="cp-btn" @click="linkRow = null">取消</button>
           </div>
         </div>
       </div>
