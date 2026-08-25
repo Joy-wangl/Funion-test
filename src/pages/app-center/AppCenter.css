@@ -486,6 +486,10 @@
 
 .ap-detail-fb:hover b { color: var(--color-primary); }
 
+.ap-detail-fb:disabled { opacity: 0.45; cursor: not-allowed; }
+.ap-detail-fb:disabled:hover { background: transparent; color: inherit; }
+.ap-detail-fb:disabled:hover b { color: #98a0b3; }
+
 .ap-detail-fav {
   display: flex;
   flex-direction: column;
@@ -2434,6 +2438,9 @@ button.ap-dev:hover { background: #eceef2; }
 .ap-msg-list { flex: 1; min-width: 0; overflow-y: auto; padding: 6px 0 12px; }
 
 .ap-msg-filter { padding: 14px 24px 6px; }
+
+/* 意见反馈类型筛选：置于待回复/已回复下方，选项与提交表单四分类一致 */
+.ap-msg-af-types { margin: 10px 0 0; }
 
 /* 未读状态 */
 .ap-msg-item.unread { background: #fbfcff; }

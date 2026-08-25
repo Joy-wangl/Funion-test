@@ -65,6 +65,7 @@ const msgOpen = ref(false);
 const msgTab = ref<'app' | 'sys'>('app');
 const msgAppFilter = ref('all');
 const msgFbType = ref('all');
+const msgAfType = ref('all');
 const msgStatus = ref<'all' | 'pending' | 'done'>('all');
 const rvReplyId = ref<string | null>(null);
 const rvReplyText = ref('');
@@ -1014,6 +1015,7 @@ const gotoFbDetail = (fbId: string) => {
       :msg-sub-tab="msgSubTab"
       :msg-app-filter="msgAppFilter"
       :msg-fb-type="msgFbType"
+      :msg-af-type="msgAfType"
       :msg-status="msgStatus"
       :rv-reply-id="rvReplyId"
       :rv-reply-text="rvReplyText"
@@ -1025,6 +1027,7 @@ const gotoFbDetail = (fbId: string) => {
       :on-msg-sub-tab="(t) => { msgSubTab = t; msgStatus = 'all'; }"
       :on-msg-app-filter="(id) => (msgAppFilter = id)"
       :on-msg-fb-type="(t) => (msgFbType = t)"
+      :on-msg-af-type="(t) => (msgAfType = t)"
       :on-msg-status="(s) => (msgStatus = s)"
       :on-mark-rev-read="markRevRead"
       :on-mark-af-read="markAppFbRead"

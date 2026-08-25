@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /* 消息中心抽屉：身份/维度/已读未读（1:1 移植自 AppCenter.tsx 的 msgOpen 分支） */
 import { computed } from 'vue';
-import { FB_TYPES, type AppItem, type AppFeedback, type AppReview, type FeedbackItem } from './data';
+import { FB_TYPES, APP_FB_TYPES, type AppItem, type AppFeedback, type AppReview, type FeedbackItem } from './data';
 import { IC, agoText } from './acHelpers';
 import AcSvg from './AcSvg.vue';
 import AcLogo from './AcLogo.vue';
@@ -18,6 +18,8 @@ const props = defineProps<{
   msgSubTab: 'review' | 'feedback';
   msgAppFilter: string;
   msgFbType: string;
+  /** 意见反馈类型筛选（APP_FB_TYPES + all） */
+  msgAfType: string;
   msgStatus: 'all' | 'pending' | 'done';
   rvReplyId: string | null;
   rvReplyText: string;
@@ -32,6 +34,7 @@ const props = defineProps<{
   onMsgSubTab: (t: 'review' | 'feedback') => void;
   onMsgAppFilter: (id: string) => void;
   onMsgFbType: (t: string) => void;
+  onMsgAfType: (t: string) => void;
   onMsgStatus: (s: 'all' | 'pending' | 'done') => void;
   onMarkRevRead: (id: string) => void;
   onMarkAfRead: (id: string) => void;
@@ -71,6 +74,7 @@ const railUnreadOf = (appId: string) => (props.msgSubTab === 'review'
 const shownReviews = computed(() => (props.msgAppFilter === 'all' ? props.myReviews : props.myReviews.filter((r) => r.appId === props.msgAppFilter))
   .filter((r) => props.msgStatus === 'all' || (props.msgStatus === 'pending' ? !r.reply : !!r.reply)));
 const shownAppFbs = computed(() => (props.msgAppFilter === 'all' ? props.appFbList : props.appFbList.filter((f) => f.appId === props.msgAppFilter))
+  .filter((f) => props.msgAfType === 'all' || f.type === props.msgAfType)
   .filter((f) => props.msgStatus === 'all' || (props.msgStatus === 'pending' ? !f.reply : !!f.reply)));
 const shownFb = computed(() => (props.msgFbType === 'all' ? props.fbList : props.fbList.filter((f) => f.type === props.msgFbType))
   .filter((f) => props.msgStatus === 'all' || (props.msgStatus === 'pending' ? f.msgs[f.msgs.length - 1].role === 'user' : f.msgs[f.msgs.length - 1].role === 'admin')));
@@ -159,6 +163,10 @@ const onPickAfReplyImages = (e: Event) => {
             <button type="button" :class="msgStatus === 'all' ? 'on' : ''" @click="onMsgStatus('all')">全部</button>
             <button type="button" :class="msgStatus === 'pending' ? 'on' : ''" @click="onMsgStatus('pending')">待回复</button>
             <button type="button" :class="msgStatus === 'done' ? 'on' : ''" @click="onMsgStatus('done')">已回复</button>
+          </div>
+          <div v-if="msgTab === 'app' && msgSubTab === 'feedback'" class="ap-fb-types ap-msg-af-types">
+            <button type="button" :class="msgAfType === 'all' ? 'on' : ''" @click="onMsgAfType('all')">全部</button>
+            <button v-for="t in APP_FB_TYPES" :key="t" type="button" :class="msgAfType === t ? 'on' : ''" @click="onMsgAfType(t)">{{ t }}</button>
           </div>
         </div>
         <template v-if="msgTab === 'app' && msgSubTab === 'review'">

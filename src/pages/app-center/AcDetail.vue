@@ -133,7 +133,14 @@ watch(() => props.reviews, () => requestAnimationFrame(updateRevNav));
         </div>
       </div>
       <div class="ap-detail-head-acts">
-        <button type="button" class="ap-detail-fb" title="提交意见反馈 · 仅开发者可见" @click="openFbForm()">
+        <button
+          v-if="!app.mine"
+          type="button"
+          class="ap-detail-fb"
+          :disabled="!app.added"
+          :title="app.added ? '提交意见反馈 · 仅开发者可见' : '添加应用后可提交意见反馈'"
+          @click="openFbForm()"
+        >
           <span>意见反馈</span>
           <b><AcSvg :d="IC.edit" :size="16" /></b>
         </button>
