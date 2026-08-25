@@ -7,7 +7,7 @@ import { stepsOf, stepLabels } from './tcSteps';
 
 const props = defineProps<{ parent: ParentTask }>();
 
-const platformOptions = ['发布平台', '淘宝', '天猫', '拼多多', '抖音', '快手', '京东', '阿里巴巴', '微信视频号小店'];
+const platformOptions = ['全部', '淘宝', '天猫', '拼多多', '抖音', '快手', '京东', '阿里巴巴', '微信视频号小店'];
 
 /* ================= 子任务详情（二级页） ================= */
 interface DetailFilter {
@@ -24,18 +24,18 @@ const defaultDetailFilter: DetailFilter = {
   chip: '全部',
   templateNo: '',
   linkId: '',
-  platform: '发布平台',
+  platform: '全部',
   shop: '',
-  retried: '是否重试',
+  retried: '全部',
 };
 
 const tab = ref('all');
 const chip = ref('全部');
 const templateNo = ref('');
 const linkId = ref('');
-const platform = ref('发布平台');
+const platform = ref('全部');
 const shop = ref('');
-const retried = ref('是否重试');
+const retried = ref('全部');
 const applied = ref<DetailFilter>({ ...defaultDetailFilter });
 const checked = ref<number[]>([]);
 
@@ -73,9 +73,9 @@ const onReset = () => {
   chip.value = '全部';
   templateNo.value = '';
   linkId.value = '';
-  platform.value = '发布平台';
+  platform.value = '全部';
   shop.value = '';
-  retried.value = '是否重试';
+  retried.value = '全部';
   tab.value = 'all';
   checked.value = [];
   applied.value = { ...defaultDetailFilter };
@@ -88,9 +88,9 @@ const visible = computed(() => subs.value.filter((s) => {
   const okChip = applied.value.tab !== 'failed' || applied.value.chip === '全部' || s.reason === applied.value.chip;
   const okTpl = !applied.value.templateNo || s.templateNo.indexOf(applied.value.templateNo) > -1;
   const okLink = !applied.value.linkId || s.linkId.indexOf(applied.value.linkId) > -1;
-  const okPlatform = applied.value.platform === '发布平台' || s.platform === applied.value.platform;
+  const okPlatform = applied.value.platform === '全部' || s.platform === applied.value.platform;
   const okShop = !applied.value.shop || s.shop.indexOf(applied.value.shop) > -1;
-  const okRetried = applied.value.retried === '是否重试' || (applied.value.retried === '是') === s.retried;
+  const okRetried = applied.value.retried === '全部' || (applied.value.retried === '是') === s.retried;
   return okTab && okChip && okTpl && okLink && okPlatform && okShop && okRetried;
 }));
 
@@ -144,7 +144,7 @@ const onBatchRetry = () => {
       </div>
       <div v-if="isFailed" class="sg-field">
         <label>是否重试</label>
-        <BubbleSelect class-name="sg-select" :value="retried" :options="['是否重试', '是', '否']" @change="(v: string) => (retried = v)" />
+        <BubbleSelect class-name="sg-select" :value="retried" :options="['全部', '是', '否']" @change="(v: string) => (retried = v)" />
       </div>
     </div>
     <div class="sg-actions">

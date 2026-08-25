@@ -2375,17 +2375,24 @@ button.ap-dev:hover { background: #eceef2; }
   border-radius: 8px; background: #fa5151; color: #fff; font-size: 10px; font-style: normal; line-height: 16px; text-align: center;
 }
 
-/* 使用者反馈子模块切换：应用评价 / 意见反馈 */
-.ap-msg-subtabs { display: flex; gap: 8px; padding: 16px 24px; }
+/* 使用者反馈子模块切换：与左上角 tab 同形式（文字 + 角标 + 下划线高亮） */
+.ap-msg-subtabs { display: flex; gap: 26px; }
+
+.ap-msg-filter .ap-fb-tabs { margin-top: 10px; }
 
 .ap-msg-subtabs button {
-  position: relative; padding: 5px 14px; border: 1px solid #e4e5eb; border-radius: 16px;
-  background: #fff; font-family: inherit; font-size: 12px; color: #616a7a; cursor: pointer;
+  position: relative; padding: 4px 2px 10px; border: none; background: transparent;
+  font-family: inherit; font-size: 14px; color: #616a7a; cursor: pointer;
 }
 
-.ap-msg-subtabs button:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.ap-msg-subtabs button:hover { color: var(--color-primary); }
 
-.ap-msg-subtabs button.on { border-color: var(--color-primary); color: var(--color-primary); background: #eaf2fe; font-weight: 600; }
+.ap-msg-subtabs button.on { color: var(--color-primary); font-weight: 700; }
+
+.ap-msg-subtabs button.on::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0;
+  height: 3px; border-radius: 3px; background: var(--color-primary);
+}
 
 .ap-msg-subtabs button i {
   position: absolute; top: -7px; right: -8px; min-width: 16px; height: 16px; padding: 0 4px;
@@ -2414,7 +2421,7 @@ button.ap-dev:hover { background: #eceef2; }
 
 .ap-msg-rail {
   width: 240px; flex-shrink: 0; overflow-y: auto;
-  border-right: 1px solid #f0f1f4; padding: 20px 14px;
+  border-right: 1px solid #f0f1f4; padding: 14px;
   display: flex; flex-direction: column; gap: 10px;
 }
 

@@ -6,8 +6,8 @@ import TcRange from './TcRange.vue';
 
 const emit = defineEmits<{ (e: 'detail', p: ParentTask): void }>();
 
-const platformOptions = ['发布平台', '淘宝', '天猫', '拼多多', '抖音', '快手', '京东', '阿里巴巴', '微信视频号小店'];
-const typeOptions = ['任务类型', '快速铺货', '商品铺货', '商品发布', '批量上架', '自动定价', '自动换图'];
+const platformOptions = ['全部', '淘宝', '天猫', '拼多多', '抖音', '快手', '京东', '阿里巴巴', '微信视频号小店'];
+const typeOptions = ['全部', '快速铺货', '商品铺货', '商品发布', '批量上架', '自动定价', '自动换图'];
 const channelOptions = ['全部', '智能', '蜂联'];
 
 const parentStatusText: Record<ParentTask['status'], string> = {
@@ -32,13 +32,13 @@ interface ListFilter {
   type: string;
   shop: string;
 }
-const defaultListFilter: ListFilter = { tab: 'all', platform: '发布平台', channel: '全部', creator: '', type: '任务类型', shop: '' };
+const defaultListFilter: ListFilter = { tab: 'all', platform: '全部', channel: '全部', creator: '', type: '全部', shop: '' };
 
 const tab = ref('all');
-const platform = ref('发布平台');
+const platform = ref('全部');
 const channel = ref('全部');
 const creator = ref('');
-const type = ref('任务类型');
+const type = ref('全部');
 const shop = ref('');
 const applied = ref<ListFilter>({ ...defaultListFilter });
 
@@ -64,10 +64,10 @@ const onTab = (key: string) => {
 };
 const onSearch = () => { applied.value = snapshot(tab.value); };
 const onReset = () => {
-  platform.value = '发布平台';
+  platform.value = '全部';
   channel.value = '全部';
   creator.value = '';
-  type.value = '任务类型';
+  type.value = '全部';
   shop.value = '';
   tab.value = 'all';
   applied.value = { ...defaultListFilter };
@@ -75,10 +75,10 @@ const onReset = () => {
 
 const visible = computed(() => parentTasks.filter((p) => {
   const okTab = applied.value.tab === 'all' || p.status === applied.value.tab;
-  const okPlatform = applied.value.platform === '发布平台' || p.subs.some((s) => s.platform === applied.value.platform);
+  const okPlatform = applied.value.platform === '全部' || p.subs.some((s) => s.platform === applied.value.platform);
   const okChannel = applied.value.channel === '全部' || p.channel === applied.value.channel;
   const okCreator = !applied.value.creator || p.creator.indexOf(applied.value.creator) > -1;
-  const okType = applied.value.type === '任务类型' || p.type === applied.value.type;
+  const okType = applied.value.type === '全部' || p.type === applied.value.type;
   const okShop = !applied.value.shop || p.subs.some((s) => s.shop.indexOf(applied.value.shop) > -1);
   return okTab && okPlatform && okChannel && okCreator && okType && okShop;
 }));

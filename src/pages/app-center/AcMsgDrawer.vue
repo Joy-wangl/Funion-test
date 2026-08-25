@@ -40,7 +40,6 @@ const props = defineProps<{
   onMarkAfRead: (id: string) => void;
   onMarkFbRead: (id: string) => void;
   onGotoApp: (appId: string) => void;
-  onGotoFb: (fbId: string) => void;
   onRvReplyId: (id: string | null) => void;
   onRvReplyText: (v: string) => void;
   onReplyReview: (id: string) => void;
@@ -113,14 +112,6 @@ const onPickAfReplyImages = (e: Event) => {
         使用者反馈<i v-if="unreadUserCount > 0">{{ unreadUserCount }}</i>
       </button>
     </div>
-    <div v-if="msgTab === 'app'" class="ap-msg-subtabs">
-      <button type="button" :class="msgSubTab === 'review' ? 'on' : ''" @click="onMsgSubTab('review')">
-        应用评价<em class="ap-vis pub">公开</em><i v-if="unreadReviewCount > 0">{{ unreadReviewCount }}</i>
-      </button>
-      <button type="button" :class="msgSubTab === 'feedback' ? 'on' : ''" @click="onMsgSubTab('feedback')">
-        意见反馈<em class="ap-vis priv">隐私</em><i v-if="unreadAppFbCount > 0">{{ unreadAppFbCount }}</i>
-      </button>
-    </div>
     <div class="ap-msg-pane">
       <div class="ap-msg-rail">
         <template v-if="msgTab === 'app'">
@@ -159,6 +150,15 @@ const onPickAfReplyImages = (e: Event) => {
       </div>
       <div class="ap-msg-list">
         <div class="ap-msg-filter">
+          <!-- 子模块切换在上，回复状态在下 -->
+          <div v-if="msgTab === 'app'" class="ap-msg-subtabs">
+            <button type="button" :class="msgSubTab === 'review' ? 'on' : ''" @click="onMsgSubTab('review')">
+              应用评价<em class="ap-vis pub">公开</em><i v-if="unreadReviewCount > 0">{{ unreadReviewCount }}</i>
+            </button>
+            <button type="button" :class="msgSubTab === 'feedback' ? 'on' : ''" @click="onMsgSubTab('feedback')">
+              意见反馈<em class="ap-vis priv">隐私</em><i v-if="unreadAppFbCount > 0">{{ unreadAppFbCount }}</i>
+            </button>
+          </div>
           <div class="ap-fb-tabs">
             <button type="button" :class="msgStatus === 'all' ? 'on' : ''" @click="onMsgStatus('all')">全部</button>
             <button type="button" :class="msgStatus === 'pending' ? 'on' : ''" @click="onMsgStatus('pending')">待回复</button>
@@ -290,13 +290,15 @@ const onPickAfReplyImages = (e: Event) => {
               </b>
               <span class="ap-msg-top-act">
                 <i>{{ f.at }}</i>
-                <button type="button" class="ap-link" @click="onMarkFbRead(f.id); onGotoFb(f.id)">查看反馈</button>
               </span>
             </div>
             <div class="ap-msg-thread">
               <div v-for="m in f.msgs" :key="m.id" class="ap-msg-m" :class="m.role">
                 <i>{{ m.by }} · {{ m.at }}</i>
                 <p>{{ m.content }}</p>
+                <div v-if="m.images && m.images.length > 0" class="ap-rev-imgs">
+                  <img v-for="(src, i) in m.images" :key="i" :src="src" alt="">
+                </div>
               </div>
             </div>
             <div v-if="fbReplyId === f.id" class="ap-msg-replyform">

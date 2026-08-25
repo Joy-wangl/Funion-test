@@ -59,7 +59,6 @@ const rangeTotal = computed(() => rows.value.reduce((s, r) => s + r.use, 0));
 const useSorted = computed(() => [...rows.value].sort((a, b) => b.use - a.use));
 const rankOf = computed(() => new Map(useSorted.value.map((r, i) => [r.app.id, i + 1] as const)));
 const top10 = computed(() => useSorted.value.slice(0, 10));
-const maxUsers = computed(() => Math.max(1, ...props.apps.map((a) => a.users)));
 const cats = computed(() => [...new Set(props.apps.map((a) => a.category))]);
 
 /* 类目筛选改下拉（BubbleSelect）：默认全部 */
@@ -194,7 +193,8 @@ const dustApps = computed(() => rows.value.filter((r) => r.use / range.value < 2
               </span>
               <span class="ct-strong">{{ r.use }} 人次<i class="ap-dash-dayavg">日均 {{ Math.round(r.use / range) }}</i></span>
               <span class="ap-dash-share">
-                <span class="tr"><i :style="{ width: `${Math.max(2, Math.round((r.app.users / maxUsers) * 100))}%` }" /></span>
+                <!-- 进度条＝日均占比本身：整条为全盘 100%，填充段为该应用占比 -->
+                <span class="tr"><i :style="{ width: `${(r.share * 100).toFixed(1)}%` }" /></span>
                 <span class="pc">总 {{ fmt(r.app.users) }} 人次 · 日均占 {{ (r.share * 100).toFixed(1) }}%</span>
               </span>
               <span class="ct-strong">{{ r.cnt ? r.avg.toFixed(1) : '--' }}</span>

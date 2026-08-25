@@ -5,8 +5,8 @@ import BubbleSelect from '../../components/BubbleSelect.vue';
 import TcRange from './TcRange.vue';
 import { stepsOf, stepLabels } from './tcSteps';
 
-const platformOptions = ['发布平台', '淘宝', '天猫', '拼多多', '抖音', '快手', '京东', '阿里巴巴', '微信视频号小店'];
-const typeOptions = ['任务类型', '快速铺货', '商品铺货', '商品发布', '批量上架', '自动定价', '自动换图'];
+const platformOptions = ['全部', '淘宝', '天猫', '拼多多', '抖音', '快手', '京东', '阿里巴巴', '微信视频号小店'];
+const typeOptions = ['全部', '快速铺货', '商品铺货', '商品发布', '批量上架', '自动定价', '自动换图'];
 const channelOptions = ['全部', '智能', '蜂联'];
 
 /* ================= 按任务详情（扁平子任务列表） ================= */
@@ -43,21 +43,21 @@ const defaultFlatFilter: FlatFilter = {
   tab: 'all',
   chip: '全部',
   creator: '',
-  platform: '发布平台',
+  platform: '全部',
   channel: '全部',
-  type: '任务类型',
+  type: '全部',
   shop: '',
-  retried: '是否重试',
+  retried: '全部',
 };
 
 const tab = ref('all');
 const chip = ref('全部');
 const creator = ref('');
-const platform = ref('发布平台');
+const platform = ref('全部');
 const channel = ref('全部');
-const type = ref('任务类型');
+const type = ref('全部');
 const shop = ref('');
-const retried = ref('是否重试');
+const retried = ref('全部');
 const applied = ref<FlatFilter>({ ...defaultFlatFilter });
 const checked = ref<string[]>([]);
 
@@ -94,11 +94,11 @@ const onSearch = () => { applied.value = snapshot(tab.value); };
 const onReset = () => {
   chip.value = '全部';
   creator.value = '';
-  platform.value = '发布平台';
+  platform.value = '全部';
   channel.value = '全部';
-  type.value = '任务类型';
+  type.value = '全部';
   shop.value = '';
-  retried.value = '是否重试';
+  retried.value = '全部';
   tab.value = 'all';
   checked.value = [];
   applied.value = { ...defaultFlatFilter };
@@ -117,11 +117,11 @@ const visible = computed(() => flatAll.filter((r) => {
     (applied.value.tab === 'done' ? r.sub.status === 'success' : applied.value.tab === 'failed' ? r.sub.status === 'failed' : r.sub.status === applied.value.tab);
   const okChip = applied.value.tab !== 'failed' || applied.value.chip === '全部' || r.sub.reason === applied.value.chip;
   const okCreator = !applied.value.creator || r.parent.creator.indexOf(applied.value.creator) > -1;
-  const okPlatform = applied.value.platform === '发布平台' || r.sub.platform === applied.value.platform;
+  const okPlatform = applied.value.platform === '全部' || r.sub.platform === applied.value.platform;
   const okChannel = applied.value.channel === '全部' || r.parent.channel === applied.value.channel;
-  const okType = applied.value.type === '任务类型' || r.parent.type === applied.value.type;
+  const okType = applied.value.type === '全部' || r.parent.type === applied.value.type;
   const okShop = !applied.value.shop || r.sub.shop.indexOf(applied.value.shop) > -1;
-  const okRetried = applied.value.retried === '是否重试' || (applied.value.retried === '是') === r.sub.retried;
+  const okRetried = applied.value.retried === '全部' || (applied.value.retried === '是') === r.sub.retried;
   return okTab && okChip && okCreator && okPlatform && okChannel && okType && okShop && okRetried;
 }));
 
@@ -175,7 +175,7 @@ const toggleOne = (key: string, on: boolean) => { checked.value = on ? [...check
       </div>
       <div v-if="isFailed" class="sg-field">
         <label>是否重试</label>
-        <BubbleSelect class-name="sg-select" :value="retried" :options="['是否重试', '是', '否']" @change="(v: string) => (retried = v)" />
+        <BubbleSelect class-name="sg-select" :value="retried" :options="['全部', '是', '否']" @change="(v: string) => (retried = v)" />
       </div>
     </div>
     <div class="sg-actions">

@@ -8,28 +8,19 @@ export interface MoreActionItem {
 </script>
 
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue';
+import { useAnchorPop } from '../hooks/useAnchorPop';
 
 defineProps<{ items: MoreActionItem[] }>();
 
-const pos = ref<{ x: number; y: number } | null>(null);
+/* 气泡锚定触发元素，滚动/resize 时跟随 */
+const { pos, open, close } = useAnchorPop();
 
-const close = () => { pos.value = null; };
-const onDocDown = () => close();
-
-const openAt = (el: HTMLElement) => {
-  const r = el.getBoundingClientRect();
-  pos.value = { x: Math.max(8, Math.min(r.left, window.innerWidth - 130)), y: r.bottom + 6 };
-  document.addEventListener('mousedown', onDocDown);
-};
+const openAt = (el: HTMLElement) => open(el);
 
 const pick = (it: MoreActionItem) => {
   close();
-  document.removeEventListener('mousedown', onDocDown);
   it.onClick();
 };
-
-onBeforeUnmount(() => document.removeEventListener('mousedown', onDocDown));
 </script>
 
 <template>

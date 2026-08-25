@@ -47,6 +47,8 @@ const rankTab = ref<'person' | 'dept' | 'best'>('person');
 const rankOpen = ref<string | null>(null);
 const fbType = ref(FB_TYPES[0]);
 const fbText = ref('');
+/* 新建反馈配图：最多 3 张，与意见反馈提交同构 */
+const fbImages = ref<string[]>([]);
 const fbList = ref<FeedbackItem[]>(INITIAL_FEEDBACKS);
 const fbCreate = ref(false);
 const fbDetailId = ref<string | null>(null);
@@ -387,11 +389,29 @@ const submitFb = () => {
   const text = fbText.value.trim();
   if (!text) { pushToast('请先填写反馈内容'); return; }
   const id = `fb-${Date.now()}`;
-  fbList.value = [{ id, type: fbType.value, at: fmtNow(), read: false, msgs: [{ id: `${id}-m1`, role: 'user' as const, by: '七妮妮', at: fmtNow(), content: text }] }, ...fbList.value];
+  fbList.value = [{ id, type: fbType.value, at: fmtNow(), read: false, msgs: [{ id: `${id}-m1`, role: 'user' as const, by: '七妮妮', at: fmtNow(), content: text, images: fbImages.value.length ? fbImages.value : undefined }] }, ...fbList.value];
   fbText.value = '';
+  fbImages.value = [];
   fbCreate.value = false;
   pushToast('反馈已提交');
   scheduleAdminReply(id);
+};
+const onPickFbImages = (e: Event) => {
+  const input = e.target as HTMLInputElement;
+  const files = Array.from(input.files ?? []).slice(0, 3 - fbImages.value.length);
+  files.forEach((f) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (fbImages.value.length >= 3) return;
+      fbImages.value = [...fbImages.value, String(reader.result)];
+    };
+    reader.readAsDataURL(f);
+  });
+  input.value = '';
+};
+const closeFbCreate = () => {
+  fbCreate.value = false;
+  fbImages.value = [];
 };
 const appendFbNote = (id: string) => {
   const text = fbNote.value.trim();
@@ -523,10 +543,6 @@ const onSearchInput = (e: Event) => {
 const gotoAppDetail = (appId: string) => {
   msgOpen.value = false;
   view.value = { kind: 'detail', id: appId };
-};
-const gotoFbDetail = (fbId: string) => {
-  msgOpen.value = false;
-  fbDetailId.value = fbId;
 };
 </script>
 
@@ -809,11 +825,11 @@ const gotoFbDetail = (fbId: string) => {
     <!-- 新建反馈抽屉 -->
     <Teleport to="body">
       <template v-if="fbCreate">
-        <div class="ap-drawer-mask" @click="fbCreate = false" />
+        <div class="ap-drawer-mask" @click="closeFbCreate()" />
         <div class="ap-drawer">
           <div class="ap-drawer-head">
             <span>新建反馈</span>
-            <button type="button" @click="fbCreate = false"><AcSvg :d="IC.clear" :size="14" /></button>
+            <button type="button" @click="closeFbCreate()"><AcSvg :d="IC.clear" :size="14" /></button>
           </div>
           <div class="ap-drawer-body">
             <div class="ap-fb-field-label">反馈类型</div>
@@ -837,9 +853,20 @@ const gotoFbDetail = (fbId: string) => {
               placeholder="说说你的建议或遇到的问题，我们会认真跟进并回复…"
             />
             <div class="ap-fb-tip right">{{ fbText.length }}/200</div>
+            <div class="ap-rev-up">
+              <span v-for="(src, i) in fbImages" :key="i" class="ap-rev-thumb">
+                <img :src="src" alt="">
+                <button type="button" title="移除图片" @click="fbImages = fbImages.filter((_, j) => j !== i)"><AcSvg :d="IC.clear" :size="10" /></button>
+              </span>
+              <label v-if="fbImages.length < 3" class="ap-rev-up-add">
+                <AcSvg :d="IC.plus" :size="14" />
+                <em>添加图片</em>
+                <input type="file" accept="image/*" multiple @change="onPickFbImages">
+              </label>
+            </div>
           </div>
           <div class="ap-drawer-foot">
-            <button type="button" class="ap-btn-plain" @click="fbCreate = false">取 消</button>
+            <button type="button" class="ap-btn-plain" @click="closeFbCreate()">取 消</button>
             <button type="button" class="ap-btn-blue" @click="submitFb()">提交反馈</button>
           </div>
         </div>
@@ -871,6 +898,9 @@ const gotoFbDetail = (fbId: string) => {
               <div v-for="m in fbDetail.msgs" :key="m.id" class="ap-fb-msg" :class="m.role">
                 <div class="ap-fb-msg-head"><b>{{ m.role === 'admin' ? `官方 · ${m.by}` : m.by }}</b><i>{{ m.at }}</i></div>
                 <p>{{ m.content }}</p>
+                <div v-if="m.images && m.images.length > 0" class="ap-rev-imgs">
+                  <img v-for="(src, i) in m.images" :key="i" :src="src" alt="">
+                </div>
               </div>
               <div v-if="fbReplies === 0" class="ap-fb-empty">暂无回复，官方处理后会在此回复你</div>
             </div>
@@ -1033,7 +1063,6 @@ const gotoFbDetail = (fbId: string) => {
       :on-mark-af-read="markAppFbRead"
       :on-mark-fb-read="markFbRead"
       :on-goto-app="gotoAppDetail"
-      :on-goto-fb="gotoFbDetail"
       :on-rv-reply-id="(id) => (rvReplyId = id)"
       :on-rv-reply-text="(v) => (rvReplyText = v)"
       :on-reply-review="replyReview"

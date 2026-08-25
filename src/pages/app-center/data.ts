@@ -191,6 +191,8 @@ export interface FbMsg {
   by: string;
   at: string;
   content: string;
+  /** 配图（最多 3 张） */
+  images?: string[];
 }
 
 export interface FeedbackItem {
