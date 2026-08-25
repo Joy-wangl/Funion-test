@@ -1,4 +1,4 @@
-/* 临时验证：商品创建-淘宝 更多菜单新增「关联发布任务」+ 选任务弹窗 + toast */
+/* 临时验证：商品创建-淘宝 关联发布任务抽屉（列表信息 + 失败重试 + 时间排序） */
 const { chromium } = require('D:/Funion/.playwright/package/index.js');
 
 (async () => {
@@ -22,21 +22,47 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
   const menuTexts = await page.locator('.add-pop .add-pop-item').allTextContents();
   results['menu.items'] = menuTexts.join(',') === '关联发布任务,复制,删除';
 
-  /* 点击关联发布任务：弹窗列出可关联任务批次 */
+  /* 点击关联发布任务：右侧抽屉打开，标题带商品名 */
   await page.click('.add-pop .add-pop-item:has-text("关联发布任务")');
-  await page.waitForSelector('.cp-modal:has-text("关联发布任务")');
-  results['modal.title'] = (await page.locator('.cp-modal-title:has-text("关联发布任务")').count()) === 1;
-  results['modal.rowTitle'] = ((await page.locator('.cp-modal-text').textContent()) || '').includes('玫瑰小众轻奢复古耳钉');
-  const taskCount = await page.locator('.cp-task-item').count();
-  results['modal.tasks'] = taskCount >= 1;
-  await page.waitForTimeout(200);
+  await page.waitForSelector('.cp-drawer');
+  results['drawer.open'] = (await page.locator('.cp-drawer').count()) === 1;
+  results['drawer.title'] = ((await page.locator('.cp-drawer-head span').textContent()) || '').includes('玫瑰小众轻奢复古耳钉');
+
+  /* 表头九列与截图一致 */
+  const headTexts = await page.locator('.cp-drawer thead th').allTextContents();
+  const expectHead = ['商品信息', '任务类型', '节点状态', '任务状态', '平台/店铺', '创建人', '渠道', '执行起止时间 ⇅', '操作'];
+  results['drawer.head'] = headTexts.length === 9 && expectHead.every((h, i) => headTexts[i].replace(/\s+/g, ' ').trim() === h);
+
+  /* 行数据：6 条记录，含节点状态与平台店铺 */
+  const trs = page.locator('.cp-drawer tbody tr');
+  results['drawer.rows'] = (await trs.count()) === 6;
+  const firstText = ((await trs.first().textContent()) || '').replace(/\s+/g, '');
+  results['drawer.cells'] =
+    firstText.includes('玫瑰小众轻奢复古耳钉') &&
+    firstText.includes('快速铺货') &&
+    firstText.includes('获取链接信息') &&
+    firstText.includes('淘宝') &&
+    firstText.includes('小二的店铺') &&
+    firstText.includes('起：');
+  results['drawer.retry'] = (await page.locator('.cp-drawer .tc-link:has-text("重试")').count()) === 2;
+  await page.waitForTimeout(300);
   await page.screenshot({ path: 'd:/Qoder/Funion/vue-verify-cplink.png' });
 
-  /* 选择首个任务：关闭弹窗 + toast */
-  await page.locator('.cp-task-item').first().click();
+  /* 执行起止时间排序：点击表头切换升降序 */
+  const startCell = async (t) => ((((await t.textContent()) || '').match(/起：([^止]+)/) || [])[1] || '').trim();
+  const before = await startCell(trs.first());
+  await page.locator('.cp-drawer .cp-sort-th').click();
   await page.waitForTimeout(200);
-  results['link.toast'] = (await page.locator(':text("已关联发布任务")').count()) >= 1;
-  results['modal.closed'] = (await page.locator('.cp-modal').count()) === 0;
+  const after = await startCell(trs.first());
+  results['sort.toggle'] = before !== after;
+
+  /* 失败重试：点击后进入重新发布，稍后变为已完成 */
+  await page.locator('.cp-drawer .tc-link:has-text("重试")').first().click();
+  await page.waitForTimeout(300);
+  results['retry.toasting'] = (await page.locator(':text("重新发布中")').count()) >= 1;
+  await page.waitForTimeout(1500);
+  results['retry.done'] = (await page.locator('.cp-drawer .tc-link:has-text("重试")').count()) === 1;
+  results['retry.toast'] = (await page.locator(':text("重新发布成功")').count()) >= 1;
 
   await browser.close();
   let fail = 0;

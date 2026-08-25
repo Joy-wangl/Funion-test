@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { createTaobaoRows, parentTasks } from './data';
-import type { CreateRow, ParentTask } from './data';
+import { createTaobaoRows, buildCreatePubTasks } from './data';
+import type { CreateRow, SubTask } from './data';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
 import MoreActions from '../../components/MoreActions.vue';
 import CreateDetailPage from './CreateDetailPage.vue';
 import { useAnchorPop } from '../../hooks/useAnchorPop';
 import { pushToast } from '../../components/toast';
+import { stepsOf, stepLabels } from './tcSteps';
 
 /** 商品创建页 */
 const rows = ref<CreateRow[]>(createTaobaoRows);
@@ -17,12 +18,29 @@ const detail = ref<CreateRow | null>(null);
 const { pos: pubTip, open, close: closePubTip } = useAnchorPop();
 /* 删除二次确认 */
 const delRow = ref<CreateRow | null>(null);
-/* 关联发布任务：选择执行中/队列中的任务批次 */
-const linkRow = ref<CreateRow | null>(null);
-const linkableTasks = computed(() => parentTasks.filter((t) => t.status !== 'done').slice(0, 6));
-const linkTask = (t: ParentTask) => {
-  linkRow.value = null;
-  pushToast(`已关联发布任务「任务 #${t.id} · ${t.type}」`);
+/* 关联发布任务：抽屉展示该商品的发布任务列表，失败可重试重新发布 */
+const pubRow = ref<CreateRow | null>(null);
+const pubTasks = ref<SubTask[]>([]);
+const pubSortAsc = ref(true);
+const openPubDrawer = (row: CreateRow) => {
+  pubRow.value = row;
+  pubTasks.value = buildCreatePubTasks(row, rows.value.indexOf(row) + 1);
+  pubSortAsc.value = true;
+};
+const sortedPubTasks = computed(() => [...pubTasks.value].sort((a, b) => (pubSortAsc.value ? a.startTime.localeCompare(b.startTime) : b.startTime.localeCompare(a.startTime))));
+const pubStatusText: Record<SubTask['status'], string> = { queued: '队列中', running: '执行中', success: '已完成', failed: '执行失败' };
+const pubStatusCls: Record<SubTask['status'], string> = { queued: 'queued', running: 'running', success: 'done', failed: 'failed' };
+const retryPub = (sub: SubTask) => {
+  sub.status = 'running';
+  sub.endTime = '';
+  pushToast('重新发布中…');
+  window.setTimeout(() => {
+    sub.status = 'success';
+    sub.failStep = undefined;
+    sub.reason = '';
+    sub.endTime = '2026-04-04 12:09:00';
+    pushToast('重新发布成功');
+  }, 1200);
 };
 
 const openPubTip = (e: MouseEvent) => {
@@ -152,7 +170,7 @@ const confirmDelete = () => {
                 </a>
                 <MoreActions
                   :items="[
-                    { label: '关联发布任务', onClick: () => (linkRow = row) },
+                    { label: '关联发布任务', onClick: () => openPubDrawer(row) },
                     { label: '复制', onClick: () => copyRow(row) },
                     { label: '删除', danger: true, onClick: () => (delRow = row) },
                   ]"
@@ -209,22 +227,81 @@ const confirmDelete = () => {
         </div>
       </div>
 
-      <div v-if="linkRow" class="cp-modal-mask">
-        <div class="cp-modal">
-          <div class="cp-modal-title">关联发布任务</div>
-          <div class="cp-modal-text">将「{{ linkRow.title }}」关联到以下发布任务：</div>
-          <div class="cp-task-list">
-            <button v-for="t in linkableTasks" :key="t.id" type="button" class="cp-task-item" @click="linkTask(t)">
-              <b>任务 #{{ t.id }}</b>
-              <span>{{ t.type }} · {{ t.channel }}渠道</span>
-              <em>{{ t.status === 'running' ? '执行中' : '队列中' }}</em>
-            </button>
-          </div>
-          <div class="cp-modal-foot">
-            <button class="cp-btn" @click="linkRow = null">取消</button>
-          </div>
-        </div>
-      </div>
     </Teleport>
+
+    <!-- 关联发布任务抽屉：置于 .ops-center 内以复用 tc-table 表格样式 -->
+    <div v-if="pubRow" class="cp-drawer-mask" @click="pubRow = null" />
+    <div v-if="pubRow" class="cp-drawer">
+      <div class="cp-drawer-head">
+        <span>关联发布任务 · {{ pubRow.title }}</span>
+        <button type="button" title="关闭" @click="pubRow = null">✕</button>
+      </div>
+      <div class="cp-drawer-body">
+        <table class="tc-table tc-detail">
+          <thead>
+            <tr>
+              <th>商品信息</th>
+              <th>任务类型</th>
+              <th>节点状态</th>
+              <th>任务状态</th>
+              <th>平台/店铺</th>
+              <th>创建人</th>
+              <th>渠道</th>
+              <th class="cp-sort-th" @click="pubSortAsc = !pubSortAsc">执行起止时间 <span class="tc-sort">⇅</span></th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="s in sortedPubTasks" :key="s.id">
+              <td>
+                <div class="tc-product">
+                  <img class="tc-thumb" :src="s.thumb" />
+                  <div>
+                    <div class="tc-pname">{{ s.name }}</div>
+                    <div class="tc-pmeta">竞品链接：{{ s.linkId }}</div>
+                  </div>
+                </div>
+              </td>
+              <td>快速铺货</td>
+              <td>
+                <div class="tc-steps">
+                  <div v-for="(st, si) in stepsOf(s)" :key="stepLabels[si]" class="tc-step">
+                    <i :class="st.dot" />
+                    <span>{{ stepLabels[si] }}：</span>
+                    <span class="v" :class="st.cls">{{ st.v }}</span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span class="tc-st" :class="pubStatusCls[s.status]"><i />{{ pubStatusText[s.status] }}</span>
+              </td>
+              <td>
+                <div class="tc-cell-lines">
+                  <div>{{ s.platform }}</div>
+                  <div>{{ s.shop }}</div>
+                </div>
+              </td>
+              <td>
+                <div class="tc-cell-lines">
+                  <div>张三</div>
+                  <div>2026-04-04 12:00:00</div>
+                </div>
+              </td>
+              <td>智能</td>
+              <td>
+                <div class="tc-cell-lines">
+                  <div>起：{{ s.startTime || '–' }}</div>
+                  <div>止：{{ s.endTime || '–' }}</div>
+                </div>
+              </td>
+              <td class="actions-col">
+                <a v-if="s.status === 'failed'" class="tc-link" @click.prevent="retryPub(s)">重试</a>
+                <span v-else class="tc-dash">–</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </template>

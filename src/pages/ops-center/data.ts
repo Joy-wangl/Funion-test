@@ -470,6 +470,27 @@ const subPattern: Record<ParentStatus, SubStatus[]> = {
   done: ['success', 'failed', 'success', 'success', 'failed', 'success', 'success', 'failed', 'success', 'success'],
 };
 
+/** 商品创建-关联发布任务：该商品在任务列表中的发布记录（复用子任务结构，节点状态由 tcSteps 推导） */
+export function buildCreatePubTasks(row: { title: string; thumb: string; link: string }, seed: number): SubTask[] {
+  const m = row.link.match(/[?&]id=(\d+)/);
+  const pattern: SubStatus[] = ['success', 'failed', 'success', 'success', 'failed', 'success'];
+  return pattern.map((st, i) => ({
+    id: seed * 100 + i,
+    templateNo: `V${String(seed).padStart(4, '0')}-0${i + 1}`,
+    name: row.title,
+    thumb: row.thumb,
+    linkId: m?.[1] ?? '888877776666',
+    platform: '淘宝',
+    shop: '小二的店铺',
+    status: st,
+    reason: st === 'failed' ? failReasons[(seed + i) % 3] : '',
+    failStep: st === 'failed' ? 2 : undefined,
+    retried: false,
+    startTime: `2026-04-04 12:0${i}:00`,
+    endTime: `2026-04-04 12:0${i + 1}:00`,
+  }));
+}
+
 function buildSubs(seed: number, status: ParentStatus): SubTask[] {
   return subPattern[status].map((st, i) => ({
     id: seed * 100 + i,
