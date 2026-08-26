@@ -21,6 +21,9 @@ const PAGE = 6;
 const platform = ref<LivePlatform>('拼多多');
 const stores = ref<LiveStore[]>(liveStoresOf('拼多多'));
 const expanded = ref<Record<string, boolean>>({});
+/* 账号行展开：下级客服维度 */
+const accOpen = ref<Record<number, boolean>>({});
+const toggleAcc = (id: number) => { accOpen.value = { ...accOpen.value, [id]: !accOpen.value[id] }; };
 const nameDraft = ref('');
 const nameApplied = ref('');
 const updatedAt = ref('2026-08-23 10:52:51');
@@ -202,49 +205,78 @@ const query = () => {
             </tr>
           </thead>
           <tbody>
-            <tr
-              v-for="a in s.rows"
-              :key="a.id"
-              :class="{ alert: a.unreplied > 0 }"
-            >
-              <td>
-                <div class="rc-td-name">
-                  <span class="rc-acc-name">{{ a.name }}</span>
-                  <span v-if="a.transfer" class="rc-transfer">转移</span>
-                </div>
-                <div class="rc-acc-id">ID: {{ a.id }}</div>
-              </td>
-              <td>
-                <span class="rc-td-net">
-                  <span class="rc-net" :class="{ on: a.pc }" :title="`PC ${a.pc ? '在线' : '离线'}`"><i />PC</span>
-                  <span class="rc-net" :class="{ on: a.mobile }" :title="`移动 ${a.mobile ? '在线' : '离线'}`"><i />移动</span>
-                </span>
-              </td>
-              <td class="rc-td-num">{{ a.recv }}</td>
-              <td class="rc-td-num"><b :class="{ red: a.unreplied > 0 }">{{ a.unreplied }}</b></td>
-              <td>
-                <span
-                  v-if="a.full"
-                  class="rc-switch"
-                  :class="{ on: a.recvSwitch }"
-                  @click="toggleSwitch(s.name, a.id, 'recvSwitch')"
-                ><i /></span>
-                <span v-else class="rc-td-dash">—</span>
-              </td>
-              <td>
-                <span
-                  v-if="a.full"
-                  class="rc-switch"
-                  :class="{ on: a.loginSwitch }"
-                  @click="toggleSwitch(s.name, a.id, 'loginSwitch')"
-                ><i /></span>
-                <span v-else class="rc-td-dash">—</span>
-              </td>
-              <td>
-                <button v-if="a.pull" class="rc-pull" title="拉取未回复">拉取</button>
-                <span v-else class="rc-td-dash">—</span>
-              </td>
-            </tr>
+            <template v-for="a in s.rows" :key="a.id">
+              <tr :class="{ alert: a.unreplied > 0 }">
+                <td>
+                  <div class="rc-td-name">
+                    <!-- 展开角标：与品控系列列表同款 chevron 交互（无下级时占位保对齐） -->
+                    <button
+                      v-if="a.staff && a.staff.length"
+                      type="button"
+                      class="rc-acc-caret"
+                      :class="{ open: accOpen[a.id] }"
+                      :title="accOpen[a.id] ? '收起客服' : '展开客服'"
+                      @click="toggleAcc(a.id)"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6" /></svg>
+                    </button>
+                    <span v-else class="rc-acc-caret ph" aria-hidden="true">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6" /></svg>
+                    </span>
+                    <span class="rc-acc-name">{{ a.name }}</span>
+                  </div>
+                  <div class="rc-acc-id">ID: {{ a.id }}</div>
+                </td>
+                <td>
+                  <span class="rc-td-net">
+                    <span class="rc-net-chip" :class="{ on: a.pc }">PC</span>
+                    <span class="rc-net-chip" :class="{ on: a.mobile }">移动</span>
+                  </span>
+                </td>
+                <td class="rc-td-num">{{ a.recv }}</td>
+                <td class="rc-td-num"><b :class="{ red: a.unreplied > 0 }">{{ a.unreplied }}</b></td>
+                <td>
+                  <span
+                    v-if="a.full"
+                    class="rc-switch"
+                    :class="{ on: a.recvSwitch }"
+                    @click="toggleSwitch(s.name, a.id, 'recvSwitch')"
+                  ><i /></span>
+                  <span v-else class="rc-td-dash">—</span>
+                </td>
+                <td>
+                  <span
+                    v-if="a.full"
+                    class="rc-switch"
+                    :class="{ on: a.loginSwitch }"
+                    @click="toggleSwitch(s.name, a.id, 'loginSwitch')"
+                  ><i /></span>
+                  <span v-else class="rc-td-dash">—</span>
+                </td>
+                <td>
+                  <div class="rc-ops">
+                    <span v-if="a.transfer" class="rc-transfer">转移</span>
+                    <button v-if="a.pull" class="rc-pull" title="拉取未回复">拉取</button>
+                    <span v-else class="rc-td-dash">—</span>
+                  </div>
+                </td>
+              </tr>
+              <!-- 下级：客服维度子行 -->
+              <template v-if="accOpen[a.id] && a.staff">
+                <tr v-for="st in a.staff" :key="`${a.id}-${st.name}`" class="rc-subrow">
+                  <td>
+                    <div class="rc-sub-name">{{ st.name }}</div>
+                    <div class="rc-acc-id">{{ st.group }}</div>
+                  </td>
+                  <td><span class="rc-td-dash">—</span></td>
+                  <td class="rc-td-num">{{ st.recv }}</td>
+                  <td class="rc-td-num"><b :class="{ red: st.unreplied > 0 }">{{ st.unreplied }}</b></td>
+                  <td><span class="rc-td-dash">—</span></td>
+                  <td><span class="rc-td-dash">—</span></td>
+                  <td><span class="rc-td-dash">—</span></td>
+                </tr>
+              </template>
+            </template>
             <tr v-if="s.accounts.length === 0">
               <td colspan="7" class="rc-td-empty">暂无账号</td>
             </tr>

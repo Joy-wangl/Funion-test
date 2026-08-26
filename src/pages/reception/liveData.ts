@@ -6,6 +6,14 @@
 export const LIVE_PLATFORMS = ['拼多多', '抖音', '淘宝', '天猫', '灵犀', '淘工厂', '阿里1688', '淘宝-用户端'] as const;
 export type LivePlatform = (typeof LIVE_PLATFORMS)[number];
 
+export interface LiveStaff {
+  /** 客服名（复用宝妈接待组真实花名） */
+  name: string;
+  group: string;
+  recv: number;
+  unreplied: number;
+}
+
 export interface LiveAccount {
   id: number;
   name: string;
@@ -25,6 +33,8 @@ export interface LiveAccount {
   loginSwitch: boolean;
   /** 转移角标 */
   transfer?: boolean;
+  /** 下级客服维度（展开行） */
+  staff?: LiveStaff[];
   /** 完整卡（含开关行）/ 简化卡 */
   full: boolean;
 }
@@ -63,9 +73,9 @@ export const LIVE_STORES_PDD: LiveStore[] = [
     total: 22,
     noRoute: ['蒸蒸日上的小卖铺售前麒彤', '蒸蒸日上的小卖铺售后于琳', '蒸蒸日上的小卖铺运营吴', '蒸蒸日上的小卖铺售后小珂', '蒸蒸日上的小卖铺售前小路', '蒸蒸日上的小卖铺IT'],
     accounts: [
-      acc(7618, '蒸蒸日上的小卖铺售前麒彤', { pull: true, full: true }),
-      acc(700, '主账号:主账号', { pull: true, full: true }),
-      acc(2334, '蒸蒸日上的小卖铺售前麒翠', { pc: true, pull: true, recv: 35, unreplied: 1, recvSwitch: true, transfer: true, full: true }),
+      acc(7618, '蒸蒸日上的小卖铺售前麒彤', { pull: true, full: true, staff: [{ name: '周洁', group: '宝妈三组', recv: 0, unreplied: 0 }, { name: '刘芳', group: '宝妈一组', recv: 0, unreplied: 0 }] }),
+      acc(700, '主账号:主账号', { pull: true, full: true, staff: [{ name: '王强', group: '宝妈一组', recv: 0, unreplied: 0 }] }),
+      acc(2334, '蒸蒸日上的小卖铺售前麒翠', { pc: true, pull: true, recv: 35, unreplied: 1, recvSwitch: true, transfer: true, full: true, staff: [{ name: '吴婷', group: '宝妈二组', recv: 20, unreplied: 1 }, { name: '徐磊', group: '宝妈二组', recv: 15, unreplied: 0 }] }),
       simple(3001, '蒸蒸日上的小卖铺售后小珂'),
       simple(3002, '蒸蒸日上的小卖铺售前小路'),
       simple(3003, '蒸蒸日上的小卖铺IT'),
@@ -95,9 +105,9 @@ export const LIVE_STORES_PDD: LiveStore[] = [
     total: 7,
     noRoute: ['三石百货工厂售前樟轩', '三石百货工厂IT', '主账号', '三石百货工厂售前樟政', '三石百货工厂运营小黑'],
     accounts: [
-      acc(7562, '三石百货工厂售前樟轩', { pull: true, full: true }),
-      acc(2329, '三石百货工厂售前樟杨', { pc: true, pull: true, recvSwitch: true, full: true }),
-      acc(1675, '主账号:主账号', { pull: true, full: true }),
+      acc(7562, '三石百货工厂售前樟轩', { pull: true, full: true, staff: [{ name: '杨幂', group: '宝妈四组', recv: 0, unreplied: 0 }] }),
+      acc(2329, '三石百货工厂售前樟杨', { pc: true, pull: true, recvSwitch: true, full: true, staff: [{ name: '周洁', group: '宝妈三组', recv: 0, unreplied: 0 }] }),
+      acc(1675, '主账号:主账号', { pull: true, full: true, staff: [{ name: '王强', group: '宝妈一组', recv: 0, unreplied: 0 }] }),
       simple(3101, '三石百货工厂IT'),
       simple(3102, '三石百货工厂运营小黑'),
       simple(3103, '三石百货工厂售前樟政'),
@@ -112,9 +122,9 @@ export const LIVE_STORES_PDD: LiveStore[] = [
     total: 7,
     noRoute: ['越来越精彩的小店售前樟瑞', '越来越精彩的小店泉', '越来越精彩的小店售前樟政', '越来越精彩的小店IT', '主账号'],
     accounts: [
-      acc(7484, '越来越精彩的小店售前樟瑞', { pull: true, full: true }),
-      acc(2331, '越来越精彩的小店售前樟欣', { pc: true, pull: true, recv: 4, recvSwitch: true, full: true }),
-      acc(2216, '主账号:主账号', { pull: true, full: true }),
+      acc(7484, '越来越精彩的小店售前樟瑞', { pull: true, full: true, staff: [{ name: '刘芳', group: '宝妈一组', recv: 0, unreplied: 0 }] }),
+      acc(2331, '越来越精彩的小店售前樟欣', { pc: true, pull: true, recv: 4, recvSwitch: true, full: true, staff: [{ name: '吴婷', group: '宝妈二组', recv: 4, unreplied: 0 }] }),
+      acc(2216, '主账号:主账号', { pull: true, full: true, staff: [{ name: '徐磊', group: '宝妈二组', recv: 0, unreplied: 0 }] }),
       simple(3201, '越来越精彩的小店IT'),
       simple(3202, '越来越精彩的小店泉'),
       simple(3203, '越来越精彩的小店售前樟政'),

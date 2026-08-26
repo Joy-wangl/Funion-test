@@ -760,12 +760,26 @@
   white-space: nowrap;
   max-width: 280px;
 }
-.rc-acc-id { font-size: 12px; color: var(--color-text-4); margin-top: 2px; }
-.rc-td-net { display: inline-flex; align-items: center; gap: 12px; }
-.rc-net { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; color: var(--color-text-3); }
-.rc-net i { width: 6px; height: 6px; border-radius: 50%; background: var(--color-text-4); }
-.rc-net.on { color: var(--color-success); }
-.rc-net.on i { background: currentColor; }
+.rc-acc-id { font-size: 12px; color: var(--color-text-4); margin-top: 4px; }
+/* 在线状态：PC/移动 上下排布标签（离线灰 / 在线绿） */
+.rc-td-net { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.rc-net-chip {
+  padding: 1px 8px; border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+  font-size: 12px; color: var(--color-text-3); white-space: nowrap;
+}
+.rc-net-chip.on { color: var(--color-success); border-color: var(--color-success); background: var(--color-success-light); }
+/* 账号行展开角标：与品控系列列表同款 chevron（灰、展开旋转 90°） */
+.rc-acc-caret {
+  display: inline-flex; align-items: center; border: 0; background: none; padding: 0;
+  color: var(--color-text-3); cursor: pointer; transition: transform .15s; flex-shrink: 0;
+}
+.rc-acc-caret:hover { color: var(--primary); }
+.rc-acc-caret.open { transform: rotate(90deg); }
+/* 无下级账号占位，保证名称列对齐 */
+.rc-acc-caret.ph { visibility: hidden; }
+/* 客服子行：浅底 + 名称缩进（caret 12 + flex gap 6），与账号名对齐 */
+.rc-subrow td { background: var(--color-fill); }
+.rc-sub-name { padding-left: 18px; font-size: 12.5px; font-weight: 500; color: var(--color-text-2); }
 .rc-td-num { color: var(--color-text-2); }
 .rc-td-num b { font-weight: 700; color: var(--color-text); }
 .rc-td-num b.red { color: var(--color-danger); }
