@@ -8,6 +8,7 @@ import AcSvg from './AcSvg.vue';
 import AcLogo from './AcLogo.vue';
 import AcPreviewCard from './AcPreviewCard.vue';
 import AcCell from './AcCell.vue';
+import { useAnchorPop } from '../../hooks/useAnchorPop';
 
 const props = defineProps<{
   app: AppItem;
@@ -104,6 +105,26 @@ const onPickFbImages = (e: Event) => {
   input.value = '';
 };
 
+/* 分享：气泡展示应用分享链接，支持一键复制 */
+const { pos: sharePos, open: openShare, close: closeShare } = useAnchorPop();
+const shareUrl = computed(() => `https://funion.corp/app/${props.app.id}`);
+const toggleShare = (el: HTMLElement) => (sharePos.value ? closeShare() : openShare(el, 348));
+const copyShare = async () => {
+  const url = shareUrl.value;
+  try {
+    await navigator.clipboard.writeText(url);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+  pushToast('分享链接已复制');
+  closeShare();
+};
+
 /* 评价横滑条：超出展示区域的左右滚动交互 */
 const revStripRef = ref<HTMLDivElement | null>(null);
 const revNav = ref({ l: false, r: false });
@@ -133,6 +154,16 @@ watch(() => props.reviews, () => requestAnimationFrame(updateRevNav));
         </div>
       </div>
       <div class="ap-detail-head-acts">
+        <button
+          type="button"
+          class="ap-detail-fav"
+          title="分享"
+          @mousedown.stop
+          @click="toggleShare($event.currentTarget as HTMLElement)"
+        >
+          <span>分享</span>
+          <b><AcSvg :d="IC.share" :size="16" /></b>
+        </button>
         <button
           v-if="!app.mine"
           type="button"
@@ -342,6 +373,17 @@ watch(() => props.reviews, () => requestAnimationFrame(updateRevNav));
           </div>
         </div>
       </template>
+    </Teleport>
+
+    <!-- 分享气泡：展示分享 URL，一键复制 -->
+    <Teleport to="body">
+      <div v-if="sharePos" class="ap-share-pop" :style="{ left: `${sharePos.x}px`, top: `${sharePos.y}px` }" @mousedown.stop>
+        <label>分享链接</label>
+        <div class="ap-share-row">
+          <input :value="shareUrl" readonly @focus="($event.target as HTMLInputElement).select()" />
+          <button type="button" class="ap-btn-solid ap-share-copy" @click="copyShare()">复制</button>
+        </div>
+      </div>
     </Teleport>
   </div>
 </template>

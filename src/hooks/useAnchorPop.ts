@@ -5,11 +5,12 @@ import { onBeforeUnmount, ref, watch } from 'vue';
 export function useAnchorPop() {
   const pos = ref<{ x: number; y: number } | null>(null);
   let anchor: HTMLElement | null = null;
+  let popW = 130;
 
   const place = () => {
     if (!anchor) return;
     const r = anchor.getBoundingClientRect();
-    pos.value = { x: Math.max(8, Math.min(r.left, window.innerWidth - 130)), y: r.bottom + 6 };
+    pos.value = { x: Math.max(8, Math.min(r.left, window.innerWidth - popW)), y: r.bottom + 6 };
   };
   const close = () => {
     pos.value = null;
@@ -35,8 +36,9 @@ export function useAnchorPop() {
     window.removeEventListener('resize', place);
   });
 
-  const open = (el: HTMLElement) => {
+  const open = (el: HTMLElement, width = 130) => {
     anchor = el;
+    popW = width;
     place();
   };
   return { pos, open, close };

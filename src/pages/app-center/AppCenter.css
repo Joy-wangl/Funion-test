@@ -512,6 +512,42 @@
 
 .ap-detail-fav.on b { color: #faad14; }
 
+/* 分享气泡：锚在分享按钮下方，展示分享 URL + 一键复制 */
+.ap-share-pop {
+  position: fixed;
+  z-index: 2601;
+  width: 332px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.ap-share-pop label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: var(--fs-aux);
+  color: var(--color-text-3);
+}
+
+.ap-share-row { display: flex; gap: 8px; }
+
+.ap-share-row input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-fill);
+  font-size: var(--fs-base);
+  color: var(--color-text-2);
+  outline: none;
+}
+
+.ap-share-copy { padding: 0 16px; border-radius: var(--radius-md); }
+
 .ap-detail-divider {
   height: 1px;
   background: #e8e8ec;
