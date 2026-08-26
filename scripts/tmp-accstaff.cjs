@@ -34,6 +34,11 @@ const OUT = 'd:/Qoder/Funion';
   const alertRow = store1.locator('tr', { hasText: '售前麒翠' }).first();
   results['transfer.ops'] = (await alertRow.locator('td:last-child .rc-transfer').count()) === 1;
   results['transfer.notName'] = (await alertRow.locator('td:first-child .rc-transfer').count()) === 0;
+  /* 转移为文本操作按钮（button + 透明底），与拉取同款 */
+  results['transfer.btn'] = await alertRow.locator('.rc-transfer').evaluate((e) => {
+    const cs = getComputedStyle(e);
+    return e.tagName === 'BUTTON' && (cs.backgroundColor === 'rgba(0, 0, 0, 0)' || cs.backgroundColor === 'transparent');
+  });
 
   /* 展开客服子行仍正常 */
   await alertRow.locator('.rc-acc-caret').click();

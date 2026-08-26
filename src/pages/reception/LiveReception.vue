@@ -257,7 +257,7 @@ const query = () => {
                 </td>
                 <td>
                   <div class="rc-ops">
-                    <span v-if="a.transfer" class="rc-transfer">转移</span>
+                    <button v-if="a.transfer" type="button" class="rc-transfer" title="转移接待">转移</button>
                     <button v-if="a.pull" class="rc-pull" title="拉取未回复">拉取</button>
                     <span v-else class="rc-td-dash">—</span>
                   </div>
