@@ -52,7 +52,7 @@ const productOpen = ref(true);
 const createOpen = ref(false);
 const permissionOpen = ref(false);
 
-/* 切到个人商品库子页时自动展开菜单（原版 showCreateTaobao / showCreateVideo） */
+/* 切到商品创建子页时自动展开菜单（原版 showCreateTaobao / showCreateVideo） */
 const showCreate = (key: 'createTaobao' | 'createVideo') => {
   page.value = key;
   createOpen.value = true;
@@ -63,7 +63,7 @@ const onSubnav = (key: string, target?: PageKey) => {
   if (target) page.value = target;
 };
 
-/* 个人商品库子项：高亮 + 切页 + 展开菜单（原版 setActive + showCreate） */
+/* 商品创建子项：高亮 + 切页 + 展开菜单（原版 setActive + showCreate） */
 const clickCreate = (key: 'createTaobao' | 'createVideo') => {
   active.value = key;
   showCreate(key);
@@ -99,7 +99,7 @@ const railMenus: Record<string, { title: string; subs: RailSub[] }> = {
   operationManage: { title: '运营管理', subs: [{ name: '运营管理', target: 'operationManage' }] },
   product: { title: '商机中心', subs: [{ name: '全网搜索', target: 'search' }, { name: '内部商机', target: 'internal' }, { name: '市场商机', target: 'market' }] },
   shopGoods: { title: '店铺商品', subs: [{ name: '店铺商品', target: 'shopGoods' }] },
-  create: { title: '个人商品库', subs: [{ name: '淘宝', create: 'createTaobao' }, { name: '视频号', create: 'createVideo' }] },
+  create: { title: '商品创建', subs: [{ name: '淘宝', create: 'createTaobao' }, { name: '视频号', create: 'createVideo' }] },
   taskCenter: { title: '任务中心', subs: [{ name: '任务中心', target: 'taskCenter' }] },
   strategy: { title: '商品策略', subs: [] },
   aiAssistant: { title: 'AI助手', subs: [{ name: 'AI助手', target: 'aiAssistant' }] },
@@ -169,7 +169,7 @@ watch(collapsed, () => { railPop.value = null; });
           <div class="nav nav-parent" :class="createOpen ? 'open' : ''" @click.stop="toggleGroup('create')" @mouseenter="railEnter('create', $event)" @mouseleave="railLeave()">
             <div class="nav-left">
               <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v8" /><path d="M8 12h8" /></svg></span>
-              <span class="nav-text">个人商品库</span>
+              <span class="nav-text">商品创建</span>
             </div>
             <span class="nav-arrow">▶</span>
           </div>
