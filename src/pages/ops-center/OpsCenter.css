@@ -3965,3 +3965,60 @@
 }
 .ops-rail-pop .rp-item:hover { background: #f5f8ff; color: #4f7cff; }
 .ops-rail-pop .rp-item.on { background: #fff0f0; color: #ff5f62; font-weight: 700; }
+
+/* ================= 发布到抽屉：第一步选择策略 / 第二步选择店铺 ================= */
+.cp-pub-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(560px, 96vw);
+  background: #fff;
+  z-index: 61;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -12px 0 40px rgba(26, 34, 56, 0.18);
+  animation: cp-drawer-in 0.22s ease;
+}
+.cp-pub-head {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--color-border-2);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--color-text);
+}
+.cp-pub-body { flex: 1; overflow: auto; padding: 20px 24px; }
+.cp-pub-label { font-size: var(--fs-base); font-weight: 600; color: var(--color-text); margin-bottom: 10px; }
+.cp-pub-label.mt { margin-top: 26px; }
+.cp-pub-label i { font-style: normal; color: var(--color-danger); margin-left: 4px; }
+/* 策略/平台下拉：灰底无边框，贴近原型 */
+.cp-pub-select.bselect { background: var(--color-fill-2); border-color: transparent; }
+.cp-pub-radios { display: flex; gap: 32px; }
+.cp-pub-radios label { display: inline-flex; align-items: center; gap: 7px; font-size: var(--fs-base); color: var(--color-text-2); cursor: pointer; }
+.cp-pub-radios input { width: 15px; height: 15px; accent-color: var(--color-primary); cursor: pointer; }
+.cp-pub-sec { font-size: var(--fs-base); font-weight: 600; color: var(--color-text); margin: 24px 0 12px; }
+.cp-pub-kv-row { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; row-gap: 14px; }
+.cp-pub-kv { display: flex; align-items: center; gap: 10px; font-size: var(--fs-base); min-width: 0; }
+.cp-pub-kv label { color: var(--color-text-3); flex: none; }
+.cp-pub-kv b { color: var(--color-text); }
+.cp-pub-foot { display: flex; justify-content: flex-end; gap: 12px; padding: 14px 24px; border-top: 1px solid var(--color-border-2); }
+.cp-btn.primary { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.cp-btn.primary:hover:not(:disabled) { background: var(--color-primary-hover); }
+.cp-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+/* 第二步：搜索 + 平台筛选 */
+.cp-pub-shopbar { display: flex; gap: 12px; margin-bottom: 16px; }
+.cp-pub-search { position: relative; flex: 1; min-width: 0; }
+.cp-pub-search .ib-input { padding-right: 32px; background: var(--color-fill-2); border-color: transparent; }
+.cp-pub-search-ic { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--color-text-3); pointer-events: none; }
+.cp-pub-plat.bselect { width: 200px; flex: none; background: var(--color-fill-2); border-color: transparent; }
+/* 未分组店铺：组头 + 店铺行 */
+.cp-pub-group-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 2px; }
+.cp-pub-group-head label { display: flex; align-items: center; gap: 9px; cursor: pointer; }
+.cp-pub-group-head b { font-size: var(--fs-base); font-weight: 600; color: var(--color-text); }
+.cp-pub-caret { border: none; background: none; cursor: pointer; padding: 4px; font-size: 11px; color: var(--color-text); line-height: 1; }
+.cp-pub-shop { display: flex; align-items: center; gap: 10px; padding: 9px 2px 9px 26px; cursor: pointer; }
+.cp-pub-shop:hover { background: var(--color-primary-light-2); }
+.cp-pub-shop img { width: 26px; height: 26px; border-radius: 6px; flex: none; }
+.cp-pub-shop .plat { font-size: var(--fs-base); color: var(--color-text-2); flex: none; }
+.cp-pub-shop .name { font-size: var(--fs-base); color: var(--color-text); }
+.cp-pub-empty { padding: 28px 0; text-align: center; font-size: var(--fs-base); color: var(--color-text-3); }

@@ -653,3 +653,49 @@ export const createVersions: CreateVersion[] = [
   { id: 'v6', title: VER_TITLE, thumb: '/products/main.png', versionNo: '1787118716626', platform: '淘宝', verName: '叶润柱-20260819135154', verDesc: verDescOf('叶润柱', '2026-08-19 13:51:54'), pubPlatform: '淘宝', person: '叶润柱', time: '2026-08-19 13:51:56' },
   { id: 'v7', title: VER_TITLE, thumb: '/products/main.png', versionNo: '1787118715818', platform: '淘宝', verName: '叶润柱-20260819135153', verDesc: verDescOf('叶润柱', '2026-08-19 13:51:53'), pubPlatform: '淘宝', person: '叶润柱', time: '2026-08-19 13:51:55' },
 ];
+
+/* ================= 发布到抽屉（选择策略 → 选择店铺）静态数据 ================= */
+export interface PubStrategy {
+  name: string;
+  /** 策略定义的发布方式：直接上架 / 放入仓库 */
+  pubMethod: string;
+  profitMode: string;
+  profitRate: string;
+  promote: string;
+  bidMode: string;
+  bidTarget: string;
+  roi: string;
+  budgetType: string;
+  dailyBudget: string;
+}
+export const PUB_NO_STRATEGY = '不使用策略发布';
+export const PUB_STRATEGIES: PubStrategy[] = [
+  { name: '13245', pubMethod: '放入仓库', profitMode: '控利润率', profitRate: '1%', promote: '-', bidMode: '-', bidTarget: '-', roi: '-', budgetType: '-', dailyBudget: '-' },
+  { name: '8801', pubMethod: '直接上架', profitMode: '控利润率', profitRate: '5%', promote: '是', bidMode: '控投产比', bidTarget: '点击量', roi: '2.5', budgetType: '每日预算', dailyBudget: '100元' },
+];
+
+export interface PubShop {
+  id: number;
+  platform: string;
+  name: string;
+}
+export const PUB_SHOP_PLATFORMS = ['淘宝', '天猫', '拼多多', '抖音', '快手'];
+/** 发布到第二步：未分组店铺（平台筛选 + 名称搜索） */
+export const PUB_SHOPS: PubShop[] = [
+  { id: 1, platform: '淘宝', name: '1111' },
+  { id: 2, platform: '淘宝', name: '一点就到百货' },
+  { id: 3, platform: '淘宝', name: '万品家居源头直供店的小店42' },
+  { id: 4, platform: '淘宝', name: '万品家居源头直供店的小店42' },
+  { id: 5, platform: '淘宝', name: '万福日用百货' },
+  { id: 6, platform: '淘宝', name: '义乌日用家居直供店' },
+  { id: 7, platform: '淘宝', name: '云朵礼遇' },
+  { id: 8, platform: '淘宝', name: '云深不知好物馆' },
+  { id: 9, platform: '淘宝', name: '优家日用百货店' },
+  { id: 10, platform: '淘宝', name: '优家百货严选' },
+  { id: 11, platform: '淘宝', name: '佳音日用百货商城' },
+  { id: 12, platform: '淘宝', name: '全家百货行' },
+  { id: 13, platform: '淘宝', name: '全家百货行' },
+  { id: 14, platform: '淘宝', name: '全球好物严选PU' },
+  { id: 15, platform: '天猫', name: 'Funion旗舰店' },
+  { id: 16, platform: '天猫', name: 'Funion专营店' },
+];

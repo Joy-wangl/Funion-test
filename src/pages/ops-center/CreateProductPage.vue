@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { createTaobaoRows, parentTasks, retrySub } from './data';
+import { createTaobaoRows, parentTasks, retrySub, PUB_NO_STRATEGY, PUB_STRATEGIES, PUB_SHOPS, PUB_SHOP_PLATFORMS } from './data';
 import type { CreateRow, SubTask } from './data';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
 import MoreActions from '../../components/MoreActions.vue';
 import CreateDetailPage from './CreateDetailPage.vue';
-import { useAnchorPop } from '../../hooks/useAnchorPop';
 import { pushToast } from '../../components/toast';
 import { stepsOf, stepLabels } from './tcSteps';
 
@@ -14,8 +13,47 @@ import { stepsOf, stepLabels } from './tcSteps';
 const rows = ref<CreateRow[]>(createTaobaoRows);
 /* 详情态：复用内部商机/店铺商品详情样式 */
 const detail = ref<CreateRow | null>(null);
-/* 发布到：点击后气泡展示平台选项（滚动时跟随触发链接） */
-const { pos: pubTip, open, close: closePubTip } = useAnchorPop();
+/* 发布到：两步抽屉（第一步选择策略 → 第二步选择店铺） */
+const pubTo = ref<CreateRow | null>(null);
+const pubStep = ref<1 | 2>(1);
+const pubStrategy = ref(PUB_NO_STRATEGY);
+const pubMethod = ref('');
+const pubShopQ = ref('');
+const pubShopPlatform = ref(PUB_SHOP_PLATFORMS[0]);
+const pubGroupOpen = ref(true);
+const pubShopChecked = ref<number[]>([]);
+const openPubTo = (row: CreateRow) => {
+  pubTo.value = row;
+  pubStep.value = 1;
+  pubStrategy.value = PUB_NO_STRATEGY;
+  pubMethod.value = '';
+  pubShopQ.value = '';
+  pubShopPlatform.value = PUB_SHOP_PLATFORMS[0];
+  pubGroupOpen.value = true;
+  pubShopChecked.value = [];
+};
+/* 选中策略后展示策略定义的发布/利润/推广信息；不使用策略时发布方式必填 */
+const pubStrategyInfo = computed(() => PUB_STRATEGIES.find((s) => s.name === pubStrategy.value) ?? null);
+const pubNextEnabled = computed(() => !!pubStrategyInfo.value || pubMethod.value !== '');
+const pubShopsVisible = computed(() => {
+  const q = pubShopQ.value.trim();
+  return PUB_SHOPS.filter((s) => s.platform === pubShopPlatform.value && (!q || s.name.includes(q) || '未分组店铺'.includes(q)));
+});
+const pubAllChecked = computed(() => pubShopsVisible.value.length > 0 && pubShopsVisible.value.every((s) => pubShopChecked.value.includes(s.id)));
+const togglePubShop = (id: number, on: boolean) => {
+  pubShopChecked.value = on ? [...pubShopChecked.value, id] : pubShopChecked.value.filter((x) => x !== id);
+};
+const toggleAllPubShops = (on: boolean) => {
+  const ids = pubShopsVisible.value.map((s) => s.id);
+  pubShopChecked.value = on ? [...new Set([...pubShopChecked.value, ...ids])] : pubShopChecked.value.filter((x) => !ids.includes(x));
+};
+const submitPub = () => {
+  const n = pubShopChecked.value.length;
+  pubTo.value = null;
+  pushToast(`已发布到 ${n} 个店铺`);
+};
+const PUB_LOGOS: Record<string, string> = { 淘宝: 'taobao', 天猫: 'tmall', 拼多多: 'pinduoduo', 抖音: 'douyin', 快手: 'kuaishou' };
+const pubLogo = (p: string) => `/logos/${PUB_LOGOS[p] ?? 'taobao'}.png`;
 /* 删除二次确认 */
 const delRow = ref<CreateRow | null>(null);
 /* 关联发布任务：抽屉展示该商品在任务中心的发布批次（同源联动，重试同步任务列表状态） */
@@ -80,10 +118,6 @@ const retryPub = (sub: SubTask) => {
   window.setTimeout(() => pushToast('重新发布成功'), 1200);
 };
 
-const openPubTip = (e: MouseEvent) => {
-  e.stopPropagation();
-  open(e.currentTarget as HTMLElement);
-};
 /* 详情查看态入口：打开同一抽屉 */
 const openPubFromDetail = () => {
   if (detail.value) openPubDrawer(detail.value);
@@ -204,7 +238,7 @@ const confirmDelete = () => {
                 <a href="#" @click.prevent="detail = row">详情</a>
                 <a
                   href="#"
-                  @click.prevent="openPubTip"
+                  @click.prevent="openPubTo(row)"
                 >
                   发布到
                 </a>
@@ -239,18 +273,6 @@ const confirmDelete = () => {
     </div>
 
     <Teleport to="body">
-      <div
-        v-if="pubTip"
-        class="add-pop"
-        :style="{ left: `${pubTip.x}px`, top: `${pubTip.y}px` }"
-        @mousedown.stop
-      >
-        <div class="add-pop-title">发布到指定店铺</div>
-        <div v-for="t in ['淘宝心选店', '天猫Funion旗舰店', 'AAA小店']" :key="t" class="add-pop-item" @click="closePubTip()">
-          {{ t }}
-        </div>
-      </div>
-
       <div v-if="delRow" class="cp-modal-mask">
         <div class="cp-modal">
           <div class="cp-modal-title">删除确认</div>
@@ -367,4 +389,103 @@ const confirmDelete = () => {
         </table>
       </div>
     </div>
+
+  <!-- 发布到抽屉：第一步选择策略 → 第二步选择店铺 -->
+  <div v-if="pubTo" class="cp-drawer-mask" @click="pubTo = null" />
+  <div v-if="pubTo" class="cp-pub-drawer">
+    <template v-if="pubStep === 1">
+      <div class="cp-pub-head">选择策略</div>
+      <div class="cp-pub-body">
+        <div class="cp-pub-label">策略名称<i>*</i></div>
+        <BubbleSelect
+          class-name="ib-select cp-pub-select"
+          :value="pubStrategy"
+          :options="[PUB_NO_STRATEGY, ...PUB_STRATEGIES.map((s) => s.name)]"
+          @change="(v) => (pubStrategy = v)"
+        />
+        <template v-if="pubStrategyInfo">
+          <div class="cp-pub-sec">发布信息</div>
+          <div class="cp-pub-kv-row">
+            <div class="cp-pub-kv"><label>发布方式：</label><b>{{ pubStrategyInfo.pubMethod }}</b></div>
+          </div>
+          <div class="cp-pub-sec">利润信息</div>
+          <div class="cp-pub-kv-row">
+            <div class="cp-pub-kv"><label>控利方式：</label><b>{{ pubStrategyInfo.profitMode }}</b></div>
+            <div class="cp-pub-kv"><label>利润率：</label><b>{{ pubStrategyInfo.profitRate }}</b></div>
+          </div>
+          <div class="cp-pub-sec">推广信息</div>
+          <div class="cp-pub-kv-row">
+            <div class="cp-pub-kv"><label>是否推广：</label><b>{{ pubStrategyInfo.promote }}</b></div>
+            <div class="cp-pub-kv"><label>出价方式：</label><b>{{ pubStrategyInfo.bidMode }}</b></div>
+            <div class="cp-pub-kv"><label>出价目标：</label><b>{{ pubStrategyInfo.bidTarget }}</b></div>
+            <div class="cp-pub-kv"><label>目标投产比：</label><b>{{ pubStrategyInfo.roi }}</b></div>
+            <div class="cp-pub-kv"><label>预算类型：</label><b>{{ pubStrategyInfo.budgetType }}</b></div>
+            <div class="cp-pub-kv"><label>每日预算：</label><b>{{ pubStrategyInfo.dailyBudget }}</b></div>
+          </div>
+        </template>
+        <template v-else>
+          <div class="cp-pub-label mt">发布方式<i>*</i></div>
+          <div class="cp-pub-radios">
+            <label><input v-model="pubMethod" type="radio" value="直接上架" />直接上架</label>
+            <label><input v-model="pubMethod" type="radio" value="放入仓库" />放入仓库</label>
+          </div>
+        </template>
+      </div>
+      <div class="cp-pub-foot">
+        <button class="cp-btn" @click="pubTo = null">取消</button>
+        <button class="cp-btn primary" :disabled="!pubNextEnabled" @click="pubStep = 2">下一步</button>
+      </div>
+    </template>
+    <template v-else>
+      <div class="cp-pub-head">批量铺货（1 件商品）</div>
+      <div class="cp-pub-body">
+        <div class="cp-pub-shopbar">
+          <div class="cp-pub-search">
+            <input v-model="pubShopQ" class="ib-input" placeholder="店铺名称/分组名称" />
+            <svg class="cp-pub-search-ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M11 4a7 7 0 110 14 7 7 0 010-14zm9 16l-4.35-4.35" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          </div>
+          <BubbleSelect
+            class-name="ib-select cp-pub-plat"
+            :value="pubShopPlatform"
+            :options="PUB_SHOP_PLATFORMS"
+            @change="(v) => (pubShopPlatform = v)"
+          />
+        </div>
+        <div class="cp-pub-group">
+          <div class="cp-pub-group-head">
+            <label>
+              <input
+                type="checkbox"
+                class="ib-check"
+                :checked="pubAllChecked"
+                @change="toggleAllPubShops(($event.target as HTMLInputElement).checked)"
+              />
+              <b>未分组店铺</b>
+            </label>
+            <button type="button" class="cp-pub-caret" @click="pubGroupOpen = !pubGroupOpen">{{ pubGroupOpen ? '▼' : '►' }}</button>
+          </div>
+          <template v-if="pubGroupOpen">
+            <label v-for="s in pubShopsVisible" :key="s.id" class="cp-pub-shop">
+              <input
+                type="checkbox"
+                class="ib-check"
+                :checked="pubShopChecked.includes(s.id)"
+                @change="togglePubShop(s.id, ($event.target as HTMLInputElement).checked)"
+              />
+              <img :src="pubLogo(s.platform)" alt="" />
+              <span class="plat">{{ s.platform }}</span>
+              <span class="name">{{ s.name }}</span>
+            </label>
+            <div v-if="pubShopsVisible.length === 0" class="cp-pub-empty">暂无店铺</div>
+          </template>
+        </div>
+      </div>
+      <div class="cp-pub-foot">
+        <button class="cp-btn" @click="pubStep = 1">上一步</button>
+        <button class="cp-btn primary" :disabled="pubShopChecked.length === 0" @click="submitPub">立即发布</button>
+      </div>
+    </template>
+  </div>
 </template>
