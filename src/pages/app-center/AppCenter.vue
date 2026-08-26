@@ -243,8 +243,8 @@ const submitCreate = (form: AcForm) => {
   if (form.type === 'EXE程序' && !form.run) { pushToast('请选择运行文件'); return; }
   const editId = view.value.kind === 'create' ? view.value.editId : undefined;
   const editing = !!editId;
-  /* 更新已有应用才需填新版本号；上传新创作为上新，初始版本固定 v1.0.0 */
-  if (editing && !form.version.trim()) { pushToast('请输入版本号'); return; }
+  /* 版本号必填：新创作初始默认 1.0.0，更新填新版本号 */
+  if (!form.version.trim()) { pushToast('请输入版本号'); return; }
   const extra = {
     appType: form.type,
     deployMode: form.type === 'Web应用' ? form.deploy : undefined,
@@ -253,7 +253,7 @@ const submitCreate = (form: AcForm) => {
     runFile: form.type === 'EXE程序' ? form.run : undefined,
     publishMode: form.publish,
     permScope: form.publish === 'online' ? form.perm : undefined,
-    version: editing ? form.version.trim() : '1.0.0',
+    version: form.version.trim(),
   };
   if (editing && editId) {
     const target = apps.value.find((a) => a.id === editId);

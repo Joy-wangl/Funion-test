@@ -34,7 +34,7 @@ const fDeploy = ref<'link' | 'file'>(src?.deployMode ?? 'file');
 const fLink = ref(src?.linkUrl ?? '');
 const fFile = ref(src?.appFile ?? '');
 const fRun = ref(src?.runFile ?? '');
-const fVersion = ref(src?.version ?? '');
+const fVersion = ref(src?.version ?? '1.0.0');
 const fPublish = ref<'online' | 'test'>(src?.publishMode ?? 'test');
 const fPerm = ref(src?.permScope ?? '所有人');
 const permPop = ref(false);
@@ -241,13 +241,11 @@ const submit = () => {
             <span v-else class="ap-uf-empty">点击上传应用文件</span>
           </button>
         </template>
-        <template v-if="editing">
-          <label class="ap-label">版本号<i>*</i></label>
-          <div class="ap-field">
-            <input v-model="fVersion" :maxlength="20" placeholder="遵循语义化版本规范(主版本.次版本.修订号)">
-            <span class="ap-count">{{ fVersion.length }}/20</span>
-          </div>
-        </template>
+        <label class="ap-label">版本号<i>*</i></label>
+        <div class="ap-field">
+          <input v-model="fVersion" :maxlength="20" placeholder="遵循语义化版本规范(主版本.次版本.修订号)">
+          <span class="ap-count">{{ fVersion.length }}/20</span>
+        </div>
         <label class="ap-label">{{ editing ? '更新描述' : '上新描述' }}</label>
         <div class="ap-field area">
           <textarea v-model="fNote" :maxlength="80" placeholder="如：新增批量导出；修复偶发卡顿" />
@@ -280,13 +278,11 @@ const submit = () => {
       </template>
 
       <template v-if="fType === 'EXE程序'">
-        <template v-if="editing">
-          <label class="ap-label">版本号<i>*</i></label>
-          <div class="ap-field">
-            <input v-model="fVersion" :maxlength="20" placeholder="遵循语义化版本规范(主版本.次版本.修订号)">
-            <span class="ap-count">{{ fVersion.length }}/20</span>
-          </div>
-        </template>
+        <label class="ap-label">版本号<i>*</i></label>
+        <div class="ap-field">
+          <input v-model="fVersion" :maxlength="20" placeholder="遵循语义化版本规范(主版本.次版本.修订号)">
+          <span class="ap-count">{{ fVersion.length }}/20</span>
+        </div>
         <label class="ap-label">上传应用文件<i>*</i></label>
         <button type="button" class="ap-upload-file" @click="fFile = demoFileName(fType)">
           <AcSvg :d="IC.folder" :size="30" filled class-name="ap-uf-ic" />
@@ -333,13 +329,11 @@ const submit = () => {
       </template>
 
       <template v-if="fType === '浏览器插件'">
-        <template v-if="editing">
-          <label class="ap-label">版本号<i>*</i></label>
-          <div class="ap-field">
-            <input v-model="fVersion" :maxlength="20" placeholder="遵循语义化版本规范(主版本.次版本.修订号)">
-            <span class="ap-count">{{ fVersion.length }}/20</span>
-          </div>
-        </template>
+        <label class="ap-label">版本号<i>*</i></label>
+        <div class="ap-field">
+          <input v-model="fVersion" :maxlength="20" placeholder="遵循语义化版本规范(主版本.次版本.修订号)">
+          <span class="ap-count">{{ fVersion.length }}/20</span>
+        </div>
         <label class="ap-label">上传应用文件<i>*</i></label>
         <button type="button" class="ap-upload-file" @click="fFile = demoFileName(fType)">
           <AcSvg :d="IC.folder" :size="30" filled class-name="ap-uf-ic" />
@@ -381,13 +375,11 @@ const submit = () => {
       </template>
 
       <template v-if="!fType">
-        <template v-if="editing">
-          <label class="ap-label">版本号<i>*</i></label>
-          <div class="ap-field">
-            <input v-model="fVersion" :maxlength="20" placeholder="遵循语义化版本规范(主版本.次版本.修订号)">
-            <span class="ap-count">{{ fVersion.length }}/20</span>
-          </div>
-        </template>
+        <label class="ap-label">版本号<i>*</i></label>
+        <div class="ap-field">
+          <input v-model="fVersion" :maxlength="20" placeholder="遵循语义化版本规范(主版本.次版本.修订号)">
+          <span class="ap-count">{{ fVersion.length }}/20</span>
+        </div>
         <label class="ap-label">{{ editing ? '更新描述' : '上新描述' }}</label>
         <div class="ap-field area">
           <textarea v-model="fNote" :maxlength="80" placeholder="如：新增批量导出；修复偶发卡顿" />
