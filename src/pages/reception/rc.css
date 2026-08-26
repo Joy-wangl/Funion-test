@@ -751,7 +751,10 @@
 .rc-acc-table tbody tr.alert { background: var(--color-danger-light); }
 .rc-acc-table tbody tr.alert:hover { background: var(--color-danger-light); }
 .rc-td-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
+/* 名称/ID 两行同左缘，整体位于 caret 之后 */
+.rc-acc-main { min-width: 0; flex: 1; }
 .rc-acc-name {
+  display: block;
   font-size: 13px;
   font-weight: 600;
   color: var(--color-text);
@@ -777,9 +780,10 @@
 .rc-acc-caret.open { transform: rotate(90deg); }
 /* 无下级账号占位，保证名称列对齐 */
 .rc-acc-caret.ph { visibility: hidden; }
-/* 客服子行：浅底 + 名称缩进（caret 12 + flex gap 6），与账号名对齐 */
+/* 客服子行：浅底 + 整块缩进（caret 12 + flex gap 6），客服名/分组同左缘且与账号名对齐 */
 .rc-subrow td { background: var(--color-fill); }
-.rc-sub-name { padding-left: 18px; font-size: 12.5px; font-weight: 500; color: var(--color-text-2); }
+.rc-sub-main { padding-left: 18px; }
+.rc-sub-name { font-size: 12.5px; font-weight: 500; color: var(--color-text-2); }
 .rc-td-num { color: var(--color-text-2); }
 .rc-td-num b { font-weight: 700; color: var(--color-text); }
 .rc-td-num b.red { color: var(--color-danger); }

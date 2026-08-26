@@ -39,14 +39,21 @@ const OUT = 'd:/Qoder/Funion';
   await alertRow.locator('.rc-acc-caret').click();
   await page.waitForTimeout(200);
   results['sub.expand'] = (await store1.locator('.rc-subrow').count()) === 2;
-  /* 子行名称文本与账号名左缘对齐（div 左缘 + padding-left） */
-  const indent = await page.evaluate(() => {
+  /* 名称列两行同左缘：账号名/ID、客服名/分组，且子行与账号名对齐 */
+  const align = await page.evaluate(() => {
     const name = document.querySelector('.rc-acc-name').getBoundingClientRect().x;
-    const subEl = document.querySelector('.rc-sub-name');
-    const sub = subEl.getBoundingClientRect().x + parseFloat(getComputedStyle(subEl).paddingLeft);
-    return Math.abs(name - sub) <= 2;
+    const id = document.querySelector('.rc-acc-main .rc-acc-id').getBoundingClientRect().x;
+    const sub = document.querySelector('.rc-sub-name').getBoundingClientRect().x;
+    const grp = document.querySelector('.rc-subrow .rc-acc-id').getBoundingClientRect().x;
+    return {
+      idName: Math.abs(name - id) <= 1,
+      subName: Math.abs(name - sub) <= 1,
+      grpSub: Math.abs(sub - grp) <= 1,
+    };
   });
-  results['sub.indent'] = indent;
+  results['id.name.aligned'] = align.idName;
+  results['sub.name.aligned'] = align.subName;
+  results['sub.group.aligned'] = align.grpSub;
   await page.screenshot({ path: `${OUT}/rc-verify-live-staff.png` });
 
   await browser.close();

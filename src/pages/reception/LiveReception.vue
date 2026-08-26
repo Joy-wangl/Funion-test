@@ -223,9 +223,11 @@ const query = () => {
                     <span v-else class="rc-acc-caret ph" aria-hidden="true">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6" /></svg>
                     </span>
-                    <span class="rc-acc-name">{{ a.name }}</span>
+                    <div class="rc-acc-main">
+                      <span class="rc-acc-name">{{ a.name }}</span>
+                      <div class="rc-acc-id">ID: {{ a.id }}</div>
+                    </div>
                   </div>
-                  <div class="rc-acc-id">ID: {{ a.id }}</div>
                 </td>
                 <td>
                   <span class="rc-td-net">
@@ -265,8 +267,10 @@ const query = () => {
               <template v-if="accOpen[a.id] && a.staff">
                 <tr v-for="st in a.staff" :key="`${a.id}-${st.name}`" class="rc-subrow">
                   <td>
-                    <div class="rc-sub-name">{{ st.name }}</div>
-                    <div class="rc-acc-id">{{ st.group }}</div>
+                    <div class="rc-sub-main">
+                      <div class="rc-sub-name">{{ st.name }}</div>
+                      <div class="rc-acc-id">{{ st.group }}</div>
+                    </div>
                   </td>
                   <td><span class="rc-td-dash">—</span></td>
                   <td class="rc-td-num">{{ st.recv }}</td>
