@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import type { ParentTask, SubTask } from './data';
+import { retrySub } from './data';
+import { pushToast } from '../../components/toast';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import TcRange from './TcRange.vue';
 import { stepsOf, stepLabels } from './tcSteps';
@@ -104,7 +106,17 @@ const onBatchRetry = () => {
     alert('请先勾选需要重试的任务');
     return;
   }
-  alert(`已发起 ${checked.value.length} 个任务的批量重试（演示）`);
+  const subs = visible.value.filter((s) => checked.value.includes(s.id));
+  checked.value = [];
+  subs.forEach((s) => retrySub(s));
+  pushToast(`重试中…（${subs.length} 个任务）`);
+  window.setTimeout(() => pushToast('重试成功，任务状态已同步'), 1200);
+};
+/* 单条重试：与个人商品库-关联发布任务抽屉同源联动 */
+const retryOne = (s: SubTask) => {
+  retrySub(s);
+  pushToast('重试中…');
+  window.setTimeout(() => pushToast('重试成功，任务状态已同步'), 1200);
 };
 </script>
 
@@ -175,6 +187,7 @@ const onBatchRetry = () => {
               </label>
             </th>
             <th :style="{ width: '64px' }">序号</th>
+            <th :style="{ width: '90px' }">任务ID</th>
             <th>商品信息</th>
             <th>任务状态</th>
             <th>发布信息</th>
@@ -195,6 +208,7 @@ const onBatchRetry = () => {
               />
             </td>
             <td>{{ subs.indexOf(s) + 1 }}</td>
+            <td>{{ String(s.taskId).padStart(6, '0') }}</td>
             <td>
               <div class="tc-product">
                 <img class="tc-thumb" :src="s.thumb" />
@@ -229,7 +243,7 @@ const onBatchRetry = () => {
               </div>
             </td>
             <td v-if="!isQueued" class="actions-col">
-              <a v-if="s.status === 'failed'" class="tc-link">重试</a>
+              <a v-if="s.status === 'failed'" class="tc-link" @click.prevent="retryOne(s)">重试</a>
               <span v-else class="tc-dash">–</span>
             </td>
           </tr>

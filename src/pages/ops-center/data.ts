@@ -1,4 +1,5 @@
 /** 智能运营中心复刻页的全部静态数据（与 preview.html 一一对应） */
+import { reactive } from 'vue';
 
 /* ---------- 驾驶舱 KPI ---------- */
 export interface KpiFootSeg {
@@ -423,6 +424,8 @@ export type SubStatus = 'queued' | 'running' | 'success' | 'failed';
 
 export interface SubTask {
   id: number;
+  /** 全局唯一任务ID：任务中心列表/详情 与 个人商品库-关联发布任务抽屉 联动展示 */
+  taskId: number;
   templateNo: string;
   name: string;
   thumb: string;
@@ -458,6 +461,8 @@ export interface ParentTask {
   startTime: string;
   endTime: string;
   subs: SubTask[];
+  /** 个人商品库商品链接：该批次子任务与「关联发布任务」抽屉同源联动 */
+  pubFor?: string;
 }
 
 const SUB_NAME = 'Nike Sock durk 男子运动鞋采用优质舒适休闲设计';
@@ -472,12 +477,13 @@ const subPattern: Record<ParentStatus, SubStatus[]> = {
   done: ['success', 'failed', 'success', 'success', 'failed', 'success', 'success', 'failed', 'success', 'success'],
 };
 
-/** 商品创建-关联发布任务：该商品在任务列表中的发布记录（复用子任务结构，节点状态由 tcSteps 推导） */
-export function buildCreatePubTasks(row: { title: string; thumb: string; link: string; person?: string }, seed: number): SubTask[] {
+/* 个人商品库-关联发布任务：该商品在任务中心的发布批次（与任务列表同源，状态联动） */
+const PUB_PATTERN: SubStatus[] = ['success', 'failed', 'success', 'success', 'failed', 'success'];
+function buildPubBatch(row: CreateRow, seed: number): ParentTask {
   const m = row.link.match(/[?&]id=(\d+)/);
-  const pattern: SubStatus[] = ['success', 'failed', 'success', 'success', 'failed', 'success'];
-  return pattern.map((st, i) => ({
+  const subs: SubTask[] = PUB_PATTERN.map((st, i) => ({
     id: seed * 100 + i,
+    taskId: seed * 100 + i,
     templateNo: `V${String(seed).padStart(4, '0')}-0${i + 1}`,
     name: row.title,
     thumb: row.thumb,
@@ -492,11 +498,29 @@ export function buildCreatePubTasks(row: { title: string; thumb: string; link: s
     startTime: `2026-04-04 12:0${i}:00`,
     endTime: `2026-04-04 12:0${i + 1}:00`,
   }));
+  return {
+    id: 50 + seed,
+    creator: row.person,
+    createTime: row.time,
+    type: '商品发布',
+    status: 'done',
+    channel: '智能',
+    shops: 6,
+    links: 6,
+    success: subs.filter((s) => s.status === 'success').length,
+    failed: subs.filter((s) => s.status === 'failed').length,
+    running: 0,
+    startTime: '2026-04-04 12:00:00',
+    endTime: '2026-04-04 12:06:00',
+    subs,
+    pubFor: row.link,
+  };
 }
 
 function buildSubs(seed: number, status: ParentStatus): SubTask[] {
   return subPattern[status].map((st, i) => ({
     id: seed * 100 + i,
+    taskId: 1000 + (seed - 1) * 10 + i,
     templateNo: `V${String(seed).padStart(4, '0')}-${String(i + 1).padStart(2, '0')}`,
     name: SUB_NAME,
     thumb: subThumb,
@@ -532,12 +556,13 @@ function buildParent(id: number, status: ParentStatus): ParentTask {
   };
 }
 
-/** 父任务（批次）列表：前 3 行对应原型（已完成/执行中/队列中），共 50 批 = 15 队列 + 20 执行中 + 15 完成 */
-export const parentTasks: ParentTask[] = [
+/** 父任务（批次）列表：前 3 行对应原型（已完成/执行中/队列中），共 50 批 = 15 队列 + 20 执行中 + 15 完成；
+    末尾追加个人商品库发布批次（pubFor），与关联发布任务抽屉同源 */
+export const parentTasks = reactive<ParentTask[]>([
   { ...buildParent(1, 'done'), creator: '张三', createTime: '2026-04-04 12:00:00' },
   { ...buildParent(2, 'running'), creator: '张三', createTime: '2026-04-04 12:00:00' },
   { ...buildParent(3, 'queued'), creator: '张三', createTime: '2026-04-04 12:00:00' },
-];
+]);
 {
   const need: [ParentStatus, number][] = [
     ['done', 14],
@@ -548,6 +573,30 @@ export const parentTasks: ParentTask[] = [
   for (const [st, n] of need) {
     for (let k = 0; k < n; k++) parentTasks.push(buildParent(nextId++, st));
   }
+  createTaobaoRows.forEach((row, ri) => parentTasks.push(buildPubBatch(row, ri + 1)));
+}
+
+/** 重试/重新发布：执行中→完成，并同步更新所属批次聚合（任务中心与关联发布任务抽屉联动） */
+export function retrySub(sub: SubTask): void {
+  if (sub.status !== 'failed') return;
+  const parent = parentTasks.find((p) => p.subs.includes(sub));
+  sub.status = 'running';
+  sub.endTime = '';
+  if (parent) {
+    parent.failed = Math.max(0, parent.failed - 1);
+    parent.running += 1;
+  }
+  window.setTimeout(() => {
+    sub.status = 'success';
+    sub.failStep = undefined;
+    sub.reason = '';
+    sub.retried = true;
+    sub.endTime = '2026-04-04 12:09:00';
+    if (parent) {
+      parent.running = Math.max(0, parent.running - 1);
+      parent.success += 1;
+    }
+  }, 1200);
 }
 
 /* ================= 商品创建详情（静态素材，淘宝/视频号列表共用） ================= */

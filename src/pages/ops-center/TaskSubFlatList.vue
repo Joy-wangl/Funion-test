@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { parentTasks, type ParentTask, type SubTask } from './data';
+import { parentTasks, retrySub, type ParentTask, type SubTask } from './data';
+import { pushToast } from '../../components/toast';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import TcRange from './TcRange.vue';
 import { stepsOf, stepLabels } from './tcSteps';
@@ -14,7 +15,7 @@ interface FlatRow {
   sub: SubTask;
   parent: ParentTask;
 }
-const flatAll: FlatRow[] = parentTasks.flatMap((p) => p.subs.map((sub) => ({ sub, parent: p })));
+const flatAll = computed<FlatRow[]>(() => parentTasks.flatMap((p) => p.subs.map((sub) => ({ sub, parent: p }))));
 
 const subStatusText: Record<SubTask['status'], string> = {
   queued: '队列中',
@@ -61,14 +62,14 @@ const retried = ref('全部');
 const applied = ref<FlatFilter>({ ...defaultFlatFilter });
 const checked = ref<string[]>([]);
 
-const count = (st: SubTask['status']) => flatAll.filter((r) => r.sub.status === st).length;
-const tabs = [
-  { key: 'all', text: '全部', n: flatAll.length },
+const count = (st: SubTask['status']) => flatAll.value.filter((r) => r.sub.status === st).length;
+const tabs = computed(() => [
+  { key: 'all', text: '全部', n: flatAll.value.length },
   { key: 'queued', text: '队列中', n: count('queued') },
   { key: 'running', text: '执行中', n: count('running') },
   { key: 'done', text: '已完成', n: count('success') },
   { key: 'failed', text: '执行失败', n: count('failed') },
-];
+]);
 
 const snapshot = (nextTab: string, nextChip?: string): FlatFilter => ({
   tab: nextTab,
@@ -108,10 +109,20 @@ const onBatchRetry = () => {
     alert('请先勾选需要重试的任务');
     return;
   }
-  alert(`已发起 ${checked.value.length} 个任务的批量重试（演示）`);
+  const subs = visible.value.filter((r) => checked.value.includes(`${r.parent.id}-${r.sub.id}`));
+  checked.value = [];
+  subs.forEach((r) => retrySub(r.sub));
+  pushToast(`重试中…（${subs.length} 个任务）`);
+  window.setTimeout(() => pushToast('重试成功，任务状态已同步'), 1200);
+};
+/* 单条重试：与个人商品库-关联发布任务抽屉同源联动 */
+const retryOne = (s: SubTask) => {
+  retrySub(s);
+  pushToast('重试中…');
+  window.setTimeout(() => pushToast('重试成功，任务状态已同步'), 1200);
 };
 
-const visible = computed(() => flatAll.filter((r) => {
+const visible = computed(() => flatAll.value.filter((r) => {
   const okTab =
     applied.value.tab === 'all' ||
     (applied.value.tab === 'done' ? r.sub.status === 'success' : applied.value.tab === 'failed' ? r.sub.status === 'failed' : r.sub.status === applied.value.tab);
@@ -206,6 +217,7 @@ const toggleOne = (key: string, on: boolean) => { checked.value = on ? [...check
               </label>
             </th>
             <th :style="{ width: '64px' }">序号</th>
+            <th :style="{ width: '90px' }">任务ID</th>
             <th>商品信息</th>
             <th>任务类型</th>
             <th>节点状态</th>
@@ -230,6 +242,7 @@ const toggleOne = (key: string, on: boolean) => { checked.value = on ? [...check
               />
             </td>
             <td>{{ i + 1 }}</td>
+            <td>{{ String(r.sub.taskId).padStart(6, '0') }}</td>
             <td>
               <div class="tc-product">
                 <img class="tc-thumb" :src="r.sub.thumb" />
@@ -275,7 +288,7 @@ const toggleOne = (key: string, on: boolean) => { checked.value = on ? [...check
               </div>
             </td>
             <td class="actions-col">
-              <a v-if="r.sub.status === 'failed'" class="tc-link">重试</a>
+              <a v-if="r.sub.status === 'failed'" class="tc-link" @click.prevent="retryOne(r.sub)">重试</a>
               <span v-else class="tc-dash">–</span>
             </td>
           </tr>

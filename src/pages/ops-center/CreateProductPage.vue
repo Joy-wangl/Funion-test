@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { createTaobaoRows, buildCreatePubTasks } from './data';
+import { createTaobaoRows, parentTasks, retrySub } from './data';
 import type { CreateRow, SubTask } from './data';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
@@ -18,13 +18,12 @@ const detail = ref<CreateRow | null>(null);
 const { pos: pubTip, open, close: closePubTip } = useAnchorPop();
 /* 删除二次确认 */
 const delRow = ref<CreateRow | null>(null);
-/* 关联发布任务：抽屉展示该商品的发布任务列表，失败可重试重新发布 */
+/* 关联发布任务：抽屉展示该商品在任务中心的发布批次（同源联动，重试同步任务列表状态） */
 const pubRow = ref<CreateRow | null>(null);
-const pubTasks = ref<SubTask[]>([]);
+const pubTasks = computed<SubTask[]>(() => parentTasks.find((p) => p.pubFor === pubRow.value?.link)?.subs ?? []);
 const pubSortAsc = ref(true);
 const openPubDrawer = (row: CreateRow) => {
   pubRow.value = row;
-  pubTasks.value = buildCreatePubTasks(row, rows.value.indexOf(row) + 1);
   pubSortAsc.value = true;
   resetPubFilter();
   pubChecked.value = [];
@@ -68,35 +67,17 @@ const batchRetryPub = () => {
   }
   const subs = pubTasks.value.filter((s) => pubChecked.value.includes(s.id));
   pubChecked.value = [];
-  subs.forEach((s) => {
-    s.status = 'running';
-    s.endTime = '';
-  });
+  subs.forEach((s) => retrySub(s));
   pushToast('重新发布中…');
-  window.setTimeout(() => {
-    subs.forEach((s) => {
-      s.status = 'success';
-      s.failStep = undefined;
-      s.reason = '';
-      s.endTime = '2026-04-04 12:09:00';
-    });
-    pushToast(`重新发布成功（${subs.length} 个任务）`);
-  }, 1200);
+  window.setTimeout(() => pushToast(`重新发布成功（${subs.length} 个任务）`), 1200);
 };
 const pubStatusText: Record<SubTask['status'], string> = { queued: '队列中', running: '执行中', success: '已完成', failed: '执行失败' };
 const pubStatusCls: Record<SubTask['status'], string> = { queued: 'queued', running: 'running', success: 'done', failed: 'failed' };
 const retryPub = (sub: SubTask) => {
-  sub.status = 'running';
-  sub.endTime = '';
   pubChecked.value = pubChecked.value.filter((x) => x !== sub.id);
+  retrySub(sub);
   pushToast('重新发布中…');
-  window.setTimeout(() => {
-    sub.status = 'success';
-    sub.failStep = undefined;
-    sub.reason = '';
-    sub.endTime = '2026-04-04 12:09:00';
-    pushToast('重新发布成功');
-  }, 1200);
+  window.setTimeout(() => pushToast('重新发布成功'), 1200);
 };
 
 const openPubTip = (e: MouseEvent) => {
@@ -352,7 +333,7 @@ const confirmDelete = () => {
                   @change="togglePubCheck(s.id, ($event.target as HTMLInputElement).checked)"
                 />
               </td>
-              <td>{{ String(s.id).padStart(6, '0') }}</td>
+              <td>{{ String(s.taskId).padStart(6, '0') }}</td>
               <td>
                 <div class="tc-cell-lines">
                   <div>{{ s.publisher || '–' }}</div>
