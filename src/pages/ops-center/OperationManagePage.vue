@@ -54,7 +54,6 @@ const checked = ref<boolean[]>(omProducts.map(() => false));
 
 /* ---------- 列表字段管理：▦ 气泡勾选列显隐（商品信息/操作列固定不可隐藏） ---------- */
 const COL_FIELDS = [
-  { key: 'store', label: '上架店铺' },
   { key: 'category', label: '商品类目' },
   { key: 'trend', label: '近30天销量趋势' },
   { key: 'cloud', label: '云仓占比' },
@@ -62,7 +61,6 @@ const COL_FIELDS = [
   { key: 'week7', label: '近7日销量' },
   { key: 'refund', label: '退款率' },
   { key: 'refundAfter', label: '发货后退款率' },
-  { key: 'stock', label: '库存数' },
   { key: 'created', label: '创建时间' },
   { key: 'status', label: '状态' },
 ];

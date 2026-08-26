@@ -28,7 +28,7 @@ const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
 </script>
 
 <template>
-  <!-- 内部商机 / 运营管理共用的 15 列商品表格 + 分页（与 preview.html 一致） -->
+  <!-- 内部商机 / 运营管理共用的 13 列商品表格 + 分页（与 preview.html 一致） -->
   <div class="ib-table-card">
     <div class="ib-table-wrap">
       <table class="ib-table">
@@ -39,7 +39,6 @@ const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
             </th>
             <th :style="{ width: props.indexWidth + 'px' }">序号</th>
             <th>商品信息</th>
-            <th v-if="!isHidden('store')">上架店铺</th>
             <th v-if="!isHidden('category')">商品类目</th>
             <th v-if="!isHidden('trend')">近30天销量趋势</th>
             <th v-if="!isHidden('cloud')">云仓占比</th>
@@ -47,7 +46,6 @@ const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
             <th v-if="!isHidden('week7')">近7日销量</th>
             <th v-if="!isHidden('refund')">退款率</th>
             <th v-if="!isHidden('refundAfter')">发货后退款率</th>
-            <th v-if="!isHidden('stock')">库存数</th>
             <th v-if="!isHidden('created')">创建时间</th>
             <th v-if="!isHidden('status')">状态</th>
             <th>操作</th>
@@ -80,7 +78,6 @@ const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
                 </div>
               </div>
             </td>
-            <td v-if="!isHidden('store')">{{ row.storeCol }}</td>
             <td v-if="!isHidden('category')">{{ row.category }}</td>
             <td v-if="!isHidden('trend')">
               <svg class="spark" viewBox="0 0 90 32">
@@ -92,9 +89,6 @@ const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
             <td v-if="!isHidden('week7')">{{ row.week7 }}</td>
             <td v-if="!isHidden('refund')">{{ row.refundRate }}</td>
             <td v-if="!isHidden('refundAfter')">{{ row.refundAfter }}</td>
-            <td v-if="!isHidden('stock')">
-              {{ row.stock }} <span class="badge-red">库存紧张</span>
-            </td>
             <td v-if="!isHidden('created')">{{ row.created }}</td>
             <td v-if="!isHidden('status')">
               <span class="badge-green">在售</span>

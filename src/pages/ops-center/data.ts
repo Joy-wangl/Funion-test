@@ -193,7 +193,6 @@ export interface ProductRow {
   pname: string;
   pid: string;
   storeMeta: { text: string };
-  storeCol: string;
   category: string;
   spark: string;
   cloudRatio: string;
@@ -201,7 +200,6 @@ export interface ProductRow {
   week7: string;
   refundRate: string;
   refundAfter: string;
-  stock: string;
   created: string;
 }
 
@@ -219,7 +217,6 @@ export const internalProducts: ProductRow[] = [
     pname: '水果刀削皮刀便携倒钩苹果去皮神器家用拼多多功能款...',
     pid: '2670779935129',
     storeMeta: { text: '快乐小店-佰得小站' },
-    storeCol: '-',
     category: '厨房/烹饪用具/刀...',
     spark: spark1,
     cloudRatio: '-',
@@ -227,7 +224,6 @@ export const internalProducts: ProductRow[] = [
     week7: '12087',
     refundRate: '8.37%',
     refundAfter: '2.62%',
-    stock: '0',
     created: '2026/07/10 17:39',
   },
   {
@@ -235,7 +231,6 @@ export const internalProducts: ProductRow[] = [
     pname: '益智魔块3d立体拼图3到6岁动物趣味恐龙模型儿童手工...',
     pid: '26701928017129',
     storeMeta: { text: '快乐小店-佰得小站' },
-    storeCol: '-',
     category: '拼玩用品/礼品/创...',
     spark: spark2,
     cloudRatio: '-',
@@ -243,7 +238,6 @@ export const internalProducts: ProductRow[] = [
     week7: '11875',
     refundRate: '9.58%',
     refundAfter: '3.56%',
-    stock: '0',
     created: '2026/07/09 11:34',
   },
   {
@@ -251,7 +245,6 @@ export const internalProducts: ProductRow[] = [
     pname: '迷你随身小烟炮音响驱动无线蓝牙便携式重低音抽绳全...',
     pid: '3773095122930106470',
     storeMeta: { text: '抖音小店-丽丽居住/健身弹专卖店' },
-    storeCol: '-',
     category: '运动休闲用品/场...',
     spark: spark3,
     cloudRatio: '92.37%',
@@ -259,7 +252,6 @@ export const internalProducts: ProductRow[] = [
     week7: '11179',
     refundRate: '15.70%',
     refundAfter: '3.13%',
-    stock: '0',
     created: '2025/09/04 19:21',
   },
   {
@@ -267,7 +259,6 @@ export const internalProducts: ProductRow[] = [
     pname: '挂钩强力粘胶粘钩强承重免打孔门后墙壁透明勾塑...',
     pid: '977051807853',
     storeMeta: { text: '拼多多-萌妮优选的小百货' },
-    storeCol: '-',
     category: '收纳整理/家居用...',
     spark: spark4,
     cloudRatio: '3.46%',
@@ -275,7 +266,6 @@ export const internalProducts: ProductRow[] = [
     week7: '10438',
     refundRate: '3.49%',
     refundAfter: '1.77%',
-    stock: '0',
     created: '2026/07/13 17:07',
   },
   {
@@ -283,7 +273,6 @@ export const internalProducts: ProductRow[] = [
     pname: '【6个装】证件防丢卡套卡套防窥身份证银行卡保护隐...',
     pid: '25969737568832',
     storeMeta: { text: '快乐小店-歪歪轩' },
-    storeCol: '-',
     category: '居家日用/其他家...',
     spark: spark5,
     cloudRatio: '-',
@@ -291,7 +280,6 @@ export const internalProducts: ProductRow[] = [
     week7: '10307',
     refundRate: '8.81%',
     refundAfter: '4.73%',
-    stock: '0',
     created: '2026/01/24 21:02',
   },
   {
@@ -299,7 +287,6 @@ export const internalProducts: ProductRow[] = [
     pname: '密封胶泥空调孔填缝堵洞防虫防水家用耐高温下水道...',
     pid: '981543753220',
     storeMeta: { text: '拼多多-阿涛弄弄' },
-    storeCol: '-',
     category: '-',
     spark: spark6,
     cloudRatio: '-',
@@ -307,7 +294,6 @@ export const internalProducts: ProductRow[] = [
     week7: '9515',
     refundRate: '0',
     refundAfter: '0',
-    stock: '0',
     created: '2026/07/25 19:10',
   },
 ];
