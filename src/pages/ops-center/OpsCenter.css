@@ -1205,7 +1205,7 @@
 }
 .ops-center .ib-table {
   width: 100%;
-  min-width: 1600px;
+  min-width: 1200px;
   border-collapse: separate;
   border-spacing: 0;
 }
@@ -1273,6 +1273,39 @@
   color: #8891a2;
   line-height: 1.6;
 }
+/* 竞价商品：行展开箭头 + 必报SKU 维度子表（复刻品控系列编码展开样式） */
+.ops-center .ib-caret {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 8px;
+  color: #8a92a1;
+  cursor: pointer;
+  vertical-align: middle;
+  transition: transform 0.15s;
+}
+.ops-center .ib-caret.open { transform: rotate(90deg); }
+.ops-center .ib-table .ib-expand-row > td {
+  background: #f7f8fa;
+  padding: 12px 16px;
+}
+.ops-center .ib-subtable {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid #e8ebf1;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.ops-center .ib-subtable th,
+.ops-center .ib-subtable td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid #f0f3f7;
+  font-size: 12px;
+  color: #445066;
+}
+.ops-center .ib-subtable th { background: #fbfcfe; color: #5d6678; font-weight: 700; white-space: nowrap; }
+.ops-center .ib-subtable tr:last-child td { border-bottom: none; }
 /* 店铺平台 LOGO：圆角正方形 */
 .ops-center .store-logo {
   display: inline-block;
@@ -4027,3 +4060,51 @@
 /* 名称蓝色可点击（内置商品链接），ID 置于名称下方 */
 .ops-center .bd-name { display: inline-block; font-size: 13px; color: var(--color-primary); font-weight: 600; max-width: 280px; line-height: 1.4; }
 .ops-center .bd-code { margin-top: 6px; }
+
+/* ================= 素材中心（商品详情编辑态「素材」入口） ================= */
+.ops-center .mc-page { display: flex; flex-direction: column; height: calc(100vh - 56px); min-height: 0; background: var(--color-bg, #f5f6fa); }
+.ops-center .mc-top { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: #fff; border-bottom: 1px solid var(--color-border-2); flex: none; }
+.ops-center .mc-title { font-size: 16px; font-weight: 700; }
+.ops-center .mc-acts { display: flex; gap: 12px; }
+.ops-center .mc-body { flex: 1; min-height: 0; display: flex; }
+.ops-center .mc-left { width: 49%; overflow-y: auto; background: #fff; border-right: 1px solid var(--color-border-2); }
+.ops-center .mc-right { flex: 1; overflow-y: auto; background: #fff; }
+/* 文件夹式 tab：激活项与内容区蓝框连通 */
+.ops-center .mc-tabs { display: flex; padding: 16px 16px 0; }
+.ops-center .mc-tab { flex: 1; text-align: center; padding: 10px 0; font-size: 14px; color: var(--color-text-2); background: #f2f3f7; border-radius: 10px 10px 0 0; cursor: pointer; user-select: none; }
+.ops-center .mc-tab.active { position: relative; z-index: 1; color: var(--color-primary); font-weight: 600; background: #fff; border: 1px solid var(--color-primary); border-bottom-color: transparent; }
+.ops-center .mc-left-body { margin: -1px 16px 16px; padding: 16px; border: 1px solid var(--color-primary); border-radius: 0 10px 10px 10px; }
+.ops-center .mc-beauty-empty { padding: 80px 0; text-align: center; color: var(--color-text-3); font-size: 13px; }
+.ops-center .mc-sec-title { display: flex; align-items: center; gap: 8px; margin: 20px 0 12px; font-size: 14px; font-weight: 600; }
+.ops-center .mc-sec-title::before { content: ''; width: 3px; height: 14px; border-radius: 2px; background: var(--color-primary); }
+.ops-center .mc-sec-title:first-child { margin-top: 0; }
+.ops-center .mc-imgs { display: flex; flex-wrap: wrap; gap: 12px; }
+.ops-center .mc-img { position: relative; width: 150px; height: 150px; border-radius: 8px; overflow: hidden; flex: none; }
+.ops-center .mc-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ops-center .mc-img-mask { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.45); }
+.ops-center .mc-img:hover .mc-img-mask { display: flex; }
+.ops-center .mc-drag { position: absolute; top: 6px; left: 6px; line-height: 0; }
+.ops-center .mc-img-ops { display: flex; gap: 16px; font-size: 13px; }
+.ops-center .mc-img-ops a { color: #fff; }
+.ops-center .mc-img-ops a:hover { text-decoration: underline; }
+.ops-center .mc-play { position: absolute; right: 8px; bottom: 8px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0, 0, 0, 0.5); color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: center; }
+.ops-center .mc-upload { width: 150px; height: 150px; border: 1px dashed var(--color-border); border-radius: 8px; background: transparent; color: var(--color-text-3); font-size: 13px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+.ops-center .mc-upload i { font-style: normal; font-size: 18px; }
+.ops-center .mc-upload:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.ops-center .mc-sku-row { display: flex; align-items: center; gap: 20px; padding: 12px; border-radius: 8px; background: #f7f8fa; margin-bottom: 12px; }
+.ops-center .mc-sku-th { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; color: var(--color-text-3); }
+.ops-center .mc-sku-th img { width: 56px; height: 56px; border-radius: 6px; object-fit: cover; }
+.ops-center .mc-sku-name { font-size: 13px; color: var(--color-text); margin-bottom: 8px; }
+.ops-center .mc-sku-codes span { display: inline-block; margin-right: 8px; padding: 2px 8px; border-radius: 4px; background: #eef0f4; font-size: 12px; color: var(--color-text-2); }
+/* 右栏素材库 */
+.ops-center .mc-right-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--color-border-2); }
+.ops-center .mc-right-title { font-size: 16px; font-weight: 700; }
+.ops-center .mc-lib { padding: 16px 24px; }
+.ops-center .mc-lib-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.ops-center .mc-lib-title { font-size: 14px; font-weight: 600; }
+.ops-center .mc-fold { flex: none; padding: 2px 8px; border: 1px solid var(--color-border); border-radius: 4px; background: #fff; font-size: 12px; color: var(--color-text-2); cursor: pointer; }
+.ops-center .mc-lib-meta { display: flex; align-items: center; gap: 12px; margin: 10px 0 4px; font-size: 13px; color: var(--color-text-2); }
+.ops-center .mc-lib-meta a { color: var(--color-primary); }
+.ops-center .mc-lib-tag { padding: 1px 8px; border-radius: 4px; background: #e8efff; color: var(--color-primary); font-size: 12px; }
+.ops-center .mc-lib-imgs { display: flex; flex-wrap: wrap; gap: 12px; }
+.ops-center .mc-lib-imgs img { width: 165px; height: 210px; border-radius: 6px; object-fit: cover; }

@@ -5,6 +5,7 @@ import { createDetail, createVersions } from './data';
 import { pushToast } from '../../components/toast';
 import ToastWrap from '../../components/ToastWrap.vue';
 import CpdMediaSec from './CpdMediaSec.vue';
+import MaterialCenter from './MaterialCenter.vue';
 
 const props = defineProps<{ row: CreateRow }>();
 const emit = defineEmits<{ (e: 'back'): void; (e: 'openPub'): void }>();
@@ -15,6 +16,7 @@ const OTHER_COST_TIP = '包含 快递费、包材费、出仓成本、仓库房�
 
 /** 商品创建详情页：查看态/编辑态（样式复用店铺商品详情 sgd-*，字段按原型） */
 const editing = ref(false);
+const showMaterial = ref(false);
 const curVer = ref<CreateVersion>(createVersions.find((v) => v.current) ?? createVersions[0]);
 const specOpen = ref(true);
 const skuShow = ref(true);
@@ -24,7 +26,8 @@ const d = createDetail;
 </script>
 
 <template>
-  <div class="sg-page sgd-page cpd-page">
+  <MaterialCenter v-if="showMaterial" @back="showMaterial = false" />
+  <div v-else class="sg-page sgd-page cpd-page">
     <div class="sgd-hero">
       <div class="sgd-top">
         <div class="sgd-top-left">
@@ -65,11 +68,14 @@ const d = createDetail;
           </div>
         </div>
         <div class="cpd-side-acts">
+          <button class="cpd-side-btn" @click="pushToast('手机预览：演示环境暂不可用')">
+            <span class="ic">▯</span>手机预览
+          </button>
           <button class="cpd-side-btn" @click="pushToast('AI审查完成：未发现合规问题')">
             <span class="ic">◉</span>AI审查
           </button>
-          <button class="cpd-side-btn" @click="pushToast('手机预览：演示环境暂不可用')">
-            <span class="ic">▯</span>手机预览
+          <button v-if="editing" class="cpd-side-btn" @click="showMaterial = true">
+            <span class="ic">❐</span>素材
           </button>
         </div>
       </div>
