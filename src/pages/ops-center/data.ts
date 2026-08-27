@@ -703,6 +703,8 @@ export interface BiddingRow {
   profit: string;
   /** 导入时间 */
   imported: string;
+  /** 竞价状态 */
+  status: '报名待开启' | '报名中' | '待开始';
 }
 export const biddingRows: BiddingRow[] = [
   {
@@ -716,6 +718,7 @@ export const biddingRows: BiddingRow[] = [
     code: 'DJ-2201',
     profit: '¥3.20',
     imported: '2026-08-13 18:24',
+    status: '报名中',
   },
   {
     img: svgThumb('#d9f4e7', '益智'),
@@ -728,6 +731,7 @@ export const biddingRows: BiddingRow[] = [
     code: 'WJ-035',
     profit: '¥5.80',
     imported: '2026-08-13 18:24',
+    status: '报名待开启',
   },
   {
     img: svgThumb('#dfe8ff', '音响'),
@@ -740,6 +744,7 @@ export const biddingRows: BiddingRow[] = [
     code: 'SM-118',
     profit: '¥8.40',
     imported: '2026-08-12 09:41',
+    status: '报名中',
   },
   {
     img: svgThumb('#fff0c9', '挂钩'),
@@ -752,6 +757,7 @@ export const biddingRows: BiddingRow[] = [
     code: 'SY-042',
     profit: '¥2.10',
     imported: '2026-08-11 16:05',
+    status: '待开始',
   },
   {
     img: svgThumb('#ffe1eb', '卡套'),
@@ -764,6 +770,7 @@ export const biddingRows: BiddingRow[] = [
     code: 'KQ-006',
     profit: '¥1.60',
     imported: '2026-08-10 11:32',
+    status: '报名中',
   },
   {
     img: svgThumb('#e6f0ff', '胶泥'),
@@ -776,6 +783,7 @@ export const biddingRows: BiddingRow[] = [
     code: 'JN-233',
     profit: '¥1.20',
     imported: '2026-08-08 15:47',
+    status: '待开始',
   },
   {
     img: svgThumb('#e9e2ff', '面霜'),
@@ -788,5 +796,6 @@ export const biddingRows: BiddingRow[] = [
     code: 'MF-501',
     profit: '¥6.50',
     imported: '2026-08-07 10:12',
+    status: '报名待开启',
   },
 ];

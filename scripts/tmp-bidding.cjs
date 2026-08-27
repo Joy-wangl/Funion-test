@@ -65,6 +65,19 @@ const OUT = 'd:/Qoder/Funion';
   await thPf.click();
   results['sort.pfAsc'] = ((await cell(7)) || '').includes('1.20');
 
+  /* 竞价状态 tab：4 个 + 计数 + 切换过滤 */
+  const tabs = page.locator('.ops-center .page.show .bd-tabs .bd-tab');
+  results['tabs.count4'] = (await tabs.count()) === 4;
+  const tabTexts = (await tabs.allTextContents()).join('|');
+  results['tabs.counts'] = tabTexts.includes('报名中(3)') && tabTexts.includes('待开始(2)') && tabTexts.includes('报名待开启(2)');
+  await page.locator('.ops-center .page.show .bd-tab:has-text("报名中")').click();
+  results['tabs.filter3'] = (await body.locator('tr').count()) === 3
+    && ((await page.locator('.ops-center .page.show .bd-tab.active').textContent()) || '').includes('报名中');
+  await page.locator('.ops-center .page.show .bd-tab:has-text("待开始")').click();
+  results['tabs.filter2'] = (await body.locator('tr').count()) === 2;
+  await page.locator('.ops-center .page.show .bd-tab:has-text("全部招募")').click();
+  results['tabs.all7'] = (await body.locator('tr').count()) === 7;
+
   /* 详情：复用商品创建淘宝详情页 + 返回 */
   await body.locator('a:has-text("详情")').first().click();
   await page.waitForSelector('.sgd-top-title');

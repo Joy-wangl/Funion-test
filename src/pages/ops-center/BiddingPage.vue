@@ -27,9 +27,19 @@ const num = (s: string) => {
   const n = parseFloat(s.replace(/[^\d.-]/g, ''));
   return Number.isFinite(n) ? n : null;
 };
+/* 竞价状态 tab：全部招募 / 报名待开启 / 报名中 / 待开始 */
+const STATUS_TABS = ['全部招募', '报名待开启', '报名中', '待开始'] as const;
+const statusTab = ref<(typeof STATUS_TABS)[number]>('全部招募');
+const statusCounts = computed(() => {
+  const m: Record<string, number> = {};
+  for (const r of biddingRows) m[r.status] = (m[r.status] ?? 0) + 1;
+  return m;
+});
+
 const list = computed(() =>
   biddingRows.filter((r) => {
     const a = applied.value;
+    if (statusTab.value !== '全部招募' && r.status !== statusTab.value) return false;
     if (a.name && !r.name.includes(a.name)) return false;
     if (a.pid && !r.pid.includes(a.pid)) return false;
     if (a.code && !r.code.toLowerCase().includes(a.code.toLowerCase())) return false;
@@ -142,6 +152,17 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
     </div>
 
     <div class="ib-table-card">
+      <div class="bd-tabs">
+        <div
+          v-for="t in STATUS_TABS"
+          :key="t"
+          class="bd-tab"
+          :class="statusTab === t ? 'active' : ''"
+          @click="statusTab = t"
+        >
+          {{ t === '全部招募' ? t : `${t}(${statusCounts[t] ?? 0})` }}
+        </div>
+      </div>
       <div class="ib-table-wrap">
         <table class="ib-table bd-table">
           <thead>
