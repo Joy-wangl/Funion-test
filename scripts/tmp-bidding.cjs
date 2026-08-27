@@ -4,7 +4,7 @@ const OUT = 'd:/Qoder/Funion';
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
-  const page = await browser.newPage({ viewport: { width: 1800, height: 900 } });
+  const page = await browser.newPage({ viewport: { width: 1800, height: 900 }, acceptDownloads: true });
   const results = {};
   await page.goto('http://localhost:5173', { waitUntil: 'networkidle' });
   await page.click('.top-tabs-item:has-text("智能运营中心")');
@@ -26,14 +26,14 @@ const OUT = 'd:/Qoder/Funion';
 
   /* 表头 11 列且顺序正确 */
   const heads = (await page.locator('.ops-center .page.show .bd-table thead th').allTextContents()).map((h) => h.replace(/[⇅▲▼]/g, '').trim());
-  results['th.cols'] = heads.join(',') === '商品图片,商品名称,招募状态,必报SKU,门槛价,是否有货,商品编码,预估利润,导入时间,操作';
+  results['th.cols'] = heads.join(',') === ',商品图片,商品名称,招募状态,必报SKU,门槛价,是否有货,商品编码,预估利润,导入时间,操作';
 
   /* 行内容：7 行、有货/缺货徽标、编码标签、详情 */
   const body = page.locator('.ops-center .page.show .bd-table tbody');
   results['rows.7'] = (await body.locator('tr').count()) === 7;
   results['rows.badges'] = (await body.locator('.badge-green:has-text("有货")').count()) === 5
     && (await body.locator('.badge-red:has-text("缺货")').count()) === 2;
-  results['rows.codeTag'] = (await body.locator('tr td:nth-child(7) .badge-gray').count()) === 7;
+  results['rows.codeTag'] = (await body.locator('tr td:nth-child(8) .badge-gray').count()) === 7;
   results['rows.statusBadges'] = (await body.locator('.badge-green:has-text("报名中")').count()) === 3
     && (await body.locator('.badge-orange:has-text("待开始")').count()) === 2
     && (await body.locator('.badge-gray:has-text("报名待开启")').count()) === 2;
@@ -70,11 +70,11 @@ const OUT = 'd:/Qoder/Funion';
   const thPf = page.locator('.ops-center .page.show .bd-table thead th:has-text("预估利润")');
   const cell = (n) => body.locator(`tr td:nth-child(${n})`).first().textContent();
   await thTh.click();
-  results['sort.thAsc'] = ((await cell(5)) || '').includes('3.90');
+  results['sort.thAsc'] = ((await cell(6)) || '').includes('3.90');
   await thTh.click();
-  results['sort.thDesc'] = ((await cell(5)) || '').includes('22.00');
+  results['sort.thDesc'] = ((await cell(6)) || '').includes('22.00');
   await thPf.click();
-  results['sort.pfAsc'] = ((await cell(8)) || '').includes('1.20');
+  results['sort.pfAsc'] = ((await cell(9)) || '').includes('1.20');
 
   /* 招募状态筛选：报名中 → 3 行；重置恢复 */
   await filters.locator('.ib-field:has(label:has-text("招募状态")) .bselect').click();
@@ -82,6 +82,24 @@ const OUT = 'd:/Qoder/Funion';
   await filters.locator('button:has-text("查询")').click();
   results['filter.status3'] = (await body.locator('tr').count()) === 3;
   await filters.locator('button:has-text("重置")').click();
+
+  /* 勾选 + 导出：未勾选报错；勾选 2 行下载 CSV；全选/清空 */
+  results['check.rows7'] = (await body.locator('input.ib-check').count()) === 7;
+  await filters.locator('button:has-text("导出")').click();
+  results['export.noSel'] = ((await page.locator('.toast').last().textContent()) || '').includes('请先勾选需要导出的商品');
+  await body.locator('tr').nth(0).locator('input.ib-check').click();
+  await body.locator('tr').nth(1).locator('input.ib-check').click();
+  results['check.two'] = (await body.locator('input.ib-check:checked').count()) === 2;
+  const [dl] = await Promise.all([
+    page.waitForEvent('download'),
+    filters.locator('button:has-text("导出")').click(),
+  ]);
+  results['export.file'] = dl.suggestedFilename() === '竞价商品.csv';
+  results['export.toast'] = ((await page.locator('.toast').last().textContent()) || '').includes('已导出 2 条数据');
+  await page.locator('.ops-center .page.show .bd-table thead input.ib-check').click();
+  results['check.all'] = (await body.locator('input.ib-check:checked').count()) === 7;
+  await page.locator('.ops-center .page.show .bd-table thead input.ib-check').click();
+  results['check.none'] = (await body.locator('input.ib-check:checked').count()) === 0;
 
   /* 详情：复用商品创建淘宝详情页 + 返回 */
   await body.locator('a:has-text("详情")').first().click();

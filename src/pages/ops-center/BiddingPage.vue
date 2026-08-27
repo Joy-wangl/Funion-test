@@ -6,6 +6,8 @@ import BubbleSelect from '../../components/BubbleSelect.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
 import SortTh from '../../components/SortTh.vue';
 import CreateDetailPage from './CreateDetailPage.vue';
+import ToastWrap from '../../components/ToastWrap.vue';
+import { pushToast } from '../../components/toast';
 import { useAnchorPop } from '../../hooks/useAnchorPop';
 
 /** 商机中心-竞价商品：筛选 + 列表 */
@@ -78,6 +80,36 @@ const sortState = (k: 'threshold' | 'profit') => (sortKey.value === k ? (sortAsc
 /* 添加到：点击后气泡展示平台选项（与内部商机列表操作一致） */
 const { pos: addTip, open, close: closeAddTip } = useAnchorPop();
 const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
+
+/* 行勾选 + 导出 CSV（带 BOM，Excel 可直接打开） */
+const checked = ref<Set<string>>(new Set());
+const allChecked = computed(() => sorted.value.length > 0 && sorted.value.every((r) => checked.value.has(r.pid)));
+const toggleCheck = (pid: string) => {
+  if (checked.value.has(pid)) checked.value.delete(pid);
+  else checked.value.add(pid);
+};
+const toggleAll = () => {
+  if (allChecked.value) sorted.value.forEach((r) => checked.value.delete(r.pid));
+  else sorted.value.forEach((r) => checked.value.add(r.pid));
+};
+const doExport = () => {
+  const rows = sorted.value.filter((r) => checked.value.has(r.pid));
+  if (!rows.length) {
+    pushToast('请先勾选需要导出的商品', 'error');
+    return;
+  }
+  const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+  const head = '商品ID,商品名称,招募状态,必报SKU,门槛价,是否有货,商品编码,预估利润,导入时间';
+  const csv = [head, ...rows.map((r) => [r.pid, r.name, r.status, r.sku, r.threshold, r.stock, r.code, r.profit, r.imported].map(esc).join(','))].join('\n');
+  const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = '竞价商品.csv';
+  link.click();
+  URL.revokeObjectURL(url);
+  pushToast(`已导出 ${rows.length} 条数据`);
+};
 
 /* 详情：复用商品创建-淘宝平台商品详情页 */
 const detail = ref<BiddingRow | null>(null);
@@ -152,6 +184,9 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
           <button class="primaryBtn" @click="applied = { ...filter }">
             查询
           </button>
+          <button class="lightBtn" @click="doExport">
+            导出
+          </button>
         </div>
       </div>
     </div>
@@ -161,6 +196,9 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
         <table class="ib-table bd-table">
           <thead>
             <tr>
+              <th style="width: 48px">
+                <input type="checkbox" class="ib-check" :checked="allChecked" @change="toggleAll" />
+              </th>
               <th>商品图片</th>
               <th>商品名称</th>
               <th>招募状态</th>
@@ -175,6 +213,7 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
           </thead>
           <tbody>
             <tr v-for="r in sorted" :key="r.pid">
+              <td><input type="checkbox" class="ib-check" :checked="checked.has(r.pid)" @change="toggleCheck(r.pid)" /></td>
               <td><img class="ib-thumb bd-thumb" :src="r.img" alt="" /></td>
               <td>
                 <a class="bd-name" :href="r.link" target="_blank" rel="noreferrer"><Ellipsis :text="r.name" /></a>
@@ -231,4 +270,5 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
       </div>
     </Teleport>
   </div>
+  <ToastWrap />
 </template>
