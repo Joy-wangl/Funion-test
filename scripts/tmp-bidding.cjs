@@ -26,7 +26,7 @@ const OUT = 'd:/Qoder/Funion';
 
   /* 表头 11 列且顺序正确 */
   const heads = await page.locator('.ops-center .page.show .bd-table thead th').allTextContents();
-  results['th.cols'] = heads.join(',') === '商品图片,商品名称,商品链接,商品ID,必报SKU,门槛价,是否有货,商品编码,预估利润,导入时间,操作';
+  results['th.cols'] = heads.join(',') === '商品图片,商品名称,商品链接,商品ID,必报SKU,门槛价,是否有货,预估利润,导入时间,操作';
 
   /* 行内容：7 行、有货/缺货徽标、编码标签、详情 */
   const body = page.locator('.ops-center .page.show .bd-table tbody');
@@ -34,6 +34,13 @@ const OUT = 'd:/Qoder/Funion';
   results['rows.badges'] = (await body.locator('.badge-green:has-text("有货")').count()) === 5
     && (await body.locator('.badge-red:has-text("缺货")').count()) === 2;
   results['rows.codeTag'] = (await body.locator('.badge-gray').count()) === 7;
+  results['rows.codeInName'] = (await body.locator('td:has(.bd-name) .badge-gray').count()) === 7;
+  results['rows.nameBlack'] = await page.evaluate(() => {
+    const name = document.querySelector('.ops-center .page.show .bd-name');
+    const link = document.querySelector('.ops-center .page.show .bd-link');
+    if (!name || !link) return false;
+    return getComputedStyle(name).color !== getComputedStyle(link).color;
+  });
   results['rows.detail'] = (await body.locator('a:has-text("详情")').count()) === 7;
   results['rows.link'] = (await body.locator('a.bd-link').count()) === 7;
   await page.screenshot({ path: `${OUT}/ops-verify-bidding.png` });

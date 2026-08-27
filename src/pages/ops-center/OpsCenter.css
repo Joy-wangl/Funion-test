@@ -4027,3 +4027,6 @@
 .ops-center .bd-table { min-width: 1400px; }
 .ops-center .bd-thumb { width: 48px; height: 48px; border-radius: 8px; }
 .ops-center .bd-link { display: inline-block; max-width: 240px; color: var(--color-primary); font-size: 13px; }
+/* 名称黑色展示，编码标签置于名称下方 */
+.ops-center .bd-name { font-size: 13px; color: var(--color-text); font-weight: 600; max-width: 280px; line-height: 1.4; }
+.ops-center .bd-code { margin-top: 6px; }

@@ -119,7 +119,6 @@ const list = computed(() =>
               <th>必报SKU</th>
               <th>门槛价</th>
               <th>是否有货</th>
-              <th>商品编码</th>
               <th>预估利润</th>
               <th>导入时间</th>
               <th>操作</th>
@@ -128,7 +127,7 @@ const list = computed(() =>
           <tbody>
             <tr v-for="r in list" :key="r.pid">
               <td><img class="ib-thumb bd-thumb" :src="r.img" alt="" /></td>
-              <td><div class="ib-pname"><Ellipsis :text="r.name" /></div></td>
+              <td><div class="bd-name"><Ellipsis :text="r.name" /></div><div class="bd-code"><span class="badge-gray">{{ r.code }}</span></div></td>
               <td>
                 <a class="bd-link" :href="r.link" target="_blank" rel="noreferrer"><Ellipsis :text="r.link" /></a>
               </td>
@@ -138,7 +137,6 @@ const list = computed(() =>
               <td>
                 <span :class="r.stock === '有货' ? 'badge-green' : 'badge-red'">{{ r.stock }}</span>
               </td>
-              <td><span class="badge-gray">{{ r.code }}</span></td>
               <td>{{ r.profit }}</td>
               <td>{{ r.imported }}</td>
               <td class="actions-col">
