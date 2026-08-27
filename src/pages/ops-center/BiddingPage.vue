@@ -4,7 +4,6 @@ import { biddingRows } from './data';
 import type { BiddingRow, CreateRow } from './data';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
-import SortTh from '../../components/SortTh.vue';
 import CreateDetailPage from './CreateDetailPage.vue';
 import ToastWrap from '../../components/ToastWrap.vue';
 import { pushToast } from '../../components/toast';
@@ -41,41 +40,44 @@ const list = computed(() =>
     if (a.status !== '全部' && r.status !== a.status) return false;
     if (a.name && !r.name.includes(a.name)) return false;
     if (a.pid && !r.pid.includes(a.pid)) return false;
-    if (a.code && !r.code.toLowerCase().includes(a.code.toLowerCase())) return false;
-    if (a.stock !== '全部' && r.stock !== a.stock) return false;
-    const th = num(r.threshold);
+    if (a.code && !r.skus.some((s) => s.code.toLowerCase().includes(a.code.toLowerCase()))) return false;
+    if (a.stock !== '全部' && !r.skus.some((s) => s.stock === a.stock)) return false;
+    /* 门槛价 / 预估利润 为 SKU 维度：任一 SKU 命中区间即保留该商品 */
     const thMin = num(a.thMin);
     const thMax = num(a.thMax);
-    if (thMin !== null && (th === null || th < thMin)) return false;
-    if (thMax !== null && (th === null || th > thMax)) return false;
-    const pf = num(r.profit);
+    if ((thMin !== null || thMax !== null) && !r.skus.some((s) => {
+      const th = num(s.threshold);
+      return th !== null && (thMin === null || th >= thMin) && (thMax === null || th <= thMax);
+    })) return false;
     const pfMin = num(a.pfMin);
     const pfMax = num(a.pfMax);
-    if (pfMin !== null && (pf === null || pf < pfMin)) return false;
-    if (pfMax !== null && (pf === null || pf > pfMax)) return false;
+    if ((pfMin !== null || pfMax !== null) && !r.skus.some((s) => {
+      const pf = num(s.profit);
+      return pf !== null && (pfMin === null || pf >= pfMin) && (pfMax === null || pf <= pfMax);
+    })) return false;
     if (a.tStart && r.imported < a.tStart) return false;
     if (a.tEnd && r.imported > `${a.tEnd} 23:59`) return false;
     return true;
   }),
 );
 
-/* 门槛价 / 预估利润 列排序 */
-const sortKey = ref<'' | 'threshold' | 'profit'>('');
-const sortAsc = ref(true);
-const toggleSort = (k: 'threshold' | 'profit') => {
-  if (sortKey.value === k) sortAsc.value = !sortAsc.value;
-  else {
-    sortKey.value = k;
-    sortAsc.value = true;
-  }
+/* 预估利润区间：当前商品ID 内 SKU 利润最小-最大 */
+const profitRange = (r: BiddingRow) => {
+  const vs = r.skus.map((s) => num(s.profit)).filter((v): v is number => v !== null);
+  if (!vs.length) return '-';
+  const lo = Math.min(...vs);
+  const hi = Math.max(...vs);
+  return lo === hi ? `¥${lo.toFixed(2)}` : `¥${lo.toFixed(2)} - ¥${hi.toFixed(2)}`;
 };
-const sorted = computed(() => {
-  if (!sortKey.value) return list.value;
-  const k = sortKey.value;
-  const dir = sortAsc.value ? 1 : -1;
-  return [...list.value].sort((a, b) => ((num(a[k]) ?? 0) - (num(b[k]) ?? 0)) * dir);
-});
-const sortState = (k: 'threshold' | 'profit') => (sortKey.value === k ? (sortAsc.value ? 'asc' : 'desc') : 'none');
+
+/* 行展开：必报SKU 维度子表（一个商品ID 下多个 SKU） */
+const expanded = ref<Set<string>>(new Set());
+const toggleExpand = (pid: string) => {
+  const next = new Set(expanded.value);
+  if (next.has(pid)) next.delete(pid);
+  else next.add(pid);
+  expanded.value = next;
+};
 
 /* 添加到：点击后气泡展示平台选项（与内部商机列表操作一致） */
 const { pos: addTip, open, close: closeAddTip } = useAnchorPop();
@@ -83,24 +85,25 @@ const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
 
 /* 行勾选 + 导出 CSV（带 BOM，Excel 可直接打开） */
 const checked = ref<Set<string>>(new Set());
-const allChecked = computed(() => sorted.value.length > 0 && sorted.value.every((r) => checked.value.has(r.pid)));
+const allChecked = computed(() => list.value.length > 0 && list.value.every((r) => checked.value.has(r.pid)));
 const toggleCheck = (pid: string) => {
   if (checked.value.has(pid)) checked.value.delete(pid);
   else checked.value.add(pid);
 };
 const toggleAll = () => {
-  if (allChecked.value) sorted.value.forEach((r) => checked.value.delete(r.pid));
-  else sorted.value.forEach((r) => checked.value.add(r.pid));
+  if (allChecked.value) list.value.forEach((r) => checked.value.delete(r.pid));
+  else list.value.forEach((r) => checked.value.add(r.pid));
 };
 const doExport = () => {
-  const rows = sorted.value.filter((r) => checked.value.has(r.pid));
+  /* 导出按 SKU 维度展平：一个商品ID 多个 SKU 则多行 */
+  const rows = list.value.filter((r) => checked.value.has(r.pid)).flatMap((r) => r.skus.map((s) => ({ r, s })));
   if (!rows.length) {
     pushToast('请先勾选需要导出的商品', 'error');
     return;
   }
   const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
   const head = '商品ID,商品名称,招募状态,必报SKU,门槛价,是否有货,商品编码,预估利润,导入时间';
-  const csv = [head, ...rows.map((r) => [r.pid, r.name, r.status, r.sku, r.threshold, r.stock, r.code, r.profit, r.imported].map(esc).join(','))].join('\n');
+  const csv = [head, ...rows.map(({ r, s }) => [r.pid, r.name, r.status, s.sku, s.threshold, s.stock, s.code, s.profit, r.imported].map(esc).join(','))].join('\n');
   const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -178,14 +181,15 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
 
       <div class="ib-actions">
         <div class="ib-rightacts">
+          <BubbleSelect class-name="ib-select" :style="{ width: '120px' }" default-value="快速选品" :options="['快速选品', '淘宝C店', '视频号']" />
+          <button class="lightBtn" @click="doExport">
+            导出
+          </button>
           <button class="lightBtn" @click="filter = { ...empty }; applied = { ...empty }">
             重置
           </button>
           <button class="primaryBtn" @click="applied = { ...filter }">
             查询
-          </button>
-          <button class="lightBtn" @click="doExport">
-            导出
           </button>
         </div>
       </div>
@@ -196,43 +200,67 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
         <table class="ib-table bd-table">
           <thead>
             <tr>
-              <th style="width: 48px">
+              <th style="width: 64px">
                 <input type="checkbox" class="ib-check" :checked="allChecked" @change="toggleAll" />
               </th>
-              <th>商品图片</th>
-              <th>商品名称</th>
+              <th>商品信息</th>
               <th>招募状态</th>
-              <th>必报SKU</th>
-              <SortTh label="门槛价" :state="sortState('threshold')" @sort="toggleSort('threshold')" />
-              <th>是否有货</th>
-              <th>商品编码</th>
-              <SortTh label="预估利润" :state="sortState('profit')" @sort="toggleSort('profit')" />
+              <th>预估利润区间</th>
               <th>导入时间</th>
               <th>操作</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="r in sorted" :key="r.pid">
-              <td><input type="checkbox" class="ib-check" :checked="checked.has(r.pid)" @change="toggleCheck(r.pid)" /></td>
-              <td><img class="ib-thumb bd-thumb" :src="r.img" alt="" /></td>
-              <td>
-                <a class="bd-name" :href="r.link" target="_blank" rel="noreferrer"><Ellipsis :text="r.name" /></a>
-                <div class="ib-meta bd-code">{{ r.pid }}</div>
-              </td>
-              <td><span :class="statusCls(r.status)">{{ r.status }}</span></td>
-              <td>{{ r.sku }}</td>
-              <td>{{ r.threshold }}</td>
-              <td>
-                <span :class="r.stock === '有货' ? 'badge-green' : 'badge-red'">{{ r.stock }}</span>
-              </td>
-              <td><span class="badge-gray">{{ r.code }}</span></td>
-              <td>{{ r.profit }}</td>
-              <td>{{ r.imported }}</td>
-              <td class="actions-col">
-                <a href="#" @click.prevent="detail = r">详情</a>
-                <a href="#" @click.prevent.stop="openAddTip">添加到</a>
-              </td>
-            </tr>
+            <template v-for="r in list" :key="r.pid">
+              <tr>
+                <td>
+                  <input type="checkbox" class="ib-check" :checked="checked.has(r.pid)" @change="toggleCheck(r.pid)" />
+                  <span class="ib-caret" :class="{ open: expanded.has(r.pid) }" @click="toggleExpand(r.pid)">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6" /></svg>
+                  </span>
+                </td>
+                <td>
+                  <div class="ib-product">
+                    <img class="ib-thumb bd-thumb" :src="r.img" alt="" />
+                    <div>
+                      <a class="ib-pname bd-name" :href="r.link" target="_blank" rel="noreferrer"><Ellipsis :text="r.name" /></a>
+                      <div class="ib-meta">商品ID：{{ r.pid }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td><span :class="statusCls(r.status)">{{ r.status }}</span></td>
+                <td>{{ profitRange(r) }}</td>
+                <td>{{ r.imported }}</td>
+                <td class="actions-col">
+                  <a href="#" @click.prevent="detail = r">详情</a>
+                  <a href="#" @click.prevent.stop="openAddTip">添加到</a>
+                </td>
+              </tr>
+              <tr v-if="expanded.has(r.pid)" class="ib-expand-row">
+                <td colspan="6">
+                  <table class="ib-subtable">
+                    <thead>
+                      <tr>
+                        <th>必报SKU</th>
+                        <th>门槛价</th>
+                        <th>是否有货</th>
+                        <th>商品编码</th>
+                        <th>预估利润</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="s in r.skus" :key="s.code">
+                        <td>{{ s.sku }}</td>
+                        <td>{{ s.threshold }}</td>
+                        <td><span :class="s.stock === '有货' ? 'badge-green' : 'badge-red'">{{ s.stock }}</span></td>
+                        <td><span class="badge-gray">{{ s.code }}</span></td>
+                        <td>{{ s.profit }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
         <div v-if="list.length === 0" class="sg-empty">

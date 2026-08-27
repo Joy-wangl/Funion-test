@@ -109,7 +109,6 @@ const detail = ref<ProductRow | null>(null);
 
       <div class="ib-actions">
         <div class="ib-rightacts">
-          <BubbleSelect class-name="ib-select" :style="{ width: '120px' }" default-value="快速选品" :options="['快速选品', '淘宝C店', '视频号']" />
           <button class="lightBtn">重置</button>
           <button class="primaryBtn">查询</button>
           <button class="lightBtn">⚙</button>
