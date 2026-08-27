@@ -114,7 +114,6 @@ const list = computed(() =>
             <tr>
               <th>商品图片</th>
               <th>商品名称</th>
-              <th>商品ID</th>
               <th>必报SKU</th>
               <th>门槛价</th>
               <th>是否有货</th>
@@ -127,8 +126,10 @@ const list = computed(() =>
           <tbody>
             <tr v-for="r in list" :key="r.pid">
               <td><img class="ib-thumb bd-thumb" :src="r.img" alt="" /></td>
-              <td><div class="bd-name"><Ellipsis :text="r.name" /></div><div class="bd-code"><a class="bd-link" :href="r.link" target="_blank" rel="noreferrer"><Ellipsis :text="r.link" /></a></div></td>
-              <td>{{ r.pid }}</td>
+              <td>
+                <a class="bd-name" :href="r.link" target="_blank" rel="noreferrer"><Ellipsis :text="r.name" /></a>
+                <div class="ib-meta bd-code">{{ r.pid }}</div>
+              </td>
               <td>{{ r.sku }}</td>
               <td>{{ r.threshold }}</td>
               <td>
