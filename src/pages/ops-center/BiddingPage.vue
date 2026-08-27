@@ -13,6 +13,7 @@ const empty = {
   pid: '',
   code: '',
   stock: '全部',
+  status: '全部',
   thMin: '',
   thMax: '',
   pfMin: '',
@@ -27,19 +28,14 @@ const num = (s: string) => {
   const n = parseFloat(s.replace(/[^\d.-]/g, ''));
   return Number.isFinite(n) ? n : null;
 };
-/* 竞价状态 tab：全部招募 / 报名待开启 / 报名中 / 待开始 */
-const STATUS_TABS = ['全部招募', '报名待开启', '报名中', '待开始'] as const;
-const statusTab = ref<(typeof STATUS_TABS)[number]>('全部招募');
-const statusCounts = computed(() => {
-  const m: Record<string, number> = {};
-  for (const r of biddingRows) m[r.status] = (m[r.status] ?? 0) + 1;
-  return m;
-});
+/* 招募状态筛选选项 + 徽标配色 */
+const STATUS_OPTIONS = ['全部', '报名待开启', '报名中', '待开始'];
+const statusCls = (s: string) => (s === '报名中' ? 'badge-green' : s === '待开始' ? 'badge-orange' : 'badge-gray');
 
 const list = computed(() =>
   biddingRows.filter((r) => {
     const a = applied.value;
-    if (statusTab.value !== '全部招募' && r.status !== statusTab.value) return false;
+    if (a.status !== '全部' && r.status !== a.status) return false;
     if (a.name && !r.name.includes(a.name)) return false;
     if (a.pid && !r.pid.includes(a.pid)) return false;
     if (a.code && !r.code.toLowerCase().includes(a.code.toLowerCase())) return false;
@@ -112,6 +108,10 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
           <label>是否有货</label>
           <BubbleSelect class-name="ib-select" :value="filter.stock" :options="['全部', '有货', '缺货']" @change="(v: string) => filter = { ...filter, stock: v }" />
         </div>
+        <div class="ib-field">
+          <label>招募状态</label>
+          <BubbleSelect class-name="ib-select" :value="filter.status" :options="STATUS_OPTIONS" @change="(v: string) => filter = { ...filter, status: v }" />
+        </div>
 
         <div class="ib-field">
           <label>门槛价</label>
@@ -152,23 +152,13 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
     </div>
 
     <div class="ib-table-card">
-      <div class="bd-tabs">
-        <div
-          v-for="t in STATUS_TABS"
-          :key="t"
-          class="bd-tab"
-          :class="statusTab === t ? 'active' : ''"
-          @click="statusTab = t"
-        >
-          {{ t === '全部招募' ? t : `${t}(${statusCounts[t] ?? 0})` }}
-        </div>
-      </div>
       <div class="ib-table-wrap">
         <table class="ib-table bd-table">
           <thead>
             <tr>
               <th>商品图片</th>
               <th>商品名称</th>
+              <th>招募状态</th>
               <th>必报SKU</th>
               <SortTh label="门槛价" :state="sortState('threshold')" @sort="toggleSort('threshold')" />
               <th>是否有货</th>
@@ -185,6 +175,7 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
                 <a class="bd-name" :href="r.link" target="_blank" rel="noreferrer"><Ellipsis :text="r.name" /></a>
                 <div class="ib-meta bd-code">{{ r.pid }}</div>
               </td>
+              <td><span :class="statusCls(r.status)">{{ r.status }}</span></td>
               <td>{{ r.sku }}</td>
               <td>{{ r.threshold }}</td>
               <td>

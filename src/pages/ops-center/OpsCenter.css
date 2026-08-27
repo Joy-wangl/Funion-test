@@ -4027,9 +4027,3 @@
 /* 名称蓝色可点击（内置商品链接），ID 置于名称下方 */
 .ops-center .bd-name { display: inline-block; font-size: 13px; color: var(--color-primary); font-weight: 600; max-width: 280px; line-height: 1.4; }
 .ops-center .bd-code { margin-top: 6px; }
-/* 竞价状态 tab：文本 + 主色下划线指示 */
-.ops-center .bd-tabs { display: flex; gap: 32px; padding: 2px 16px 0; border-bottom: 1px solid var(--color-border-2); }
-.ops-center .bd-tab { position: relative; padding: 10px 0 12px; font-size: 14px; color: var(--color-text-2); cursor: pointer; user-select: none; }
-.ops-center .bd-tab:hover { color: var(--color-primary); }
-.ops-center .bd-tab.active { color: var(--color-primary); font-weight: 600; }
-.ops-center .bd-tab.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 1px; background: var(--color-primary); }

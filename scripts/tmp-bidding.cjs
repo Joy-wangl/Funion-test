@@ -18,7 +18,7 @@ const OUT = 'd:/Qoder/Funion';
 
   /* 筛选区字段齐全 */
   const filters = page.locator('.ops-center .page.show .ib-filters');
-  for (const f of ['商品名称', '商品ID', '商品编码', '是否有货', '门槛价', '预估利润', '导入时间']) {
+  for (const f of ['商品名称', '商品ID', '商品编码', '是否有货', '招募状态', '门槛价', '预估利润', '导入时间']) {
     results[`filter.${f}`] = (await filters.locator(`label:has-text("${f}")`).count()) === 1;
   }
   results['filter.btns'] = (await filters.locator('button:has-text("重置")').count()) === 1
@@ -26,14 +26,17 @@ const OUT = 'd:/Qoder/Funion';
 
   /* 表头 11 列且顺序正确 */
   const heads = (await page.locator('.ops-center .page.show .bd-table thead th').allTextContents()).map((h) => h.replace(/[⇅▲▼]/g, '').trim());
-  results['th.cols'] = heads.join(',') === '商品图片,商品名称,必报SKU,门槛价,是否有货,商品编码,预估利润,导入时间,操作';
+  results['th.cols'] = heads.join(',') === '商品图片,商品名称,招募状态,必报SKU,门槛价,是否有货,商品编码,预估利润,导入时间,操作';
 
   /* 行内容：7 行、有货/缺货徽标、编码标签、详情 */
   const body = page.locator('.ops-center .page.show .bd-table tbody');
   results['rows.7'] = (await body.locator('tr').count()) === 7;
   results['rows.badges'] = (await body.locator('.badge-green:has-text("有货")').count()) === 5
     && (await body.locator('.badge-red:has-text("缺货")').count()) === 2;
-  results['rows.codeTag'] = (await body.locator('.badge-gray').count()) === 7;
+  results['rows.codeTag'] = (await body.locator('tr td:nth-child(7) .badge-gray').count()) === 7;
+  results['rows.statusBadges'] = (await body.locator('.badge-green:has-text("报名中")').count()) === 3
+    && (await body.locator('.badge-orange:has-text("待开始")').count()) === 2
+    && (await body.locator('.badge-gray:has-text("报名待开启")').count()) === 2;
   results['rows.pidInName'] = (await body.locator('td:has(a.bd-name) .ib-meta').count()) === 7;
   results['rows.nameLink'] = (await body.locator('a.bd-name[href^="http"]').count()) === 7;
   results['rows.noLinkCol'] = (await body.locator('a.bd-link').count()) === 0;
@@ -59,24 +62,18 @@ const OUT = 'd:/Qoder/Funion';
   const thPf = page.locator('.ops-center .page.show .bd-table thead th:has-text("预估利润")');
   const cell = (n) => body.locator(`tr td:nth-child(${n})`).first().textContent();
   await thTh.click();
-  results['sort.thAsc'] = ((await cell(4)) || '').includes('3.90');
+  results['sort.thAsc'] = ((await cell(5)) || '').includes('3.90');
   await thTh.click();
-  results['sort.thDesc'] = ((await cell(4)) || '').includes('22.00');
+  results['sort.thDesc'] = ((await cell(5)) || '').includes('22.00');
   await thPf.click();
-  results['sort.pfAsc'] = ((await cell(7)) || '').includes('1.20');
+  results['sort.pfAsc'] = ((await cell(8)) || '').includes('1.20');
 
-  /* 竞价状态 tab：4 个 + 计数 + 切换过滤 */
-  const tabs = page.locator('.ops-center .page.show .bd-tabs .bd-tab');
-  results['tabs.count4'] = (await tabs.count()) === 4;
-  const tabTexts = (await tabs.allTextContents()).join('|');
-  results['tabs.counts'] = tabTexts.includes('报名中(3)') && tabTexts.includes('待开始(2)') && tabTexts.includes('报名待开启(2)');
-  await page.locator('.ops-center .page.show .bd-tab:has-text("报名中")').click();
-  results['tabs.filter3'] = (await body.locator('tr').count()) === 3
-    && ((await page.locator('.ops-center .page.show .bd-tab.active').textContent()) || '').includes('报名中');
-  await page.locator('.ops-center .page.show .bd-tab:has-text("待开始")').click();
-  results['tabs.filter2'] = (await body.locator('tr').count()) === 2;
-  await page.locator('.ops-center .page.show .bd-tab:has-text("全部招募")').click();
-  results['tabs.all7'] = (await body.locator('tr').count()) === 7;
+  /* 招募状态筛选：报名中 → 3 行；重置恢复 */
+  await filters.locator('.ib-field:has(label:has-text("招募状态")) .bselect').click();
+  await page.click('.bselect-opt:has-text("报名中")');
+  await filters.locator('button:has-text("查询")').click();
+  results['filter.status3'] = (await body.locator('tr').count()) === 3;
+  await filters.locator('button:has-text("重置")').click();
 
   /* 详情：复用商品创建淘宝详情页 + 返回 */
   await body.locator('a:has-text("详情")').first().click();
