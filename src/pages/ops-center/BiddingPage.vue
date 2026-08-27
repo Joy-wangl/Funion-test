@@ -6,6 +6,7 @@ import BubbleSelect from '../../components/BubbleSelect.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
 import SortTh from '../../components/SortTh.vue';
 import CreateDetailPage from './CreateDetailPage.vue';
+import { useAnchorPop } from '../../hooks/useAnchorPop';
 
 /** 商机中心-竞价商品：筛选 + 列表 */
 const empty = {
@@ -73,6 +74,10 @@ const sorted = computed(() => {
   return [...list.value].sort((a, b) => ((num(a[k]) ?? 0) - (num(b[k]) ?? 0)) * dir);
 });
 const sortState = (k: 'threshold' | 'profit') => (sortKey.value === k ? (sortAsc.value ? 'asc' : 'desc') : 'none');
+
+/* 添加到：点击后气泡展示平台选项（与内部商机列表操作一致） */
+const { pos: addTip, open, close: closeAddTip } = useAnchorPop();
+const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
 
 /* 详情：复用商品创建-淘宝平台商品详情页 */
 const detail = ref<BiddingRow | null>(null);
@@ -186,6 +191,7 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
               <td>{{ r.imported }}</td>
               <td class="actions-col">
                 <a href="#" @click.prevent="detail = r">详情</a>
+                <a href="#" @click.prevent.stop="openAddTip">添加到</a>
               </td>
             </tr>
           </tbody>
@@ -212,5 +218,17 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
         </div>
       </div>
     </div>
+    <Teleport to="body">
+      <div
+        v-if="addTip"
+        class="add-pop"
+        :style="{ left: `${addTip.x}px`, top: `${addTip.y}px` }"
+        @mousedown.stop
+      >
+        <div v-for="t in ['淘宝', '视频号']" :key="t" class="add-pop-item" @click="closeAddTip()">
+          {{ t }}
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>

@@ -41,6 +41,14 @@ const OUT = 'd:/Qoder/Funion';
   results['rows.nameLink'] = (await body.locator('a.bd-name[href^="http"]').count()) === 7;
   results['rows.noLinkCol'] = (await body.locator('a.bd-link').count()) === 0;
   results['rows.detail'] = (await body.locator('a:has-text("详情")').count()) === 7;
+
+  /* 添加到：与内部商机一致的气泡平台选项 */
+  results['rows.addTo'] = (await body.locator('a:has-text("添加到")').count()) === 7;
+  await body.locator('a:has-text("添加到")').first().click();
+  await page.waitForSelector('.add-pop');
+  results['addpop.items'] = (await page.locator('.add-pop .add-pop-item').allTextContents()).join(',') === '淘宝,视频号';
+  await page.click('.add-pop .add-pop-item:has-text("淘宝")');
+  results['addpop.close'] = (await page.locator('.add-pop').count()) === 0;
   await page.screenshot({ path: `${OUT}/ops-verify-bidding.png` });
 
   /* 筛选功能：是否有货=缺货 → 2 行；重置恢复 7 行 */
