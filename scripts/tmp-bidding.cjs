@@ -25,7 +25,7 @@ const OUT = 'd:/Qoder/Funion';
     && (await filters.locator('button:has-text("查询")').count()) === 1;
 
   /* 表头 11 列且顺序正确 */
-  const heads = await page.locator('.ops-center .page.show .bd-table thead th').allTextContents();
+  const heads = (await page.locator('.ops-center .page.show .bd-table thead th').allTextContents()).map((h) => h.replace(/[⇅▲▼]/g, '').trim());
   results['th.cols'] = heads.join(',') === '商品图片,商品名称,必报SKU,门槛价,是否有货,商品编码,预估利润,导入时间,操作';
 
   /* 行内容：7 行、有货/缺货徽标、编码标签、详情 */
@@ -52,6 +52,26 @@ const OUT = 'd:/Qoder/Funion';
   await filters.locator('input[placeholder="请输入商品名称"]').fill('面霜');
   await filters.locator('button:has-text("查询")').click();
   results['filter.name'] = (await body.locator('tr').count()) === 1;
+
+  /* 排序：门槛价升/降、预估利润升序 */
+  await filters.locator('button:has-text("重置")').click();
+  const thTh = page.locator('.ops-center .page.show .bd-table thead th:has-text("门槛价")');
+  const thPf = page.locator('.ops-center .page.show .bd-table thead th:has-text("预估利润")');
+  const cell = (n) => body.locator(`tr td:nth-child(${n})`).first().textContent();
+  await thTh.click();
+  results['sort.thAsc'] = ((await cell(4)) || '').includes('3.90');
+  await thTh.click();
+  results['sort.thDesc'] = ((await cell(4)) || '').includes('22.00');
+  await thPf.click();
+  results['sort.pfAsc'] = ((await cell(7)) || '').includes('1.20');
+
+  /* 详情：复用商品创建淘宝详情页 + 返回 */
+  await body.locator('a:has-text("详情")').first().click();
+  await page.waitForSelector('.sgd-top-title');
+  results['detail.page'] = ((await page.locator('.sgd-top-title').textContent()) || '').includes('商品详情');
+  results['detail.title'] = ((await page.locator('.sgd-info h2').textContent()) || '').includes('密封胶泥');
+  await page.click('.sgd-back');
+  results['detail.back'] = (await page.locator('.ops-center .page.show .bd-table').count()) === 1;
 
   await browser.close();
   const fail = Object.entries(results).filter(([, v]) => !v);
