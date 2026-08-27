@@ -4,6 +4,7 @@ import { biddingRows } from './data';
 import type { BiddingRow, CreateRow } from './data';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
+import SortTh from '../../components/SortTh.vue';
 import CreateDetailPage from './CreateDetailPage.vue';
 
 /** 商机中心-竞价商品：筛选 + 列表 */
@@ -65,7 +66,7 @@ const sorted = computed(() => {
   const dir = sortAsc.value ? 1 : -1;
   return [...list.value].sort((a, b) => ((num(a[k]) ?? 0) - (num(b[k]) ?? 0)) * dir);
 });
-const sortIcon = (k: 'threshold' | 'profit') => (sortKey.value === k ? (sortAsc.value ? '▲' : '▼') : '⇅');
+const sortState = (k: 'threshold' | 'profit') => (sortKey.value === k ? (sortAsc.value ? 'asc' : 'desc') : 'none');
 
 /* 详情：复用商品创建-淘宝平台商品详情页 */
 const detail = ref<BiddingRow | null>(null);
@@ -148,10 +149,10 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
               <th>商品图片</th>
               <th>商品名称</th>
               <th>必报SKU</th>
-              <th class="cp-sort-th" @click="toggleSort('threshold')">门槛价 <span class="tc-sort">{{ sortIcon('threshold') }}</span></th>
+              <SortTh label="门槛价" :state="sortState('threshold')" @sort="toggleSort('threshold')" />
               <th>是否有货</th>
               <th>商品编码</th>
-              <th class="cp-sort-th" @click="toggleSort('profit')">预估利润 <span class="tc-sort">{{ sortIcon('profit') }}</span></th>
+              <SortTh label="预估利润" :state="sortState('profit')" @sort="toggleSort('profit')" />
               <th>导入时间</th>
               <th>操作</th>
             </tr>

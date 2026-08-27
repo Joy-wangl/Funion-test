@@ -24,6 +24,7 @@ import {
 import type { Platform, PlatformStat } from './data';
 import type { OptTask } from './qcOptData';
 import BubbleSelect from '../../components/BubbleSelect.vue';
+import SortTh from '../../components/SortTh.vue';
 import QcDateRangePicker from './QcDateRangePicker.vue';
 import QcSeriesRow from './QcSeriesRow.vue';
 
@@ -121,42 +122,10 @@ const sortState = (key: SortKey): 'none' | 'desc' | 'asc' =>
         <tr>
           <th style="width: 40px" />
           <th>系列编码</th>
-          <th style="cursor: pointer; user-select: none; text-align: right" title="点击排序" @click="props.onToggleSort('orders')">
-            <span class="th-sort">
-              订单量
-              <svg class="sort-ico" width="12" height="14" viewBox="0 0 12 14" aria-hidden="true">
-                <path d="M6 1.2l3.4 4H2.6l3.4-4z" :fill="sortState('orders') === 'asc' ? 'var(--primary)' : '#c3c9d4'" />
-                <path d="M6 12.8l-3.4-4h6.8l-3.4 4z" :fill="sortState('orders') === 'desc' ? 'var(--primary)' : '#c3c9d4'" />
-              </svg>
-            </span>
-          </th>
-          <th style="cursor: pointer; user-select: none; text-align: left" title="点击排序" @click="props.onToggleSort('refundRate')">
-            <span class="th-sort">
-              退款率
-              <svg class="sort-ico" width="12" height="14" viewBox="0 0 12 14" aria-hidden="true">
-                <path d="M6 1.2l3.4 4H2.6l3.4-4z" :fill="sortState('refundRate') === 'asc' ? 'var(--primary)' : '#c3c9d4'" />
-                <path d="M6 12.8l-3.4-4h6.8l-3.4 4z" :fill="sortState('refundRate') === 'desc' ? 'var(--primary)' : '#c3c9d4'" />
-              </svg>
-            </span>
-          </th>
-          <th style="cursor: pointer; user-select: none; text-align: left" title="点击排序" @click="props.onToggleSort('afterSales')">
-            <span class="th-sort">
-              售后单
-              <svg class="sort-ico" width="12" height="14" viewBox="0 0 12 14" aria-hidden="true">
-                <path d="M6 1.2l3.4 4H2.6l3.4-4z" :fill="sortState('afterSales') === 'asc' ? 'var(--primary)' : '#c3c9d4'" />
-                <path d="M6 12.8l-3.4-4h6.8l-3.4 4z" :fill="sortState('afterSales') === 'desc' ? 'var(--primary)' : '#c3c9d4'" />
-              </svg>
-            </span>
-          </th>
-          <th style="cursor: pointer; user-select: none; text-align: left" title="点击排序" @click="props.onToggleSort('chatRiskHits')">
-            <span class="th-sort">
-              聊天风险
-              <svg class="sort-ico" width="12" height="14" viewBox="0 0 12 14" aria-hidden="true">
-                <path d="M6 1.2l3.4 4H2.6l3.4-4z" :fill="sortState('chatRiskHits') === 'asc' ? 'var(--primary)' : '#c3c9d4'" />
-                <path d="M6 12.8l-3.4-4h6.8l-3.4 4z" :fill="sortState('chatRiskHits') === 'desc' ? 'var(--primary)' : '#c3c9d4'" />
-              </svg>
-            </span>
-          </th>
+          <SortTh label="订单量" align="right" :state="sortState('orders')" @sort="props.onToggleSort('orders')" />
+          <SortTh label="退款率" :state="sortState('refundRate')" @sort="props.onToggleSort('refundRate')" />
+          <SortTh label="售后单" :state="sortState('afterSales')" @sort="props.onToggleSort('afterSales')" />
+          <SortTh label="聊天风险" :state="sortState('chatRiskHits')" @sort="props.onToggleSort('chatRiskHits')" />
           <th>聊天风险率</th>
           <th>关联优化任务数</th>
           <th>上架平台</th>

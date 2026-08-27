@@ -3795,8 +3795,6 @@
   overflow: auto;
   padding: 16px 24px 24px;
 }
-.cp-sort-th { cursor: pointer; user-select: none; }
-.cp-sort-th:hover { color: #4f7cff; }
 /* 抽屉摘要区：商品/店铺/创建人等全局唯一信息上提展示 */
 .cp-drawer-summary {
   display: flex;

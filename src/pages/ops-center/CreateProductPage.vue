@@ -5,6 +5,7 @@ import type { CreateRow, SubTask } from './data';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
 import MoreActions from '../../components/MoreActions.vue';
+import SortTh from '../../components/SortTh.vue';
 import CreateDetailPage from './CreateDetailPage.vue';
 import { pushToast } from '../../components/toast';
 import { stepsOf, stepLabels } from './tcSteps';
@@ -340,7 +341,7 @@ const confirmDelete = () => {
               <th>发布信息</th>
               <th>任务状态</th>
               <th>节点状态</th>
-              <th class="cp-sort-th" @click="pubSortAsc = !pubSortAsc">执行起止时间 <span class="tc-sort">⇅</span></th>
+              <SortTh label="执行起止时间" :state="pubSortAsc ? 'asc' : 'desc'" @sort="pubSortAsc = !pubSortAsc" />
               <th>操作</th>
             </tr>
           </thead>

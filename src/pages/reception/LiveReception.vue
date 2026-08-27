@@ -8,6 +8,7 @@ import { computed, ref } from 'vue';
 import { LIVE_PLATFORMS, liveStoresOf, type LivePlatform, type LiveStore } from './liveData';
 import { RC_COMPANY, RC_GROUPS } from './data';
 import BubbleSelect from '../../components/BubbleSelect.vue';
+import SortTh from '../../components/SortTh.vue';
 
 const nowStr = () => {
   const d = new Date();
@@ -87,7 +88,7 @@ const clickSort = (key: SortKey) => {
   sort.value = !sort.value || sort.value.key !== key ? { key, dir: 'desc' }
     : sort.value.dir === 'desc' ? { key, dir: 'asc' } : null;
 };
-const sortCls = (key: SortKey) => (sort.value && sort.value.key === key ? sort.value.dir : '');
+const sortCls = (key: SortKey): 'none' | 'asc' | 'desc' => (sort.value && sort.value.key === key ? sort.value.dir : 'none');
 
 const switchPlatform = (p: LivePlatform) => {
   platform.value = p;
@@ -196,9 +197,9 @@ const query = () => {
           <thead>
             <tr>
               <th>账号</th>
-              <th class="rc-th-sort" :class="sortCls('net')" title="点击排序：在线端数" @click="clickSort('net')">在线状态<span class="rc-sorter"><i class="up" /><i class="down" /></span></th>
-              <th class="rc-th-sort" :class="sortCls('recv')" title="点击排序：接待数" @click="clickSort('recv')">接待<span class="rc-sorter"><i class="up" /><i class="down" /></span></th>
-              <th class="rc-th-sort" :class="sortCls('unreplied')" title="点击排序：未回复数" @click="clickSort('unreplied')">未回复<span class="rc-sorter"><i class="up" /><i class="down" /></span></th>
+              <SortTh label="在线状态" :state="sortCls('net')" tip="点击排序：在线端数" @sort="clickSort('net')" />
+              <SortTh label="接待" :state="sortCls('recv')" tip="点击排序：接待数" @sort="clickSort('recv')" />
+              <SortTh label="未回复" :state="sortCls('unreplied')" tip="点击排序：未回复数" @sort="clickSort('unreplied')" />
               <th>接待开关</th>
               <th>登录开关</th>
               <th>操作</th>

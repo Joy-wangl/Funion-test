@@ -242,13 +242,6 @@
 .rc-col-opt:hover { background: #f5f8ff; color: var(--primary); }
 .rc-col-opt.cur { background: #f0f5ff; color: var(--primary); font-weight: 600; }
 
-/* 子表列头排序 */
-.rc-th-sort { cursor: pointer; user-select: none; white-space: nowrap; }
-.rc-th-sort:hover { color: var(--primary); }
-.rc-th-sort.on { color: var(--primary); }
-.rc-sort-ico { margin-left: 4px; font-size: 11px; color: #b6bcc8; }
-.rc-th-sort.on .rc-sort-ico { color: var(--primary); }
-
 /* 值班监控弹窗：头部人员信息（Modal sub）+ 下划线 tab + 饼图/图例 + 右侧时长统计 */
 .rc-mon { display: flex; flex-direction: column; gap: 16px; min-width: 640px; }
 /* tab 切换与应用顶栏一致：文本 + 主色下划线指示 */
@@ -734,15 +727,6 @@
 }
 .rc-acc-table thead th:first-child { border-radius: var(--radius-md) 0 0 var(--radius-md); }
 .rc-acc-table thead th:last-child { border-radius: 0 var(--radius-md) var(--radius-md) 0; }
-/* 列排序（Ant sorter 双 caret，激活主色） */
-.rc-acc-table thead th.rc-th-sort { cursor: pointer; user-select: none; transition: color .15s; }
-.rc-acc-table thead th.rc-th-sort:hover { color: var(--primary); }
-.rc-sorter { display: inline-flex; flex-direction: column; gap: 2px; margin-left: 6px; vertical-align: middle; }
-.rc-sorter i { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; }
-.rc-sorter i.up { border-bottom: 5px solid var(--color-text-4); }
-.rc-sorter i.down { border-top: 5px solid var(--color-text-4); }
-.rc-acc-table thead th.asc .rc-sorter i.up { border-bottom-color: var(--primary); }
-.rc-acc-table thead th.desc .rc-sorter i.down { border-top-color: var(--primary); }
 .rc-acc-table tbody td { padding: 10px 12px; border-bottom: 1px solid var(--color-border-2); vertical-align: middle; }
 .rc-acc-table tbody tr { transition: background .15s; }
 .rc-acc-table tbody tr:hover { background: var(--color-fill-2); }

@@ -13,6 +13,7 @@ import {
 import Modal from '../../components/Modal.vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import MoreActions from '../../components/MoreActions.vue';
+import SortTh from '../../components/SortTh.vue';
 
 interface Props {
   agents: RcAgent[];
@@ -87,7 +88,7 @@ const toggleSort = (k: SortKey) => {
   else if (sortDir.value === 'desc') sortDir.value = 'asc';
   else { sortKey.value = null; sortDir.value = 'desc'; }
 };
-const sortIco = (k: SortKey) => (sortKey.value === k ? (sortDir.value === 'desc' ? '↓' : '↑') : '⇅');
+const sortIco = (k: SortKey): 'none' | 'asc' | 'desc' => (sortKey.value === k ? sortDir.value : 'none');
 
 const transfer = ref<{ mode: 'single'; agent: RcAgent } | { mode: 'batch' } | null>(null);
 /** 转移目标级联选择：组 或 组内成员（单选） */
@@ -420,19 +421,19 @@ const MON_TABS = [{ k: 'duty', t: '值班状态' }, { k: 'login', t: '登录状�
                             </div>
                           </template>
                         </th>
-                        <th class="rc-th-sort" :class="{ on: sortKey === 'sessions' }" @click="toggleSort('sessions')">接待会话数<span class="rc-sort-ico">{{ sortIco('sessions') }}</span></th>
+                        <SortTh label="接待会话数" :state="sortIco('sessions')" @sort="toggleSort('sessions')" />
                         <th>接待数据(条)</th>
-                        <th class="rc-th-sort" :class="{ on: sortKey === 'aiRate' }" @click="toggleSort('aiRate')">AI回复占比<span class="rc-sort-ico">{{ sortIco('aiRate') }}</span></th>
-                        <th class="rc-th-sort" :class="{ on: sortKey === 'resp' }" @click="toggleSort('resp')">均响<span class="rc-sort-ico">{{ sortIco('resp') }}</span></th>
-                        <th class="rc-th-sort" :class="{ on: sortKey === 'unreplied' }" @click="toggleSort('unreplied')">未回复<span class="rc-sort-ico">{{ sortIco('unreplied') }}</span></th>
+                        <SortTh label="AI回复占比" :state="sortIco('aiRate')" @sort="toggleSort('aiRate')" />
+                        <SortTh label="均响" :state="sortIco('resp')" @sort="toggleSort('resp')" />
+                        <SortTh label="未回复" :state="sortIco('unreplied')" @sort="toggleSort('unreplied')" />
                         <th>三分钟回复数据(条)</th>
-                        <th class="rc-th-sort" :class="{ on: sortKey === 'r3m' }" @click="toggleSort('r3m')">3分钟回复率<span class="rc-sort-ico">{{ sortIco('r3m') }}</span></th>
-                        <th class="rc-th-sort" :class="{ on: sortKey === 'r30s' }" @click="toggleSort('r30s')">30秒响应率<span class="rc-sort-ico">{{ sortIco('r30s') }}</span></th>
-                        <th class="rc-th-sort" :class="{ on: sortKey === 'conv' }" @click="toggleSort('conv')">转化率<span class="rc-sort-ico">{{ sortIco('conv') }}</span></th>
-                        <th class="rc-th-sort" :class="{ on: sortKey === 'sales' }" @click="toggleSort('sales')">销售额<span class="rc-sort-ico">{{ sortIco('sales') }}</span></th>
-                        <th class="rc-th-sort" :class="{ on: sortKey === 'refund' }" @click="toggleSort('refund')">退款率<span class="rc-sort-ico">{{ sortIco('refund') }}</span></th>
-                        <th class="rc-th-sort" :class="{ on: sortKey === 'hours' }" @click="toggleSort('hours')">在线时长(h)<span class="rc-sort-ico">{{ sortIco('hours') }}</span></th>
-                        <th class="rc-th-sort" :class="{ on: sortKey === 'rank' }" @click="toggleSort('rank')">接待排名<span class="rc-sort-ico">{{ sortIco('rank') }}</span></th>
+                        <SortTh label="3分钟回复率" :state="sortIco('r3m')" @sort="toggleSort('r3m')" />
+                        <SortTh label="30秒响应率" :state="sortIco('r30s')" @sort="toggleSort('r30s')" />
+                        <SortTh label="转化率" :state="sortIco('conv')" @sort="toggleSort('conv')" />
+                        <SortTh label="销售额" :state="sortIco('sales')" @sort="toggleSort('sales')" />
+                        <SortTh label="退款率" :state="sortIco('refund')" @sort="toggleSort('refund')" />
+                        <SortTh label="在线时长(h)" :state="sortIco('hours')" @sort="toggleSort('hours')" />
+                        <SortTh label="接待排名" :state="sortIco('rank')" @sort="toggleSort('rank')" />
                         <th>策略状态</th>
                         <th>操作</th>
                       </tr>

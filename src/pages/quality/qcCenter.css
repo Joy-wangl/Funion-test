@@ -308,9 +308,6 @@
   .qc-center-page .qc-flat-grid.cols-3 { grid-template-columns: repeat(2, 1fr); }
 }
 
-/* ---------- 表头排序：统一双箭头图标 + 列头/表体对齐 ---------- */
-.qc-center-page .th-sort { display: inline-flex; align-items: center; gap: 4px; }
-.qc-center-page .sort-ico { flex-shrink: 0; display: block; }
 /* 右对齐数值列：表体为列头图标预留同等空间，数字与列头文字右缘对齐 */
 .qc-center-page .table tbody td.td-num-right { text-align: right; padding-right: 28px; }
 .qc-center-page .type-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
