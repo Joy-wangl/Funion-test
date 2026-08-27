@@ -4,6 +4,7 @@ import './OpsCenter.css';
 import DashboardPage from './DashboardPage.vue';
 import InternalPage from './InternalPage.vue';
 import MarketPage from './MarketPage.vue';
+import BiddingPage from './BiddingPage.vue';
 import SearchPage from './SearchPage.vue';
 import OperationManagePage from './OperationManagePage.vue';
 import ShopGoodsPage from './ShopGoodsPage.vue';
@@ -19,6 +20,7 @@ type PageKey =
   | 'dashboard'
   | 'internal'
   | 'market'
+  | 'bidding'
   | 'search'
   | 'operationManage'
   | 'shopGoods'
@@ -97,7 +99,7 @@ interface RailSub { name: string; target?: PageKey; create?: 'createTaobao' | 'c
 const railMenus: Record<string, { title: string; subs: RailSub[] }> = {
   dashboard: { title: '运营驾驶舱', subs: [{ name: '运营驾驶舱', target: 'dashboard' }] },
   operationManage: { title: '运营管理', subs: [{ name: '运营管理', target: 'operationManage' }] },
-  product: { title: '商机中心', subs: [{ name: '全网搜索', target: 'search' }, { name: '内部商机', target: 'internal' }, { name: '市场商机', target: 'market' }] },
+  product: { title: '商机中心', subs: [{ name: '全网搜索', target: 'search' }, { name: '内部商机', target: 'internal' }, { name: '市场商机', target: 'market' }, { name: '竞价商品', target: 'bidding' }] },
   shopGoods: { title: '店铺商品', subs: [{ name: '店铺商品', target: 'shopGoods' }] },
   create: { title: '商品创建', subs: [{ name: '淘宝', create: 'createTaobao' }, { name: '视频号', create: 'createVideo' }] },
   taskCenter: { title: '任务中心', subs: [{ name: '任务中心', target: 'taskCenter' }] },
@@ -160,6 +162,9 @@ watch(collapsed, () => { railPop.value = null; });
             </div>
             <div class="subnav" :class="active === 'market' ? 'active' : ''" @click.stop="onSubnav('market', 'market')">
               市场商机
+            </div>
+            <div class="subnav" :class="active === 'bidding' ? 'active' : ''" @click.stop="onSubnav('bidding', 'bidding')">
+              竞价商品
             </div>
           </div>
           <div :class="navCls('shopGoods')" @click="onSubnav('shopGoods', 'shopGoods')" @mouseenter="railEnter('shopGoods', $event)" @mouseleave="railLeave()">
@@ -251,6 +256,9 @@ watch(collapsed, () => { railPop.value = null; });
           </section>
           <section :class="pageCls('market')">
             <MarketPage />
+          </section>
+          <section :class="pageCls('bidding')">
+            <BiddingPage />
           </section>
           <section :class="pageCls('search')">
             <SearchPage />

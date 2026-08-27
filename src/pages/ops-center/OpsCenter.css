@@ -4022,3 +4022,8 @@
 .cp-pub-shop .plat { font-size: var(--fs-base); color: var(--color-text-2); flex: none; }
 .cp-pub-shop .name { font-size: var(--fs-base); color: var(--color-text); }
 .cp-pub-empty { padding: 28px 0; text-align: center; font-size: var(--fs-base); color: var(--color-text-3); }
+
+/* ================= 竞价商品页 ================= */
+.ops-center .bd-table { min-width: 1400px; }
+.ops-center .bd-thumb { width: 48px; height: 48px; border-radius: 8px; }
+.ops-center .bd-link { display: inline-block; max-width: 240px; color: var(--color-primary); font-size: 13px; }

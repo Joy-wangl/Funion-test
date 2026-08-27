@@ -685,3 +685,108 @@ export const PUB_SHOPS: PubShop[] = [
   { id: 15, platform: '天猫', name: 'Funion旗舰店' },
   { id: 16, platform: '天猫', name: 'Funion专营店' },
 ];
+
+/* ================= 商机中心-竞价商品 静态数据 ================= */
+export interface BiddingRow {
+  img: string;
+  name: string;
+  link: string;
+  pid: string;
+  /** 必报SKU */
+  sku: string;
+  /** 门槛价 */
+  threshold: string;
+  stock: '有货' | '缺货';
+  /** 商品编码（标签样式展示） */
+  code: string;
+  /** 预估利润 */
+  profit: string;
+  /** 导入时间 */
+  imported: string;
+}
+export const biddingRows: BiddingRow[] = [
+  {
+    img: svgThumb('#ffd9cf', '刀具'),
+    name: '水果刀削皮刀便携倒钩苹果去皮神器家用拼多多功能款...',
+    link: 'https://item.taobao.com/item.htm?id=2670779935129',
+    pid: '2670779935129',
+    sku: '颜色:原色|规格:标准',
+    threshold: '¥9.90',
+    stock: '有货',
+    code: 'DJ-2201',
+    profit: '¥3.20',
+    imported: '2026-08-13 18:24',
+  },
+  {
+    img: svgThumb('#d9f4e7', '益智'),
+    name: '益智魔块3d立体拼图3到6岁动物趣味恐龙模型儿童手工...',
+    link: 'https://item.taobao.com/item.htm?id=26701928017129',
+    pid: '26701928017129',
+    sku: '款式:随机|年龄:3-6岁',
+    threshold: '¥15.50',
+    stock: '缺货',
+    code: 'WJ-035',
+    profit: '¥5.80',
+    imported: '2026-08-13 18:24',
+  },
+  {
+    img: svgThumb('#dfe8ff', '音响'),
+    name: '迷你随身小烟炮音响驱动无线蓝牙便携式重低音抽绳全...',
+    link: 'https://v.douyin.com/item.htm?id=3773095122930106470',
+    pid: '3773095122930106470',
+    sku: '颜色:黑色',
+    threshold: '¥22.00',
+    stock: '有货',
+    code: 'SM-118',
+    profit: '¥8.40',
+    imported: '2026-08-12 09:41',
+  },
+  {
+    img: svgThumb('#fff0c9', '挂钩'),
+    name: '挂钩强力粘胶粘钩强承重免打孔门后墙壁透明勾塑...',
+    link: 'https://mobile.yangkeduo.com/goods.html?goods_id=977051807853',
+    pid: '977051807853',
+    sku: '规格:10只装',
+    threshold: '¥6.80',
+    stock: '有货',
+    code: 'SY-042',
+    profit: '¥2.10',
+    imported: '2026-08-11 16:05',
+  },
+  {
+    img: svgThumb('#ffe1eb', '卡套'),
+    name: '【6个装】证件防丢卡套卡套防窥身份证银行卡保护隐...',
+    link: 'https://kwaishop.kuaishou.com/item.htm?id=25969737568832',
+    pid: '25969737568832',
+    sku: '图案:混发',
+    threshold: '¥4.50',
+    stock: '缺货',
+    code: 'KQ-006',
+    profit: '¥1.60',
+    imported: '2026-08-10 11:32',
+  },
+  {
+    img: svgThumb('#e6f0ff', '胶泥'),
+    name: '密封胶泥空调孔填缝堵洞防虫防水家用耐高温下水道...',
+    link: 'https://mobile.yangkeduo.com/goods.html?goods_id=981543753220',
+    pid: '981543753220',
+    sku: '规格:10包装',
+    threshold: '¥3.90',
+    stock: '有货',
+    code: 'JN-233',
+    profit: '¥1.20',
+    imported: '2026-08-08 15:47',
+  },
+  {
+    img: svgThumb('#e9e2ff', '面霜'),
+    name: '保湿面霜补水滋润秋冬护肤乳液敏感肌可用男女通用...',
+    link: 'https://item.tmall.com/item.htm?id=881543753221',
+    pid: '881543753221',
+    sku: '容量:50g',
+    threshold: '¥19.90',
+    stock: '有货',
+    code: 'MF-501',
+    profit: '¥6.50',
+    imported: '2026-08-07 10:12',
+  },
+];
