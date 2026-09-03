@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>连接手机 · 分步引导</title>
+<style>
+:root{
+  --bg:#0b1220; --panel:#152238; --ink:#f2f6fc; --sub:#9bb0c7;
+  --brand:#3b82f6; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444; --line:#2a3b55;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  background:radial-gradient(900px 500px at 15% -5%,#1e3a5f 0%,var(--bg) 50%);
+  color:var(--ink); line-height:1.55;
+}
+.app{max-width:780px;margin:0 auto;min-height:100%;padding:14px 14px 24px;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.brand{font-weight:800;font-size:14px}.brand span{opacity:.65;font-weight:600}
+.progress{flex:1;height:8px;background:var(--line);border-radius:99px;overflow:hidden;min-width:120px}
+.progress>i{display:block;height:100%;background:linear-gradient(90deg,var(--brand),var(--ok));width:0;transition:width .25s}
+.stepno{font-size:12px;color:var(--sub);white-space:nowrap}
+
+.brandbar{
+  background:rgba(21,34,56,.95);border:1px solid var(--line);border-radius:14px;
+  padding:10px;margin-bottom:10px;
+}
+.brandbar .lab{font-size:12px;color:var(--sub);margin:0 0 8px}
+.brands{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+@media(max-width:520px){.brands{grid-template-columns:repeat(2,1fr)}}
+.brand-btn{
+  appearance:none;cursor:pointer;text-align:left;border:2px solid var(--line);
+  background:#1a2a42;color:var(--ink);border-radius:12px;padding:10px 10px;font-size:13px;font-weight:800;
+}
+.brand-btn small{display:block;margin-top:3px;font-weight:500;color:var(--sub);font-size:11px}
+.brand-btn.sel{border-color:var(--brand);box-shadow:0 0 0 3px rgba(59,130,246,.28)}
+.brand-btn:hover{border-color:#4b6288}
+
+.screen{
+  display:none;flex:1;flex-direction:column;
+  background:rgba(21,34,56,.94);border:1px solid var(--line);border-radius:18px;
+  padding:16px 16px 14px;min-height:min(72vh,640px);
+  box-shadow:0 16px 40px rgba(0,0,0,.35);
+}
+.screen.on{display:flex}
+.screen h1{margin:0 0 6px;font-size:24px;line-height:1.25}
+.lead{margin:0 0 12px;color:var(--sub);font-size:14px}
+.hero{
+  width:100%;border-radius:14px;border:1px solid var(--line);background:#0d1626;
+  display:block;max-height:260px;object-fit:contain;margin:0 0 12px;
+}
+.card{background:#1a2a42;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:8px 0;font-size:14.5px}
+.card.ok{border-left:4px solid var(--ok)}
+.card.warn{border-left:4px solid var(--warn)}
+.card.bad{border-left:4px solid var(--bad)}
+.card b.t{display:block;margin-bottom:6px}
+.dyn{font-size:15.5px}
+.dyn ol{margin:8px 0 0;padding-left:1.25em}
+.dyn li{margin:6px 0}
+.num{display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--brand);color:#fff;
+  align-items:center;justify-content:center;font-size:12px;font-weight:800;margin-right:6px}
+code,.mono{font-family:Consolas,Menlo,monospace;font-size:12.5px;background:#0d1626;color:#9fdbff;padding:2px 6px;border-radius:6px}
+pre.box{margin:8px 0 0;padding:12px;border-radius:10px;background:#0d1626;border:1px solid var(--line);
+  color:#cde7ff;font-size:12.5px;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow:auto;
+  font-family:Consolas,Menlo,monospace}
+.footer{display:flex;gap:10px;margin-top:auto;padding-top:14px;flex-wrap:wrap}
+.btn{appearance:none;border:none;cursor:pointer;border-radius:12px;padding:14px 16px;font-size:16px;font-weight:800}
+.btn.primary{background:linear-gradient(135deg,var(--brand),#2563eb);color:#fff;flex:1;min-width:150px}
+.btn.primary:disabled{opacity:.4;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--sub);border:1px solid var(--line)}
+.btn.copy{background:#16324f;color:#9fdbff;border:1px solid #2a4a6e;font-size:13px;padding:10px 12px}
+.hint{font-size:12px;color:var(--sub);margin-top:8px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#16324f;color:#fff;
+  padding:10px 16px;border-radius:999px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;border:1px solid #2a4a6e;z-index:9}
+.toast.show{opacity:1}
+
+.ext-links{list-style:none;margin:8px 0 0;padding:0}
+.ext-links li{margin:0 0 8px}
+.ext-links a{
+  display:block;padding:12px 14px;border-radius:12px;text-decoration:none;
+  background:#122033;border:1px solid var(--line);color:#dbeafe;font-weight:700;font-size:14px;
+}
+.ext-links a:hover{border-color:var(--brand);background:#16324f}
+.ext-links a small{display:block;margin-top:4px;font-weight:500;color:var(--sub);font-size:12px}
+.ext-links a.cur{border-color:var(--ok);box-shadow:0 0 0 2px rgba(34,197,94,.25)}
+.pill{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:rgba(59,130,246,.2);color:#93c5fd;margin-right:6px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="brand">Funion 移动端 <span>· 连手机引导</span></div>
+    <div class="progress"><i id="bar"></i></div>
+    <div class="stepno" id="stepLabel">1 / 8</div>
+  </div>
+
+  <div class="brandbar" id="brandBar">
+    <p class="lab">先点你的手机品牌（随时可改，下面步骤会跟着变）：</p>
+    <div class="brands" id="brandGrid">
+      <button type="button" class="brand-btn" data-brand="xiaomi"><div>小米 / 红米</div><small>HyperOS / MIUI</small></button>
+      <button type="button" class="brand-btn" data-brand="huawei"><div>华为 / 荣耀</div><small>鸿蒙 / MagicOS</small></button>
+      <button type="button" class="brand-btn" data-brand="oppo"><div>OPPO / 一加 / realme</div><small>ColorOS</small></button>
+      <button type="button" class="brand-btn" data-brand="vivo"><div>vivo / iQOO</div><small>OriginOS</small></button>
+      <button type="button" class="brand-btn" data-brand="samsung"><div>三星</div><small>One UI</small></button>
+      <button type="button" class="brand-btn" data-brand="other"><div>其他安卓</div><small>原生等</small></button>
+    </div>
+  </div>
+
+  <!-- 0 -->
+  <section class="screen on" data-step="0">
+    <h1>把手机连上电脑</h1>
+    <p class="lead">不会也没关系：上面先点品牌，然后一步一步点「我做好了」。做完遮罩会自己消失。</p>
+    <img class="hero" src="img/step-cable.png" alt="插数据线示意" />
+    <div class="card ok"><b class="t">成功长这样</b>电脑认出手机是已授权；Funion 窗口不再挡着「未连接手机」。</div>
+    <div class="footer">
+      <button class="btn primary" type="button" data-next id="startBtn" disabled>选好品牌后点这里开始</button>
+    </div>
+    <p class="hint" id="startHint">还没选品牌：请先点上面一排按钮。</p>
+  </section>
+
+  <!-- 1 cable -->
+  <section class="screen" data-step="1">
+    <h1>第 1 步：插数据线</h1>
+    <p class="lead dyn-brand-name"></p>
+    <img class="hero" src="img/step-cable.png" alt="插线" />
+    <div class="card dyn" id="dynCable"></div>
+    <div class="footer">
+      <button class="btn ghost" type="button" data-prev>上一步</button>
+      <button class="btn primary" type="button" data-next>我插好了，下一步</button>
+    </div>
+  </section>
+
+  <!-- 2 developer -->
+  <section class="screen" data-step="2">
+    <h1>第 2 步：连点版本号 7 次</h1>
+    <p class="lead">这是在「解锁」隐藏菜单，不是要你升级系统。</p>
+    <img class="hero" src="img/step-developer.png" alt="连点版本号" />
+    <div class="card dyn" id="dynDev"></div>
+    <div class="card warn">点的时候要快一点，中途别停太久。手机提示「您已处于开发者模式」就对了。</div>
+    <div class="footer">
+      <button class="btn ghost" type="button" data-prev>上一步</button>
+      <button class="btn primary" type="button" data-next>手机提示已是开发者了，下一步</button>
+    </div>
+  </section>
+
+  <!-- 3 usb -->
+  <section class="screen" data-step="3">
+    <h1>第 3 步：打开 USB 调试</h1>
+    <p class="lead">找到刚才解锁出来的「开发者选项」，把开关打开。</p>
+    <img class="hero" src="img/step-usb-debug.png" alt="打开USB调试" />
+    <div class="card dyn" id="dynUsb"></div>
+    <div class="footer">
+      <button class="btn ghost" type="button" data-prev>上一步</button>
+      <button class="btn primary" type="button" data-next>USB 调试已打开，下一步</button>
+    </div>
+  </section>
+
+  <!-- 4 allow -->
+  <section class="screen" data-step="4">
+    <h1>第 4 步：手机上点「允许」</h1>
+    <p class="lead">很多人卡在这里：弹窗没点，软件就一直说未连接。</p>
+    <img class="hero" src="img/step-allow.png" alt="点允许" />
+    <div class="card dyn" id="dynAllow"></div>
+    <div class="card bad"><b class="t">没有弹窗？</b>先解锁手机；下拉通知把 USB 改成「传输文件」；拔掉线再插一次；开发者选项里点「撤销 USB 调试授权」再拔插。</div>
+    <div class="footer">
+      <button class="btn ghost" type="button" data-prev>上一步</button>
+      <button class="btn primary" type="button" data-next>我点过允许了，下一步</button>
+    </div>
+  </section>
+
+  <!-- 5 back to app -->
+  <section class="screen" data-step="5">
+    <h1>第 5 步：回到 Funion 看一眼</h1>
+    <p class="lead">不用关引导页。切回 AI 手机操作窗口就行。</p>
+    <img class="hero" src="img/step-connected.png" alt="已连接" />
+    <div class="card ok dyn" id="dynBack"></div>
+    <div class="footer">
+      <button class="btn ghost" type="button" data-prev>上一步</button>
+      <button class="btn primary" type="button" data-next>遮罩还在，去自检</button>
+    </div>
+  </section>
+
+  <!-- 6 self check -->
+  <section class="screen" data-step="6">
+    <h1>第 6 步：电脑自检（可选）</h1>
+    <p class="lead">打开程序所在文件夹，地址栏输入 <code>cmd</code> 回车，粘贴下面命令：</p>
+    <div class="card"><code>ScrcpyNet\adb.exe devices</code>
+      <div style="margin-top:8px"><button class="btn copy" type="button" id="btnCopyAdb">复制这条命令</button></div>
+    </div>
+    <div class="card dyn" id="dynAdb"></div>
+    <div class="footer">
+      <button class="btn ghost" type="button" data-prev>上一步</button>
+      <button class="btn primary" type="button" data-next>还是不行，去问 AI</button>
+    </div>
+  </section>
+
+  <!-- 7 AI + brand again -->
+  <section class="screen" data-step="7">
+    <h1>还不行？复制提示词问 AI</h1>
+    <p class="lead">下面会按你<strong>当前点的品牌</strong>自动改提示词。品牌不对就在页面顶部重新点一下。</p>
+    <div class="card">
+      <b class="t">长版提示词（推荐）</b>
+      <pre class="box" id="aiPrompt"></pre>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn copy" type="button" id="btnCopy">复制长版</button>
+        <button class="btn copy" type="button" id="btnCopyShort">复制短版</button>
+      </div>
+    </div>
+    <div class="card warn">
+      <b class="t">问 AI 时顺便发这些</b>
+      手机具体型号、系统版本、<code>adb devices</code> 原文、授权弹窗有没有出现、是不是原装线。
+    </div>
+    <div class="card ok">
+      <b class="t">常见品牌再确认一次（点了上面会立刻改提示词）</b>
+      小米务必开「USB 调试（安全设置）」且常需登录小米账号；华为可能要装驱动 / 开「仅充电下允许 ADB」；OPPO/vivo 注意权限监控类开关。
+    </div>
+    <div class="card" id="extLinksCard">
+      <b class="t">网上现成图文教程（点开新窗口）</b>
+      <p class="hint" style="margin:6px 0 8px">第三方文章，仅作对照；菜单文字可能和你手机略有出入。</p>
+      <ul class="ext-links">
+        <li><a class="ext" data-brand="xiaomi" href="https://linkandroid.com/zh/document/26" target="_blank" rel="noopener noreferrer">小米 / 红米 · USB 调试图文<small>LinkAndroid · MIUI / HyperOS</small></a></li>
+        <li><a class="ext" data-brand="huawei" href="https://linkandroid.com/zh/document/5" target="_blank" rel="noopener noreferrer">华为 · USB 调试图文<small>LinkAndroid</small></a></li>
+        <li><a class="ext" data-brand="huawei" href="https://linkandroid.com/zh/document/15" target="_blank" rel="noopener noreferrer">华为鸿蒙 · USB 调试图文<small>LinkAndroid · HarmonyOS</small></a></li>
+        <li><a class="ext" data-brand="huawei" href="https://consumer.huawei.com/cn/support/content/zh-cn00698619/" target="_blank" rel="noopener noreferrer">华为官网 · 连电脑 / USB 调试说明<small>consumer.huawei.com</small></a></li>
+        <li><a class="ext" data-brand="oppo" href="https://linkandroid.com/zh/document/6" target="_blank" rel="noopener noreferrer">OPPO / 一加 / realme · USB 调试图文<small>LinkAndroid · ColorOS</small></a></li>
+        <li><a class="ext" data-brand="vivo" href="https://linkandroid.com/zh/document/7" target="_blank" rel="noopener noreferrer">vivo / iQOO · USB 调试图文<small>LinkAndroid</small></a></li>
+        <li><a class="ext" data-brand="samsung" href="https://linkandroid.com/zh/document/8" target="_blank" rel="noopener noreferrer">三星 · USB 调试图文<small>LinkAndroid · One UI</small></a></li>
+        <li><a class="ext" data-brand="other" href="https://www.laicaiapp.com/zh-CN/blog/enable-usb-debugging/" target="_blank" rel="noopener noreferrer">各品牌总览一篇（含小米华为 OPPO vivo 三星）<small>莱彩投屏博客</small></a></li>
+      </ul>
+    </div>
+    <div class="footer">
+      <button class="btn ghost" type="button" data-prev>上一步</button>
+      <button class="btn primary" type="button" id="btnRestart">从插线重新走一遍</button>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast">已复制</div>
+<script>
+(function(){
+  var brandNames={
+    xiaomi:'小米 / 红米（含 POCO）',
+    huawei:'华为 / 荣耀',
+    oppo:'OPPO / 一加 / realme',
+    vivo:'vivo / iQOO',
+    samsung:'三星',
+    other:'其他安卓'
+  };
+  var guide={
+    xiaomi:{
+      cable:'<b class="t">小米 / 红米 · 插线时这样做</b><ol><li>用能传数据的线插到这台电脑（不要用只能充电的线）</li><li>解锁手机</li><li>下拉通知栏，点 USB 通知，选<strong>传输文件 / 文件传输</strong>（不要停在「仅充电」）</li></ol>',
+      dev:'<b class="t">小米 · 打开开发者选项</b><ol><li>打开「设置」</li><li>点「我的设备」→「全部参数」</li><li>找到「MIUI 版本 / OS 版本 / 澎湃 OS 版本」</li><li><strong>连点它大约 7 次</strong>，直到提示已是开发者</li></ol>',
+      usb:'<b class="t">小米 · 打开这些开关</b><ol><li>设置 → 更多设置 → <strong>开发者选项</strong></li><li>打开 <strong>USB 调试</strong></li><li>务必再打开 <strong>USB 调试（安全设置）</strong>（控制手机点按常常靠它）</li><li>若打不开安全设置：先登录小米账号，再回来开</li><li>建议把「默认 USB 配置」设为传输文件</li></ol>',
+      allow:'<b class="t">小米 · 点允许</b><ol><li>拔掉线再插上</li><li>看手机是否弹出「允许 USB 调试？」</li><li>勾选「一律允许这台计算机」→ 点<strong>允许</strong></li></ol>',
+      back:'连上后，未连接遮罩大约每 2 秒自动检测一次，连上会自己消失；也可点「重试连接」。',
+      adb:'看到 <code>device</code> 就成功；<code>unauthorized</code> 回去点允许；空白就换线/换口，或执行 <code>adb kill-server</code> 后再 devices。小米若能认出却点不动，多半是没开「USB 调试（安全设置）」。'
+    },
+    huawei:{
+      cable:'<b class="t">华为 / 荣耀 · 插线时这样做</b><ol><li>用原装或能传数据的线</li><li>解锁手机，通知栏选<strong>传输文件 / MTP</strong></li><li>电脑若提示装驱动，先装完再继续（设备管理器里不应有感叹号）</li></ol>',
+      dev:'<b class="t">华为 / 荣耀 · 打开开发者选项</b><ol><li>设置 → 关于手机</li><li>连点「版本号」或「HarmonyOS 版本」约 7 次</li><li>部分鸿蒙新版本：搜索「软件版本」连点 7 次，按提示重启后再继续</li></ol>',
+      usb:'<b class="t">华为 / 荣耀 · 打开这些开关</b><ol><li>设置 → 系统和更新（或 系统）→ <strong>开发人员选项 / 开发者选项</strong></li><li>打开 <strong>USB 调试</strong></li><li>若有「仅充电模式下允许 ADB / HDB」也打开</li><li>按提示输入锁屏密码确认</li></ol>',
+      allow:'<b class="t">华为 · 点允许</b><ol><li>拔插数据线</li><li>弹出允许调试 → 勾选始终允许 → 点允许</li></ol>',
+      back:'回到 Funion，等遮罩消失或点重试。华为若一直认不出，优先查驱动和数据线。',
+      adb:'列表为空：查驱动/换线；unauthorized：点允许；device：成功。'
+    },
+    oppo:{
+      cable:'<b class="t">OPPO / 一加 / realme · 插线</b><ol><li>插能传数据的线并解锁</li><li>USB 用途选<strong>传输文件</strong></li></ol>',
+      dev:'<b class="t">OPPO 系 · 打开开发者选项</b><ol><li>设置 → 关于本机 → 版本信息</li><li>连点「版本号」约 7 次</li></ol>',
+      usb:'<b class="t">OPPO 系 · 打开 USB 调试</b><ol><li>设置 → 其他设置 / 系统设置 → 开发者选项</li><li>打开 USB 调试</li><li>若以后软件能连上却点不动，再看「禁止权限监控」等开关（按机型名称可能不同）</li></ol>',
+      allow:'<b class="t">点允许</b><ol><li>拔插线 → 勾选一律允许 → 允许</li></ol>',
+      back:'回 Funion 看遮罩是否消失；可点重试连接。',
+      adb:'看 devices 输出：device 成功；unauthorized 回去点允许。'
+    },
+    vivo:{
+      cable:'<b class="t">vivo / iQOO · 插线</b><ol><li>插数据线并解锁</li><li>选传输文件 / MTP</li></ol>',
+      dev:'<b class="t">vivo · 打开开发者选项</b><ol><li>设置 → 关于手机</li><li>连点「软件版本号」约 7 次</li></ol>',
+      usb:'<b class="t">vivo · 打开 USB 调试</b><ol><li>设置 → 系统管理 → 开发者选项</li><li>打开 USB 调试</li><li>按提示确认</li></ol>',
+      allow:'<b class="t">点允许</b><ol><li>拔插线 → 一律允许 → 允许</li></ol>',
+      back:'回 Funion，遮罩应自动消失。',
+      adb:'device=成功；unauthorized=没点允许。'
+    },
+    samsung:{
+      cable:'<b class="t">三星 · 插线</b><ol><li>插线并解锁</li><li>USB 配置选文件传输 / MTP</li></ol>',
+      dev:'<b class="t">三星 · 打开开发者选项</b><ol><li>设置 → 关于手机 → 软件信息</li><li>连点「编译编号 / Build number」约 7 次</li></ol>',
+      usb:'<b class="t">三星 · 打开 USB 调试</b><ol><li>返回设置 → 开发者选项</li><li>打开 USB 调试 → 确定</li></ol>',
+      allow:'<b class="t">点允许</b><ol><li>拔插线 → 一律允许这台电脑 → 允许</li></ol>',
+      back:'回 Funion 看是否已连接。',
+      adb:'用 ScrcpyNet\\adb.exe devices 核对状态。'
+    },
+    other:{
+      cable:'<b class="t">其他安卓 · 插线</b><ol><li>插能传数据的线</li><li>解锁，USB 模式选传输文件 / MTP</li></ol>',
+      dev:'<b class="t">打开开发者选项</b><ol><li>设置 → 关于手机</li><li>连点「版本号 / 编译号 / Build number」约 7 次</li></ol>',
+      usb:'<b class="t">打开 USB 调试</b><ol><li>设置里搜索「开发者」</li><li>进入开发者选项，打开 USB 调试</li></ol>',
+      allow:'<b class="t">点允许</b><ol><li>拔插线 → 勾选一律允许 → 允许</li></ol>',
+      back:'回 Funion，等遮罩消失或点重试。',
+      adb:'devices 里要看到 device。'
+    }
+  };
+
+  var screens=[].slice.call(document.querySelectorAll('.screen'));
+  var total=screens.length;
+  var step=0;
+  var brand=localStorage.getItem('funion_guide_brand')||'';
+  var bar=document.getElementById('bar');
+  var stepLabel=document.getElementById('stepLabel');
+  var toast=document.getElementById('toast');
+  var startBtn=document.getElementById('startBtn');
+  var startHint=document.getElementById('startHint');
+
+  function showToast(m){toast.textContent=m||'已复制';toast.classList.add('show');setTimeout(function(){toast.classList.remove('show');},1600);}
+  function fillDyn(){
+    var g=guide[brand]||guide.other;
+    var name=brandNames[brand]||'（请先选品牌）';
+    document.querySelectorAll('.dyn-brand-name').forEach(function(el){el.textContent='当前品牌：'+name;});
+    document.getElementById('dynCable').innerHTML=g.cable;
+    document.getElementById('dynDev').innerHTML=g.dev;
+    document.getElementById('dynUsb').innerHTML=g.usb;
+    document.getElementById('dynAllow').innerHTML=g.allow;
+    document.getElementById('dynBack').innerHTML='<b class="t">你要看的现象</b>'+g.back;
+    document.getElementById('dynAdb').innerHTML='<b class="t">怎么读结果</b><div style="margin-top:6px">'+g.adb+'</div>';
+    var longText='我在用 Windows 上的 Funion 移动端（AI 手机操作 / ADB）连接安卓手机，软件一直显示「未连接手机」。\n\n'+
+      '手机类别：'+name+'\n'+
+      '我已按本引导步骤做过：插数据线并选传输文件、连点版本号打开开发者选项、打开 USB 调试（含该品牌额外开关）、处理「允许 USB 调试」弹窗。\n\n'+
+      '请用中文、把我当完全不懂的新手，一步只做一件事，优先排查：\n'+
+      '1) 数据线/USB口/仅充电 vs 传输文件\n'+
+      '2) 该品牌打开开发者选项与 USB 调试的准确路径\n'+
+      '3) 授权弹窗没出现或 unauthorized\n'+
+      '4) 用程序目录 ScrcpyNet\\adb.exe 做 devices / kill-server 的具体命令\n'+
+      '5) 该品牌常见坑（如小米安全设置+登录账号、华为驱动、OPPO/vivo 权限开关）\n\n'+
+      '我会补充：具体型号与系统版本、adb devices 原文、弹窗是否出现。';
+    var shortText='Windows+Funion 移动端连安卓失败（未连接）。机型：'+name+'。已开 USB 调试。请中文一步步排查：线/MTP、授权弹窗、unauthorized、adb devices（ScrcpyNet\\adb.exe）。';
+    document.getElementById('aiPrompt').textContent=longText;
+    document.getElementById('aiPrompt').dataset.short=shortText;
+    document.querySelectorAll('a.ext').forEach(function(a){ var b=a.getAttribute('data-brand'); a.classList.toggle('cur', !!brand && b===brand); });
+  }
+  function applyBrand(){
+    document.querySelectorAll('.brand-btn').forEach(function(b){b.classList.toggle('sel',b.getAttribute('data-brand')===brand);});
+    var ok=!!brand;
+    startBtn.disabled=!ok;
+    startHint.textContent=ok?('已选：'+brandNames[brand]+'，可以开始。'):'还没选品牌：请先点上面一排按钮。';
+    fillDyn();
+  }
+  function go(n){
+    if(n<0)n=0; if(n>=total)n=total-1; step=n;
+    screens.forEach(function(s,i){s.classList.toggle('on',i===step);});
+    bar.style.width=((step+1)/total*100)+'%';
+    stepLabel.textContent=(step+1)+' / '+total;
+    window.scrollTo(0,0);
+  }
+  document.getElementById('brandGrid').addEventListener('click',function(e){
+    var btn=e.target.closest('.brand-btn'); if(!btn)return;
+    brand=btn.getAttribute('data-brand');
+    localStorage.setItem('funion_guide_brand',brand);
+    applyBrand();
+    showToast('已切换：'+brandNames[brand]);
+  });
+  document.querySelector('.app').addEventListener('click',function(e){
+    var t=e.target.closest('[data-next],[data-prev]'); if(!t)return;
+    if(t.hasAttribute('data-next')){
+      if(!brand){showToast('请先选品牌');return;}
+      go(step+1);
+    } else go(step-1);
+  });
+  function copyText(text,msg){
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){showToast(msg);}).catch(function(){fb(text,msg);});
+    } else fb(text,msg);
+  }
+  function fb(text,msg){
+    var ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select();
+    try{document.execCommand('copy');showToast(msg);}catch(e){showToast('复制失败，请手动全选');}
+    document.body.removeChild(ta);
+  }
+  document.getElementById('btnCopy').onclick=function(){copyText(document.getElementById('aiPrompt').textContent,'长版已复制');};
+  document.getElementById('btnCopyShort').onclick=function(){copyText(document.getElementById('aiPrompt').dataset.short||'','短版已复制');};
+  document.getElementById('btnCopyAdb').onclick=function(){copyText('ScrcpyNet\\adb.exe devices','命令已复制');};
+  document.getElementById('btnRestart').onclick=function(){go(1);};
+  applyBrand(); go(0);
+})();
+</script>
+</body>
+</html>
