@@ -5,7 +5,6 @@ import type { BiddingRow, CreateRow } from './data';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
 import CreateDetailPage from './CreateDetailPage.vue';
-import ToastWrap from '../../components/ToastWrap.vue';
 import { pushToast } from '../../components/toast';
 import { useAnchorPop } from '../../hooks/useAnchorPop';
 
@@ -102,8 +101,8 @@ const doExport = () => {
     return;
   }
   const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
-  const head = '商品ID,商品名称,招募状态,必报SKU,门槛价,是否有货,商品编码,预估利润,导入时间';
-  const csv = [head, ...rows.map(({ r, s }) => [r.pid, r.name, r.status, s.sku, s.threshold, s.stock, s.code, s.profit, r.imported].map(esc).join(','))].join('\n');
+  const head = '商品ID,商品名称,招募状态,SKU名称,是否必报,门槛价,是否有货,商品编码,预估利润,导入时间';
+  const csv = [head, ...rows.map(({ r, s }) => [r.pid, r.name, r.status, s.sku, s.required ? '是' : '否', s.threshold, s.stock, s.code, s.profit, r.imported].map(esc).join(','))].join('\n');
   const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -201,6 +200,7 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
           <thead>
             <tr>
               <th style="width: 64px">
+                <span class="ib-caret ghost"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6" /></svg></span>
                 <input type="checkbox" class="ib-check" :checked="allChecked" @change="toggleAll" />
               </th>
               <th>商品信息</th>
@@ -214,10 +214,10 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
             <template v-for="r in list" :key="r.pid">
               <tr>
                 <td>
-                  <input type="checkbox" class="ib-check" :checked="checked.has(r.pid)" @change="toggleCheck(r.pid)" />
                   <span class="ib-caret" :class="{ open: expanded.has(r.pid) }" @click="toggleExpand(r.pid)">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6" /></svg>
                   </span>
+                  <input type="checkbox" class="ib-check" :checked="checked.has(r.pid)" @change="toggleCheck(r.pid)" />
                 </td>
                 <td>
                   <div class="ib-product">
@@ -241,7 +241,7 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
                   <table class="ib-subtable">
                     <thead>
                       <tr>
-                        <th>必报SKU</th>
+                        <th>SKU名称</th>
                         <th>门槛价</th>
                         <th>是否有货</th>
                         <th>商品编码</th>
@@ -250,7 +250,7 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
                     </thead>
                     <tbody>
                       <tr v-for="s in r.skus" :key="s.code">
-                        <td>{{ s.sku }}</td>
+                        <td>{{ s.sku }}<span v-if="s.required" class="badge-orange ib-req-tag">必报</span></td>
                         <td>{{ s.threshold }}</td>
                         <td><span :class="s.stock === '有货' ? 'badge-green' : 'badge-red'">{{ s.stock }}</span></td>
                         <td><span class="badge-gray">{{ s.code }}</span></td>
@@ -298,5 +298,4 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
       </div>
     </Teleport>
   </div>
-  <ToastWrap />
 </template>

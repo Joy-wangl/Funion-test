@@ -17,7 +17,6 @@ import {
 import { CHAT_SESSIONS, SHOP_NAME, type ChatHit, type ChatSession, type Platform, type PlatformStat } from './data';
 import { QC_OPT_TASKS, OPT_GROUPS, OPT_PICKERS, type OptTask, type OptStatus, type StatusTab } from './qcOptData';
 import { pushToast } from '../../components/toast';
-import ToastWrap from '../../components/ToastWrap.vue';
 import QcDashboard from './QcDashboard.vue';
 import QcSeriesList, { DEFAULT_SERIES_FILTER, type SeriesFilter, type SortKey } from './QcSeriesList.vue';
 import QcSeriesDrawer from './QcSeriesDrawer.vue';
@@ -260,6 +259,5 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
       :on-close="() => (createCtx = null)"
       :on-submit="submitCreateOpt"
     />
-    <ToastWrap />
   </div>
 </template>

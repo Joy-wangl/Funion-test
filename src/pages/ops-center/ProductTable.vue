@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { ProductRow } from './data';
 import { PLATFORM_LOGO, platformOfStore } from './data';
-import BubbleSelect from '../../components/BubbleSelect.vue';
+import BubbleSelect, { BUBBLE_ICON_PATHS, COLOR_ENUM } from '../../components/BubbleSelect.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
+import SortTh from '../../components/SortTh.vue';
 import { useAnchorPop } from '../../hooks/useAnchorPop';
 
 const props = defineProps<{
@@ -17,10 +19,53 @@ const props = defineProps<{
   onDetail?: (row: ProductRow) => void;
   /** 列管理：隐藏的列 key（运营管理页 ▦ 气泡控制；不传则全列展示） */
   hidden?: string[];
+  /** 查询条件扩展列（运营管理传入：key 与筛选标签一致，值取 row.extra[key]；不传则仅基础 13 列） */
+  extraCols?: { key: string; label: string }[];
+  /** 中列完整有序列表（运营管理 ▦ 气泡拖拽排序后传入；不传则基础序 + 扩展列） */
+  colOrder?: { key: string; label: string }[];
+  /** 数字列 key：表头渲染 SortTh 支持排序（不传则全部普通表头） */
+  sortKeys?: string[];
+  /** 当前排序状态（单列激活） */
+  sortState?: { key: string; dir: 'asc' | 'desc' } | null;
+  /** 操作列动作（运营管理传入：与店铺商品操作列同步；不传则详情/添加到） */
+  actions?: (row: ProductRow) => string[];
 }>();
-const emit = defineEmits<{ (e: 'checkChange', index: number, checked: boolean): void }>();
+const emit = defineEmits<{ (e: 'checkChange', index: number, checked: boolean): void; (e: 'sort', key: string): void; (e: 'action', row: ProductRow, action: string): void }>();
+
+const isSortable = (k: string) => (props.sortKeys ?? []).includes(k);
+const thState = (k: string): 'none' | 'asc' | 'desc' => (props.sortState?.key === k ? props.sortState.dir : 'none');
 
 const isHidden = (k: string) => (props.hidden ?? []).includes(k);
+
+/* 基础可隐藏列（内部商机默认序）；运营管理经 colOrder 传入全量有序列 */
+const BASE_COLS = [
+  { key: 'category', label: '商品类目' },
+  { key: 'trend', label: '近30天销量趋势' },
+  { key: 'yesterday', label: '昨日销量' },
+  { key: 'week7', label: '近7日销量' },
+  { key: 'refund', label: '退款率' },
+  { key: 'refundAfter', label: '发货后退款率' },
+  { key: 'publisher', label: '发布人' },
+  { key: 'created', label: '创建时间' },
+  { key: 'status', label: '状态' },
+];
+/* 中列（商品信息与操作之间）：colOrder 优先（可排序），否则基础序 + 扩展列 */
+const middleCols = computed(() => props.colOrder ?? [...BASE_COLS, ...(props.extraCols ?? [])]);
+/* 星星/旗帜 列表按标注「使用图标样式」：颜色名→色值，空白不渲染 */
+const COLOR_OF: Record<string, string> = Object.fromEntries(COLOR_ENUM.map((c) => [c.name, c.color]));
+const iconColorOf = (row: ProductRow, key: string) => COLOR_OF[row.extra?.[key] ?? ''] ?? '';
+const cellText = (row: ProductRow, key: string): string => {
+  switch (key) {
+    case 'category': return row.category;
+    case 'yesterday': return `${row.yesterday}`;
+    case 'week7': return `${row.week7}`;
+    case 'refund': return row.refundRate;
+    case 'refundAfter': return row.refundAfter;
+    case 'publisher': return row.publisher;
+    case 'created': return row.created;
+    default: return row.extra?.[key] ?? '—';
+  }
+};
 
 /* 添加到：点击后气泡展示平台选项（滚动时跟随触发链接） */
 const { pos: addTip, open, close: closeAddTip } = useAnchorPop();
@@ -28,7 +73,7 @@ const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
 </script>
 
 <template>
-  <!-- 内部商机 / 运营管理共用的 13 列商品表格 + 分页（与 preview.html 一致） -->
+  <!-- 内部商机 / 运营管理共用的商品表格（中列顺序由 colOrder 驱动）+ 分页 -->
   <div class="ib-table-card">
     <div class="ib-table-wrap">
       <table class="ib-table">
@@ -39,15 +84,10 @@ const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
             </th>
             <th :style="{ width: props.indexWidth + 'px' }">序号</th>
             <th>商品信息</th>
-            <th v-if="!isHidden('category')">商品类目</th>
-            <th v-if="!isHidden('trend')">近30天销量趋势</th>
-            <th v-if="!isHidden('cloud')">云仓占比</th>
-            <th v-if="!isHidden('yesterday')">昨日销量</th>
-            <th v-if="!isHidden('week7')">近7日销量</th>
-            <th v-if="!isHidden('refund')">退款率</th>
-            <th v-if="!isHidden('refundAfter')">发货后退款率</th>
-            <th v-if="!isHidden('created')">创建时间</th>
-            <th v-if="!isHidden('status')">状态</th>
+            <template v-for="c in middleCols" :key="`h-${c.key}`">
+              <SortTh v-if="!isHidden(c.key) && isSortable(c.key)" :label="c.label" :state="thState(c.key)" @sort="emit('sort', c.key)" />
+              <th v-else-if="!isHidden(c.key)">{{ c.label }}</th>
+            </template>
             <th>操作</th>
           </tr>
         </thead>
@@ -78,34 +118,54 @@ const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
                 </div>
               </div>
             </td>
-            <td v-if="!isHidden('category')">{{ row.category }}</td>
-            <td v-if="!isHidden('trend')">
-              <svg class="spark" viewBox="0 0 90 32">
-                <polyline fill="none" stroke="#68a1ff" stroke-width="2" :points="row.spark" />
-              </svg>
-            </td>
-            <td v-if="!isHidden('cloud')">{{ row.cloudRatio }}</td>
-            <td v-if="!isHidden('yesterday')">{{ row.yesterday }}</td>
-            <td v-if="!isHidden('week7')">{{ row.week7 }}</td>
-            <td v-if="!isHidden('refund')">{{ row.refundRate }}</td>
-            <td v-if="!isHidden('refundAfter')">{{ row.refundAfter }}</td>
-            <td v-if="!isHidden('created')">{{ row.created }}</td>
-            <td v-if="!isHidden('status')">
-              <span class="badge-green">在售</span>
-            </td>
+            <template v-for="c in middleCols" :key="`c-${c.key}`">
+              <td v-if="!isHidden(c.key) && c.key === 'trend'">
+                <svg class="spark" viewBox="0 0 90 32">
+                  <polyline fill="none" stroke="#68a1ff" stroke-width="2" :points="row.spark" />
+                </svg>
+              </td>
+              <td v-else-if="!isHidden(c.key) && c.key === 'status'">
+                <span class="badge-green">在售</span>
+              </td>
+              <td v-else-if="!isHidden(c.key) && (c.key === '星星' || c.key === '旗帜')" class="ib-center">
+                <svg
+                  v-if="iconColorOf(row, c.key)"
+                  class="cell-icon"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  :style="{ color: iconColorOf(row, c.key) }"
+                  aria-hidden="true"
+                ><path :d="BUBBLE_ICON_PATHS[c.key === '星星' ? 'star' : 'flag']" fill="currentColor" /></svg>
+              </td>
+              <td v-else-if="!isHidden(c.key)">{{ cellText(row, c.key) }}</td>
+            </template>
             <td class="actions-col">
-              <a
-                href="#"
-                @click.prevent="onDetail ? onDetail(row) : null"
-              >
-                详情
-              </a>
-              <a
-                href="#"
-                @click.prevent.stop="openAddTip"
-              >
-                添加到
-              </a>
+              <div v-if="props.actions" class="sg-acts">
+                <a
+                  v-for="a in props.actions(row)"
+                  :key="a"
+                  class="sg-link"
+                  href="javascript:void(0)"
+                  @click.prevent="emit('action', row, a)"
+                >
+                  {{ a }}
+                </a>
+              </div>
+              <template v-else>
+                <a
+                  href="#"
+                  @click.prevent="onDetail ? onDetail(row) : null"
+                >
+                  详情
+                </a>
+                <a
+                  href="#"
+                  @click.prevent.stop="openAddTip"
+                >
+                  添加到
+                </a>
+              </template>
             </td>
           </tr>
         </tbody>

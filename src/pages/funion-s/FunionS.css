@@ -1,0 +1,187 @@
+/* =========================================================
+   Funion s · 选品 / AI美化 轻量插件
+   独立顶部 tab（蜜蜂插件后面）：页面容器 + 品牌配色 + 选品库轻量样式
+   取值统一使用 index.css 设计 Token
+   ========================================================= */
+
+/* 页面容器：与蜜蜂插件宿主区同构，为悬浮气泡提供定位 */
+.fs-plugin { position: relative; height: 100%; min-height: 560px; background: var(--color-bg); }
+
+/* 品牌 logo：蓝紫渐变，区别于蜜蜂搬家的蜜蜂黄 */
+.bee-logo.fs { background: linear-gradient(135deg, #6ea8ff, #8b5cf6); color: #fff; font-size: 17px; font-weight: 800; }
+.bee-logo.big.fs { font-size: 24px; }
+
+/* 气泡收起钮跟品牌色 */
+.fs-bubble .bee-b-fold { background: #8b5cf6; }
+.fs-bubble .bee-b-fold:hover { background: #8b5cf6; filter: brightness(1.08); }
+
+/* 选品库顶栏搜索 */
+.fs-search {
+  width: 220px; height: 30px; padding: 0 10px; outline: none;
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  background: var(--color-fill); font-size: var(--fs-aux); color: var(--color-text);
+}
+.fs-search:focus { border-color: var(--color-primary); background: #fff; }
+.fs-count { font-size: var(--fs-aux); color: var(--color-text-3); }
+.fs-pcell { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.fs-pcell .bp-name { flex: 1; min-width: 0; }
+.fs-empty { padding: 60px 0; text-align: center; font-size: var(--fs-aux); color: var(--color-text-3); }
+
+/* ── 商品详情：纯图片画廊，五类分区（主图/SKU图/详情图/白底图/场景图） ── */
+.fsd-body { flex: 1; min-height: 0; display: flex; }
+/* 左侧类目导航 */
+.fsd-nav {
+  flex: none; width: 148px; padding: 16px 12px;
+  display: flex; flex-direction: column; gap: 4px;
+  border-right: 1px solid var(--color-border-2); background: var(--color-fill);
+}
+.fsd-nav button {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px; border: none; border-radius: var(--radius-md);
+  background: transparent; color: var(--color-text-2);
+  font-size: var(--fs-base); text-align: left; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.fsd-nav button:hover { background: var(--color-fill-2); color: var(--color-text); }
+.fsd-nav button.on { background: var(--color-primary-10); color: var(--color-primary); font-weight: 600; }
+.fsd-nav button i { font-style: normal; font-size: var(--fs-aux); color: var(--color-text-3); }
+.fsd-nav button.on i { color: var(--color-primary); }
+/* 右侧分区画廊 */
+.fsd-secs { flex: 1; min-width: 0; overflow: auto; padding: 4px 20px 20px; }
+.fsd-sec-t {
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 0 12px; font-weight: 600;
+  border-bottom: 1px solid var(--color-border-2);
+}
+.fsd-sec-t::before { content: ''; width: 3px; height: 14px; border-radius: 2px; background: linear-gradient(180deg, #6ea8ff, #8b5cf6); }
+.fsd-sec-t span { font-weight: 400; font-size: var(--fs-aux); color: var(--color-text-3); }
+.fsd-grid { display: flex; flex-wrap: wrap; gap: 12px; padding: 14px 0 10px; }
+.fsd-grid img {
+  width: 116px; height: 116px; border-radius: var(--radius-md);
+  border: 1px solid var(--color-border); object-fit: cover; background: var(--color-fill-2);
+  cursor: zoom-in; transition: transform .15s, box-shadow .15s;
+}
+.fsd-grid img:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+/* SKU图：略小 + 颜色/款式图注 */
+.fsd-grid.sku figure { margin: 0; }
+.fsd-grid.sku img { width: 96px; height: 96px; }
+.fsd-grid.sku figcaption { margin-top: 6px; font-size: var(--fs-aux); color: var(--color-text-3); text-align: center; }
+/* 详情图：竖版大图位 */
+.fsd-grid.desc img { width: 168px; height: 224px; }
+/* 场景图：横版图位 */
+.fsd-grid.scene img { width: 252px; height: 168px; }
+
+/* ── AI美化 任务制图板：任务关联商品，列表四态，详情分场景 ── */
+.fb-board { flex: 1; min-height: 0; overflow: auto; padding: 12px 20px 20px; }
+.fb-empty { padding: 80px 0; text-align: center; font-size: var(--fs-aux); color: var(--color-text-3); }
+/* 任务列表卡：点击进详情 */
+.fb-task {
+  margin-bottom: 12px; padding: 14px 16px; cursor: pointer;
+  background: #fff; border: 1px solid var(--color-border-2); border-radius: var(--radius-lg);
+  transition: border-color .15s, box-shadow .15s;
+}
+.fb-task:hover { border-color: var(--color-primary); box-shadow: var(--shadow-md); }
+.fb-t-head { display: flex; align-items: center; gap: 10px; }
+.fb-t-title { flex: 1; min-width: 0; font-size: var(--fs-md); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fb-t-head > svg { flex: none; color: var(--color-text-4); }
+/* 状态标签：生成中 / 成功 / 部分完成 / 失败 */
+.fb-tag { flex: none; padding: 2px 8px; border-radius: var(--radius-xs); font-size: var(--fs-aux); white-space: nowrap; }
+.fb-tag.run { color: var(--color-primary); background: var(--color-primary-10); }
+.fb-tag.done { color: var(--color-success); background: var(--color-success-light); }
+.fb-tag.partial { color: var(--color-warning); background: var(--color-warning-light); }
+.fb-tag.fail { color: var(--color-danger); background: var(--color-danger-light); }
+.fb-t-meta { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: var(--fs-aux); color: var(--color-text-3); }
+.fb-kind { padding: 2px 8px; border-radius: var(--radius-xs); }
+.fb-kind.set { color: var(--color-primary); background: var(--color-primary-10); }
+.fb-kind.multi { color: #8b5cf6; background: rgba(139, 92, 246, .1); }
+.fb-kind.single { color: var(--color-success); background: var(--color-success-light); }
+.fb-method { padding: 2px 8px; border-radius: var(--radius-xs); background: var(--color-fill-2); color: var(--color-text-2); }
+.fb-barwrap { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.fb-bar { flex: 1; height: 6px; border-radius: 3px; background: var(--color-fill-2); overflow: hidden; }
+.fb-bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--color-primary), #38bdf8); transition: width .3s; }
+/* 列表缩略图条 */
+.fb-thumbs { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
+.fb-thumbs img { width: 44px; height: 44px; border-radius: var(--radius-md); border: 1px solid var(--color-border); object-fit: cover; background: var(--color-fill-2); }
+.fb-th-fail { font-size: var(--fs-aux); color: var(--color-danger); }
+/* 任务详情 */
+.fb-d-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.fb-back {
+  display: inline-flex; align-items: center; gap: 3px; padding: 0; border: none; background: transparent;
+  font-size: var(--fs-base); color: var(--color-text-2); cursor: pointer;
+}
+.fb-back:hover { color: var(--color-primary); }
+.fb-d-prod {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  background: #fff; border: 1px solid var(--color-border-2); border-radius: var(--radius-lg);
+}
+.fb-d-prod img { width: 40px; height: 40px; border-radius: var(--radius-md); border: 1px solid var(--color-border); object-fit: cover; background: var(--color-fill-2); }
+.fb-d-prod b { flex: 1; min-width: 0; font-size: var(--fs-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fb-plat { flex: none; padding: 2px 8px; border-radius: var(--radius-xs); background: var(--color-fill-2); color: var(--color-text-2); font-size: var(--fs-aux); }
+.fb-detail .fb-t-meta { margin: 10px 0 12px; }
+.fb-detail .fb-re { margin-left: auto; }
+.fb-re {
+  display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px;
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  background: #fff; font-size: var(--fs-aux); color: var(--color-text-2); cursor: pointer; white-space: nowrap;
+}
+.fb-re:hover { border-color: var(--color-primary); color: var(--color-primary); }
+/* 结果卡片宫格：生成中=转圈卡 / 失败=红卡 / 成功=图+hover 操作；套图带图片类型角标 */
+.fb-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+.fb-card {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  border-radius: var(--radius-md);
+}
+.fb-grid.r11 .fb-card { width: 150px; height: 150px; }
+.fb-grid.r34 .fb-card { width: 126px; height: 168px; }
+.fb-grid.r23 .fb-card { width: 116px; height: 174px; }
+.fb-card.run { background: var(--color-fill-2); border: 1px solid var(--color-border-2); }
+.fb-card.fail { background: var(--color-danger-light); color: var(--color-danger); }
+.fb-card.fail span { font-size: var(--fs-aux); }
+.fb-cpct { font-size: var(--fs-aux); color: var(--color-text-2); }
+.fb-spin {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 3px solid var(--color-border-2); border-top-color: var(--color-primary);
+  animation: fb-spin 1s linear infinite;
+}
+@keyframes fb-spin { to { transform: rotate(360deg); } }
+/* 套图详情：按图片类型分区 */
+.fb-sec { margin-top: 14px; }
+.fb-sec:first-child { margin-top: 0; }
+.fb-sec-t { display: flex; align-items: baseline; gap: 6px; margin-bottom: 8px; font-size: var(--fs-md); font-weight: 600; color: var(--color-text); }
+.fb-sec-t span { font-size: var(--fs-aux); font-weight: 400; color: var(--color-text-3); }
+.fb-card img { width: 100%; height: 100%; border-radius: var(--radius-md); border: 1px solid var(--color-border); object-fit: cover; background: var(--color-fill-2); }
+.fb-img-acts {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px;
+  border-radius: var(--radius-md); background: rgba(20, 26, 40, .45); opacity: 0; transition: opacity .15s;
+}
+.fb-card:hover .fb-img-acts { opacity: 1; }
+.fb-img-acts button {
+  width: 30px; height: 30px; border: none; border-radius: 15px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #fff; color: var(--color-text); cursor: pointer;
+}
+.fb-img-acts button:hover { color: var(--color-primary); }
+
+/* ── 生成结果替换：预览态 -> 编辑态 ── */
+.fb-replace-bar {
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 0 14px; padding: 10px 12px;
+  background: #fff; border: 1px solid var(--color-border-2); border-radius: var(--radius-lg);
+}
+.fb-replace-bar .bp-btn { height: 28px; padding: 0 12px; font-size: var(--fs-aux); }
+.fb-card { cursor: grab; }
+.fb-card.run, .fb-card.fail { cursor: default; }
+.fb-reone {
+  margin-top: 8px; padding: 4px 10px; border: 1px solid var(--color-danger); border-radius: var(--radius-md);
+  background: #fff; color: var(--color-danger); font-size: var(--fs-aux); cursor: pointer;
+}
+.fb-reone:hover { background: var(--color-danger); color: #fff; }
+.fb-img-acts { gap: 8px; }
+
+/* 大图预览（复用 .bee-mask，商品图 / 生成结果通用） */
+.img-preview { display: flex; align-items: center; justify-content: center; padding: 40px; }
+.img-preview img {
+  max-width: 100%; max-height: 100%;
+  border-radius: var(--radius-lg); border: 1px solid var(--color-border-2);
+  background: #fff; box-shadow: var(--shadow-lg); object-fit: contain;
+}

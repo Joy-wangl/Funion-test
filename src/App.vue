@@ -3,9 +3,14 @@ import { ref } from 'vue';
 import { navigation } from './config/navigation';
 import TopTabs from './components/TopTabs.vue';
 import ReceptionCenter from './pages/reception/ReceptionCenter.vue';
+import BeePlugin from './pages/bee-plugin/BeePlugin.vue';
+import FunionS from './pages/funion-s/FunionS.vue';
+import TokenManage from './pages/token-manage/TokenManage.vue';
+import ShunMai from './pages/shunmai/ShunMai.vue';
 import QualityCenter from './pages/quality/QualityCenter.vue';
 import AppCenter from './pages/app-center/AppCenter.vue';
 import OpsCenter from './pages/ops-center/OpsCenter.vue';
+import ToastWrap from './components/ToastWrap.vue';
 import './App.css';
 
 const readCollapsed = () => {
@@ -77,6 +82,28 @@ defineExpose({ toggleSidebar });
           <OpsCenter />
         </main>
       </template>
+      <template v-else-if="activeTabKey === 'bee-plugin'">
+        <main class="app-content">
+          <BeePlugin />
+        </main>
+      </template>
+      <template v-else-if="activeTabKey === 'funion-s'">
+        <main class="app-content">
+          <FunionS />
+        </main>
+      </template>
+      <template v-else-if="activeTabKey === 'token-manage'">
+        <main class="app-content">
+          <TokenManage />
+        </main>
+      </template>
+      <template v-else-if="activeTabKey === 'shunmai'">
+        <main class="app-content">
+          <ShunMai />
+        </main>
+      </template>
     </div>
+    <!-- 全局标准提示（横幅式 banner）统一挂载点 -->
+    <ToastWrap />
   </div>
 </template>

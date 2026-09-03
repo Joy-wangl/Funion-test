@@ -632,53 +632,50 @@
 .pm-page .ctx-menu .item.danger { color: var(--danger); }
 
 /* toast */
-/* ---------- 全局 toast（ToastWrap 各模块挂载，样式统一定义于此，直引全局 token） ---------- */
+/* ---------- 全局标准提示：白底横幅 banner（App.vue 统一挂载，四型场景区分） ----------
+   白底圆角卡片 + 彩色圆标图标区分场景：success=绿勾 / error=红叉红字 / warning=橙叹号 / info=蓝 i */
 .toast-wrap {
   position: fixed;
-  top: 68px;
+  top: 20px;
   left: 50%;
   transform: translateX(-50%);
+  max-width: calc(100vw - 48px);
   z-index: 3000;
   display: flex;
   flex-direction: column;
-  gap: 8px;
   align-items: center;
+  gap: 12px;
   pointer-events: none;
 }
 
-/* 气泡式提示：深色小泡 + 底部箭头，成功=深底绿图标 / 失败=红底白字 */
 .toast {
-  position: relative;
-  background: var(--color-text);
-  color: var(--color-fill);
-  border-radius: var(--radius-md);
-  padding: 8px 14px;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--fs-base);
-  box-shadow: var(--shadow-lg);
-  animation: pmToastIn .2s ease;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 560px;
+  padding: 12px 18px;
+  background: #fff;
+  border: 1px solid #eef1f6;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(26, 34, 56, 0.12);
+  font-size: 14px;
+  line-height: 1.6;
+  color: #333;
+  animation: pmToastIn .25s ease;
+  pointer-events: auto;
 }
 
-.toast::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-  background: var(--color-text);
-  transform: translate(-50%, -55%) rotate(45deg);
-}
+.toast .ic { flex: none; display: flex; margin-top: 2px; }
+.toast .msg { flex: 1; min-width: 0; word-break: break-all; }
 
-.toast .ic { display: flex; }
-.toast.success .ic { color: var(--color-success); }
+.toast.success .ic { color: #1fa254; }
 
-.toast.error { background: var(--color-danger); }
-.toast.error::after { background: var(--color-danger); }
-.toast.error .ic { color: var(--color-fill); }
+.toast.error { color: #d93025; }
+.toast.error .ic { color: #d93025; }
+
+.toast.warning .ic { color: #f6bd16; }
+
+.toast.info .ic { color: #1677d4; }
 
 @keyframes pmToastIn {
   from { opacity: 0; transform: translateY(-8px); }

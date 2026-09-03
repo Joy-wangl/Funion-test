@@ -1,25 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { internalProducts, platformOfStore } from './data';
+import { internalProducts, toSgProduct } from './data';
 import type { ProductRow } from './data';
 import ProductTable from './ProductTable.vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import SgDetailPage from './SgDetailPage.vue';
-import type { SgProduct } from './shopGoodsData';
-
-/** 商机行 → 店铺商品详情模型（复用店铺商品详情页样式） */
-const toSgProduct = (r: ProductRow): SgProduct => {
-  const cats = r.category.split('/').map((s) => s.trim().replace(/\.{3}|…$/, ''));
-  const t = r.created.replace(/\//g, '-');
-  return {
-    id: r.pid, title: r.pname, img: r.thumb, linkId: r.pid,
-    status: 'selling', strategy: '未关联', sales: r.week7, reviews: '-',
-    publisher: '-', store: r.storeMeta.text, storePlatform: platformOfStore(r.storeMeta.text),
-    source: '内部商机', version: r.pid, operator: '-',
-    category: [cats[0] || '-', cats[1] || '-', cats[2] || '-'],
-    publishTime: t, shelfTime: t, createTime: t,
-  };
-};
 
 /** 内部商机页（默认页） */
 const detail = ref<ProductRow | null>(null);
@@ -108,7 +93,9 @@ const detail = ref<ProductRow | null>(null);
       </div>
 
       <div class="ib-actions">
+        <div class="ib-lefttips">共 300034 条商机数据，可按近7日销量、退款率、库存等进行综合筛选。</div>
         <div class="ib-rightacts">
+          <BubbleSelect class-name="ib-select" :style="{ width: '120px' }" default-value="快速选品" :options="['淘宝C店', '视频号']" />
           <button class="lightBtn">重置</button>
           <button class="primaryBtn">查询</button>
           <button class="lightBtn">⚙</button>

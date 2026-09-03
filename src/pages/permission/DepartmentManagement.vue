@@ -2,7 +2,6 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { DP_TREE, DP_MEMBERS, INITIAL_MEMBERS, findDpNode, renameDpNode, roleById } from './data';
 import type { DpTreeNode, Member } from './data';
-import ToastWrap from '../../components/ToastWrap.vue';
 import Modal from '../../components/Modal.vue';
 import { pushToast } from '../../components/toast';
 import './style.css';
@@ -287,6 +286,4 @@ const pickNode = (id: string) => { curDeptId.value = id; };
     @confirm="onAddMemberConfirm"
   />
 
-  <!-- toast -->
-  <ToastWrap />
 </template>

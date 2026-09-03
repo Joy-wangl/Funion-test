@@ -6,7 +6,6 @@ import {
   ROLE_GROUPS,
 } from './data';
 import type { Member, RoleGroupNode, RoleMember } from './data';
-import ToastWrap from '../../components/ToastWrap.vue';
 import Modal from '../../components/Modal.vue';
 import { pushToast } from '../../components/toast';
 import './style.css';
@@ -251,6 +250,4 @@ const onMemberPickerConfirm = (added: Member[]) => {
   <RpMemberPickerModal v-else-if="modal?.kind === 'memberPicker'" @close="closeModal" @confirm="onMemberPickerConfirm" />
   <RpDeptPickerModal v-else-if="modal?.kind === 'deptPicker'" @close="closeModal" />
 
-  <!-- toast -->
-  <ToastWrap />
 </template>

@@ -10,7 +10,6 @@ import {
 } from './data';
 import { CAT_ICONS, GLYPHS, IC, ICON_LIB, agoText, featLinesOf, isImgIcon, today, type AcForm, type CatDraft } from './acHelpers';
 import { pushToast } from '../../components/toast';
-import ToastWrap from '../../components/ToastWrap.vue';
 import AcSvg from './AcSvg.vue';
 import AcLogo from './AcLogo.vue';
 import AcCell from './AcCell.vue';
@@ -724,7 +723,7 @@ const gotoAppDetail = (appId: string) => {
       />
     </main>
 
-    <ToastWrap />
+    
 
     <!-- 微动作气泡：锚在动作点上方自动消退（收藏/打开等卡片级反馈） -->
     <Teleport to="body">

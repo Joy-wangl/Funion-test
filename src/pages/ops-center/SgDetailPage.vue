@@ -23,6 +23,9 @@ function footAction(p: SgProduct): { text: string; cls: string } {
       return { text: '撤销审核', cls: 'danger' };
     case 'offSystem':
     case 'offManual':
+    case 'offDeposit':
+    case 'offBrand':
+    case 'offBan':
       return { text: '立即上架', cls: 'primary' };
     case 'draft':
       return { text: '发布上架', cls: 'primary' };
@@ -54,6 +57,11 @@ const thumbs = computed(() => [p.value.img, ...sgDetail.mainImgs.slice(0, 4)]);
           <span class="sgd-top-title">商品详情</span>
         </div>
         <button v-if="!hideEdit" class="sg-btn">编辑</button>
+      </div>
+
+      <div v-if="p.offType" class="sgd-offnotice">
+        <span class="sgd-offnotice-t">下架原因：</span>
+        <span>{{ p.offReason }}</span>
       </div>
 
       <div class="sgd-cat">

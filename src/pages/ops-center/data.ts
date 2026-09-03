@@ -1,5 +1,6 @@
 /** 智能运营中心复刻页的全部静态数据（与 preview.html 一一对应） */
 import { reactive } from 'vue';
+import type { SgProduct, SgStatus } from './shopGoodsData';
 
 /* ---------- 驾驶舱 KPI ---------- */
 export interface KpiFootSeg {
@@ -200,7 +201,11 @@ export interface ProductRow {
   week7: string;
   refundRate: string;
   refundAfter: string;
+  /** 发布人 */
+  publisher: string;
   created: string;
+  /** 查询条件扩展列演示值（key 与筛选器标签一致；运营管理列表专用） */
+  extra?: Record<string, string>;
 }
 
 const spark1 = '2,26 18,26 30,26 42,25 54,25 63,24 68,10 71,25 76,5 80,20 87,26';
@@ -224,6 +229,7 @@ export const internalProducts: ProductRow[] = [
     week7: '12087',
     refundRate: '8.37%',
     refundAfter: '2.62%',
+    publisher: '王龙',
     created: '2026/07/10 17:39',
   },
   {
@@ -238,6 +244,7 @@ export const internalProducts: ProductRow[] = [
     week7: '11875',
     refundRate: '9.58%',
     refundAfter: '3.56%',
+    publisher: '周梦琪',
     created: '2026/07/09 11:34',
   },
   {
@@ -252,6 +259,7 @@ export const internalProducts: ProductRow[] = [
     week7: '11179',
     refundRate: '15.70%',
     refundAfter: '3.13%',
+    publisher: '李四',
     created: '2025/09/04 19:21',
   },
   {
@@ -266,6 +274,7 @@ export const internalProducts: ProductRow[] = [
     week7: '10438',
     refundRate: '3.49%',
     refundAfter: '1.77%',
+    publisher: '王龙',
     created: '2026/07/13 17:07',
   },
   {
@@ -280,6 +289,7 @@ export const internalProducts: ProductRow[] = [
     week7: '10307',
     refundRate: '8.81%',
     refundAfter: '4.73%',
+    publisher: '七妮妮',
     created: '2026/01/24 21:02',
   },
   {
@@ -294,14 +304,73 @@ export const internalProducts: ProductRow[] = [
     week7: '9515',
     refundRate: '0',
     refundAfter: '0',
+    publisher: '周梦琪',
     created: '2026/07/25 19:10',
   },
 ];
 
-/** 运营管理（待上架 / ID数据）表格数据：与原 HTML 一致，音响行缩略图保留 height=440 原样 */
-export const omProducts: ProductRow[] = internalProducts.map((row, i) =>
-  i === 2 ? { ...row, thumb: svgThumb('#dfe8ff', '音响', 56, 440) } : row,
-);
+/** 运营管理（待上架 / ID数据）表格数据：与原 HTML 一致，音响行缩略图保留 height=440 原样；附带查询条件列演示值 */
+const OM_EXTRAS: Record<string, string>[] = internalProducts.map((row, i) => ({
+  系列编码: `XL-220${i + 1}`,
+  采购: ['陈晓', '刘洋', '周敏'][i % 3],
+  运营组: ['运营一组', '运营二组', '运营三组'][i % 3],
+  运营专员: ['王芳', '李娜', '赵磊'][i % 3],
+  运营助理: i % 2 ? '吴倩' : '孙悦',
+  /* 毛利列列表展示具体金额（按标注「这是具体的值」） */
+  发生毛利2: `¥${(12 + i * 2.5).toFixed(1)}`,
+  发生毛利3: `¥${(18 + i * 3).toFixed(1)}`,
+  发生毛利4: `¥${(9 + i * 1.5).toFixed(1)}`,
+  发生净利润: `¥${(6 + i * 2).toFixed(1)}`,
+  星星: ['红色', '黄色', '绿色', '蓝色', '橙色', '紫色'][i],
+  旗帜: ['空白', '红色', '蓝色', '绿色', '黄色', '橙色'][i],
+  出仓利润: i % 2 ? '亏损' : '盈利',
+  备注: i === 1 ? '注意补货' : '-',
+  毛二利润率: '15%',
+  毛四利润率: '18%',
+  毛五利润率: '22%',
+  毛六利润率: '25%',
+  /* 运营毛利列按标注「都用具体值」展示小数（如 0.31）；key 与列头全角括号保持一致 */
+  运营毛五利: (0.21 + i * 0.02).toFixed(2),
+  运营毛六利: (0.31 + i * 0.02).toFixed(2),
+  '运营毛三（减税）': (0.12 + i * 0.01).toFixed(2),
+  '运营毛四（减税）': (0.14 + i * 0.01).toFixed(2),
+  '运营毛五（减税）': (0.16 + i * 0.01).toFixed(2),
+  '运营毛六（减税）': (0.18 + i * 0.01).toFixed(2),
+  总广告费: `¥${200 + i * 49}`,
+  经营大类: row.category.split('/')[0] || '-',
+  一级类目: row.category.split('/')[0] || '-',
+  二级类目: row.category.split('/')[1] || '-',
+  }));
+/** 运营管理行：与店铺商品列表同步，区分淘宝 / 视频号渠道与商品状态（操作列按状态生成） */
+const OM_SG: { channel: '淘宝' | '视频号'; status: SgStatus }[] = [
+  { channel: '视频号', status: 'selling' },
+  { channel: '淘宝', status: 'selling' },
+  { channel: '视频号', status: 'auditing' },
+  { channel: '淘宝', status: 'offManual' },
+  { channel: '视频号', status: 'draft' },
+  { channel: '淘宝', status: 'offSystem' },
+];
+export type OmProduct = ProductRow & { sg: { channel: '淘宝' | '视频号'; status: SgStatus } };
+export const omProducts: OmProduct[] = internalProducts.map((row, i) => ({
+  ...(i === 2 ? { ...row, thumb: svgThumb('#dfe8ff', '音响', 56, 440) } : row),
+  extra: OM_EXTRAS[i],
+  sg: OM_SG[i],
+}));
+
+/** 商机 / 运营管理行 → 店铺商品详情模型（复用店铺商品详情页样式） */
+export function toSgProduct(r: ProductRow, over?: Partial<Pick<SgProduct, 'status' | 'source'>>): SgProduct {
+  const cats = r.category.split('/').map((s) => s.trim().replace(/\.{3}|…$/, ''));
+  const t = r.created.replace(/\//g, '-');
+  return {
+    id: r.pid, title: r.pname, img: r.thumb, linkId: r.pid, seriesCode: '-',
+    status: over?.status ?? 'selling', strategy: '未关联', sales: r.week7, reviews: '-',
+    publisher: '-', store: r.storeMeta.text, storePlatform: platformOfStore(r.storeMeta.text),
+    source: over?.source ?? '内部商机', version: r.pid, operator: '-',
+    sold30: '-', exposure: '-',
+    category: [cats[0] || '-', cats[1] || '-', cats[2] || '-'],
+    publishTime: t, shelfTime: t, createTime: t,
+  };
+}
 
 /** 根据店铺名称前缀识别平台 */
 export function platformOfStore(store: string): string {
@@ -320,6 +389,7 @@ export const PLATFORM_LOGO: Record<string, string> = {
   拼多多: '/logos/pinduoduo.png',
   抖音: '/logos/douyin.png',
   快手: '/logos/kuaishou.png',
+  京麦: '/logos/jd.png',
 };
 
 /* ---------- 商品创建（淘宝） ---------- */
@@ -394,6 +464,46 @@ export const createTaobaoRows: CreateRow[] = [
     store: '-',
     person: '陈鑫',
     time: '2026-08-13 18:05:52',
+  },
+];
+
+/* ---------- 商品创建（京麦） ---------- */
+export const createJmRows: CreateRow[] = [
+  {
+    thumb: createThumb('#ffe1e0', '刀具'),
+    platformBadge: '京麦',
+    title: '水果刀削皮刀便携刨刀苹果去皮神器家用不锈钢刀具',
+    link: 'https://item.jd.com/100012345601.html?template=JM20260815-01',
+    store: '-',
+    person: '周梦琪',
+    time: '2026-08-15 10:24:10',
+  },
+  {
+    thumb: createThumb('#dfe8ff', '音响'),
+    platformBadge: '京麦',
+    title: '迷你随身小钢炮音响强劲无线蓝牙便携式重低音炮',
+    link: 'https://item.jd.com/100012345602.html?template=JM20260815-02',
+    store: '-',
+    person: '周梦琪',
+    time: '2026-08-15 10:24:02',
+  },
+  {
+    thumb: createThumb('#d9f4e7', '精华'),
+    platformBadge: '京麦',
+    title: 'PERDORA 玻尿酸修护精华液 补水保湿舒缓敏感肌 30ml 装',
+    link: 'https://item.jd.com/100012345603.html?template=JM20260815-03',
+    store: '-',
+    person: '陈鑫',
+    time: '2026-08-15 10:23:54',
+  },
+  {
+    thumb: createThumb('#fff0c9', '挂钩'),
+    platformBadge: '京麦',
+    title: '挂钩强力粘胶粘钩强承重免打孔门后墙壁透明勾塑料款',
+    link: 'https://item.jd.com/100012345604.html?template=JM20260815-04',
+    store: '-',
+    person: '陈鑫',
+    time: '2026-08-15 10:23:47',
   },
 ];
 
@@ -689,8 +799,10 @@ export const PUB_SHOPS: PubShop[] = [
 /* ================= 商机中心-竞价商品 静态数据 ================= */
 /** 必报SKU 维度行：一个商品ID 下可含多个 SKU */
 export interface BiddingSku {
-  /** 必报SKU */
+  /** SKU名称 */
   sku: string;
+  /** 是否必报SKU（名称后展示「必报」标签） */
+  required?: boolean;
   /** 门槛价 */
   threshold: string;
   stock: '有货' | '缺货';
@@ -718,7 +830,7 @@ export const biddingRows: BiddingRow[] = [
     link: 'https://item.taobao.com/item.htm?id=2670779935129',
     pid: '2670779935129',
     skus: [
-      { sku: '颜色:原色|规格:标准', threshold: '¥9.90', stock: '有货', code: 'DJ-2201', profit: '¥3.20' },
+      { sku: '颜色:原色|规格:标准', required: true, threshold: '¥9.90', stock: '有货', code: 'DJ-2201', profit: '¥3.20' },
       { sku: '颜色:原色|规格:升级款', threshold: '¥12.90', stock: '有货', code: 'DJ-2202', profit: '¥4.10' },
     ],
     imported: '2026-08-13 18:24',
@@ -731,7 +843,7 @@ export const biddingRows: BiddingRow[] = [
     pid: '26701928017129',
     skus: [
       { sku: '款式:随机|年龄:3-6岁', threshold: '¥15.50', stock: '缺货', code: 'WJ-035', profit: '¥5.80' },
-      { sku: '款式:恐龙|年龄:3-6岁', threshold: '¥18.50', stock: '有货', code: 'WJ-036', profit: '¥6.80' },
+      { sku: '款式:恐龙|年龄:3-6岁', required: true, threshold: '¥18.50', stock: '有货', code: 'WJ-036', profit: '¥6.80' },
     ],
     imported: '2026-08-13 18:24',
     status: '报名待开启',
@@ -742,7 +854,7 @@ export const biddingRows: BiddingRow[] = [
     link: 'https://v.douyin.com/item.htm?id=3773095122930106470',
     pid: '3773095122930106470',
     skus: [
-      { sku: '颜色:黑色', threshold: '¥22.00', stock: '有货', code: 'SM-118', profit: '¥8.40' },
+      { sku: '颜色:黑色', required: true, threshold: '¥22.00', stock: '有货', code: 'SM-118', profit: '¥8.40' },
       { sku: '颜色:白色', threshold: '¥22.00', stock: '有货', code: 'SM-119', profit: '¥8.40' },
     ],
     imported: '2026-08-12 09:41',
@@ -755,7 +867,7 @@ export const biddingRows: BiddingRow[] = [
     pid: '977051807853',
     skus: [
       { sku: '规格:10只装', threshold: '¥6.80', stock: '有货', code: 'SY-042', profit: '¥2.10' },
-      { sku: '规格:20只装', threshold: '¥12.80', stock: '有货', code: 'SY-043', profit: '¥3.60' },
+      { sku: '规格:20只装', required: true, threshold: '¥12.80', stock: '有货', code: 'SY-043', profit: '¥3.60' },
     ],
     imported: '2026-08-11 16:05',
     status: '待开始',
@@ -766,7 +878,7 @@ export const biddingRows: BiddingRow[] = [
     link: 'https://kwaishop.kuaishou.com/item.htm?id=25969737568832',
     pid: '25969737568832',
     skus: [
-      { sku: '图案:混发', threshold: '¥4.50', stock: '缺货', code: 'KQ-006', profit: '¥1.60' },
+      { sku: '图案:混发', required: true, threshold: '¥4.50', stock: '缺货', code: 'KQ-006', profit: '¥1.60' },
     ],
     imported: '2026-08-10 11:32',
     status: '报名中',
@@ -777,7 +889,7 @@ export const biddingRows: BiddingRow[] = [
     link: 'https://mobile.yangkeduo.com/goods.html?goods_id=981543753220',
     pid: '981543753220',
     skus: [
-      { sku: '规格:10包装', threshold: '¥3.90', stock: '有货', code: 'JN-233', profit: '¥1.20' },
+      { sku: '规格:10包装', required: true, threshold: '¥3.90', stock: '有货', code: 'JN-233', profit: '¥1.20' },
       { sku: '规格:20包装', threshold: '¥6.90', stock: '有货', code: 'JN-234', profit: '¥2.00' },
     ],
     imported: '2026-08-08 15:47',
@@ -789,7 +901,7 @@ export const biddingRows: BiddingRow[] = [
     link: 'https://item.tmall.com/item.htm?id=881543753221',
     pid: '881543753221',
     skus: [
-      { sku: '容量:50g', threshold: '¥19.90', stock: '有货', code: 'MF-501', profit: '¥6.50' },
+      { sku: '容量:50g', required: true, threshold: '¥19.90', stock: '有货', code: 'MF-501', profit: '¥6.50' },
       { sku: '容量:30g', threshold: '¥12.90', stock: '有货', code: 'MF-502', profit: '¥4.20' },
     ],
     imported: '2026-08-07 10:12',

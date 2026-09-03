@@ -25,7 +25,12 @@ const active = ref(new Date(2026, 7, 12));
 const cursor = ref(new Date(2026, 7, 1));
 const start = ref<Date | null>(null);
 const end = ref<Date | null>(null);
-const calOpen = ref(false);
+/* 日历类型：day=单日日历 week=周选日历 month=月选日历 range=自定义区间双面板 */
+const calType = ref<'' | 'day' | 'week' | 'month' | 'range'>('');
+const yearCursor = ref(new Date(2026, 0, 1));
+const selWeek = ref<{ s: Date; e: Date } | null>(null);
+const selMonth = ref<Date | null>(null);
+const hoverWeek = ref(0);
 
 /* ----- 指标选择 / 平台 / 利润分析 ----- */
 const metricOpen = ref(false);
@@ -43,7 +48,7 @@ const profitRef = ref<HTMLDivElement | null>(null);
 
 const onDocClick = (e: MouseEvent) => {
   const t = e.target as Node;
-  if (timebarRef.value && !timebarRef.value.contains(t)) calOpen.value = false;
+  if (timebarRef.value && !timebarRef.value.contains(t)) calType.value = '';
   if (metricWrapRef.value && !metricWrapRef.value.contains(t)) metricOpen.value = false;
   if (profitRef.value && !profitRef.value.contains(t)) profitOpen.value = false;
 };
@@ -80,6 +85,8 @@ function pickDate(d: Date) {
 
 const onMode = (m: string) => {
   mode.value = m;
+  calType.value = '';
+  active.value = new Date(2026, 7, 12);
   if (m === 'realtime') dateText.value = '2026-08-12';
   if (m === '7') dateText.value = '2026-08-06 ~ 2026-08-12';
   if (m === '30') dateText.value = '2026-07-14 ~ 2026-08-12';
@@ -93,19 +100,98 @@ const onApply = () => {
     end.value = e;
   }
   dateText.value = same(start.value, e) ? fmt(start.value) : `${fmt(start.value)} ~ ${fmt(e)}`;
-  calOpen.value = false;
+  calType.value = '';
   mode.value = 'custom';
 };
 
-const onPrevDay = () => {
-  const d = new Date(active.value);
-  d.setDate(d.getDate() - 1);
+const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const mondayOf = (d: Date) => addDays(d, -((d.getDay() + 6) % 7));
+
+/* 日/周/月：打开对应日历（再点收起），交互与风格同图一 */
+const onGran = (g: 'd' | 'w' | 'm') => {
+  gran.value = g;
+  const t = g === 'd' ? 'day' : g === 'w' ? 'week' : 'month';
+  calType.value = calType.value === t ? '' : t;
+  hoverWeek.value = 0;
+  cursor.value = new Date(active.value.getFullYear(), active.value.getMonth(), 1);
+  yearCursor.value = new Date(active.value.getFullYear(), 0, 1);
+};
+
+/* 日：单日日历点选一天 */
+const pickDay = (d: Date) => {
   active.value = d;
   dateText.value = fmt(d);
+  mode.value = 'day';
+  gran.value = 'd';
+  calType.value = '';
 };
-const onNextDay = () => {
-  const d = new Date(active.value);
-  d.setDate(d.getDate() + 1);
+
+/* 周：点选所在周 周一~周日 */
+const pickWeek = (d: Date) => {
+  const s = mondayOf(d);
+  const e = addDays(s, 6);
+  selWeek.value = { s, e };
+  active.value = e;
+  dateText.value = `${fmt(s)} ~ ${fmt(e)}`;
+  mode.value = 'week';
+  gran.value = 'w';
+  calType.value = '';
+};
+
+/* 月：点选自然月 */
+const pickMonth = (mi: number) => {
+  const d = new Date(yearCursor.value.getFullYear(), mi, 1);
+  selMonth.value = d;
+  active.value = d;
+  dateText.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+  mode.value = 'month';
+  gran.value = 'm';
+  calType.value = '';
+};
+
+/* 周选日历单元格：悬停/选中周 两端实心+中间浅色（图一样式） */
+const weekCellCls = (d: Date) => {
+  let cls = 'day' + (d.getMonth() !== cursor.value.getMonth() ? ' muted' : '');
+  const wm = hoverWeek.value || (selWeek.value ? +mondayOf(selWeek.value.s) : 0);
+  if (wm && +mondayOf(d) === wm) {
+    const wd = (d.getDay() + 6) % 7;
+    cls += wd === 0 || wd === 6 ? ' sel' : ' range';
+  }
+  return cls;
+};
+
+/* ‹ ›：按当前模式粒度前后移（日±1天 / 周±7天 / 月±1月 / 区间±1天） */
+const shift = (dir: number) => {
+  if (mode.value === 'month') {
+    const [y, mo] = dateText.value.split('-').map(Number);
+    const d = new Date(y || 2026, ((mo || 1) - 1) + dir, 1);
+    selMonth.value = d;
+    active.value = d;
+    dateText.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+    return;
+  }
+  if (mode.value === 'week' && selWeek.value) {
+    const s = addDays(selWeek.value.s, dir * 7);
+    const e = addDays(s, 6);
+    selWeek.value = { s, e };
+    active.value = e;
+    dateText.value = `${fmt(s)} ~ ${fmt(e)}`;
+    return;
+  }
+  if (mode.value === '7' || mode.value === '30') {
+    const e = addDays(active.value, dir);
+    active.value = e;
+    dateText.value = `${fmt(addDays(e, mode.value === '7' ? -6 : -29))} ~ ${fmt(e)}`;
+    return;
+  }
+  if (mode.value === 'custom' && start.value && end.value) {
+    start.value = addDays(start.value, dir);
+    end.value = addDays(end.value, dir);
+    active.value = end.value;
+    dateText.value = `${fmt(start.value)} ~ ${fmt(end.value)}`;
+    return;
+  }
+  const d = addDays(active.value, dir);
   active.value = d;
   dateText.value = fmt(d);
 };
@@ -159,6 +245,7 @@ const trendKpi = computed(() => (trendMetric.value ? kpiItems.find((k) => k.metr
 
 <template>
   <div class="dash-toolbar">
+    <div class="dash-line">
     <div ref="timebarRef" class="timebar">
       <span class="label">统计时间</span>
       <span class="date">{{ dateText }}</span>
@@ -171,28 +258,106 @@ const trendKpi = computed(() => (trendMetric.value ? kpiItems.find((k) => k.metr
       <button class="tb mode" :class="mode === '30' ? 'active' : ''" @click="onMode('30')">
         30天
       </button>
-      <button class="tb gran" :class="gran === 'd' ? 'active' : ''" @click="gran = 'd'">
+      <button class="tb gran" :class="gran === 'd' ? 'active' : ''" @click="onGran('d')">
         日
       </button>
-      <button class="tb gran" :class="gran === 'w' ? 'active' : ''" @click="gran = 'w'">
+      <button class="tb gran" :class="gran === 'w' ? 'active' : ''" @click="onGran('w')">
         周
       </button>
-      <button class="tb gran" :class="gran === 'm' ? 'active' : ''" @click="gran = 'm'">
+      <button class="tb gran" :class="gran === 'm' ? 'active' : ''" @click="onGran('m')">
         月
       </button>
       <button
         class="tb"
-        @click="calOpen = !calOpen"
+        @click="calType = calType === 'range' ? '' : 'range'"
       >
         自定义ⓘ
       </button>
-      <button class="tb" @click="onPrevDay">
+      <button class="tb" @click="shift(-1)">
         ‹
       </button>
-      <button class="tb" @click="onNextDay">
+      <button class="tb" @click="shift(1)">
         ›
       </button>
-      <div class="calendar" :class="calOpen ? 'show' : ''">
+      <div class="calendar" :class="{ show: !!calType, narrow: calType !== '' && calType !== 'range' }">
+        <!-- 日：单日日历，点选一天 -->
+        <div v-if="calType === 'day'" class="cal-panel">
+          <div class="chead">
+            <div>
+              <button class="cnav" @click.stop="cursor = new Date(cursor.getFullYear() - 1, cursor.getMonth(), 1)">«</button>
+              <button class="cnav" @click.stop="cursor = new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1)">‹</button>
+            </div>
+            <div class="ctitle">
+              <span>{{ cursor.getFullYear() }}年</span>
+              <span>{{ cursor.getMonth() + 1 }}月</span>
+            </div>
+            <div>
+              <button class="cnav" @click.stop="cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)">›</button>
+              <button class="cnav" @click.stop="cursor = new Date(cursor.getFullYear() + 1, cursor.getMonth(), 1)">»</button>
+            </div>
+          </div>
+          <div class="week">
+            <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+          </div>
+          <div class="days">
+            <button v-for="cell in cursorDays" :key="cell.key" :class="cell.cls" @click="pickDay(cell.date)">
+              {{ cell.label }}
+            </button>
+          </div>
+        </div>
+
+        <!-- 周：周选日历，悬停整周高亮、点选 周一~周日（图一样式） -->
+        <div v-else-if="calType === 'week'" class="cal-panel">
+          <div class="chead">
+            <div>
+              <button class="cnav" @click.stop="cursor = new Date(cursor.getFullYear() - 1, cursor.getMonth(), 1)">«</button>
+              <button class="cnav" @click.stop="cursor = new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1)">‹</button>
+            </div>
+            <div class="ctitle">
+              <span>{{ cursor.getFullYear() }}年</span>
+              <span>{{ cursor.getMonth() + 1 }}月</span>
+            </div>
+            <div>
+              <button class="cnav" @click.stop="cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)">›</button>
+              <button class="cnav" @click.stop="cursor = new Date(cursor.getFullYear() + 1, cursor.getMonth(), 1)">»</button>
+            </div>
+          </div>
+          <div class="week">
+            <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+          </div>
+          <div class="days" @mouseleave="hoverWeek = 0">
+            <button v-for="cell in cursorDays" :key="cell.key" :class="weekCellCls(cell.date)" @mouseenter="hoverWeek = +mondayOf(cell.date)" @click="pickWeek(cell.date)">
+              {{ cell.label }}
+            </button>
+          </div>
+        </div>
+
+        <!-- 月：月选日历，点选自然月 -->
+        <div v-else-if="calType === 'month'" class="cal-panel">
+          <div class="chead">
+            <div>
+              <button class="cnav" @click.stop="yearCursor = new Date(yearCursor.getFullYear() - 1, 0, 1)">«</button>
+              <button class="cnav" @click.stop="yearCursor = new Date(yearCursor.getFullYear() - 1, 0, 1)">‹</button>
+            </div>
+            <div class="ctitle">
+              <span>{{ yearCursor.getFullYear() }}年</span>
+            </div>
+            <div>
+              <button class="cnav" @click.stop="yearCursor = new Date(yearCursor.getFullYear() + 1, 0, 1)">›</button>
+              <button class="cnav" @click.stop="yearCursor = new Date(yearCursor.getFullYear() + 1, 0, 1)">»</button>
+            </div>
+          </div>
+          <div class="months">
+            <button
+              v-for="mi in 12" :key="mi"
+              :class="{ on: !!selMonth && selMonth.getFullYear() === yearCursor.getFullYear() && selMonth.getMonth() === mi - 1 }"
+              @click="pickMonth(mi - 1)"
+            >{{ mi }}月</button>
+          </div>
+        </div>
+
+        <!-- 自定义区间：双面板日历 -->
+        <template v-else>
         <div class="calendar-panels">
           <div class="cal-panel">
             <div class="chead">
@@ -287,8 +452,10 @@ const trendKpi = computed(() => (trendMetric.value ? kpiItems.find((k) => k.metr
             </button>
           </div>
         </div>
+        </template>
       </div>
     </div>
+    <div class="dash-spacer" />
     <button class="refresh">刷新数据</button>
     <div ref="metricWrapRef" class="metric-wrap">
       <button
@@ -312,19 +479,18 @@ const trendKpi = computed(() => (trendMetric.value ? kpiItems.find((k) => k.metr
         </div>
       </div>
     </div>
-    <div>
+    </div>
+    <div class="dash-line">
       <BubbleSelect
         class-name="platformSelect"
-        default-value="视图模式"
-        :options="['视图模式', '列表模式']"
+        default-value="数据模式"
+        :options="['视图模式', '列表模式', '对比模式']"
         @change="(v: string) => {
-          if (v && v !== '视图模式') {
+          if (v && v !== '数据模式') {
             console.log('已切换视图模式：' + v);
           }
         }"
       />
-    </div>
-    <div>
       <BubbleSelect
         class-name="platformSelect"
         default-value="平台"
@@ -335,8 +501,32 @@ const trendKpi = computed(() => (trendMetric.value ? kpiItems.find((k) => k.metr
           }
         }"
       />
-    </div>
-    <div ref="profitRef" class="profit-filter">
+      <BubbleSelect
+        class-name="platformSelect"
+        default-value="店铺"
+        :options="['全部店铺', '快乐小店-佰得小站', '抖音小店-BB丽居佳/健身弹专区', '拼多多-潮眼优选的小百货']"
+      />
+      <BubbleSelect
+        class-name="platformSelect"
+        default-value="主管"
+        :options="['全部主管', '黄亚芳', '周梦琪', '张三']"
+      />
+      <BubbleSelect
+        class-name="platformSelect"
+        default-value="组长"
+        :options="['全部组长', '李四', '王五', '赵六']"
+      />
+      <BubbleSelect
+        class-name="platformSelect"
+        default-value="运营"
+        :options="['全部运营', '陈鑫', '小李', '小周']"
+      />
+      <BubbleSelect
+        class-name="platformSelect"
+        default-value="助理"
+        :options="['全部助理', '小陈', '小吴', '小林']"
+      />
+      <div ref="profitRef" class="profit-filter">
       <button
         class="profit-btn"
         @click.stop="profitOpen = !profitOpen"
@@ -354,6 +544,7 @@ const trendKpi = computed(() => (trendMetric.value ? kpiItems.find((k) => k.metr
           {{ opt.text }}
         </div>
       </div>
+    </div>
     </div>
   </div>
 

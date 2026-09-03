@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { provide, ref, watch } from 'vue';
 import './OpsCenter.css';
 import DashboardPage from './DashboardPage.vue';
 import InternalPage from './InternalPage.vue';
@@ -10,7 +10,10 @@ import OperationManagePage from './OperationManagePage.vue';
 import ShopGoodsPage from './ShopGoodsPage.vue';
 import CreateProductPage from './CreateProductPage.vue';
 import TaskCenterPage from './TaskCenterPage.vue';
+import CodeWarnPage from './CodeWarnPage.vue';
+import StrategyPage from './StrategyPage.vue';
 import AiAssistantPage from './AiAssistantPage.vue';
+import MsgBell from './MsgBell.vue';
 import MemberManagement from '../permission/MemberManagement.vue';
 import DepartmentManagement from '../permission/DepartmentManagement.vue';
 import RolePermission from '../permission/RolePermission.vue';
@@ -26,7 +29,10 @@ type PageKey =
   | 'shopGoods'
   | 'createTaobao'
   | 'createVideo'
+  | 'createJm'
+  | 'codeWarn'
   | 'taskCenter'
+  | 'strategy'
   | 'permMember'
   | 'permDept'
   | 'permRole'
@@ -55,7 +61,7 @@ const createOpen = ref(false);
 const permissionOpen = ref(false);
 
 /* 切到商品创建子页时自动展开菜单（原版 showCreateTaobao / showCreateVideo） */
-const showCreate = (key: 'createTaobao' | 'createVideo') => {
+const showCreate = (key: 'createTaobao' | 'createVideo' | 'createJm') => {
   page.value = key;
   createOpen.value = true;
 };
@@ -65,8 +71,11 @@ const onSubnav = (key: string, target?: PageKey) => {
   if (target) page.value = target;
 };
 
+/* 子页跨页跳转（如市场商机操作列「全网搜索」） */
+provide('opsGo', (target: PageKey) => onSubnav(target, target));
+
 /* 商品创建子项：高亮 + 切页 + 展开菜单（原版 setActive + showCreate） */
-const clickCreate = (key: 'createTaobao' | 'createVideo') => {
+const clickCreate = (key: 'createTaobao' | 'createVideo' | 'createJm') => {
   active.value = key;
   showCreate(key);
 };
@@ -95,15 +104,16 @@ const permItems: { name: string; target?: PageKey }[] = [
 ];
 
 /* 收起态路由图标悬浮气泡：展示路由名称，有二级路由则展示，点击跳转对应页面 */
-interface RailSub { name: string; target?: PageKey; create?: 'createTaobao' | 'createVideo' }
+interface RailSub { name: string; target?: PageKey; create?: 'createTaobao' | 'createVideo' | 'createJm' }
 const railMenus: Record<string, { title: string; subs: RailSub[] }> = {
   dashboard: { title: '运营驾驶舱', subs: [{ name: '运营驾驶舱', target: 'dashboard' }] },
   operationManage: { title: '运营管理', subs: [{ name: '运营管理', target: 'operationManage' }] },
   product: { title: '商机中心', subs: [{ name: '全网搜索', target: 'search' }, { name: '内部商机', target: 'internal' }, { name: '市场商机', target: 'market' }, { name: '竞价商品', target: 'bidding' }] },
   shopGoods: { title: '店铺商品', subs: [{ name: '店铺商品', target: 'shopGoods' }] },
-  create: { title: '商品创建', subs: [{ name: '淘宝', create: 'createTaobao' }, { name: '视频号', create: 'createVideo' }] },
+  create: { title: '商品创建', subs: [{ name: '淘宝', create: 'createTaobao' }, { name: '视频号', create: 'createVideo' }, { name: '京麦', create: 'createJm' }] },
+  codeWarn: { title: '异常编码预警', subs: [{ name: '异常编码预警', target: 'codeWarn' }] },
   taskCenter: { title: '任务中心', subs: [{ name: '任务中心', target: 'taskCenter' }] },
-  strategy: { title: '商品策略', subs: [] },
+  strategy: { title: '商品策略', subs: [{ name: '商品策略', target: 'strategy' }] },
   aiAssistant: { title: 'AI助手', subs: [{ name: 'AI助手', target: 'aiAssistant' }] },
   automation: { title: '自动化中心', subs: [] },
   permission: { title: '权限设置', subs: permItems.map((p) => ({ name: p.name, target: p.target })) },
@@ -125,6 +135,13 @@ const railGo = (sub: RailSub) => {
   else onSubnav(sub.name);
 };
 watch(collapsed, () => { railPop.value = null; });
+
+/* 消息通知点击跳转：切店铺商品 + 传定位令牌（列表页 watch 后按商品ID自动查询） */
+const msgLocate = ref<{ id: string; ts: number } | null>(null);
+const onMsgJump = (id: string) => {
+  onSubnav('shopGoods', 'shopGoods');
+  msgLocate.value = { id, ts: Date.now() };
+};
 </script>
 
 <template>
@@ -193,12 +210,23 @@ watch(collapsed, () => { railPop.value = null; });
             >
               视频号
             </div>
+            <div
+              class="subnav"
+              :class="active === 'createJm' ? 'active' : ''"
+              @click.stop="clickCreate('createJm')"
+            >
+              京麦
+            </div>
+          </div>
+          <div :class="navCls('codeWarn')" @click="onSubnav('codeWarn', 'codeWarn')" @mouseenter="railEnter('codeWarn', $event)" @mouseleave="railLeave()">
+            <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2.5 19.5h19L12 3Z" /><path d="M12 10v4.5" /><path d="M12 17.5h.01" /></svg></span>
+            <span class="nav-text">异常编码预警</span>
           </div>
           <div :class="navCls('taskCenter')" @click="onSubnav('taskCenter', 'taskCenter')" @mouseenter="railEnter('taskCenter', $event)" @mouseleave="railLeave()">
             <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="m9 13 2 2 4-4" /></svg></span>
             <span class="nav-text">任务中心</span>
           </div>
-          <div class="nav" @mouseenter="railEnter('strategy', $event)" @mouseleave="railLeave()">
+          <div :class="navCls('strategy')" @click="onSubnav('strategy', 'strategy')" @mouseenter="railEnter('strategy', $event)" @mouseleave="railLeave()">
             <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" /><path d="m7 14 4-4 3 3 5-6" /></svg></span>
             <span class="nav-text">商品策略</span>
           </div>
@@ -246,6 +274,7 @@ watch(collapsed, () => { railPop.value = null; });
       </aside>
 
       <div class="ops-right">
+        <div class="ops-topbar"><MsgBell @jump="onMsgJump" /></div>
         <main class="main">
         <div class="content">
           <section :class="pageCls('dashboard')">
@@ -267,13 +296,22 @@ watch(collapsed, () => { railPop.value = null; });
             <OperationManagePage />
           </section>
           <section :class="pageCls('shopGoods')">
-            <ShopGoodsPage />
+            <ShopGoodsPage :locate="msgLocate" />
           </section>
           <section :class="pageCls('createTaobao')">
             <CreateProductPage />
           </section>
           <section :class="pageCls('createVideo')">
             <CreateProductPage />
+          </section>
+          <section :class="pageCls('createJm')">
+            <CreateProductPage jm />
+          </section>
+          <section :class="pageCls('codeWarn')">
+            <CodeWarnPage />
+          </section>
+          <section :class="pageCls('strategy')">
+            <StrategyPage />
           </section>
           <section :class="pageCls('aiAssistant')">
             <AiAssistantPage />

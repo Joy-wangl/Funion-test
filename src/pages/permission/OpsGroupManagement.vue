@@ -2,7 +2,6 @@
 import { computed, ref, watch } from 'vue';
 import { avaColor } from './data';
 import type { Member } from './data';
-import ToastWrap from '../../components/ToastWrap.vue';
 import Modal from '../../components/Modal.vue';
 import { pushToast } from '../../components/toast';
 import './style.css';
@@ -517,5 +516,4 @@ const transferPersonConfirm = (memberId: string) => {
     </template>
   </Modal>
 
-  <ToastWrap />
 </template>

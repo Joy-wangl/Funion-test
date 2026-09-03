@@ -11,7 +11,6 @@ import StrategyBoard from './StrategyBoard.vue';
 import LiveReception from './LiveReception.vue';
 import { RC_AGENTS, type RcAgent } from './data';
 import { pushToast } from '../../components/toast';
-import ToastWrap from '../../components/ToastWrap.vue';
 import '../quality/style.css';
 import './rc.css';
 
@@ -120,6 +119,5 @@ const toggleAgentStrategy = (id: number) => {
       <LiveReception v-else />
     </div>
 
-    <ToastWrap />
   </div>
 </template>

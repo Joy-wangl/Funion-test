@@ -1,0 +1,229 @@
+/* 令牌管理页：tm- 前缀，直引全局 token
+   外层平台卡片 + 内层账号令牌卡片 */
+.token-manage {
+  min-height: 100%;
+  padding: 20px 24px 28px;
+  background: var(--color-bg);
+}
+
+/* 页头 */
+.token-manage .tm-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.token-manage .tm-head h2 { font-size: 18px; font-weight: 700; color: var(--color-text); }
+.token-manage .tm-head p { margin-top: 4px; font-size: var(--fs-aux); color: var(--color-text-3); }
+
+/* 按钮 */
+.token-manage .tm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 16px;
+  flex: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fff;
+  color: var(--color-text-2);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.token-manage .tm-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.token-manage .tm-btn.primary { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.token-manage .tm-btn.primary:hover { background: var(--color-primary-hover); border-color: var(--color-primary-hover); color: #fff; }
+.token-manage .tm-btn.danger { background: var(--color-danger); border-color: var(--color-danger); color: #fff; }
+
+/* 外层：平台卡片 */
+.token-manage .tm-plat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+.token-manage .tm-plat-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 16px;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+}
+.token-manage .tm-plat-card:hover { border-color: #d5dffa; box-shadow: 0 6px 18px rgba(26, 34, 56, 0.08); }
+.token-manage .tm-plat-card > img { width: 40px; height: 40px; border-radius: 10px; flex: none; }
+.token-manage .tm-plat-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.token-manage .tm-plat-info b { font-size: var(--fs-md); font-weight: 700; color: var(--color-text); }
+.token-manage .tm-plat-info span {
+  font-size: var(--fs-aux);
+  color: var(--color-text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.token-manage .tm-plat-card > svg { flex: none; color: var(--color-text-3); }
+
+/* 内层：面包屑头 */
+.token-manage .tm-crumb { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.token-manage .tm-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  background: none;
+  padding: 4px 6px;
+  border-radius: var(--radius-xs);
+  color: var(--color-primary);
+  font-size: var(--fs-base);
+  cursor: pointer;
+}
+.token-manage .tm-back:hover { background: var(--color-primary-light); }
+.token-manage .tm-crumb .tm-plat { font-size: var(--fs-md); font-weight: 700; color: var(--color-text); }
+.token-manage .tm-crumb .tm-plat img { width: 22px; height: 22px; border-radius: 5px; }
+.token-manage .tm-group-count {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #edf1f7;
+  font-size: var(--fs-aux);
+  color: var(--color-text-3);
+}
+
+/* 账号令牌卡片列表 */
+.token-manage .tm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+.token-manage .tm-item {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  transition: border-color .15s, box-shadow .15s;
+}
+.token-manage .tm-item:hover { border-color: #d5dffa; box-shadow: 0 6px 18px rgba(26, 34, 56, 0.08); }
+.token-manage .tm-item-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.token-manage .tm-meta { display: flex; flex-direction: column; gap: 8px; }
+.token-manage .tm-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--fs-base);
+  color: var(--color-text-2);
+}
+.token-manage .tm-meta-row > span { flex: none; font-size: var(--fs-aux); color: var(--color-text-3); }
+.token-manage .tm-meta-row b { font-weight: 500; }
+.token-manage .tm-item-foot { display: flex; justify-content: flex-end; align-items: center; gap: 14px; border-top: 1px solid #f0f3f7; padding-top: 10px; }
+.token-manage .tm-item-foot a { color: var(--color-danger); font-size: var(--fs-base); text-decoration: none; }
+.token-manage .tm-item-foot a:hover { text-decoration: underline; }
+.token-manage .tm-enter { color: var(--color-primary) !important; }
+.token-manage .tm-empty {
+  padding: 48px 0;
+  text-align: center;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  color: var(--color-text-3);
+  font-size: var(--fs-base);
+}
+.token-manage .tm-count { margin-top: 12px; text-align: right; font-size: var(--fs-aux); color: var(--color-text-3); }
+
+.token-manage .tm-name { font-size: var(--fs-md); font-weight: 700; color: var(--color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.token-manage .tm-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-xs);
+  color: var(--color-text-3);
+  cursor: pointer;
+}
+.token-manage .tm-ic:hover { background: var(--color-primary-light); color: var(--color-primary); }
+
+.token-manage .tm-plat { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.token-manage .tm-plat img { width: 18px; height: 18px; border-radius: 4px; }
+
+/* BubbleSelect 盒样式：与输入件同高同圆角（弹窗用） */
+.token-manage .tm-select {
+  height: 34px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: border-color .15s;
+}
+.token-manage .tm-select:hover { border-color: var(--color-primary); }
+.token-manage .tm-select .bselect-trigger { padding: 0 12px; }
+.token-manage .tm-dialog .tm-select { width: 320px; }
+
+.token-manage .tm-input {
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  color: var(--color-text);
+  background: #fff;
+  outline: none;
+  width: 240px;
+}
+.token-manage .tm-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary-10); }
+.token-manage .tm-input.wide { width: 320px; }
+
+/* 弹窗 */
+.token-manage .tm-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(23, 30, 46, 0.45);
+  z-index: 2600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.token-manage .tm-dialog {
+  width: 480px;
+  background: #fff;
+  border-radius: var(--radius-2xl);
+  box-shadow: 0 18px 50px rgba(20, 28, 48, 0.22);
+  overflow: hidden;
+}
+.token-manage .tm-dialog.small { width: 400px; }
+.token-manage .tm-dlg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.token-manage .tm-dlg-body { padding: 18px; }
+.token-manage .tm-dlg-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--color-border);
+  background: #fafbfd;
+}
+
+.token-manage .tm-frow { display: flex; gap: 12px; margin-bottom: 16px; }
+.token-manage .tm-frow:last-child { margin-bottom: 0; }
+.token-manage .tm-label { flex: none; width: 72px; padding-top: 8px; font-size: 13px; color: var(--color-text-2); }
+.token-manage .tm-label i { color: var(--color-danger); font-style: normal; margin-right: 2px; }
+.token-manage .tm-err { margin-top: 4px; font-size: var(--fs-aux); color: var(--color-danger); }
+
+.token-manage .tm-confirm-tip { font-size: 13px; color: var(--color-text-2); line-height: 1.7; }

@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { createTaobaoRows, parentTasks, retrySub, PUB_NO_STRATEGY, PUB_STRATEGIES, PUB_SHOPS, PUB_SHOP_PLATFORMS } from './data';
+import { createTaobaoRows, createJmRows, parentTasks, retrySub, PUB_NO_STRATEGY, PUB_STRATEGIES, PUB_SHOPS, PUB_SHOP_PLATFORMS } from './data';
 import type { CreateRow, SubTask } from './data';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
 import MoreActions from '../../components/MoreActions.vue';
 import SortTh from '../../components/SortTh.vue';
 import CreateDetailPage from './CreateDetailPage.vue';
+import JmCreateDetailPage from './JmCreateDetailPage.vue';
 import { pushToast } from '../../components/toast';
 import { stepsOf, stepLabels } from './tcSteps';
 
-/** 商品创建页 */
-const rows = ref<CreateRow[]>(createTaobaoRows);
+/** 商品创建页（jm=京麦平台：列表同源结构，详情走京麦接口字段页） */
+const props = defineProps<{ jm?: boolean }>();
+const rows = ref<CreateRow[]>(props.jm ? createJmRows : createTaobaoRows);
 /* 详情态：复用内部商机/店铺商品详情样式 */
 const detail = ref<CreateRow | null>(null);
 /* 发布到：两步抽屉（第一步选择策略 → 第二步选择店铺） */
@@ -136,7 +138,8 @@ const confirmDelete = () => {
 </script>
 
 <template>
-  <CreateDetailPage v-if="detail" :row="detail" @back="detail = null" @open-pub="openPubFromDetail" />
+  <JmCreateDetailPage v-if="detail && props.jm" :row="detail" @back="detail = null" @open-pub="openPubFromDetail" />
+  <CreateDetailPage v-else-if="detail" :row="detail" @back="detail = null" @open-pub="openPubFromDetail" />
   <div v-else class="create-page">
     <div class="ib-filters create-filter">
       <div class="ib-grid">
@@ -216,7 +219,7 @@ const confirmDelete = () => {
                   <img class="create-thumb" :src="row.thumb" alt="thumb" />
                   <div>
                     <div class="create-product-title">
-                      <span class="create-platform-badge taobao sm">
+                      <span class="create-platform-badge sm" :class="props.jm ? 'jm' : 'taobao'">
                         {{ row.platformBadge }}
                       </span>
                       <Ellipsis class-name="create-title-ell" :text="row.title" />

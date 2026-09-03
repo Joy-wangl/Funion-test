@@ -11,7 +11,6 @@ import {
   roleById,
 } from './data';
 import type { Member, OrgNode } from './data';
-import ToastWrap from '../../components/ToastWrap.vue';
 import Modal from '../../components/Modal.vue';
 import { pushToast } from '../../components/toast';
 import './style.css';
@@ -405,6 +404,4 @@ const drawerEdit = () => {
     </div>
   </template>
 
-  <!-- toast -->
-  <ToastWrap />
 </template>

@@ -78,6 +78,20 @@ function chartPeriod(dateText: string, mode: string) {
     }
     return { labels: l30, desc: '近30天' };
   }
+  if (mode === 'month') {
+    const mp = text.split('-');
+    const my = +mp[0];
+    const mm = +mp[1];
+    if (my && mm) {
+      const n = new Date(my, mm, 0).getDate();
+      const lm: string[] = [];
+      for (let i = 1; i <= n; i++) lm.push(mm + '/' + i);
+      return { labels: lm, desc: text };
+    }
+  }
+  if (mode === 'day') {
+    return { labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'], desc: '日 · ' + text };
+  }
   return { labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'], desc: '实时 · ' + text };
 }
 function makeTrendValues(metric: string, count: number, base: number) {

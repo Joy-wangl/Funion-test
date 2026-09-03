@@ -3,7 +3,6 @@ import { ref } from 'vue';
 import type { CreateRow, CreateVersion } from './data';
 import { createDetail, createVersions } from './data';
 import { pushToast } from '../../components/toast';
-import ToastWrap from '../../components/ToastWrap.vue';
 import CpdMediaSec from './CpdMediaSec.vue';
 import MaterialCenter from './MaterialCenter.vue';
 
@@ -68,7 +67,7 @@ const d = createDetail;
           </div>
         </div>
         <div class="cpd-side-acts">
-          <button class="cpd-side-btn" @click="pushToast('手机预览：演示环境暂不可用')">
+          <button class="cpd-side-btn" @click="pushToast('手机预览：演示环境暂不可用', 'warning')">
             <span class="ic">▯</span>手机预览
           </button>
           <button class="cpd-side-btn" @click="pushToast('AI审查完成：未发现合规问题')">
@@ -263,6 +262,5 @@ const d = createDetail;
       </div>
     </div>
 
-    <div class="pm-page pm-host"><ToastWrap /></div>
   </div>
 </template>

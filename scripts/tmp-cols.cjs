@@ -1,6 +1,8 @@
 /* 临时验证：内部商机/运营管理表格删除「上架店铺」「库存数」两列 */
 const { chromium } = require('D:/Funion/.playwright/package/index.js');
-const OUT = 'd:/Qoder/Funion';
+const fs = require('fs');
+const OUT = 'd:/Qoder/Funion/screenshots';
+fs.mkdirSync(OUT, { recursive: true });
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
@@ -32,7 +34,19 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForSelector('.om-col-pop');
   results['om.noStore'] = (await page.locator('.om-col-pop:has-text("上架店铺")').count()) === 0;
   results['om.noStock'] = (await page.locator('.om-col-pop:has-text("库存数")').count()) === 0;
-  results['om.fields9'] = (await page.locator('.om-col-item').count()) === 9;
+  results['om.fields36'] = (await page.locator('.om-col-item').count()) === 36;
+  /* 排序图标常显（按标注「增加排序图标」） */
+  results['om.gripShown'] = await page.evaluate(() => {
+    const g = document.querySelector('.om-col-item .om-col-grip');
+    return !!g && getComputedStyle(g).opacity === '1';
+  });
+
+  /* 字段排序：拖「商品类目」到「昨日销量」→ 列表表头顺序同步（类目落在昨日销量后一位） */
+  await page.locator('.om-col-item', { hasText: '商品类目' }).dragTo(page.locator('.om-col-item', { hasText: '昨日销量' }));
+  await page.waitForTimeout(250);
+  const ths2 = (await page.locator('.om-page .ib-table thead th').allTextContents()).map((t) => t.trim());
+  results['om.sortMoved'] = ths2.indexOf('商品类目') === ths2.indexOf('昨日销量') + 1;
+  await page.screenshot({ path: `${OUT}/ops-verify-colpop-sort.png` });
 
   await browser.close();
   const fail = Object.entries(results).filter(([, v]) => !v);
