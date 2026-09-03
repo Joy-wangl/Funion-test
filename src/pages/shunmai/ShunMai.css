@@ -29,6 +29,9 @@
   color: #fff;
 }
 .sm-btn.primary:hover { opacity: 0.92; }
+/* 删除类操作按钮：红字红框，hover 不变蓝 */
+.sm-btn.danger { border-color: #dc2626; color: #dc2626; }
+.sm-btn.danger:hover { border-color: #dc2626; color: #dc2626; opacity: 0.85; }
 .sm-btn.ghost {
   border-color: transparent;
   background: transparent;
@@ -53,6 +56,8 @@
 .sm-select { width: 100%; }
 .sm-select .bselect-trigger {
   height: 40px;
+  /* 与输入框同款水平内边距，避免文字贴左、箭头贴右 */
+  padding: 0 12px;
   border: 1px solid #e4e8ef;
   border-radius: 10px;
   background: #fbfcfe;
@@ -76,8 +81,10 @@
 /* 筛选卡（与智能运营中心 .sg-filter 同款） */
 .sm-filter {
   padding: 16px 18px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
+/* 批量操作下拉菜单需溢出卡片展示 */
+.sm-card.sm-filter { overflow: visible; }
 .sm-card-foot {
   margin-top: 12px;
   text-align: center;
@@ -242,6 +249,9 @@
   flex: 1;
   padding: 12px 10px;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 .sm-nav-item,
 .sm-nav-parent {
@@ -265,10 +275,39 @@
 }
 .sm-nav-item svg { flex: none; }
 .sm-side-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 12px;
   border-top: 1px solid var(--color-border-2, #f0f3f7);
 }
-.sm-side-foot .sm-btn { width: 100%; }
+.sm-side-foot .sm-btn { flex: 1; }
+/* 头部跨应用入口按钮：LOGO + 文字，与使用教程/新建任务同高同族；hover 沿用蓝框蓝字 */
+.sm-btn.sm-ops-go {
+  gap: 8px;
+  padding: 0 14px;
+  font-weight: 500;
+}
+.sm-btn.sm-ops-go img {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  object-fit: cover;
+}
+/* 退出登录左侧头像 */
+.sm-side-avatar {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8efff;
+  color: #4f7cff;
+  font-size: 13px;
+  font-weight: 600;
+}
 
 /* ---------- 主内容区 ---------- */
 .sm-main {
@@ -277,6 +316,23 @@
   flex-direction: column;
   min-width: 0;
   overflow: auto;
+}
+/* 全局约定：需滚动的容器只做滚动交互，默认隐藏滚动条 */
+.sm-main,
+.sm-table-wrap,
+.sm-exec-steps-list,
+.sm-exec-data-list,
+.sm-side-nav,
+.bselect-menu {
+  scrollbar-width: none;
+}
+.sm-main::-webkit-scrollbar,
+.sm-table-wrap::-webkit-scrollbar,
+.sm-exec-steps-list::-webkit-scrollbar,
+.sm-exec-data-list::-webkit-scrollbar,
+.sm-side-nav::-webkit-scrollbar,
+.bselect-menu::-webkit-scrollbar {
+  display: none;
 }
 .sm-main-head {
   display: flex;
@@ -296,6 +352,19 @@
   color: var(--color-text-3, #86909c);
 }
 .sm-breadcrumb span { color: var(--color-text-2, #4e5969); }
+/* 详情页头部：返回在左，右侧任务名称在上、成功/失败/总数在下 */
+.sm-detail-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.sm-detail-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text, #1d2129);
+}
+.sm-detail-info .sm-progress-meta { margin-top: 0; }
 .sm-content {
   flex: 1;
   padding: 18px 24px 24px;
@@ -310,6 +379,9 @@
   display: flex;
   flex-direction: column;
 }
+/* 卡内标题与数据概览面板头同款；查询条件收进卡内 */
+.sm-recent-head { padding: 16px 18px 0; }
+.sm-recent-filter { padding: 0 18px 16px; }
 .sm-recent-card .sm-card-foot {
   margin-top: auto;
   padding: 12px 18px 16px;
@@ -317,17 +389,13 @@
 }
 /* 列表页卡片不参与 flex 收缩，避免内容超一屏时筛选卡被压裁切 */
 .sm-content > .sm-card { flex: none; }
-.sm-content > .sm-recent-card { flex: 1; }
-
-/* ---------- 工作台 ---------- */
-.sm-section-title {
-  margin-bottom: 12px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text, #1d2129);
+.sm-content > .sm-recent-card {
+  flex: 1;
+  /* 内容超一屏时不压缩卡高产生卡内滚动，随主区域整体跟随滚动 */
+  min-height: fit-content;
 }
-.sm-section-title:not(:first-child) { margin-top: 24px; }
-/* ---------- 数据概览：品控中心扁平卡风格 ---------- */
+
+/* ---------- 工作台：数据概览（品控中心扁平卡风格） ---------- */
 .sm-dashboard-top {
   display: flex;
   gap: 14px;
@@ -591,21 +659,14 @@
 .sm-goods-info { min-width: 0; }
 .sm-goods-title {
   font-size: 13px;
-  color: var(--color-primary, #2563eb);
-  cursor: pointer;
+  color: #465064;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 260px;
 }
-.sm-goods-title:hover { text-decoration: underline; }
-.sm-goods-meta {
-  margin-top: 2px;
-  font-size: 12px;
-  color: #86909c;
-}
 .sm-goods-price {
-  margin-top: 2px;
+  margin-top: 6px;
   font-size: 12px;
   color: #ff6a00;
 }
@@ -668,32 +729,245 @@
   color: var(--color-text-2, #4e5969);
 }
 .sm-filter-tag i:hover { color: #dc2626; }
-.sm-detail-row {
+/* ---------- 任务详情：执行监控（轻质大厂风） ---------- */
+.sm-exec-layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 16px;
+}
+/* 左：实时画面暗色面板 */
+.sm-exec-left {
+  flex: none;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0e1013;
+}
+.sm-exec-feed-head {
   display: flex;
   align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  background: #17191e;
+  color: #e5e6eb;
+  font-size: 12px;
+}
+.sm-exec-feed-head .t { font-weight: 600; }
+.sm-exec-feed-head .ck {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.sm-exec-feed-head input[type='checkbox'] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--color-primary, #2563eb);
+  cursor: pointer;
+}
+.sm-exec-feed {
+  flex: 1;
+  min-height: 420px;
+  background: #000;
+}
+/* 右：步骤流 + 已抓取数据双列，操作前后截图跨列在下 */
+.sm-exec-right {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.sm-exec-cols {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+}
+/* 已抓取数据面板：仅查看 */
+.sm-exec-data {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.sm-exec-data-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 2px 14px 14px;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--color-border-2, #f0f3f7);
+}
+.sm-data-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+/* 商品间分割线：线上下各保 12px 疏远 */
+.sm-data-row + .sm-data-row {
+  border-top: 1px solid #f0f2f6;
+  padding-top: 12px;
+}
+.sm-data-info {
+  flex: 1;
+  min-width: 0;
+}
+.sm-data-title {
   font-size: 13px;
+  color: #465064;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.sm-detail-row:last-child { border-bottom: none; }
-.sm-detail-row span {
-  flex: none;
-  width: 80px;
-  color: var(--color-text-3, #86909c);
+.sm-data-shop {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #86909c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.sm-detail-row b {
+.sm-data-empty {
+  padding: 28px 0;
+  text-align: center;
+  font-size: 12px;
+  color: #98a2b3;
+}
+.sm-exec-steps {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.sm-exec-steps-head {
+  padding: 14px 18px 10px;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--color-text, #1d2129);
-  font-weight: 500;
+}
+.sm-exec-steps-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 2px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sm-step {
+  border: 1px solid #e8ebf1;
+  border-radius: 10px;
+  background: #fbfcfe;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.sm-step:hover { border-color: #d3dbe8; }
+.sm-step.current {
+  border-color: #a9bcff;
+  background: #f8faff;
+  box-shadow: 0 0 0 3px rgba(79, 124, 255, 0.07);
+}
+.sm-step-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--color-text, #1d2129);
+}
+.sm-step-title .idx {
+  flex: none;
+  font-size: 12px;
+  color: #86909c;
+}
+.sm-step-title .st { font-size: 12px; color: #86909c; }
+.sm-step-title .st.running { color: #2563eb; }
+.sm-step-title .act {
+  font-weight: 600;
+  font-size: 12.5px;
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+}
+.sm-step-title .params {
+  font-size: 12px;
+  color: #4e5969;
+  font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+  word-break: break-all;
+}
+.sm-step-note {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #86909c;
+}
+.sm-step-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.sm-step-marks { display: flex; gap: 6px; }
+.sm-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid #e3e7ee;
+  border-radius: 8px;
+  background: #fff;
+  color: #86909c;
+  font-size: 12px;
+  /* 结果标记仅展示，不可点击 */
+  cursor: default;
+}
+.sm-chip.on.ok { border-color: #b7e2c8; background: #ecfdf3; color: #16a34a; }
+.sm-chip.on.warn { border-color: #f3d7a7; background: #fff7e8; color: #d97706; }
+.sm-chip.on.fail { border-color: #f5b5b5; background: #fef2f2; color: #dc2626; }
+.sm-chip.on.mute { border-color: #d0d4dc; background: #f2f3f5; color: #4e5969; }
+.sm-step-predict {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--color-primary, #2563eb);
+}
+.sm-exec-shots {
+  flex: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.sm-shot-card { padding: 12px 14px 14px; }
+.sm-shot-title {
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text, #1d2129);
+}
+.sm-shot-img {
+  height: 200px;
+  border-radius: 10px;
+  background: #0b0d12;
 }
 
 
 /* ---------- 数据筛选与分页 ---------- */
-/* 统一筛选表单（与智能运营中心 .sg-grid 同款：标签在上 + 操作行独占末排右对齐，同图二） */
+/* 统一筛选表单（与智能运营中心 .sg-grid 同款：标签在上 + 条件与按钮同排右对齐，超宽自动换行） */
 .sm-filter-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
   gap: 12px 16px;
+}
+.sm-filter-grid .sm-field {
+  flex: 1 1 220px;
+  min-width: 0;
+  gap: 0;
 }
 .sm-field label {
   display: block;
@@ -702,22 +976,15 @@
   margin-bottom: 7px;
 }
 .sm-actions {
-  grid-column: 1 / -1;
+  margin-left: auto;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: 8px;
-  align-self: end;
-}
-/* 操作行左侧灰色说明文案（与图二「共 N 条商机数据…」同款） */
-.sm-actions-tip {
-  font-size: 13px;
-  color: #86909c;
-  margin-right: 4px;
 }
 
-/* 商机选择与批量操作 */
+/* 商机选择与批量操作（导入到已移除，批量下拉菜单一并删除，仅保留批量删除按钮） */
 .sm-check-col { width: 44px; }
 .sm-table input[type='checkbox'] {
   width: 15px;
@@ -726,40 +993,6 @@
   cursor: pointer;
   vertical-align: middle;
 }
-.sm-table input[type='checkbox']:disabled { cursor: not-allowed; opacity: 0.4; }
-.sm-batch-wrap { position: relative; }
-.sm-batch-mask { position: fixed; inset: 0; z-index: 19; }
-.sm-batch-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  z-index: 20;
-  min-width: 112px;
-  padding: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  background: #fff;
-  border: 1px solid #e4e8ef;
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(31, 35, 41, 0.1);
-}
-.sm-batch-menu button {
-  padding: 7px 12px;
-  border: none;
-  background: none;
-  border-radius: 8px;
-  font-size: 13px;
-  color: #465064;
-  text-align: left;
-  cursor: pointer;
-}
-.sm-batch-menu button:hover { background: #f2f5fa; }
-.sm-batch-menu button.danger { color: #dc2626; }
-@media (max-width: 1100px) {
-  .sm-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
 .sm-pagination {
   display: flex;
   align-items: center;
@@ -806,6 +1039,12 @@
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+/* 重点操作二次确认弹窗：略窄，正文常规字号 */
+.sm-modal-confirm { width: 420px; }
+.sm-modal-confirm .sm-modal-body {
+  font-size: 13px;
+  color: #465064;
 }
 .sm-head-actions { display: flex; gap: 10px; }
 .sm-field { display: flex; flex-direction: column; gap: 6px; }

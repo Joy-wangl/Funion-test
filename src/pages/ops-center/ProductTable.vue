@@ -5,6 +5,8 @@ import { PLATFORM_LOGO, platformOfStore } from './data';
 import BubbleSelect, { BUBBLE_ICON_PATHS, COLOR_ENUM } from '../../components/BubbleSelect.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
 import SortTh from '../../components/SortTh.vue';
+import { SG_STATUS_META, sgOffTagOfStatus } from './shopGoodsData';
+import type { SgStatus } from './shopGoodsData';
 import { useAnchorPop } from '../../hooks/useAnchorPop';
 
 const props = defineProps<{
@@ -54,6 +56,16 @@ const middleCols = computed(() => props.colOrder ?? [...BASE_COLS, ...(props.ext
 /* 星星/旗帜 列表按标注「使用图标样式」：颜色名→色值，空白不渲染 */
 const COLOR_OF: Record<string, string> = Object.fromEntries(COLOR_ENUM.map((c) => [c.name, c.color]));
 const iconColorOf = (row: ProductRow, key: string) => COLOR_OF[row.extra?.[key] ?? ''] ?? '';
+/* 状态列：行带店铺商品同源 sg（运营管理行）时按店铺商品「商品状态」样式渲染；内部商机无 sg 保留在售徽章 */
+const sgStatusOf = (row: ProductRow): SgStatus | null => (row as { sg?: { status: SgStatus } }).sg?.status ?? null;
+const sgMetaOf = (row: ProductRow) => {
+  const s = sgStatusOf(row);
+  return s ? SG_STATUS_META[s] : null;
+};
+const sgOffTag = (row: ProductRow) => {
+  const s = sgStatusOf(row);
+  return s ? sgOffTagOfStatus(s) : null;
+};
 const cellText = (row: ProductRow, key: string): string => {
   switch (key) {
     case 'category': return row.category;
@@ -76,7 +88,7 @@ const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
   <!-- 内部商机 / 运营管理共用的商品表格（中列顺序由 colOrder 驱动）+ 分页 -->
   <div class="ib-table-card">
     <div class="ib-table-wrap">
-      <table class="ib-table">
+      <table class="ib-table ib-loose">
         <thead>
           <tr>
             <th :style="{ width: props.checkWidth + 'px' }">
@@ -125,7 +137,19 @@ const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
                 </svg>
               </td>
               <td v-else-if="!isHidden(c.key) && c.key === 'status'">
-                <span class="badge-green">在售</span>
+                <template v-if="sgMetaOf(row)">
+                  <div class="sg-status">
+                    <span class="sg-dot" :style="{ background: sgMetaOf(row)!.dot }" />
+                    <span :style="{ color: sgMetaOf(row)!.color }">{{ sgMetaOf(row)!.label }}</span>
+                  </div>
+                  <div v-if="sgStatusOf(row) === 'auditFail'" class="sg-failtag">
+                    审核未通过 <i class="sg-fail-i">i</i>
+                  </div>
+                  <div v-else-if="sgOffTag(row)" class="sg-offtag" :class="sgOffTag(row)!.fail ? 'fail' : 'normal'">
+                    {{ sgOffTag(row)!.text }}
+                  </div>
+                </template>
+                <span v-else class="badge-green">在售</span>
               </td>
               <td v-else-if="!isHidden(c.key) && (c.key === '星星' || c.key === '旗帜')" class="ib-center">
                 <svg

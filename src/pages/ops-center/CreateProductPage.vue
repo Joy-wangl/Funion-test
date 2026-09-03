@@ -21,6 +21,8 @@ const pubTo = ref<CreateRow | null>(null);
 const pubStep = ref<1 | 2>(1);
 const pubStrategy = ref(PUB_NO_STRATEGY);
 const pubMethod = ref('');
+/* 发布方式：蜂联发布 / 插件发布（上架方式之外的独立选择） */
+const pubWay = ref('蜂联发布');
 const pubShopQ = ref('');
 const pubShopPlatform = ref(PUB_SHOP_PLATFORMS[0]);
 const pubGroupOpen = ref(true);
@@ -30,6 +32,7 @@ const openPubTo = (row: CreateRow) => {
   pubStep.value = 1;
   pubStrategy.value = PUB_NO_STRATEGY;
   pubMethod.value = '';
+  pubWay.value = '蜂联发布';
   pubShopQ.value = '';
   pubShopPlatform.value = PUB_SHOP_PLATFORMS[0];
   pubGroupOpen.value = true;
@@ -410,7 +413,8 @@ const confirmDelete = () => {
         <template v-if="pubStrategyInfo">
           <div class="cp-pub-sec">发布信息</div>
           <div class="cp-pub-kv-row">
-            <div class="cp-pub-kv"><label>发布方式：</label><b>{{ pubStrategyInfo.pubMethod }}</b></div>
+            <div class="cp-pub-kv"><label>上架方式：</label><b>{{ pubStrategyInfo.pubMethod }}</b></div>
+            <div class="cp-pub-kv"><label>发布方式：</label><b>{{ pubStrategyInfo.pubWay }}</b></div>
           </div>
           <div class="cp-pub-sec">利润信息</div>
           <div class="cp-pub-kv-row">
@@ -428,10 +432,15 @@ const confirmDelete = () => {
           </div>
         </template>
         <template v-else>
-          <div class="cp-pub-label mt">发布方式<i>*</i></div>
+          <div class="cp-pub-label mt">上架方式<i>*</i></div>
           <div class="cp-pub-radios">
             <label><input v-model="pubMethod" type="radio" value="直接上架" />直接上架</label>
             <label><input v-model="pubMethod" type="radio" value="放入仓库" />放入仓库</label>
+          </div>
+          <div class="cp-pub-label mt">发布方式<i>*</i></div>
+          <div class="cp-pub-radios">
+            <label><input v-model="pubWay" type="radio" value="蜂联发布" />蜂联发布</label>
+            <label><input v-model="pubWay" type="radio" value="插件发布" />插件发布</label>
           </div>
         </template>
       </div>

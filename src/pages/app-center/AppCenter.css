@@ -1421,6 +1421,17 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-banner-dots button.on { width: 18px; border-radius: 3px; background: #fff; }
 
+/* 轮播彩蛋图片位：图铺满整块，圆点加投影保证浅底图上可辨 */
+.ap-banner.img-mode { padding: 0; }
+
+.ap-banner.img-mode::after { display: none; }
+
+.ap-banner-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+.ap-banner.img-mode .ap-banner-dots button { background: rgba(255, 255, 255, 0.75); box-shadow: 0 1px 4px rgba(32, 37, 50, 0.35); }
+
+.ap-banner.img-mode .ap-banner-dots button.on { background: #fff; }
+
 .ap-rel-list { display: flex; flex-direction: column; gap: 8px; max-height: 372px; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; }
 
 .ap-rel-list::-webkit-scrollbar { display: none; }

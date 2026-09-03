@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { provide, ref } from 'vue';
 import { navigation } from './config/navigation';
 import TopTabs from './components/TopTabs.vue';
 import ReceptionCenter from './pages/reception/ReceptionCenter.vue';
@@ -31,6 +31,9 @@ const handleTabChange = (key: string) => {
   if (!tab) return;
   activeTabKey.value = tab.key;
 };
+
+/* 跨应用跳转（如智能运营中心市场商机「前往顺买商机应用」）：子应用注入后切换顶层 tab */
+provide('goApp', (key: string) => handleTabChange(key));
 
 defineExpose({ toggleSidebar });
 </script>

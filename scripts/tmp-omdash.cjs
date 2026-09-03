@@ -92,8 +92,11 @@ results['om.qCols'] = ths.includes('备注') && ths.includes('总广告费') && 
   const mi = thArr.indexOf('发生毛利2');
   const formTxt = (await page.locator('.om-page .id-filter-card').textContent()) || '';
   results['om.noDaysForm'] = !formTxt.includes('上架天数');
-  /* 外仓率最小/最大值仅作查询条件：表单保留、列表不展示 */
-  results['om.waiFormOnly'] = formTxt.includes('外仓率最小值') && formTxt.includes('外仓率最大值');
+  /* 外仓率最小/最大值仅作查询条件：表单保留（单列区间控件，placeholder 承载 min/max）、列表不展示 */
+  results['om.waiFormOnly'] = await page.evaluate(() => {
+    const ph = [...document.querySelectorAll('.om-page .id-filter-card input')].map((i) => i.placeholder);
+    return ph.some((p) => p.includes('外仓率最小值')) && ph.some((p) => p.includes('外仓率最大值'));
+  });
   const td0 = await page.locator('.om-page .ib-table tbody tr').first().locator('td').allTextContents();
   results['om.maoliConcrete'] = mi >= 0 && /^¥\d+(\.\d+)?$/.test((td0[mi] || '').trim());
   /* 星星/旗帜使用图标样式：row0 红星图标(rgb(245,34,45))、row0 旗帜空白无图标、row1 红旗图标；star/flag path 不同 */
@@ -133,7 +136,7 @@ results['om.qCols'] = ths.includes('备注') && ths.includes('总广告费') && 
   /* 选择平台只保留 全部/淘宝/视频号 */
   const platField = page.locator('.om-page .id-field:has(> label:text-is("选择平台"))');
   await platField.locator('.bselect-trigger').click();
-  const platOpts = (await page.locator('.bselect-menu .bselect-opt').allTextContents()).join(',');
+  const platOpts = (await page.locator('.bselect-menu .bselect-opt').allTextContents()).map((t) => t.replace(/[✓\s]/g, '')).join(',');
   results['om.platOpts'] = platOpts === '全部,淘宝,视频号';
   await page.screenshot({ path: `${OUT}/ops-verify-om-plat.png` });
   await platField.locator('.bselect-trigger').click();

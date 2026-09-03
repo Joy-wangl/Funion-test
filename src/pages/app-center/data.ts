@@ -178,6 +178,16 @@ export const PLATFORM_NOTICES: PlatformNotice[] = [
   { id: 'pn-3', title: '创作者激励计划报名开启', date: '2026/08/08', tag: '活动', content: '本月起，上榜个人/部门贡献榜的创作者将获得季度激励与「创作之星」标识，最佳应用榜上榜应用将在首页获得推荐位，期待大家的优秀作品。' },
 ];
 
+/** 首页轮播彩蛋位：应用中心三张 banner 图，点击弹出喝咖啡彩蛋提示 */
+export const AC_EASTER_BANNERS: { src: string; alt: string }[] = [
+  { src: '/ac-banners/ac-banner-square.png', alt: '应用广场' },
+  { src: '/ac-banners/ac-banner-insight.png', alt: '数据概览' },
+  { src: '/ac-banners/ac-banner-rank.png', alt: '贡献榜' },
+];
+
+/** 彩蛋点击提示文案 */
+export const AC_EASTER_TOAST = '恭喜发现彩蛋，奖励你一次请我喝咖啡的机会哦~😉';
+
 export const RANK_RANGES = ['近7天', '近30天', '全部时间'];
 
 /** 时间范围内使用人次（按总使用人次折算） */

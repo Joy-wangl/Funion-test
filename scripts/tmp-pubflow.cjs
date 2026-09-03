@@ -1,6 +1,8 @@
-/* 临时验证：个人商品库-发布到 两步抽屉（选择策略 → 选择店铺） */
+/* 临时验证：商品创建-发布到 两步抽屉（选择策略 → 选择店铺） */
 const { chromium } = require('D:/Funion/.playwright/package/index.js');
-const OUT = 'd:/Qoder/Funion';
+const OUT = 'd:/Qoder/Funion/screenshots';
+const fs = require('fs');
+fs.mkdirSync(OUT, { recursive: true });
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
@@ -8,7 +10,8 @@ const OUT = 'd:/Qoder/Funion';
   const results = {};
   await page.goto('http://localhost:5173', { waitUntil: 'networkidle' });
   await page.click('.top-tabs-item:has-text("智能运营中心")');
-  await page.click('.nav-parent:has-text("个人商品库")');
+  /* 导航漂移：个人商品库已于并行会话移除（2026-09），发布到抽屉现属商品创建→淘宝 */
+  await page.click('.nav-parent:has-text("商品创建")');
   await page.click('.subnav:has-text("淘宝")');
   await page.waitForSelector('.ops-center .page.show tbody tr');
 
@@ -17,7 +20,12 @@ const OUT = 'd:/Qoder/Funion';
   await page.waitForSelector('.cp-pub-drawer');
   results['s1.head'] = (await page.locator('.cp-pub-head:has-text("选择策略")').count()) === 1;
   results['s1.defaultNoStrategy'] = (await page.locator('.cp-pub-drawer .bselect-trigger:has-text("不使用策略发布")').count()) === 1;
-  results['s1.radios'] = (await page.locator('.cp-pub-radios label').count()) === 2;
+  results['s1.radios'] = (await page.locator('.cp-pub-radios label').count()) === 4;
+  /* 上架方式（原发布方式改名）+ 新增发布方式单选组 */
+  results['s1.rename'] = (await page.locator('.cp-pub-label:has-text("上架方式")').count()) === 1
+    && (await page.locator('.cp-pub-label:has-text("发布方式")').count()) === 1;
+  results['s1.pubWayOpts'] = (await page.locator('.cp-pub-radios label:has-text("蜂联发布")').count()) === 1
+    && (await page.locator('.cp-pub-radios label:has-text("插件发布")').count()) === 1;
   results['s1.nextDisabled'] = await page.locator('.cp-pub-foot button:has-text("下一步")').isDisabled();
   await page.screenshot({ path: `${OUT}/ops-verify-pubstep1.png` });
 
@@ -26,7 +34,8 @@ const OUT = 'd:/Qoder/Funion';
   await page.click('.bselect-menu .bselect-opt:has-text("13245")');
   await page.waitForTimeout(200);
   results['s2.secs'] = (await page.locator('.cp-pub-sec').allTextContents()).join(',') === '发布信息,利润信息,推广信息';
-  results['s2.method'] = (await page.locator('.cp-pub-kv', { hasText: '发布方式' }).textContent() ?? '').includes('放入仓库');
+  results['s2.method'] = (await page.locator('.cp-pub-kv', { hasText: '上架方式' }).textContent() ?? '').includes('放入仓库');
+  results['s2.pubWay'] = (await page.locator('.cp-pub-kv', { hasText: '发布方式' }).textContent() ?? '').includes('插件发布');
   results['s2.rate'] = (await page.locator('.cp-pub-kv', { hasText: '利润率：' }).textContent() ?? '').includes('1%');
   results['s2.nextEnabled'] = !(await page.locator('.cp-pub-foot button:has-text("下一步")').isDisabled());
   await page.screenshot({ path: `${OUT}/ops-verify-pubstep2.png` });

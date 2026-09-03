@@ -4,6 +4,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import {
   CATEGORIES, FORM_CATEGORIES, PLATFORM_NOTICES,
+  AC_EASTER_BANNERS, AC_EASTER_TOAST,
   FB_TYPES, INITIAL_FEEDBACKS,
   actKind, creatorDept, initialApps, seedAppFeedbacks, seedReviews, versionOf,
   type AppItem, type AppFeedback, type AppReview, type FeedbackItem,
@@ -92,10 +93,11 @@ const editVal = ref('');
 const dragIdx = ref<number | null>(null);
 const pickIdx = ref<number | null>(null);
 
-/* 平台公告 banner 自动轮播 */
+/* 平台公告 banner 自动轮播（含彩蛋图片位） */
 let bannerTimer: number | undefined;
+const bannerTotal = PLATFORM_NOTICES.length + AC_EASTER_BANNERS.length;
 onMounted(() => {
-  bannerTimer = window.setInterval(() => { bannerIdx.value = (bannerIdx.value + 1) % PLATFORM_NOTICES.length; }, 5000);
+  bannerTimer = window.setInterval(() => { bannerIdx.value = (bannerIdx.value + 1) % bannerTotal; }, 5000);
 });
 onBeforeUnmount(() => { if (bannerTimer !== undefined) window.clearInterval(bannerTimer); });
 
@@ -608,6 +610,7 @@ const gotoAppDetail = (appId: string) => {
         :fb-list="fbList"
         :on-notice="(id) => (noticeId = id)"
         :on-banner-idx="(i) => (bannerIdx = i)"
+        :on-easter="() => pushToast(AC_EASTER_TOAST)"
         :on-open-detail="openDetail"
         :on-goto-dash="() => (view = { kind: 'dash' })"
         :on-rank-tab="(k) => (rankTab = k)"

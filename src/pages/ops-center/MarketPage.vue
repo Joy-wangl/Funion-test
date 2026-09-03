@@ -73,6 +73,8 @@ const openAddTip = (e: MouseEvent) => {
 
 /* 全网搜索：跳转商机中心-全网搜索页 */
 const opsGo = inject<(target: 'search') => void>('opsGo');
+/* 前往顺买商机应用：跨应用切换顶层 tab（App 层 provide） */
+const goApp = inject<(key: string) => void>('goApp');
 </script>
 
 <template>
@@ -81,10 +83,13 @@ const opsGo = inject<(target: 'search') => void>('opsGo');
       <div class="mk2-seg">
         <div v-for="t in TABS" :key="t.key" class="mk2-tab" :class="{ active: tab === t.key }" @click="switchTab(t.key)">{{ t.label }}</div>
       </div>
-      <button class="sg-btn primary" @click="pushToast('列表已刷新')">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" /></svg>
-        刷新
-      </button>
+      <div class="mk2-top-acts">
+        <button class="sg-btn" @click="goApp?.('shunmai')">前往顺买商机应用</button>
+        <button class="sg-btn primary" @click="pushToast('列表已刷新')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" /></svg>
+          刷新
+        </button>
+      </div>
     </div>
 
     <div class="sg-filter">

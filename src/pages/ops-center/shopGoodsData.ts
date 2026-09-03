@@ -99,6 +99,20 @@ export function sgRowActions(status: SgStatus): string[] {
   }
 }
 
+/** 下架状态 → 下架类型映射（列表行下架副标签用） */
+const STATUS_OFF_TYPE: Partial<Record<SgStatus, SgOffType>> = {
+  offSystem: '平台下架',
+  offManual: '自主下架',
+  offDeposit: '保证金违规下架',
+  offBrand: '品牌到期下架',
+  offBan: '封禁下架',
+};
+/** 按状态给出下架副标签（分组名 + 是否失败样式）；非下架状态返回 null */
+export function sgOffTagOfStatus(s: SgStatus): { text: string; fail: boolean } | null {
+  const t = STATUS_OFF_TYPE[s];
+  return t ? { text: SG_OFF_GROUP[t], fail: SG_OFF_FAIL_TYPES.includes(t) } : null;
+}
+
 /** 状态 chip 分组：审核待处理=auditFail；已下架=offSystem+offManual */
 export const SG_CHIPS: { key: string; label: string; match: (s: SgStatus) => boolean }[] = [
   { key: 'all', label: '全部', match: () => true },

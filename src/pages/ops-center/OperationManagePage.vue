@@ -4,7 +4,7 @@ import type { ProductRow, OmProduct } from './data';
 import { omProducts, toSgProduct } from './data';
 import ProductTable from './ProductTable.vue';
 import SgDetailPage from './SgDetailPage.vue';
-import { sgRowActions } from './shopGoodsData';
+import { sgRowActions, SG_CHIPS } from './shopGoodsData';
 import BubbleSelect, { COLOR_ENUM } from '../../components/BubbleSelect.vue';
 import type { BubbleOption } from '../../components/BubbleSelect.vue';
 import { pushToast } from '../../components/toast';
@@ -49,10 +49,9 @@ const AUTO_TAG_OPTIONS = [
   '杭州-暴力自动化-视频号-快', '测试使用-竞品', '测试过滤', '武汉-暴力自动化',
 ];
 
-/** ID数据筛选器字段：标题仅作占位展示，不作为选择项；cond=条件型（先选 低于/高于/等于/介于 再输入值） */
+/** ID数据筛选器字段：标题仅作占位展示，不作为选择项；cond=条件型（先选 低于/高于/等于/介于 再输入值）；所有条件统一单列展示 */
 interface IdField { label: string; options: (string | BubbleOption)[]; cond?: boolean }
 const idSelectFields: IdField[] = [
-  { label: '选择平台', options: ['全部', '淘宝', '视频号'] },
   { label: '店铺', options: SHOP_OPTIONS },
   { label: '采购', options: ['陈晓', '刘洋', '周敏'] },
   { label: '运营组', options: ['运营一组', '运营二组', '运营三组'] },
@@ -95,7 +94,23 @@ const isBetween = (label: string) => (condSel.value[label] ?? '').endsWith('介�
 const onCond = (label: string, v: string) => { condSel.value = { ...condSel.value, [label]: v }; };
 
 /** 运营管理页：仅保留 ID数据模块 */
-const rows = ref<OmProduct[]>([...omProducts]);
+/* 选择平台 + 商品状态查询条件：两平台状态枚举有差别（视频号含「审核待处理」，淘宝无），状态选项随平台联动 */
+const platform = ref('全部');
+const status = ref('全部');
+const STATUS_OPTIONS = ['全部', '销售中', '审核中', '审核待处理', '已下架', '草稿箱'];
+const statusOptions = computed(() => (platform.value === '淘宝' ? STATUS_OPTIONS.filter((s) => s !== '审核待处理') : STATUS_OPTIONS));
+const onPlatform = (v: string) => {
+  platform.value = v;
+  /* 切淘宝时若当前状态为淘宝不存在的「审核待处理」则重置 */
+  if (v === '淘宝' && status.value === '审核待处理') status.value = '全部';
+};
+const allRows = ref<OmProduct[]>([...omProducts]);
+const rows = computed(() => allRows.value.filter((r) => {
+  const okPlat = platform.value === '全部' || r.sg.channel === platform.value;
+  const chipDef = SG_CHIPS.find((c) => c.label === status.value);
+  const okStatus = !chipDef || chipDef.match(r.sg.status);
+  return okPlat && okStatus;
+}));
 
 /* 操作列：与店铺商品操作列同步（商品详情 + 状态动作，区分淘宝 / 视频号行状态） */
 const detail = ref<OmProduct | null>(null);
@@ -153,7 +168,7 @@ const onBatch = (v: string) => {
   }
   const n = checkedIds.value.size;
   if (v === '批量删除') {
-    rows.value = rows.value.filter((r) => !checkedIds.value.has(r.pid));
+    allRows.value = allRows.value.filter((r) => !checkedIds.value.has(r.pid));
     checkedIds.value = new Set();
     pushToast(`已删除 ${n} 条商品`);
     return;
@@ -265,6 +280,14 @@ const onLog = () => {
               <input class="id-input" value="2026-08-12" />
             </div>
           </div>
+          <div class="id-field">
+            <label>选择平台</label>
+            <BubbleSelect class-name="id-select" :value="platform" :options="['全部', '淘宝', '视频号']" @change="(v: string) => onPlatform(v)" />
+          </div>
+          <div class="id-field">
+            <label>商品状态</label>
+            <BubbleSelect class-name="id-select" :value="status" :options="statusOptions" @change="(v: string) => (status = v)" />
+          </div>
           <div v-for="f in idSelectFields" :key="f.label" class="id-field">
             <label>{{ f.label }}</label>
             <div v-if="f.cond" class="id-cond">
@@ -279,7 +302,7 @@ const onLog = () => {
             <BubbleSelect v-else class-name="id-select" :default-value="f.label" :options="f.options" />
           </div>
 
-          <!-- 销量 XX 日 大于/等于/小于 XXX：天数输入 + 日 + 条件 + 值输入 -->
+          <!-- 销量 XX 日 大于/等于/小于 XXX：天数输入 + 日 + 条件 + 值输入（单列展示） -->
           <div class="id-field">
             <label>销量</label>
             <div class="id-compact">
@@ -345,13 +368,14 @@ const onLog = () => {
             <label>二级类目</label>
             <BubbleSelect class-name="id-select" default-value="二级类目" :options="CAT2_OPTIONS" />
           </div>
+          <!-- 外仓率最小/最大值：单列区间控件（最小 至 最大），与总广告费同款 -->
           <div class="id-field">
-            <label>外仓率最小值 %</label>
-            <input class="id-input" placeholder="外仓率最小值 %" />
-          </div>
-          <div class="id-field">
-            <label>外仓率最大值 %</label>
-            <input class="id-input" placeholder="外仓率最大值 %" />
+            <label>外仓率 %</label>
+            <div class="id-range">
+              <input class="id-input" placeholder="外仓率最小值 %" />
+              <span>至</span>
+              <input class="id-input" placeholder="外仓率最大值 %" />
+            </div>
           </div>
           <div class="id-field">
             <label>自动化标签</label>

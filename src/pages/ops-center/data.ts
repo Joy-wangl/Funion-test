@@ -342,12 +342,13 @@ const OM_EXTRAS: Record<string, string>[] = internalProducts.map((row, i) => ({
   二级类目: row.category.split('/')[1] || '-',
   }));
 /** 运营管理行：与店铺商品列表同步，区分淘宝 / 视频号渠道与商品状态（操作列按状态生成） */
+/* 店铺商品同源状态：两平台枚举有差别——视频号含「审核待处理」，淘宝无；下架两平台均分 手动/平台 */
 const OM_SG: { channel: '淘宝' | '视频号'; status: SgStatus }[] = [
   { channel: '视频号', status: 'selling' },
   { channel: '淘宝', status: 'selling' },
   { channel: '视频号', status: 'auditing' },
   { channel: '淘宝', status: 'offManual' },
-  { channel: '视频号', status: 'draft' },
+  { channel: '视频号', status: 'auditFail' },
   { channel: '淘宝', status: 'offSystem' },
 ];
 export type OmProduct = ProductRow & { sg: { channel: '淘宝' | '视频号'; status: SgStatus } };
@@ -548,6 +549,8 @@ export interface ParentTask {
   status: ParentStatus;
   /** 渠道：智能 / 蜂联 */
   channel: string;
+  /** 发布方式：蜂联发布 / 插件发布 */
+  pubWay: string;
   shops: number;
   links: number;
   success: number;
@@ -601,6 +604,7 @@ function buildPubBatch(row: CreateRow, seed: number): ParentTask {
     type: '商品发布',
     status: 'done',
     channel: '智能',
+    pubWay: '蜂联发布',
     shops: 6,
     links: 6,
     success: subs.filter((s) => s.status === 'success').length,
@@ -640,6 +644,7 @@ function buildParent(id: number, status: ParentStatus): ParentTask {
     type: '快速铺货',
     status,
     channel: id % 2 === 0 ? '蜂联' : '智能',
+    pubWay: id % 2 === 0 ? '蜂联发布' : '插件发布',
     shops: 56,
     links: 560,
     /* 队列中=全部子任务未执行，成功/失败/执行中均为 0 */
@@ -753,8 +758,10 @@ export const createVersions: CreateVersion[] = [
 /* ================= 发布到抽屉（选择策略 → 选择店铺）静态数据 ================= */
 export interface PubStrategy {
   name: string;
-  /** 策略定义的发布方式：直接上架 / 放入仓库 */
+  /** 策略定义的上架方式：直接上架 / 放入仓库 */
   pubMethod: string;
+  /** 策略定义的发布方式：蜂联发布 / 插件发布 */
+  pubWay: string;
   profitMode: string;
   profitRate: string;
   promote: string;
@@ -766,8 +773,8 @@ export interface PubStrategy {
 }
 export const PUB_NO_STRATEGY = '不使用策略发布';
 export const PUB_STRATEGIES: PubStrategy[] = [
-  { name: '13245', pubMethod: '放入仓库', profitMode: '控利润率', profitRate: '1%', promote: '-', bidMode: '-', bidTarget: '-', roi: '-', budgetType: '-', dailyBudget: '-' },
-  { name: '8801', pubMethod: '直接上架', profitMode: '控利润率', profitRate: '5%', promote: '是', bidMode: '控投产比', bidTarget: '点击量', roi: '2.5', budgetType: '每日预算', dailyBudget: '100元' },
+  { name: '13245', pubMethod: '放入仓库', pubWay: '插件发布', profitMode: '控利润率', profitRate: '1%', promote: '-', bidMode: '-', bidTarget: '-', roi: '-', budgetType: '-', dailyBudget: '-' },
+  { name: '8801', pubMethod: '直接上架', pubWay: '蜂联发布', profitMode: '控利润率', profitRate: '5%', promote: '是', bidMode: '控投产比', bidTarget: '点击量', roi: '2.5', budgetType: '每日预算', dailyBudget: '100元' },
 ];
 
 export interface PubShop {

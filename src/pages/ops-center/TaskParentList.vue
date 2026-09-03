@@ -9,6 +9,7 @@ const emit = defineEmits<{ (e: 'detail', p: ParentTask): void }>();
 const platformOptions = ['全部', '淘宝', '天猫', '拼多多', '抖音', '快手', '京东', '阿里巴巴', '微信视频号小店'];
 const typeOptions = ['全部', '快速铺货', '商品铺货', '商品发布', '批量上架', '自动定价', '自动换图'];
 const channelOptions = ['全部', '智能', '蜂联'];
+const pubWayOptions = ['全部', '插件发布', '蜂联发布'];
 
 const parentStatusText: Record<ParentTask['status'], string> = {
   queued: '队列中',
@@ -31,8 +32,9 @@ interface ListFilter {
   creator: string;
   type: string;
   shop: string;
+  pubWay: string;
 }
-const defaultListFilter: ListFilter = { tab: 'all', platform: '全部', channel: '全部', creator: '', type: '全部', shop: '' };
+const defaultListFilter: ListFilter = { tab: 'all', platform: '全部', channel: '全部', creator: '', type: '全部', shop: '', pubWay: '全部' };
 
 const tab = ref('all');
 const platform = ref('全部');
@@ -40,6 +42,7 @@ const channel = ref('全部');
 const creator = ref('');
 const type = ref('全部');
 const shop = ref('');
+const pubWay = ref('全部');
 const applied = ref<ListFilter>({ ...defaultListFilter });
 
 const count = (st: ParentTask['status']) => parentTasks.filter((p) => p.status === st).length;
@@ -57,6 +60,7 @@ const snapshot = (nextTab: string): ListFilter => ({
   creator: creator.value.trim(),
   type: type.value,
   shop: shop.value.trim(),
+  pubWay: pubWay.value,
 });
 const onTab = (key: string) => {
   tab.value = key;
@@ -69,6 +73,7 @@ const onReset = () => {
   creator.value = '';
   type.value = '全部';
   shop.value = '';
+  pubWay.value = '全部';
   tab.value = 'all';
   applied.value = { ...defaultListFilter };
 };
@@ -80,7 +85,8 @@ const visible = computed(() => parentTasks.filter((p) => {
   const okCreator = !applied.value.creator || p.creator.indexOf(applied.value.creator) > -1;
   const okType = applied.value.type === '全部' || p.type === applied.value.type;
   const okShop = !applied.value.shop || p.subs.some((s) => s.shop.indexOf(applied.value.shop) > -1);
-  return okTab && okPlatform && okChannel && okCreator && okType && okShop;
+  const okPubWay = applied.value.pubWay === '全部' || p.pubWay === applied.value.pubWay;
+  return okTab && okPlatform && okChannel && okCreator && okType && okShop && okPubWay;
 }));
 </script>
 
@@ -116,6 +122,10 @@ const visible = computed(() => parentTasks.filter((p) => {
       <div class="sg-field">
         <label>发布店铺名称</label>
         <input v-model="shop" class="sg-input" placeholder="请输入发布店铺名称" />
+      </div>
+      <div class="sg-field">
+        <label>发布方式</label>
+        <BubbleSelect class-name="sg-select" :value="pubWay" :options="pubWayOptions" @change="(v: string) => (pubWay = v)" />
       </div>
       <div class="sg-actions">
         <button class="sg-btn" @click="onReset">
@@ -181,6 +191,7 @@ const visible = computed(() => parentTasks.filter((p) => {
               <div class="tc-cell-lines">
                 <div>发布店铺数：{{ p.shops }}</div>
                 <div>发布链接数：{{ p.links }}</div>
+                <div>发布方式：{{ p.pubWay }}</div>
               </div>
             </td>
             <td>
