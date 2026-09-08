@@ -93,7 +93,6 @@ const detail = ref<ProductRow | null>(null);
       </div>
 
       <div class="ib-actions">
-        <div class="ib-lefttips">共 300034 条商机数据，可按近7日销量、退款率、库存等进行综合筛选。</div>
         <div class="ib-rightacts">
           <BubbleSelect class-name="ib-select" :style="{ width: '120px' }" default-value="快速选品" :options="['淘宝C店', '视频号']" />
           <button class="lightBtn">重置</button>

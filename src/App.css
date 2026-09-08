@@ -108,3 +108,133 @@
   flex-direction: column;
   padding: 0;
 }
+
+/* ============ 全局站内信：铃铛入口 + 下拉面板（与智能运营中心消息通知同一视觉语言） ============ */
+.gmsg-bell { position: relative; }
+
+.gmsg-bell-btn {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fff;
+  color: var(--color-text-2);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.gmsg-bell-btn:hover { color: var(--color-primary); border-color: var(--color-primary); }
+
+.gmsg-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+}
+
+.gmsg-panel {
+  position: absolute;
+  top: 42px;
+  right: 0;
+  z-index: 200;
+  width: 680px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.gmsg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 14px;
+  font-size: var(--fs-title);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.gmsg-head a { font-size: var(--fs-base); font-weight: 400; color: var(--color-primary); cursor: pointer; }
+
+.gmsg-head a.disabled { color: var(--color-text-3); pointer-events: none; }
+
+/* 第一层（来源应用）：文字 tab，大间距，active 加粗深色 */
+.gmsg-tabs.l1 { display: flex; gap: 36px; padding: 0 24px 14px; border-bottom: 1px solid var(--color-border-2); }
+
+.gmsg-tabs.l1 span { white-space: nowrap; font-size: var(--fs-lg); color: var(--color-text-2); cursor: pointer; }
+
+.gmsg-tabs.l1 span:hover { color: var(--color-text); }
+
+.gmsg-tabs.l1 span.active { color: var(--color-text); font-weight: 700; }
+
+/* 第二层（消息类别）：圆角 chip 组，active 白底+边框阴影，与第一层拉开层级 */
+.gmsg-tabs.l2 { display: flex; flex-wrap: wrap; gap: 12px; padding: 14px 24px 18px; }
+
+.gmsg-tabs.l2 span {
+  white-space: nowrap;
+  padding: 8px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: var(--color-fill-2);
+  font-size: var(--fs-base);
+  color: var(--color-text-2);
+  cursor: pointer;
+}
+
+.gmsg-tabs.l2 span:hover { color: var(--color-text); }
+
+.gmsg-tabs.l2 span.active { background: #fff; border-color: var(--color-border); color: var(--color-text); font-weight: 600; box-shadow: var(--shadow-sm); }
+
+/* 消息流：灰底 + 白色卡片，疏朗间距 */
+.gmsg-list { max-height: 640px; overflow: auto; background: #f5f6f8; padding: 16px 20px; }
+
+.gmsg-item {
+  background: #fff;
+  border-radius: var(--radius-xl);
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+
+.gmsg-item:last-child { margin-bottom: 0; }
+
+.gmsg-item:hover { box-shadow: var(--shadow-md); }
+
+/* 卡片首行：应用名 + 时间，灰字 */
+.gmsg-meta { display: flex; align-items: center; justify-content: space-between; font-size: var(--fs-base); color: var(--color-text-3); }
+
+/* 卡片标题：加粗黑字 + 未读红点（文字右侧） */
+.gmsg-title-row { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+
+.gmsg-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: transparent; }
+
+.gmsg-item.unread .gmsg-dot { background: var(--color-danger); }
+
+.gmsg-title-row b { font-size: var(--fs-title); font-weight: 700; color: var(--color-text); }
+
+.gmsg-desc { margin-top: 8px; font-size: var(--fs-base); line-height: 1.55; color: var(--color-text-3); }
+
+/* kv 区：一排展示，标签定宽灰字、值深色 */
+.gmsg-kvs { display: flex; flex-wrap: wrap; gap: 10px 28px; margin-top: 14px; }
+
+.gmsg-kv { display: flex; align-items: center; gap: 16px; font-size: var(--fs-base); }
+
+.gmsg-kv .k { flex: none; width: 60px; color: var(--color-text-3); }
+
+.gmsg-kv .v { min-width: 0; color: var(--color-text); }
+
+.gmsg-empty { padding: 48px 0; text-align: center; font-size: var(--fs-base); color: var(--color-text-3); }

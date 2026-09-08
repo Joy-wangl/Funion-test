@@ -1,6 +1,6 @@
 /** 店铺商品模块数据：列表行 + 状态元信息 + 详情素材 */
 
-export type SgStatus = 'selling' | 'auditing' | 'auditFail' | 'offSystem' | 'offManual' | 'offDeposit' | 'offBrand' | 'offBan' | 'draft';
+export type SgStatus = 'selling' | 'auditing' | 'auditFail' | 'offSystem' | 'offManual' | 'offDeposit' | 'offBrand' | 'offBan' | 'draft' | 'jmOnsale' | 'jmPending' | 'jmAudit' | 'jmReject' | 'jmRecycle';
 
 /** 下架类型（已下架 tab 下的筛选维度） */
 export type SgOffType = '自主下架' | '平台下架' | '保证金违规下架' | '品牌到期下架' | '封禁下架' | '库存不足自动下架' | '长期无动销下架';
@@ -66,6 +66,17 @@ export interface SgProduct {
   offReason?: string;
   rejectReason?: string;
   createTime?: string;
+  /** 京麦列表扩展字段（SP-API listProducts）：SKU ID/货号/品牌/京东价/可用库存/类目路径 */
+  skuId?: string;
+  itemNo?: string;
+  brand?: string;
+  jdPrice?: string;
+  stockAvail?: string;
+  catPath?: string;
+  /** 京麦待售子状态（待售商品管理：未上架/自主下架/系统下架/系统下架待审核） */
+  jmSub?: '未上架' | '自主下架' | '系统下架' | '系统下架待审核';
+  /** 京麦审核驳回原因 */
+  jmReject?: string;
 }
 
 export const SG_STATUS_META: Record<SgStatus, { label: string; dot: string; color: string }> = {
@@ -78,6 +89,12 @@ export const SG_STATUS_META: Record<SgStatus, { label: string; dot: string; colo
   offBrand: { label: '已下架', dot: '#b3bac6', color: '#3d4657' },
   offBan: { label: '已下架', dot: '#b3bac6', color: '#3d4657' },
   draft: { label: '草稿', dot: '#f6a54c', color: '#8a92a1' },
+  /* 京麦（京东 POP）商品列表状态：在售/待售/审核中/审核驳回/回收站 */
+  jmOnsale: { label: '在售', dot: '#22c07b', color: '#3d4657' },
+  jmPending: { label: '待售', dot: '#f6a54c', color: '#3d4657' },
+  jmAudit: { label: '审核中', dot: '#4f7cff', color: '#3d4657' },
+  jmReject: { label: '审核驳回', dot: '#f05b5e', color: '#3d4657' },
+  jmRecycle: { label: '回收站', dot: '#b3bac6', color: '#8a92a1' },
 };
 
 /** 列表行操作：按商品状态给出（店铺商品 / 运营管理操作列共用，保持同步） */
@@ -96,6 +113,17 @@ export function sgRowActions(status: SgStatus): string[] {
       return ['商品详情', '立即上架'];
     case 'draft':
       return ['商品详情', '发布'];
+    /* 京麦：列表商品基于不同商品状态平铺重点操作（含修改/复制/上架/下架/删除），其余收回「更多」 */
+    case 'jmOnsale':
+      return ['修改', '复制', '下架', '删除'];
+    case 'jmPending':
+      return ['修改', '复制', '上架', '删除'];
+    case 'jmAudit':
+      return ['催审', '复制'];
+    case 'jmReject':
+      return ['修改', '复制', '删除'];
+    case 'jmRecycle':
+      return ['还原', '彻底删除'];
   }
 }
 
@@ -121,6 +149,16 @@ export const SG_CHIPS: { key: string; label: string; match: (s: SgStatus) => boo
   { key: 'pending', label: '审核待处理', match: (s) => s === 'auditFail' },
   { key: 'off', label: '已下架', match: (s) => s === 'offSystem' || s === 'offManual' || s === 'offDeposit' || s === 'offBrand' || s === 'offBan' },
   { key: 'draft', label: '草稿箱', match: (s) => s === 'draft' },
+];
+
+/** 京麦商品列表状态页签（对齐京麦 11.0 商品列表子菜单：全部商品=在售+待售聚合，审核中/审核驳回/回收站独立页签） */
+export const JM_CHIPS: { key: string; label: string; match: (s: SgStatus) => boolean }[] = [
+  { key: 'all', label: '全部商品', match: (s) => s === 'jmOnsale' || s === 'jmPending' },
+  { key: 'onsale', label: '在售', match: (s) => s === 'jmOnsale' },
+  { key: 'pending', label: '待售', match: (s) => s === 'jmPending' },
+  { key: 'audit', label: '审核中', match: (s) => s === 'jmAudit' },
+  { key: 'reject', label: '审核驳回', match: (s) => s === 'jmReject' },
+  { key: 'recycle', label: '回收站', match: (s) => s === 'jmRecycle' },
 ];
 
 const T_MAIN = '德国指甲剪刀套装全套耳勺指甲刀指甲钳修剪专用斜口指甲钳剪刀';
@@ -271,42 +309,80 @@ export const sgProducts: Record<SgTab, SgProduct[]> = {
   京喜: addSeriesCode(sgProductBase.视频号),
   得物: addSeriesCode(sgProductBase.视频号),
   京麦: addSeriesCode([
+    /* 在售：上架销售中，可修改/复制/下架/删除 */
     {
       id: '100012345678', title: T_MAIN, img: '/products/main.png', linkId: '100012345678',
-      status: 'selling', strategy: '默认发布策略', sales: '1,866', reviews: '426', sold30: '186', exposure: '7,208',
+      status: 'jmOnsale', strategy: '默认发布策略', sales: '1,866', reviews: '426', sold30: '186', exposure: '7,208',
       publisher: '自己', store: '京东Funion旗舰店', storePlatform: '京麦', source: '内部商机',
       version: '7887998736861', operator: '张三', category: ['厨房电器', '料理机', '多功能料理机'],
       publishTime: '2026-03-12 10:00:00', shelfTime: '2026-03-12 10:00:00',
+      skuId: '1000123456781', itemNo: 'JM-2201', brand: 'Funion', jdPrice: '39.90', stockAvail: '120', catPath: '居家用品/厨房用具/刀具',
     },
     {
-      id: '100012345679', title: T_SERUM, img: '/products/serum.png', linkId: '100012345679',
-      status: 'auditing', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
+      id: '100012345683', title: T_SERUM, img: '/products/serum.png', linkId: '100012345683',
+      status: 'jmOnsale', strategy: '高利润策略', sales: '866', reviews: '120', sold30: '98', exposure: '3,208',
       publisher: '李四', store: '京东Funion旗舰店', storePlatform: '京麦', source: '链接商品库',
-      version: '7887998736862', operator: '李四', category: ['美妆个护', '面部护理', '精华液'],
-      publishTime: '2026-08-16 09:30:00', submitTime: '2026-08-16 09:30:00',
+      version: '7887998736866', operator: '李四', category: ['美妆个护', '面部护理', '精华液'],
+      publishTime: '2026-05-20 08:00:00', shelfTime: '2026-05-20 08:00:00',
+      skuId: '1000123456831', itemNo: 'JM-2203', brand: 'PERDORA', jdPrice: '129.00', stockAvail: '86', catPath: '美妆护肤/面部护肤/精华液',
     },
+    /* 待售·未上架：新品审核通过后入仓库，未上架 */
     {
-      id: '100012345680', title: T_SERUM, img: '/products/serum.png', linkId: '100012345680',
-      status: 'auditFail', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
-      publisher: '李四', store: '京东Funion旗舰店', storePlatform: '京麦', source: '链接商品库',
-      version: '7887998736863', operator: '李四', category: ['美妆个护', '面部护理', '精华液'],
-      publishTime: '2026-05-12 12:00:00', shelfTime: '2026-05-12 12:00:00',
-      rejectReason: '主图存在营销文案牛皮癣，不符合京东商品发布规范，请更换纯商品图后重新提交',
+      id: '100012345684', title: T_MAIN, img: '/products/main.png', linkId: '100012345684',
+      status: 'jmPending', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
+      publisher: '自己', store: '京东Funion旗舰店', storePlatform: '京麦', source: '内部商机',
+      version: '7887998736867', operator: '张三', category: ['厨房电器', '料理机', '多功能料理机'],
+      publishTime: '2026-08-20 14:00:00',
+      skuId: '1000123456841', itemNo: 'JM-2204', brand: 'Funion', jdPrice: '49.90', stockAvail: '200', catPath: '居家用品/厨房用具/刀具',
+      jmSub: '未上架',
     },
+    /* 待售·自主下架：在售手动下架后入待售，可自行上架 */
     {
       id: '100012345681', title: T_MAIN, img: '/products/main.png', linkId: '100012345681',
-      status: 'offManual', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
+      status: 'jmPending', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
       publisher: '自己', store: '京东Funion旗舰店', storePlatform: '京麦', source: '内部商机',
       version: '7887998736864', operator: '张三', category: ['厨房电器', '料理机', '多功能料理机'],
       publishTime: '2026-02-20 12:00:00', offTime: '2026-07-18 10:05:00',
-      offType: '自主下架', offReason: '库存不足，人工手动下架',
+      skuId: '1000123456811', itemNo: 'JM-2202', brand: 'Funion', jdPrice: '39.90', stockAvail: '0', catPath: '居家用品/厨房用具/刀具',
+      jmSub: '自主下架', offReason: '库存不足，人工手动下架',
     },
+    /* 待售·系统下架待审核：滞销/风控下架后修改提交，审核通过转自主下架 */
+    {
+      id: '100012345685', title: T_SERUM, img: '/products/serum.png', linkId: '100012345685',
+      status: 'jmPending', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
+      publisher: '李四', store: '京东Funion旗舰店', storePlatform: '京麦', source: '链接商品库',
+      version: '7887998736868', operator: '李四', category: ['美妆个护', '面部护理', '精华液'],
+      publishTime: '2026-04-02 09:00:00', offTime: '2026-08-25 03:00:00',
+      skuId: '1000123456851', itemNo: 'JM-2205', brand: 'PERDORA', jdPrice: '129.00', stockAvail: '46', catPath: '美妆护肤/面部护肤/精华液',
+      jmSub: '系统下架待审核', offReason: '商品 90 天无动销，系统自动下架',
+    },
+    /* 审核中：新品/编辑提交待审，可一键催审 */
+    {
+      id: '100012345679', title: T_SERUM, img: '/products/serum.png', linkId: '100012345679',
+      status: 'jmAudit', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
+      publisher: '李四', store: '京东Funion旗舰店', storePlatform: '京麦', source: '链接商品库',
+      version: '7887998736862', operator: '李四', category: ['美妆个护', '面部护理', '精华液'],
+      publishTime: '2026-08-16 09:30:00', submitTime: '2026-08-16 09:30:00',
+      skuId: '1000123456791', itemNo: 'JM-2206', brand: 'PERDORA', jdPrice: '129.00', stockAvail: '200', catPath: '美妆护肤/面部护肤/精华液',
+    },
+    /* 审核驳回：修改后可重新提交审核 */
+    {
+      id: '100012345680', title: T_SERUM, img: '/products/serum.png', linkId: '100012345680',
+      status: 'jmReject', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
+      publisher: '李四', store: '京东Funion旗舰店', storePlatform: '京麦', source: '链接商品库',
+      version: '7887998736863', operator: '李四', category: ['美妆个护', '面部护理', '精华液'],
+      publishTime: '2026-05-12 12:00:00', submitTime: '2026-08-28 16:20:00',
+      skuId: '1000123456801', itemNo: 'JM-2207', brand: 'PERDORA', jdPrice: '129.00', stockAvail: '150', catPath: '美妆护肤/面部护肤/精华液',
+      jmReject: '主图存在营销文案牛皮癣，不符合京东商品发布规范，请更换纯商品图后重新提交',
+    },
+    /* 回收站：待售删除后保留 45 天，可还原/彻底删除 */
     {
       id: '100012345682', title: T_SERUM, img: '/products/serum.png', linkId: '100012345682',
-      status: 'draft', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
+      status: 'jmRecycle', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
       publisher: '自己', store: '京东Funion旗舰店', storePlatform: '京麦', source: '链接商品库',
       version: '7887998736865', operator: '张三', category: ['美妆个护', '面部护理', '精华液'],
-      publishTime: '-', createTime: '2026-08-11 15:20:00',
+      publishTime: '-', createTime: '2026-08-11 15:20:00', offTime: '2026-09-01 10:00:00',
+      skuId: '1000123456821', itemNo: 'JM-2208', brand: 'PERDORA', jdPrice: '129.00', stockAvail: '0', catPath: '美妆护肤/面部护肤/精华液',
     },
   ]),
 };
@@ -351,7 +427,7 @@ export const sgJmDetail = {
     { name: '白色 升级款', attrs: '颜色:白色 规格:升级款', jdPrice: '49.90', marketPrice: '69.90', stock: '64', outerId: 'JM-2202-S', upc: '6901234567893', status: '上架' },
   ],
   mainImgs: ['/products/main.png', '/products/serum.png', '/products/main.png', '/products/serum.png'],
-  rectImgs: ['/products/serum.png', '/products/main.png'],
+  rectImgs: ['/products/serum.png'],
   detailPc: ['/products/main.png', '/products/serum.png', '/products/main.png', '/products/serum.png'],
   detailApp: ['/products/serum.png', '/products/main.png', '/products/serum.png', '/products/main.png'],
   whiteImg: '/products/serum.png',

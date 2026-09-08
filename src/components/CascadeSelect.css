@@ -1,6 +1,10 @@
-/* 级联选择菜单：左列分组 / 右列具体选项（触发器样式复用 BubbleSelect.css 的 .bselect） */
+/* 级联选择菜单：搜索行 + 左列分组 / 右列具体选项（触发器样式复用 BubbleSelect.css 的 .bselect）
+   宽度随内容收缩（不铺满触发器，无右列时不留空白区）；左缘对齐触发器 */
 .casc-menu {
   display: flex;
+  flex-direction: column;
+  width: max-content;
+  max-width: calc(100vw - 16px);
   background: #fff;
   border: 1px solid #e6e9f0;
   border-radius: 10px;
@@ -8,14 +12,23 @@
   overflow: hidden;
 }
 
+/* 搜索框行（复用 .bselect-search 视觉）：与列区留出内边距 */
+.casc-search { padding: 8px 8px 6px; }
+
+/* 两列容器：搜索行之下横向排布 */
+.casc-cols { display: flex; min-height: 0; }
+
+/* 左列撑满菜单宽（与搜索框左右缘对齐，不留空白区）；右列按内容宽 */
 .casc-col {
+  flex: 1 1 auto;
   min-width: 128px;
   max-height: 272px;
   overflow: auto;
-  padding: 6px;
+  padding: 6px 8px 8px;
 }
 
 .casc-col.right {
+  flex: 0 0 auto;
   min-width: 168px;
   border-left: 1px solid #eef1f6;
 }
@@ -49,3 +62,10 @@
   font-size: 10px;
   color: #b3bac6;
 }
+
+/* 多选模式：✓ 前缀 + 主色加粗（与全局下拉选中态一致，不用勾选框）；组名占满剩余宽保持箭头靠右 */
+.casc-gname { flex: 1; }
+.casc-item.checked { color: #4f7cff; font-weight: 600; }
+/* 组行部分选中：主色常规字重 + ✓ 半透明，与整组选全区分 */
+.casc-item.partial { color: #4f7cff; }
+.casc-check.partial { opacity: .45; }

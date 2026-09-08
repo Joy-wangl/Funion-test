@@ -312,29 +312,15 @@ export const internalProducts: ProductRow[] = [
 /** 运营管理（待上架 / ID数据）表格数据：与原 HTML 一致，音响行缩略图保留 height=440 原样；附带查询条件列演示值 */
 const OM_EXTRAS: Record<string, string>[] = internalProducts.map((row, i) => ({
   系列编码: `XL-220${i + 1}`,
-  采购: ['陈晓', '刘洋', '周敏'][i % 3],
   运营组: ['运营一组', '运营二组', '运营三组'][i % 3],
   运营专员: ['王芳', '李娜', '赵磊'][i % 3],
   运营助理: i % 2 ? '吴倩' : '孙悦',
-  /* 毛利列列表展示具体金额（按标注「这是具体的值」） */
-  发生毛利2: `¥${(12 + i * 2.5).toFixed(1)}`,
-  发生毛利3: `¥${(18 + i * 3).toFixed(1)}`,
-  发生毛利4: `¥${(9 + i * 1.5).toFixed(1)}`,
-  发生净利润: `¥${(6 + i * 2).toFixed(1)}`,
-  星星: ['红色', '黄色', '绿色', '蓝色', '橙色', '紫色'][i],
-  旗帜: ['空白', '红色', '蓝色', '绿色', '黄色', '橙色'][i],
   出仓利润: i % 2 ? '亏损' : '盈利',
   备注: i === 1 ? '注意补货' : '-',
-  毛二利润率: '15%',
-  毛四利润率: '18%',
-  毛五利润率: '22%',
   毛六利润率: '25%',
   /* 运营毛利列按标注「都用具体值」展示小数（如 0.31）；key 与列头全角括号保持一致 */
-  运营毛五利: (0.21 + i * 0.02).toFixed(2),
   运营毛六利: (0.31 + i * 0.02).toFixed(2),
-  '运营毛三（减税）': (0.12 + i * 0.01).toFixed(2),
   '运营毛四（减税）': (0.14 + i * 0.01).toFixed(2),
-  '运营毛五（减税）': (0.16 + i * 0.01).toFixed(2),
   '运营毛六（减税）': (0.18 + i * 0.01).toFixed(2),
   总广告费: `¥${200 + i * 49}`,
   经营大类: row.category.split('/')[0] || '-',
@@ -519,6 +505,18 @@ const taskThumb = (bg: string, text: string) =>
 export type ParentStatus = 'queued' | 'running' | 'done';
 export type SubStatus = 'queued' | 'running' | 'success' | 'failed';
 
+/** 店铺发布结果（任务节点三集合元素）：商品发到不同店铺时各自的独立结果 */
+export interface ShopResult {
+  platform: string;
+  shop: string;
+  status: SubStatus;
+  /** 失败原因（失败tab筛选 chips：发品超限/库存不足/其它） */
+  reason: string;
+  retried: boolean;
+  startTime: string;
+  endTime: string;
+}
+
 export interface SubTask {
   id: number;
   /** 全局唯一任务ID：任务中心列表/详情 与 个人商品库-关联发布任务抽屉 联动展示 */
@@ -527,18 +525,26 @@ export interface SubTask {
   name: string;
   thumb: string;
   linkId: string;
-  platform: string;
-  shop: string;
   /** 发布人（商品创建-关联发布任务抽屉「发布信息」列） */
   publisher?: string;
+  /** 任务状态（聚合：统一节点失败 > 店铺结果集） */
   status: SubStatus;
-  /** 失败原因（失败tab筛选 chips：发品超限/库存不足/其它） */
-  reason: string;
-  /** 失败节点（0 起）：该节点及其后续节点均失败 */
+  /** 失败节点（0 起，仅 0/1 统一节点）：该节点失败则店铺集合未触达 */
   failStep?: number;
-  retried: boolean;
+  /** 节点三：商品发布店铺结果集（一个商品发到 N 个店铺 = 一个任务） */
+  shops: ShopResult[];
   startTime: string;
   endTime: string;
+}
+
+/** 任务状态聚合规则：统一节点（一/二）失败优先；否则看店铺集合——全待执行=队列中、含失败=执行失败、全成功=已完成、其余=执行中 */
+export function taskStatusOf(s: { failStep?: number; shops: ShopResult[] }): SubStatus {
+  if (s.failStep !== undefined && s.failStep < 2) return 'failed';
+  const st = s.shops.map((x) => x.status);
+  if (st.every((x) => x === 'queued')) return 'queued';
+  if (st.some((x) => x === 'failed')) return 'failed';
+  if (st.every((x) => x === 'success')) return 'success';
+  return 'running';
 }
 
 export interface ParentTask {
@@ -578,25 +584,74 @@ const subPattern: Record<ParentStatus, SubStatus[]> = {
 
 /* 个人商品库-关联发布任务：该商品在任务中心的发布批次（与任务列表同源，状态联动） */
 const PUB_PATTERN: SubStatus[] = ['success', 'failed', 'success', 'success', 'failed', 'success'];
+/* 店铺池：按平台分组；单个发布任务不跨平台，店铺均取自同一平台 */
+const PLATFORM_SHOPS: { platform: string; shops: string[] }[] = [
+  { platform: '淘宝', shops: ['小二的店铺', '小二女装店', '小二鞋包专营店', '小二母婴店'] },
+  { platform: '天猫', shops: ['小二旗舰店', '小二官方旗舰店', '小二美妆专营店', '小二家电专营店'] },
+  { platform: '拼多多', shops: ['小二专营店', '小二百货店', '小二日用优选店', '小二生鲜店'] },
+  { platform: '抖音', shops: ['小二小店', '小二直播店', '小二优选店', '小二潮玩店'] },
+  { platform: '快手', shops: ['小二优选店', '小二老铁店', '小二严选店', '小二特产店'] },
+];
+/* 按任务取同一平台的 2-4 个店铺（循环取该平台店铺） */
+const pickShops = (seed: number, i: number) => {
+  const g = PLATFORM_SHOPS[(seed + i) % PLATFORM_SHOPS.length];
+  const n = 2 + ((seed + i) % 3);
+  const start = (seed + i) % g.shops.length;
+  return Array.from({ length: n }, (_, k) => ({ platform: g.platform, shop: g.shops[(start + k) % g.shops.length] }));
+};
+/* 店铺结果集：按任务状态推导各店独立结果（失败且统一节点失败=未触达；节点三失败=部分店失败） */
+function buildShops(seed: number, i: number, st: SubStatus): ShopResult[] {
+  const pools = pickShops(seed, i);
+  const failReason = failReasons[(seed + i) % 3];
+  const retried = (seed + i) % 2 === 0;
+  const unifiedFailed = st === 'failed' && (seed + i) % 3 < 2;
+  const allFailed = st === 'failed' && (seed + i) % 4 === 0;
+  return pools.map((p, k) => {
+    let status: SubStatus = st;
+    if (st === 'running') status = k === 0 ? 'success' : k === 1 ? 'running' : 'queued';
+    if (st === 'failed') status = unifiedFailed ? 'queued' : allFailed ? 'failed' : k === pools.length - 1 ? 'failed' : 'success';
+    return {
+      platform: p.platform,
+      shop: p.shop,
+      status,
+      reason: status === 'failed' ? failReason : '',
+      retried: status === 'failed' ? retried : false,
+      startTime: status === 'queued' ? '' : '2026-04-04 12:01:00',
+      endTime: status === 'success' || status === 'failed' ? '2026-04-04 12:04:00' : '',
+    };
+  });
+}
 function buildPubBatch(row: CreateRow, seed: number): ParentTask {
   const m = row.link.match(/[?&]id=(\d+)/);
-  const subs: SubTask[] = PUB_PATTERN.map((st, i) => ({
-    id: seed * 100 + i,
-    taskId: seed * 100 + i,
-    templateNo: `V${String(seed).padStart(4, '0')}-0${i + 1}`,
-    name: row.title,
-    thumb: row.thumb,
-    linkId: m?.[1] ?? '888877776666',
-    platform: '淘宝',
-    shop: '小二的店铺',
-    publisher: row.person ?? '周梦琪',
-    status: st,
-    reason: st === 'failed' ? failReasons[(seed + i) % 3] : '',
-    failStep: st === 'failed' ? 2 : undefined,
-    retried: false,
-    startTime: `2026-04-04 12:0${i}:00`,
-    endTime: `2026-04-04 12:0${i + 1}:00`,
-  }));
+  /* 新模型：一个商品×N店铺=一个任务；六个店铺结果归为三个任务（每任务两店） */
+  const subs: SubTask[] = [0, 1, 2].map((t) => {
+    const g = PLATFORM_SHOPS[(seed + t) % PLATFORM_SHOPS.length];
+    const shops: ShopResult[] = PUB_PATTERN.slice(t * 2, t * 2 + 2).map((st, k) => {
+      return {
+        platform: g.platform,
+        shop: g.shops[k % g.shops.length],
+        status: st,
+        reason: st === 'failed' ? failReasons[(seed + t + k) % 3] : '',
+        retried: false,
+        startTime: `2026-04-04 12:0${t * 2 + k}:00`,
+        endTime: `2026-04-04 12:0${t * 2 + k + 1}:00`,
+      };
+    });
+    return {
+      id: seed * 100 + t,
+      taskId: seed * 100 + t,
+      templateNo: `V${String(seed).padStart(4, '0')}-0${t + 1}`,
+      name: row.title,
+      thumb: row.thumb,
+      linkId: m?.[1] ?? '888877776666',
+      publisher: row.person ?? '周梦琪',
+      status: taskStatusOf({ shops }),
+      shops,
+      startTime: `2026-04-04 12:0${t * 2}:00`,
+      endTime: `2026-04-04 12:0${t * 2 + 2}:00`,
+    };
+  });
+  const allShops = subs.flatMap((s) => s.shops);
   return {
     id: 50 + seed,
     creator: row.person,
@@ -605,10 +660,10 @@ function buildPubBatch(row: CreateRow, seed: number): ParentTask {
     status: 'done',
     channel: '智能',
     pubWay: '蜂联发布',
-    shops: 6,
-    links: 6,
-    success: subs.filter((s) => s.status === 'success').length,
-    failed: subs.filter((s) => s.status === 'failed').length,
+    shops: allShops.length,
+    links: subs.length,
+    success: allShops.filter((s) => s.status === 'success').length,
+    failed: allShops.filter((s) => s.status === 'failed').length,
     running: 0,
     startTime: '2026-04-04 12:00:00',
     endTime: '2026-04-04 12:06:00',
@@ -618,22 +673,23 @@ function buildPubBatch(row: CreateRow, seed: number): ParentTask {
 }
 
 function buildSubs(seed: number, status: ParentStatus): SubTask[] {
-  return subPattern[status].map((st, i) => ({
-    id: seed * 100 + i,
-    taskId: 1000 + (seed - 1) * 10 + i,
-    templateNo: `V${String(seed).padStart(4, '0')}-${String(i + 1).padStart(2, '0')}`,
-    name: SUB_NAME,
-    thumb: subThumb,
-    linkId: '888877776666',
-    platform: '淘宝',
-    shop: '小二的店铺',
-    status: st,
-    reason: st === 'failed' ? failReasons[(seed + i) % 3] : '',
-    failStep: st === 'failed' ? (seed + i) % 3 : undefined,
-    retried: st === 'failed' && (seed + i) % 2 === 0,
-    startTime: st === 'queued' ? '' : '2026-04-04 12:01:00',
-    endTime: st === 'success' || st === 'failed' ? '2026-04-04 12:04:00' : '',
-  }));
+  return subPattern[status].map((st, i) => {
+    const shops = buildShops(seed, i, st);
+    const failStep = st === 'failed' ? (seed + i) % 3 : undefined;
+    return {
+      id: seed * 100 + i,
+      taskId: 1000 + (seed - 1) * 10 + i,
+      templateNo: `V${String(seed).padStart(4, '0')}-${String(i + 1).padStart(2, '0')}`,
+      name: SUB_NAME,
+      thumb: subThumb,
+      linkId: '888877776666',
+      status: taskStatusOf({ failStep, shops }),
+      failStep,
+      shops,
+      startTime: st === 'queued' ? '' : '2026-04-04 12:01:00',
+      endTime: st === 'success' || st === 'failed' ? '2026-04-04 12:04:00' : '',
+    };
+  });
 }
 
 function buildParent(id: number, status: ParentStatus): ParentTask {
@@ -677,21 +733,62 @@ export const parentTasks = reactive<ParentTask[]>([
   createTaobaoRows.forEach((row, ri) => parentTasks.push(buildPubBatch(row, ri + 1)));
 }
 
-/** 重试/重新发布：执行中→完成，并同步更新所属批次聚合（任务中心与关联发布任务抽屉联动） */
+/** 重试/重新发布：失败店铺（或未触达店铺）重跑→成功，并同步更新所属批次聚合（任务中心与关联发布任务抽屉联动） */
 export function retrySub(sub: SubTask): void {
   if (sub.status !== 'failed') return;
   const parent = parentTasks.find((p) => p.subs.includes(sub));
+  const n = Math.max(1, sub.shops.filter((sh) => sh.status === 'failed').length);
+  sub.failStep = undefined;
+  sub.shops.forEach((sh) => {
+    if (sh.status === 'failed' || sh.status === 'queued') {
+      sh.status = 'running';
+      sh.endTime = '';
+      sh.startTime = sh.startTime || '2026-04-04 12:08:00';
+    }
+  });
   sub.status = 'running';
+  sub.endTime = '';
+  if (parent) {
+    parent.failed = Math.max(0, parent.failed - n);
+    parent.running += n;
+  }
+  window.setTimeout(() => {
+    sub.shops.forEach((sh) => {
+      if (sh.status === 'running') {
+        sh.status = 'success';
+        sh.reason = '';
+        sh.retried = true;
+        sh.endTime = '2026-04-04 12:09:00';
+      }
+    });
+    sub.status = taskStatusOf(sub);
+    sub.endTime = '2026-04-04 12:09:00';
+    if (parent) {
+      parent.running = Math.max(0, parent.running - n);
+      parent.success += n;
+    }
+  }, 1200);
+}
+
+/** 店铺级重试：仅重跑指定失败店铺→成功，同步任务状态与所属批次聚合（快速重试单店失败） */
+export function retryShop(sub: SubTask, shop: ShopResult): void {
+  if (shop.status !== 'failed') return;
+  const parent = parentTasks.find((p) => p.subs.includes(sub));
+  shop.status = 'running';
+  shop.reason = '';
+  shop.endTime = '';
+  shop.startTime = shop.startTime || '2026-04-04 12:08:00';
+  sub.status = taskStatusOf(sub);
   sub.endTime = '';
   if (parent) {
     parent.failed = Math.max(0, parent.failed - 1);
     parent.running += 1;
   }
   window.setTimeout(() => {
-    sub.status = 'success';
-    sub.failStep = undefined;
-    sub.reason = '';
-    sub.retried = true;
+    shop.status = 'success';
+    shop.retried = true;
+    shop.endTime = '2026-04-04 12:09:00';
+    sub.status = taskStatusOf(sub);
     sub.endTime = '2026-04-04 12:09:00';
     if (parent) {
       parent.running = Math.max(0, parent.running - 1);

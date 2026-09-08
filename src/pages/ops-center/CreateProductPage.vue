@@ -9,7 +9,9 @@ import SortTh from '../../components/SortTh.vue';
 import CreateDetailPage from './CreateDetailPage.vue';
 import JmCreateDetailPage from './JmCreateDetailPage.vue';
 import { pushToast } from '../../components/toast';
-import { stepsOf, stepLabels } from './tcSteps';
+import TcStepsCell from './TcStepsCell.vue';
+import TcRatioBar from './TcRatioBar.vue';
+import { addPublishTask } from './publishStore';
 
 /** 商品创建页（jm=京麦平台：列表同源结构，详情走京麦接口字段页） */
 const props = defineProps<{ jm?: boolean }>();
@@ -54,9 +56,37 @@ const toggleAllPubShops = (on: boolean) => {
   pubShopChecked.value = on ? [...new Set([...pubShopChecked.value, ...ids])] : pubShopChecked.value.filter((x) => !ids.includes(x));
 };
 const submitPub = () => {
-  const n = pubShopChecked.value.length;
+  const shops = pubShopChecked.value;
+  const productName = pubTo.value?.title ?? '商品';
   pubTo.value = null;
-  pushToast(`已发布到 ${n} 个店铺`);
+  /* 创建新任务（store 单例，跨组件/跨关闭累积多任务）；返回值为响应式引用 */
+  const liveTask = addPublishTask(productName, shops.map((shopId, idx) => {
+    const shop = PUB_SHOPS.find((s) => s.id === shopId);
+    return {
+      id: idx,
+      shop: shop?.name ?? `店铺${shopId}`,
+      platform: shop?.platform ?? '淘宝',
+      status: 'pending' as const,
+    };
+  }));
+  /* 模拟异步发布：逐个处理，随机成功/失败 */
+  let idx = 0;
+  const processNext = () => {
+    if (idx >= liveTask.items.length) return;
+    const item = liveTask.items[idx];
+    /* 模拟 50% 成功率（便于演示失败场景） */
+    const success = Math.random() > 0.5;
+    item.status = success ? 'success' : 'failed';
+    if (!success) {
+      const reasons = ['商品信息检查不通过，错误码:6600016 原因:类目错误', '库存不足，无法上架', '发品数量已达上限'];
+      item.reason = reasons[Math.floor(Math.random() * reasons.length)];
+    }
+    idx++;
+    if (idx < liveTask.items.length) {
+      window.setTimeout(processNext, 300 + Math.random() * 400);
+    }
+  };
+  window.setTimeout(processNext, 500);
 };
 const PUB_LOGOS: Record<string, string> = { 淘宝: 'taobao', 天猫: 'tmall', 拼多多: 'pinduoduo', 抖音: 'douyin', 快手: 'kuaishou' };
 const pubLogo = (p: string) => `/logos/${PUB_LOGOS[p] ?? 'taobao'}.png`;
@@ -365,21 +395,15 @@ const confirmDelete = () => {
               <td>{{ String(s.taskId).padStart(6, '0') }}</td>
               <td>
                 <div class="tc-cell-lines">
-                  <div>{{ s.publisher || '–' }}</div>
-                  <div>{{ s.shop }}</div>
+                  <div>{{ s.publisher || '–' }} · 共{{ s.shops.length }}店</div>
+                  <TcRatioBar :sub="s" />
                 </div>
               </td>
               <td>
                 <span class="tc-st" :class="pubStatusCls[s.status]"><i />{{ pubStatusText[s.status] }}</span>
               </td>
               <td>
-                <div class="tc-steps" :class="s.status === 'queued' ? 'gray' : ''">
-                  <div v-for="(st, si) in stepsOf(s)" :key="stepLabels[si]" class="tc-step">
-                    <i :class="st.dot" />
-                    <span>{{ stepLabels[si] }}：</span>
-                    <span class="v" :class="st.cls">{{ st.v }}</span>
-                  </div>
-                </div>
+                <TcStepsCell :sub="s" />
               </td>
               <td>
                 <div class="tc-cell-lines">

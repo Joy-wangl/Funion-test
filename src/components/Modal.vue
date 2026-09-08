@@ -2,7 +2,7 @@
 defineProps<{
   title: string;
   sub?: string;
-  size?: 'md' | 'lg' | 'xl';
+  size?: 'md' | 'lg' | 'xl' | 'xxl';
 }>();
 const emit = defineEmits<{ (e: 'close'): void }>();
 </script>
@@ -20,7 +20,7 @@ const emit = defineEmits<{ (e: 'close'): void }>();
         </span>
       </div>
       <div class="modal-body"><slot /></div>
-      <div class="modal-foot"><slot name="foot" /></div>
+      <div v-if="$slots.foot" class="modal-foot"><slot name="foot" /></div>
     </div>
   </div>
 </template>

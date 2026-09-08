@@ -11,6 +11,14 @@ import {
   type QcCenterCode,
   type QcCenterSeries,
 } from './qcCenterData';
+import {
+  CAT_COLOR,
+  HEALTH_META,
+  QC2_CODES,
+  briefOf,
+  seriesTagBrief,
+  type TagBrief,
+} from '../quality2/qc2Data';
 import type { Platform, PlatformStat } from './data';
 import PlatLogo from './PlatLogo.vue';
 import PlatformMatrix from './PlatformMatrix.vue';
@@ -55,6 +63,14 @@ onBeforeUnmount(() => {
 
 const selCode = computed(() => (codeTab.value === 'all' ? null : props.series.codes.find((c) => c.code === codeTab.value) ?? null));
 const hits = computed(() => platformProblemHits(selCode.value ? [selCode.value] : props.series.codes));
+
+/* 标签合并口径：系列维度聚合；展开区按「该平台在售编码」聚合后并入平台矩阵列 */
+const tag = computed(() => seriesTagBrief(props.series.seriesCode));
+const platTagBrief = (pl: Platform): TagBrief | null => {
+  const scope = selCode.value ? [selCode.value.code] : props.series.codes.map((c) => c.code);
+  const codes = QC2_CODES.filter((c) => scope.includes(c.code) && c.platforms.includes(pl));
+  return codes.length ? briefOf(codes) : null;
+};
 </script>
 
 <template>
@@ -73,7 +89,6 @@ const hits = computed(() => platformProblemHits(selCode.value ? [selCode.value] 
     <td>{{ series.afterSales }}</td>
     <td><span v-if="series.chatRiskHits" class="rate bad">{{ series.chatRiskHits }}</span><template v-else>0</template></td>
     <td>{{ series.orders ? pct(series.chatRiskHits / series.orders) : '0.0%' }}</td>
-    <td><span v-if="optCount > 0" class="opt-cnt">{{ optCount }}</span><span v-else style="color: var(--text-4)">0</span></td>
     <td>
       <div class="plat-chips">
         <span v-for="p in series.platforms" :key="p" class="plat-chip">
@@ -95,6 +110,37 @@ const hits = computed(() => platformProblemHits(selCode.value ? [selCode.value] 
       </div>
     </td>
     <td>
+      <span
+        v-if="tag.health"
+        class="qc-health-tag"
+        :title="HEALTH_META[tag.health].label"
+        :style="{ color: HEALTH_META[tag.health].color, borderColor: HEALTH_META[tag.health].color }"
+      >{{ tag.health }}</span>
+      <span v-else style="color: var(--text-4)">-</span>
+    </td>
+    <td>
+      <div v-if="tag.chips.length" class="prob-tags">
+        <span
+          v-for="l in tag.chips"
+          :key="l.id"
+          class="tag"
+          :style="{ background: `${CAT_COLOR[l.cat] || '#4f7cff'}1a`, color: CAT_COLOR[l.cat] || '#4f7cff' }"
+        >{{ l.name }}</span>
+        <span v-if="tag.extra" class="tag prob-more">
+          +{{ tag.extra }}
+          <span class="prob-bubble">
+            <span
+              v-for="l in tag.labels"
+              :key="l.id"
+              class="tag"
+              :style="{ background: `${CAT_COLOR[l.cat] || '#4f7cff'}1a`, color: CAT_COLOR[l.cat] || '#4f7cff' }"
+            >{{ l.name }}</span>
+          </span>
+        </span>
+      </div>
+      <span v-else style="color: var(--text-4)">-</span>
+    </td>
+    <td>
       <div class="prob-tags">
         <span v-for="d in deptsOfTypes(series.problemHits.map((h) => h.type))" :key="d" class="tag">{{ d }}</span>
       </div>
@@ -104,6 +150,7 @@ const hits = computed(() => platformProblemHits(selCode.value ? [selCode.value] 
         <span class="tag duty-tag" :title="hasOverride ? '已手动绑定' : '默认责任部门（问题数最多部门）'">{{ duty }}</span>
       </div>
     </td>
+    <td><span v-if="optCount > 0" class="opt-cnt">{{ optCount }}</span><span v-else style="color: var(--text-4)">0</span></td>
     <td>
       <div class="qc-op-col">
         <a @click="props.onDetail">查看详情</a>
@@ -132,7 +179,7 @@ const hits = computed(() => platformProblemHits(selCode.value ? [selCode.value] 
     </td>
   </tr>
   <tr v-if="open" class="expand-row">
-    <td colspan="13">
+    <td colspan="15">
       <div class="qc-range-toggle qc-code-tabs">
         <button type="button" :class="codeTab === 'all' ? 'active' : ''" @click="codeTab = 'all'">全部</button>
         <button
@@ -150,6 +197,7 @@ const hits = computed(() => platformProblemHits(selCode.value ? [selCode.value] 
         :threshold="0.25"
         :problem-hits="hits"
         :show-last-order="false"
+        :tag-brief="platTagBrief"
         :on-chat="(p: Platform) => props.onChat(
           selCode ? [selCode] : series.codes,
           selCode ? selCode.platforms.map((x) => x.platform) : series.platforms,

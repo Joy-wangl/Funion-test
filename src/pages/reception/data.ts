@@ -279,9 +279,10 @@ const laneOf = (seed: number, pool: string[]): RcSeg[] => {
 };
 
 export const rcTimelineOf = (a: RcAgent): RcTimeline => ({
-  duty: laneOf(a.id * 31 + 1, ['on', 'rest', 'off']),
-  login: laneOf(a.id * 31 + 2, ['in', 'out']),
-  ws: laneOf(a.id * 31 + 3, ['on', 'off']),
+  /* 池内重复项=权重：三条时间线以“在班/登录/在线”为主，与左侧时长指标观感一致 */
+  duty: laneOf(a.id * 31 + 1, ['on', 'on', 'on', 'rest', 'off']),
+  login: laneOf(a.id * 31 + 2, ['in', 'in', 'in', 'out']),
+  ws: laneOf(a.id * 31 + 3, ['on', 'on', 'on', 'off']),
 });
 
 /* ---------- CSV 导出（表头与线上逐字一致，带 BOM） ---------- */

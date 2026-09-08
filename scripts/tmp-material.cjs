@@ -27,9 +27,13 @@ fs.mkdirSync(OUT, { recursive: true });
   await page.click('.cpd-side-btn:has-text("素材")');
   await page.waitForSelector('.mc-page');
   results['mc.title'] = ((await page.locator('.mc-title').textContent()) || '').includes('素材中心');
-  results['mc.acts'] = (await page.locator('.mc-acts button:has-text("取消")').count()) === 1
+  /* 头部重构：查看态仅「编辑」；点击进编辑态后展示 取消/保存修改（tab 行右侧） */
+  results['mc.actsView'] = (await page.locator('.mc-acts button:has-text("编辑")').count()) === 1
+    && (await page.locator('.mc-acts button:has-text("保存修改")').count()) === 0;
+  await page.click('.mc-acts button:has-text("编辑")');
+  results['mc.actsEdit'] = (await page.locator('.mc-acts button:has-text("取消")').count()) === 1
     && (await page.locator('.mc-acts button:has-text("保存修改")').count()) === 1;
-  results['mc.tabs'] = (await page.locator('.mc-tab').count()) === 2
+  results['mc.tabs'] = (await page.locator('.mc-tab').count()) === 3
     && ((await page.locator('.mc-tab.active').textContent()) || '').includes('选图换图');
 
   /* 分区：主图/SKU/详情/白底，无视频（1:1 原型） */
@@ -89,6 +93,19 @@ fs.mkdirSync(OUT, { recursive: true });
   const after = await imgsGroups.nth(0).locator('img').evaluateAll((els) => els.map((e) => e.getAttribute('src')));
   results['mc.reorder'] = after[2] === before[0] && after[0] === before[1];
 
+  /* 保存修改：带选中残留保存→保存后查看态无残留气泡/蓝框，修改落库(主图3)；再进编辑态主图区不空（回归用户反馈问题） */
+  await mainTiles.nth(0).click();
+  results['mc.pickBeforeSave'] = (await page.locator('.mc-bubble.s').count()) === 1;
+  await page.click('.mc-acts button:has-text("保存修改")');
+  await page.waitForTimeout(700);
+  results['mc.saveView'] = (await page.locator('.mc-acts button:has-text("编辑")').count()) === 1
+    && (await page.locator('.mc-bubble.s').count()) === 0
+    && (await page.locator('.mc-img.selected').count()) === 0
+    && (await imgsGroups.nth(0).locator('.mc-img').count()) === 3;
+  await page.click('.mc-acts button:has-text("编辑")');
+  results['mc.reedit'] = (await imgsGroups.nth(0).locator('.mc-img').count()) === 3
+    && (await imgsGroups.nth(1).locator('.mc-img').count()) === 8;
+
   /* 一键美化 tab：tab 提示 + 左生成控制卡 + 右任务三态 */
   await page.click('.mc-tab:has-text("一键美化")');
   results['mc.beautyHint'] = (await page.locator('.mc-tab-hint:has-text("更换商品风格")').count()) === 1;
@@ -113,6 +130,45 @@ fs.mkdirSync(OUT, { recursive: true });
   await page.locator('.mc-task').nth(3).locator('.mc-thwrap').first().hover();
   results['mc.beautyBubble'] = (await page.locator('.mc-float-bubble a:visible').count()) === 5;
   await page.screenshot({ path: `${OUT}/ops-verify-material-beauty.png` });
+  await page.click('.mc-tab:has-text("选图换图")');
+
+  /* 一键去水印 tab：左 已保存数据（水印浮标 + 效果对比切换 + 单组按钮）/ 右 任务卡效果图墙 + 展开收起 + 重试闭环 */
+  await page.click('.mc-tab:has-text("一键去水印")');
+  results['wm.groups'] = (await page.locator('.mc-wm').count()) === 3;
+  results['wm.states0'] = (await page.locator('.mc-wm .mc-wm-state.pending').count()) === 1
+    && (await page.locator('.mc-wm .mc-wm-state.failed').count()) === 1
+    && (await page.locator('.mc-wm .mc-wm-state.done').count()) === 1;
+  /* 左栏不渲染带水印原图：水印状态仅由语义徽标表达；全页无水印浮标 */
+  results['wm.leftNoMark'] = (await page.locator('.mc-wm-mark').count()) === 0
+    && (await page.locator('.mc-wm .mc-wm-state.pending').count()) === 1;
+  await page.screenshot({ path: `${OUT}/ops-verify-mcwm0.png` });
+  /* 已完成组左栏恒定效果图：无浮标、无切回原图开关（避免带水印图混淆），仅绿色效果提示 */
+  results['wm.doneClean'] = (await page.locator('.mc-wm-view').count()) === 0
+    && (await page.locator('.mc-wm').nth(2).locator('.mc-wm-donehint').count()) === 1;
+  /* 任务卡：done 任务默认展开直接展示全部效果图（无需点击）；可收起为 4 图预览再展开 */
+  results['wm.tasks0'] = (await page.locator('.mc-right .mc-task').count()) === 2
+    && (await page.locator('.mc-right .mc-task').first().locator('.mc-task-grid .mc-thwrap').count()) === 4;
+  await page.locator('.mc-right .mc-task').first().locator('.mc-fold').click();
+  results['wm.fold'] = (await page.locator('.mc-right .mc-task').first().locator('.mc-task-strip .mc-thwrap').count()) === 4;
+  await page.locator('.mc-right .mc-task').first().locator('.mc-fold').click();
+  results['wm.unfold'] = (await page.locator('.mc-right .mc-task').first().locator('.mc-task-grid .mc-thwrap').count()) === 4;
+  /* 失败重试→running；全选可选（仅剩 pending）→批量提交 */
+  await page.click('.mc-task .mc-regen');
+  results['wm.retry'] = (await page.locator('.mc-task-pct').count()) === 1
+    && (await page.locator('.mc-wm .mc-wm-state.running').count()) === 1;
+  await page.click('.mc-wm-all');
+  results['wm.pickAll'] = (await page.locator('.mc-wm.sel').count()) === 1;
+  await page.click('.mc-wm-head button:has-text("一键去水印")');
+  results['wm.started'] = (await page.locator('.mc-right .mc-task').count()) === 3
+    && (await page.locator('.mc-wm .mc-wm-state.running').count()) === 2
+    && (await page.locator('.mc-wm.sel').count()) === 0;
+  await page.waitForTimeout(9000);
+  /* 全部完成：无进度百分比；3 组全部 done；左栏无浮标；3 张任务卡默认展开共 13 图（5/4/4 全显） */
+  results['wm.allDone'] = (await page.locator('.mc-task-pct').count()) === 0
+    && (await page.locator('.mc-wm .mc-wm-state.done').count()) === 3
+    && (await page.locator('.mc-wm-mark').count()) === 0
+    && (await page.locator('.mc-right .mc-task .mc-thwrap').count()) === 13;
+  await page.screenshot({ path: `${OUT}/ops-verify-mcwm.png` });
   await page.click('.mc-tab:has-text("选图换图")');
 
   /* 右栏：3 条目 / 收起态响应式图墙全展示(每5) / 淘宝黄标 / 创建人+前往查看 与平台标签同排（展开下方） */
@@ -169,8 +225,13 @@ fs.mkdirSync(OUT, { recursive: true });
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/ops-verify-material.png` });
 
-  /* 取消返回详情 */
+  /* 取消编辑：有未保存修改需二次确认，丢弃后恢复编辑前图片并退出编辑；返回键回详情 */
   await page.click('.mc-acts button:has-text("取消")');
+  results['mc.cancelConfirm'] = (await page.locator('.modal:has-text("取消编辑")').count()) === 1;
+  await page.click('.modal button:has-text("丢弃修改")');
+  results['mc.cancelRevert'] = (await imgsGroups.nth(0).locator('.mc-img').count()) === 3
+    && (await page.locator('.mc-acts button:has-text("编辑")').count()) === 1;
+  await page.click('.mc-back');
   await page.waitForSelector('.sgd-top-title');
   results['mc.back'] = (await page.locator('.sgd-top-title').count()) === 1;
 

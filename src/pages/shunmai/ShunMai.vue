@@ -86,22 +86,25 @@ const submitCreate = () => {
   if (!name) { pushToast('请输入任务名称', 'error'); return; }
   if (!topic) { pushToast('请输入搜索主题', 'error'); return; }
   if (!createCount.value || createCount.value <= 0) { pushToast('抓取条数需大于 0', 'error'); return; }
-  tasks.value.unshift({
+  /* 无「待抓取」态：新建任务直接进执行管道——执行位空闲立即开抓，否则入队列 */
+  const t: SmTask = {
     id: genTaskId(),
     name,
     topic,
     targetCount: createCount.value,
-    status: 'pending',
+    status: 'queued',
     successCount: 0,
     failCount: 0,
     createdAt: nowTime(),
-  });
+  };
+  tasks.value.unshift(t);
   createName.value = '';
   createTopic.value = '';
   createCount.value = 30;
   createOpen.value = false;
   page.value = 'task';
-  pushToast('抓取任务创建成功');
+  if (!isOccupied()) startNextQueued();
+  pushToast(t.status === 'running' ? `抓取任务创建成功，已开始抓取「${t.name}」` : '抓取任务创建成功，已加入队列');
 };
 
 /* 真正占用执行位开始抓取（重置计数 + 启动定时器） */
@@ -120,7 +123,7 @@ const startNextQueued = () => {
   if (next) beginTask(next);
 };
 
-/* 执行器占用：抓取中 / 已暂停（暂停保留执行位，中止才释放） */
+/* 执行器占用：抓取中 / 已暂停（暂停保留执行位，终止才释放） */
 const taskTimers = new Map<string, ReturnType<typeof setInterval>>();
 const stopTimer = (id: string) => {
   const timer = taskTimers.get(id);
@@ -152,9 +155,9 @@ const startTicking = (t: SmTask) => {
     const batch = Math.min(remaining, Math.floor(Math.random() * 4) + 2);
     const fresh: SmRecord[] = [];
     for (let i = 0; i < batch; i++) {
+      /* 失败尝试仅计数（体现在任务进度），不产生商机记录 */
       const ok = Math.random() > 0.15;
-      if (ok) t.successCount++; else t.failCount++;
-      fresh.push(makeRecord(t, ok));
+      if (ok) { t.successCount++; fresh.push(makeRecord(t)); } else t.failCount++;
     }
     records.value.unshift(...fresh);
     if (t.successCount + t.failCount >= t.targetCount) finishTask(t);
@@ -194,15 +197,15 @@ const resumeTask = (id: string) => {
   startTicking(t);
 };
 
-/* 中止：释放执行位，任务记为已取消（重点操作，二次确认） */
+/* 终止：释放执行位，任务记为已取消（重点操作，二次确认） */
 const abortTask = (id: string) => {
   const t = tasks.value.find((x) => x.id === id);
   if (!t || (t.status !== 'running' && t.status !== 'paused')) return;
-  askConfirm('中止任务', `中止任务「${t.name}」？中止后记为已取消`, () => {
+  askConfirm('终止任务', `终止任务「${t.name}」？终止后记为已取消`, () => {
     stopTimer(id);
     t.status = 'canceled';
     t.finishedAt = nowTime();
-    pushToast(`任务 ${t.name} 已中止`);
+    pushToast(`任务 ${t.name} 已终止`);
     setTimeout(startNextQueued, 300);
   });
 };
@@ -220,7 +223,7 @@ const progressPct = (t: SmTask) => (t.targetCount ? Math.round(((t.successCount 
 const remainingOf = (t: SmTask) => Math.max(0, t.targetCount - t.successCount - t.failCount);
 const segWidth = (n: number, t: SmTask) => (t.targetCount ? `${(n / t.targetCount) * 100}%` : '0%');
 
-/* ---------- 重点操作二次确认（删除/中止等不可逆操作统一走确认弹窗） ---------- */
+/* ---------- 重点操作二次确认（删除/终止等不可逆操作统一走确认弹窗） ---------- */
 const confirmBox = ref<{ title: string; message: string; onOk: () => void } | null>(null);
 const askConfirm = (title: string, message: string, onOk: () => void) => {
   confirmBox.value = { title, message, onOk };
@@ -232,7 +235,10 @@ const doConfirm = () => {
 
 const deleteTask = (id: string) => {
   const t = tasks.value.find((x) => x.id === id);
-  askConfirm('删除任务', `删除任务「${t?.name || id}」？`, () => {
+  /* 执行管道内（抓取中/队列中）的任务不可删除：需先终止或取消 */
+  if (t && (t.status === 'running' || t.status === 'queued')) { pushToast('抓取中/队列中的任务无法删除，请先终止或取消', 'error'); return; }
+  /* 确认提醒：删除任务不影响已抓取的商机数据 */
+  askConfirm('删除任务', `删除任务「${t?.name || id}」？任务删除后并不会删除已抓取的商机数据。`, () => {
     stopTimer(id);
     tasks.value = tasks.value.filter((x) => x.id !== id);
     pushToast('任务已删除');
@@ -248,15 +254,15 @@ interface TaskAct {
 const TASK_ACT_MAX = 3;
 const taskActs = (t: SmTask): TaskAct[] => {
   const acts: TaskAct[] = [];
-  if (t.status === 'pending') acts.push({ label: '开始', run: () => runTask(t.id) });
   if (t.status === 'queued') acts.push({ label: '取消', run: () => cancelTask(t.id) });
   if (t.status === 'running' || t.status === 'paused') acts.push({ label: '详情', run: () => openTaskDetail(t) });
   if (t.status === 'running') acts.push({ label: '暂停', run: () => pauseTask(t.id) });
   if (t.status === 'paused') acts.push({ label: '继续', run: () => resumeTask(t.id) });
-  if (t.status === 'running' || t.status === 'paused') acts.push({ label: '中止', run: () => abortTask(t.id) });
+  if (t.status === 'running' || t.status === 'paused') acts.push({ label: '终止', run: () => abortTask(t.id) });
   if (t.status === 'success') acts.push({ label: '查看', run: () => viewTaskData(t) });
   if (t.status === 'fail' || t.status === 'canceled') acts.push({ label: '重试', run: () => runTask(t.id) });
-  acts.push({ label: '删除', danger: true, run: () => deleteTask(t.id) });
+  /* 抓取中/队列中不提供删除（先终止/取消）；其余状态删除时确认弹窗提醒已抓取数据保留 */
+  if (t.status !== 'running' && t.status !== 'queued') acts.push({ label: '删除', danger: true, run: () => deleteTask(t.id) });
   return acts;
 };
 const visibleActs = (t: SmTask) => {
@@ -277,7 +283,6 @@ const appliedTaskKw = ref('');
 const appliedTaskStatus = ref<'all' | SmTaskStatus>('all');
 const taskStatusOpts = [
   { value: 'all', label: '全部状态' },
-  { value: 'pending', label: '待抓取' },
   { value: 'queued', label: '队列中' },
   { value: 'running', label: '抓取中' },
   { value: 'paused', label: '已暂停' },
@@ -319,7 +324,6 @@ const detailRecords = computed(() => {
 const recordStatusOpts = [
   { value: 'all', label: '全部状态' },
   { value: 'success', label: '成功' },
-  { value: 'fail', label: '失败' },
 ];
 const dataKeyword = ref('');
 const dataTaskKw = ref('');
@@ -359,7 +363,6 @@ const pagedRecords = computed(() => {
   return filteredRecords.value.slice(start, start + pageSize.value);
 });
 
-const viewRecord = (r: SmRecord) => pushToast(`查看记录：${r.title}`);
 const taskNameOf = (r: SmRecord) => {
   if (!r.taskId) return '-';
   const t = tasks.value.find((x) => x.id === r.taskId);
@@ -383,22 +386,19 @@ const deleteRecord = (id: string) => {
   });
 };
 
-/* ---------- 商机选择与批量操作（全部可选；失败仅支持删除且不计入批量条数，可操作上限 50） ---------- */
+/* ---------- 商机选择与批量操作（全部可选可操作，上限 50） ---------- */
 const SELECT_LIMIT = 50;
 const selectedIds = ref<string[]>([]);
 const isSelected = (id: string) => selectedIds.value.includes(id);
-const isOperableId = (id: string) => {
-  const r = records.value.find((x) => x.id === id);
-  return !!r && r.status !== 'fail';
-};
-/* 可操作选中：失败记录不计入批量删除的条数 */
+const isOperableId = (id: string) => records.value.some((x) => x.id === id);
+/* 可操作选中：计入批量删除条数 */
 const operableSelected = computed(() => selectedIds.value.filter(isOperableId));
 const toggleRow = (r: SmRecord) => {
   if (isSelected(r.id)) {
     selectedIds.value = selectedIds.value.filter((x) => x !== r.id);
     return;
   }
-  if (r.status !== 'fail' && operableSelected.value.length >= SELECT_LIMIT) {
+  if (operableSelected.value.length >= SELECT_LIMIT) {
     pushToast(`最多可选 ${SELECT_LIMIT} 条可操作记录`, 'error');
     return;
   }
@@ -416,10 +416,8 @@ const togglePage = () => {
   let capped = false;
   for (const r of pagedRecords.value) {
     if (merged.includes(r.id)) continue;
-    if (r.status !== 'fail') {
-      if (operable >= SELECT_LIMIT) { capped = true; continue; }
-      operable++;
-    }
+    if (operable >= SELECT_LIMIT) { capped = true; continue; }
+    operable++;
     merged.push(r.id);
   }
   selectedIds.value = merged;
@@ -445,11 +443,8 @@ const taskStats = computed(() => ({
   success: tasks.value.filter((t) => t.status === 'success').length,
   fail: tasks.value.filter((t) => t.status === 'fail').length,
 }));
-const recordStats = computed(() => ({
-  total: records.value.length,
-  success: records.value.filter((r) => r.status === 'success').length,
-  fail: records.value.filter((r) => r.status === 'fail').length,
-}));
+/* 抓取尝试次数：各任务成功+失败合计（失败尝试不产生商机记录，仅在此口径体现） */
+const attemptCount = computed(() => tasks.value.reduce((s, t) => s + t.successCount + t.failCount, 0));
 /* 工作台最近任务查询条件（草稿 + 查询生效） */
 const dashKeyword = ref('');
 const dashStatus = ref<'all' | SmTaskStatus>('all');
@@ -490,15 +485,26 @@ const refreshDeviceStatus = () => {
   }, 600);
 };
 
-/* ---------- 使用教程（public 下独立引导页，新标签打开） ---------- */
-const openTutorial = () => window.open('/mobile-connect-guide.html', '_blank');
+/* ---------- 使用教程（public 下独立引导页，弹窗内 iframe 嵌入展示） ---------- */
+const tutorialOpen = ref(false);
+const onTutorialEsc = (e: KeyboardEvent) => {
+  if (e.key === 'Escape') closeTutorial();
+};
+const closeTutorial = () => {
+  tutorialOpen.value = false;
+  window.removeEventListener('keydown', onTutorialEsc);
+};
+const openTutorial = () => {
+  tutorialOpen.value = true;
+  window.addEventListener('keydown', onTutorialEsc);
+};
 const overviewItems = computed(() => [
   { label: '任务总数', value: taskStats.value.total },
   { label: '队列中', value: taskStats.value.queued },
   { label: '抓取中', value: taskStats.value.running },
   { label: '已完成', value: taskStats.value.success },
-  { label: '抓取次数', value: recordStats.value.total },
-  { label: '已抓取商品数', value: recordStats.value.success },
+  { label: '抓取商品次数', value: attemptCount.value },
+  { label: '已抓取商品数', value: records.value.length },
 ]);
 
 </script>
@@ -880,7 +886,7 @@ const overviewItems = computed(() => [
                     </td>
                     <td>
                       <div class="sm-acts">
-                        <a v-if="r.status !== 'fail'" href="javascript:void(0)" @click="viewRecord(r)">查看</a>
+                        <!-- 查看暂不支持：操作列仅保留删除 -->
                         <a class="danger" href="javascript:void(0)" @click="deleteRecord(r.id)">删除</a>
                       </div>
                     </td>
@@ -1010,6 +1016,19 @@ const overviewItems = computed(() => [
           <div class="sm-modal-foot">
             <button class="sm-btn" @click="createOpen = false">取消</button>
             <button class="sm-btn primary" @click="submitCreate">创建</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 使用教程弹窗：iframe 嵌入独立引导页，固定尺寸内部自滚 -->
+      <div v-if="tutorialOpen" class="sm-modal-overlay" @click.self="closeTutorial">
+        <div class="sm-modal sm-modal-tutorial">
+          <div class="sm-tutorial-head">
+            <h3>使用教程</h3>
+            <button class="sm-btn" @click="closeTutorial">关闭</button>
+          </div>
+          <div class="sm-tutorial-frame">
+            <iframe src="/mobile-connect-guide.html" title="使用教程"></iframe>
           </div>
         </div>
       </div>

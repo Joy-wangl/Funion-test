@@ -5,11 +5,12 @@
    ① 宝妈接待表格页（基础数据 › 客服管理）
    ② 智能分流策略页（分流设置 › 智能分流）
    ========================================================= */
-import { ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import AgentTable from './AgentTable.vue';
 import StrategyBoard from './StrategyBoard.vue';
 import LiveReception from './LiveReception.vue';
 import { RC_AGENTS, type RcAgent } from './data';
+import { receptionJump } from './jump';
 import { pushToast } from '../../components/toast';
 import '../quality/style.css';
 import './rc.css';
@@ -34,6 +35,20 @@ const goStrategy = (cardId: number) => {
   groupsOpen.value = { ...groupsOpen.value, 分流设置: true };
   view.value = 'strategy';
 };
+
+/** 跨模块跳转（知识库侧宝妈接待「智能分流」按钮）：消费后清零避免重复触发 */
+const consumeJump = () => {
+  const j = receptionJump.value;
+  if (j.seq === 0) return;
+  receptionJump.value = { id: null, seq: 0 };
+  if (j.id != null) goStrategy(j.id);
+  else {
+    groupsOpen.value = { ...groupsOpen.value, 分流设置: true };
+    view.value = 'strategy';
+  }
+};
+watch(receptionJump, consumeJump);
+onMounted(consumeJump);
 
 const toggleAgentStrategy = (id: number) => {
   const agent = agents.value.find((a) => a.id === id);

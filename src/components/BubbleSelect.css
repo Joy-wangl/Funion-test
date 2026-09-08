@@ -115,3 +115,30 @@
 }
 .bselect-search input:focus { border-color: var(--color-primary); background: #fff; }
 .bselect-empty { padding: 10px 12px; font-size: 12px; color: #98a0b3; }
+/* 新建候选（creatable）：搜索输入未命中时列表底部一行「＋ 新建「xx」」，点选即创建 */
+.bselect-create {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 4px; padding: 8px 12px; border-top: 1px solid #f0f3f7; border-radius: 0 0 8px 8px;
+  font-size: 13px; color: var(--color-primary); cursor: pointer; white-space: nowrap;
+}
+.bselect-create:hover { background: #f5f8ff; }
+.bselect-create-plus { font-size: 12px; line-height: 1; }
+/* 修改已有类型（renamable）：选项 hover 尾部铅笔；点击切换行内输入行（回车/确认提交，Esc 取消） */
+.bselect-rename {
+  margin-left: auto; display: none; align-items: center;
+  padding: 2px 4px; border-radius: 6px; color: #8b92a1; cursor: pointer;
+}
+.bselect-opt:hover .bselect-rename { display: flex; }
+.bselect-rename:hover { color: var(--color-primary); background: #eef3ff; }
+.bselect-rename-form { display: flex; gap: 6px; width: 100%; }
+.bselect-rename-form input {
+  flex: 1; min-width: 0; height: 26px; padding: 0 8px;
+  border: 1px solid #e8ebf1; border-radius: 6px;
+  font-size: 12px; color: #33415e; background: #fff; outline: none;
+}
+.bselect-rename-form input:focus { border-color: var(--color-primary); }
+.bselect-rename-form button {
+  flex: none; height: 26px; padding: 0 10px; border: none; border-radius: 6px;
+  background: var(--color-primary); color: #fff; font-size: 12px; cursor: pointer;
+}
+.bselect-rename-form button:hover { background: var(--color-primary-hover); }

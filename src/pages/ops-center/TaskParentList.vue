@@ -80,11 +80,11 @@ const onReset = () => {
 
 const visible = computed(() => parentTasks.filter((p) => {
   const okTab = applied.value.tab === 'all' || p.status === applied.value.tab;
-  const okPlatform = applied.value.platform === '全部' || p.subs.some((s) => s.platform === applied.value.platform);
+  const okPlatform = applied.value.platform === '全部' || p.subs.some((s) => s.shops.some((x) => x.platform === applied.value.platform));
   const okChannel = applied.value.channel === '全部' || p.channel === applied.value.channel;
   const okCreator = !applied.value.creator || p.creator.indexOf(applied.value.creator) > -1;
   const okType = applied.value.type === '全部' || p.type === applied.value.type;
-  const okShop = !applied.value.shop || p.subs.some((s) => s.shop.indexOf(applied.value.shop) > -1);
+  const okShop = !applied.value.shop || p.subs.some((s) => s.shops.some((x) => x.shop.indexOf(applied.value.shop) > -1));
   const okPubWay = applied.value.pubWay === '全部' || p.pubWay === applied.value.pubWay;
   return okTab && okPlatform && okChannel && okCreator && okType && okShop && okPubWay;
 }));

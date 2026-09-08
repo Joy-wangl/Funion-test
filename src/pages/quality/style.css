@@ -633,7 +633,7 @@
 .qc-page .prob-tags .prob-more:hover .prob-bubble { display: flex; }
 
 /* 系列详情抽屉加宽（平台矩阵列较多） */
-.qc-page.qc-center-page .drawer { width: 960px; }
+.qc-center-page .drawer.qc-series-drawer { width: 960px; }
 
 /* ---------- 问题诊断与优化建议 ---------- */
 .qc-page .prob-item {

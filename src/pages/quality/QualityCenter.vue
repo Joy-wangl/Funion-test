@@ -16,24 +16,33 @@ import {
 } from './qcCenterData';
 import { CHAT_SESSIONS, SHOP_NAME, type ChatHit, type ChatSession, type Platform, type PlatformStat } from './data';
 import { QC_OPT_TASKS, OPT_GROUPS, OPT_PICKERS, type OptTask, type OptStatus, type StatusTab } from './qcOptData';
+import { codesMatchTagFilter } from '../quality2/qc2Data';
 import { pushToast } from '../../components/toast';
 import QcDashboard from './QcDashboard.vue';
 import QcSeriesList, { DEFAULT_SERIES_FILTER, type SeriesFilter, type SortKey } from './QcSeriesList.vue';
 import QcSeriesDrawer from './QcSeriesDrawer.vue';
+import Qc2Dashboard from '../quality2/Qc2Dashboard.vue';
+import Qc2Config from '../quality2/Qc2Config.vue';
 import QcChatModal from './QcChatModal.vue';
 import QcTrendModal from './QcTrendModal.vue';
 import QcCreateOptModal from './QcCreateOptModal.vue';
 import OptTaskView from './qcOptPage.vue';
 import './style.css';
 import './qcCenter.css';
+import '../quality2/qc2.css';
 /* React 版 App.tsx 静态引入 OpsCenter 使 sg-* 筛选样式全局生效，此处对齐 */
 import '../ops-center/OpsCenter.css';
 
-type View = 'dashboard' | 'series' | 'opt';
+type View = 'dashboard' | 'series' | 'opt' | 'cfg';
+/** 壳级模式：原功能（问题类型驱动）/ 商品标签（数据概览的标签模块切换，左侧菜单不变） */
+type Mode = 'legacy' | 'tags';
 
 defineProps<{ sidebarCollapsed: boolean }>();
 
 const view = ref<View>('dashboard');
+const mode = ref<Mode>('legacy');
+/* 模板分支内直接比较会被 TS 窄化报错，统一走 helper */
+const modeIs = (m: Mode) => mode.value === m;
 const sortKey = ref<SortKey>('orders');
 const sortDesc = ref(true);
 const detail = ref<{ series: QcCenterSeries; code?: string } | null>(null);
@@ -52,6 +61,19 @@ const updateSessionHits = (id: string, hits: ChatHit[]) => {
 };
 const draft = ref<SeriesFilter>(DEFAULT_SERIES_FILTER);
 const applied = ref<SeriesFilter>(DEFAULT_SERIES_FILTER);
+/** 标签概览 / 标签配置下钻：预设监控列表标签筛选并跳转（标签字段已合并进监控列表） */
+const pickTagCat = (cat: string | null) => {
+  const tags = cat ? [cat] : [];
+  draft.value = { ...draft.value, tags };
+  applied.value = { ...applied.value, tags };
+  view.value = 'series';
+};
+const pickTagLabel = (label: string | null) => {
+  const tags = label ? [label] : [];
+  draft.value = { ...draft.value, tags };
+  applied.value = { ...applied.value, tags };
+  view.value = 'series';
+};
 /** 责任部门绑定（全局式，持久化）：系列编码 → 部门；未绑定回退默认责任部门 */
 const dutyMap = ref<Record<string, string>>((() => {
   try { return JSON.parse(localStorage.getItem('funion:dutyDepts') || '{}'); } catch { return {}; }
@@ -116,6 +138,11 @@ const filtered = computed(() => {
   if (applied.value.duty !== '全部部门') {
     list = list.filter((s) => (dutyMap.value[s.seriesCode] ?? defaultDutyDept(s)) === applied.value.duty);
   }
+  /* 标签筛选（级联多选 + 健康等级 + 判定方式）：系列下属任一商品编码命中即保留（与编码标签页同源口径） */
+  const f = applied.value;
+  if (f.tags.length || f.tagHealth !== '全部等级' || f.tagJudge !== '全部方式') {
+    list = list.filter((s) => codesMatchTagFilter(s.seriesCode, f.tags, f.tagHealth, f.tagJudge));
+  }
   const kw = applied.value.q.trim().toLowerCase();
   if (!kw) return list;
   return list.filter(
@@ -147,10 +174,11 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
 </script>
 
 <template>
-  <div class="pm-page qc-page qc-center-page">
-    <aside class="qc-side" :class="sidebarCollapsed ? 'collapsed' : ''">
+  <div class="pm-page qc-page qc-center-page qc-mode-page">
+    <div class="qc-page qc-mode-body">
+      <aside class="qc-side" :class="sidebarCollapsed ? 'collapsed' : ''">
       <div class="qc-side-brand">
-        品控中心
+        运维管理后台
         <span>问题类型驱动 · 系列编码追踪</span>
       </div>
       <div
@@ -177,11 +205,27 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
         <span class="qc-nav-ico">⚑</span>
         <span class="qc-nav-text">优化任务</span>
       </div>
+      <div
+        class="qc-nav"
+        :class="view === 'cfg' ? 'active' : ''"
+        @click="view = 'cfg'"
+      >
+        <span class="qc-nav-ico">⚙</span>
+        <span class="qc-nav-text">标签配置</span>
+      </div>
     </aside>
 
     <div class="qc-main">
+      <!-- 模式切换仅作为数据概览的模块切换：左侧菜单与其余视图不随模式变化 -->
+      <div v-if="view === 'dashboard'" class="qc-mode-bar">
+        <div class="qc-mode-tabs">
+          <button type="button" :class="{ active: modeIs('legacy') }" @click="mode = 'legacy'">原功能</button>
+          <button type="button" :class="{ active: modeIs('tags') }" @click="mode = 'tags'">商品标签</button>
+        </div>
+        <span class="qc-mode-desc">{{ modeIs('legacy') ? '问题类型驱动 · 系列编码追踪' : '商品标签驱动 · 时机与决策' }}</span>
+      </div>
       <QcDashboard
-        v-if="view === 'dashboard'"
+        v-if="view === 'dashboard' && modeIs('legacy')"
         :opt-tasks="optTasks"
         :on-open-opt-status="(s: OptStatus) => { optStatusTab = s; view = 'opt'; }"
         :on-pick-type="(t: string) => {
@@ -193,6 +237,11 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
           const s = QC_CENTER_SERIES.find((x) => x.seriesCode === seriesCode);
           if (s) detail = { series: s, code };
         }"
+      />
+      <Qc2Dashboard
+        v-else-if="view === 'dashboard'"
+        :on-pick-cat="pickTagCat"
+        :on-pick-label="pickTagLabel"
       />
       <QcSeriesList
         v-else-if="view === 'series'"
@@ -218,12 +267,17 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
         :on-create-opt="(s: QcCenterSeries) => (createCtx = s)"
       />
       <OptTaskView
-        v-else
+        v-else-if="view === 'opt'"
         :tasks="optTasks"
         :set-tasks="(up: (ts: OptTask[]) => OptTask[]) => (optTasks = up(optTasks))"
         :status-tab="optStatusTab"
         :set-status-tab="(s: StatusTab) => (optStatusTab = s)"
       />
+      <Qc2Config
+        v-else
+        :on-pick-label="pickTagLabel"
+      />
+      </div>
     </div>
 
     <QcSeriesDrawer

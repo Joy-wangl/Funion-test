@@ -30,7 +30,7 @@ export const COLOR_ENUM = [
 </script>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import type { CSSProperties } from 'vue';
 import './BubbleSelect.css';
 
@@ -47,8 +47,12 @@ const props = defineProps<{
   style?: CSSProperties;
   /** 菜单顶部内置搜索框，按输入模糊过滤选项（长枚举场景，如自动化标签） */
   searchable?: boolean;
+  /** 可新建：菜单顶部搜索框可直接输入，输入未命中现有选项时列表底部出现「＋ 新建「xx」」，点选/回车即 change 抛出新值（是否并入选项列表由使用方决定） */
+  creatable?: boolean;
+  /** 可改名：选项 hover 尾部出铅笔，点击切换行内输入行，回车/确认抛 rename(old, new)（同步范围由使用方决定） */
+  renamable?: boolean;
 }>();
-const emit = defineEmits<{ (e: 'change', value: string): void }>();
+const emit = defineEmits<{ (e: 'change', value: string): void; (e: 'rename', oldValue: string, newValue: string): void }>();
 
 const norm = (o: string | BubbleOption): BubbleOption =>
   typeof o === 'string' ? { value: o, label: o } : o;
@@ -60,11 +64,18 @@ const rootRef = ref<HTMLDivElement | null>(null);
 const menuRef = ref<HTMLDivElement | null>(null);
 const searchRef = ref<HTMLInputElement | null>(null);
 const search = ref('');
-/* 模糊搜索：子串包含（不区分大小写）过滤 */
+/* 模糊搜索：子串包含（不区分大小写）过滤；creatable 复用同一搜索框兼作新建输入 */
+const canSearch = computed(() => props.searchable || props.creatable);
 const shownOpts = computed(() => {
   const q = search.value.trim().toLowerCase();
-  if (!props.searchable || !q) return opts.value;
+  if (!canSearch.value || !q) return opts.value;
   return opts.value.filter((o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q));
+});
+/* 新建候选：输入非空且未精确命中现有选项时，列表底部给出「＋ 新建「xx」」 */
+const createQuery = computed(() => {
+  const q = search.value.trim();
+  if (!props.creatable || !q) return '';
+  return opts.value.some((o) => o.value === q || o.label === q) ? '' : q;
 });
 const pos = ref<{ top: number; left: number; width: number; up: boolean; maxH: number } | null>(null);
 
@@ -80,8 +91,8 @@ const updatePos = () => {
   const el = rootRef.value;
   if (!el) return;
   const r = el.getBoundingClientRect();
-  /* 选项自然高度（opt 约 33px + 菜单 padding 12 + 上下边框 2，搜索框约 40px），避免 border-box 下 2px 溢出滚动条 */
-  const contentH = shownOpts.value.length * 33 + 12 + 2 + (props.searchable ? 40 : 0);
+  /* 选项自然高度（opt 约 33px + 菜单 padding 12 + 上下边框 2，搜索框约 40px，新建候选行约 33px），避免 border-box 下 2px 溢出滚动条 */
+  const contentH = shownOpts.value.length * 33 + 12 + 2 + (canSearch.value ? 40 : 0) + (createQuery.value ? 33 : 0);
   const spaceBelow = window.innerHeight - r.bottom - 6;
   const spaceAbove = r.top - 6;
   const up = contentH > spaceBelow && spaceAbove > spaceBelow;
@@ -94,12 +105,13 @@ const updatePos = () => {
 };
 
 watch(open, (v) => {
-  if (!v) { pos.value = null; return; }
+  if (!v) { pos.value = null; renaming.value = null; renameText.value = ''; return; }
   search.value = '';
-  /* 渲染后测量，等价 React useLayoutEffect；搜索型菜单自动聚焦搜索框 */
+  /* 渲染后测量，等价 React useLayoutEffect；搜索/可新建菜单自动聚焦搜索框
+     （focus 需等 pos 生效的重渲染完成，visibility:hidden 下 focus 无效） */
   requestAnimationFrame(() => {
     updatePos();
-    if (props.searchable) searchRef.value?.focus();
+    if (canSearch.value) nextTick(() => searchRef.value?.focus());
   });
   window.addEventListener('resize', updatePos);
   window.addEventListener('scroll', updatePos, true);
@@ -142,9 +154,46 @@ const menuStyle = computed<CSSProperties>(() => pos.value
 
 const pickOpt = (o: BubbleOption) => {
   if (o.disabled) return;
+  /* 改名输入中：行点击不触发选中，避免误选 */
+  if (renaming.value) return;
   if (props.value === undefined) inner.value = o.value;
   emit('change', o.value);
   open.value = false;
+};
+
+/* 修改已有类型：选项 hover 铅笔 → 行内输入行（回车/确认提交，Esc 取消） */
+const renaming = ref<string | null>(null);
+const renameText = ref('');
+const renameRef = ref<HTMLInputElement | null>(null);
+/* 输入行在 v-for 内：字符串 ref 会收成数组，用函数 ref 拿单元素（参数取 unknown 满足 VNodeRef 逆变） */
+const setRenameRef = (el: unknown) => { renameRef.value = el as HTMLInputElement | null; };
+const startRename = (o: BubbleOption) => {
+  renaming.value = o.value;
+  renameText.value = o.label;
+  nextTick(() => renameRef.value?.focus());
+};
+const cancelRename = () => { renaming.value = null; renameText.value = ''; };
+const confirmRename = (o: BubbleOption) => {
+  const v = renameText.value.trim();
+  if (!v || v === o.value) { cancelRename(); return; }
+  renaming.value = null;
+  renameText.value = '';
+  emit('rename', o.value, v);
+};
+
+/* 新建类型：搜索框输入未命中 → 底部「＋ 新建「xx」」；回车优先精确命中选项，否则创建 */
+const confirmCreate = (v: string) => {
+  if (!v) return;
+  search.value = '';
+  open.value = false;
+  emit('change', v);
+};
+const onSearchEnter = () => {
+  const q = search.value.trim();
+  if (!q) return;
+  const exact = opts.value.find((o) => o.value === q || o.label === q);
+  if (exact) { pickOpt(exact); return; }
+  if (createQuery.value) confirmCreate(q);
 };
 </script>
 
@@ -179,8 +228,14 @@ const pickOpt = (o: BubbleOption) => {
     </button>
     <Teleport to="body">
       <div v-if="open" ref="menuRef" class="bselect-menu" :style="menuStyle">
-        <div v-if="searchable" class="bselect-search">
-          <input ref="searchRef" v-model="search" placeholder="搜索" />
+        <div v-if="canSearch" class="bselect-search">
+          <input
+            ref="searchRef"
+            v-model="search"
+            :placeholder="creatable ? '搜索或输入新类型' : '搜索'"
+            @keydown.enter="onSearchEnter"
+            @keydown.esc.stop="open = false"
+          />
         </div>
         <div
           v-for="o in shownOpts"
@@ -189,19 +244,38 @@ const pickOpt = (o: BubbleOption) => {
           :class="{ selected: o.value === current, disabled: o.disabled }"
           @click="pickOpt(o)"
         >
-          <span class="bselect-check">{{ o.value === current ? '✓' : '' }}</span>
-          <svg
-            v-if="o.icon"
-            class="bselect-icon"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            :style="{ color: o.color }"
-            aria-hidden="true"
-          ><path :d="BUBBLE_ICON_PATHS[o.icon]" fill="currentColor" /></svg>
-          <span class="bselect-label" :style="o.color ? { color: o.color } : undefined">{{ o.label }}</span>
+          <template v-if="renaming === o.value">
+            <div class="bselect-rename-form" @click.stop>
+              <input
+                :ref="setRenameRef"
+                v-model="renameText"
+                @keydown.enter="confirmRename(o)"
+                @keydown.esc.stop="cancelRename"
+              />
+              <button type="button" @click.stop="confirmRename(o)">确认</button>
+            </div>
+          </template>
+          <template v-else>
+            <span class="bselect-check">{{ o.value === current ? '✓' : '' }}</span>
+            <svg
+              v-if="o.icon"
+              class="bselect-icon"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              :style="{ color: o.color }"
+              aria-hidden="true"
+            ><path :d="BUBBLE_ICON_PATHS[o.icon]" fill="currentColor" /></svg>
+            <span class="bselect-label" :style="o.color ? { color: o.color } : undefined">{{ o.label }}</span>
+            <span v-if="renamable && !o.disabled" class="bselect-rename" title="修改类型" @click.stop="startRename(o)">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.83 2.83 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
+            </span>
+          </template>
         </div>
-        <div v-if="!shownOpts.length" class="bselect-empty">无匹配项</div>
+        <div v-if="!shownOpts.length && !createQuery" class="bselect-empty">无匹配项</div>
+        <div v-if="createQuery" class="bselect-create" @click="confirmCreate(createQuery)">
+          <span class="bselect-create-plus">＋</span>新建「{{ createQuery }}」
+        </div>
       </div>
     </Teleport>
   </div>

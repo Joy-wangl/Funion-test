@@ -149,7 +149,7 @@ watch(() => props.product, (p) => {
             </div>
             <div class="sg-field">
               <label>下架原因</label>
-              <CascadeSelect class-name="sg-select" :value="filter.offReason" :groups="SG_OFF_CASCADE" all-label="全部原因" @change="(v: string) => patchFilter({ offReason: v })" />
+              <CascadeSelect class-name="sg-select" :value="filter.offReason" :groups="SG_OFF_CASCADE" all-label="全部原因" searchable @change="(v: string) => patchFilter({ offReason: v })" />
             </div>
             <div class="sg-actions">
               <button class="sg-btn" @click="doReset">重置</button>

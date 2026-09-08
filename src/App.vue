@@ -7,9 +7,12 @@ import BeePlugin from './pages/bee-plugin/BeePlugin.vue';
 import FunionS from './pages/funion-s/FunionS.vue';
 import TokenManage from './pages/token-manage/TokenManage.vue';
 import ShunMai from './pages/shunmai/ShunMai.vue';
+import KnowledgeBase from './pages/knowledge/KnowledgeBase.vue';
 import QualityCenter from './pages/quality/QualityCenter.vue';
 import AppCenter from './pages/app-center/AppCenter.vue';
 import OpsCenter from './pages/ops-center/OpsCenter.vue';
+import PublishProgress from './pages/ops-center/PublishProgress.vue';
+import GlobalMsgBell from './components/GlobalMsgBell.vue';
 import ToastWrap from './components/ToastWrap.vue';
 import './App.css';
 
@@ -48,6 +51,7 @@ defineExpose({ toggleSidebar });
         :on-change="handleTabChange"
       />
       <div class="app-header-right">
+        <GlobalMsgBell />
         <span class="app-avatar" />
         <span class="app-username">七妮妮</span>
         <div class="app-window-dots">
@@ -105,7 +109,14 @@ defineExpose({ toggleSidebar });
           <ShunMai />
         </main>
       </template>
+      <template v-else-if="activeTabKey === 'knowledge'">
+        <main class="app-content">
+          <KnowledgeBase />
+        </main>
+      </template>
     </div>
+    <!-- 发布进度面板/悬浮球：全局单例（store 驱动），跨顶部 tab 持久可见 -->
+    <PublishProgress />
     <!-- 全局标准提示（横幅式 banner）统一挂载点 -->
     <ToastWrap />
   </div>

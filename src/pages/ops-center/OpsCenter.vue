@@ -71,8 +71,11 @@ const onSubnav = (key: string, target?: PageKey) => {
   if (target) page.value = target;
 };
 
-/* 子页跨页跳转（如市场商机操作列「全网搜索」） */
-provide('opsGo', (target: PageKey) => onSubnav(target, target));
+/* 子页跨页跳转（如市场商机操作列「全网搜索」、任务详情「详情」→商品创建）；商品创建键走 clickCreate 以同步展开侧边栏分组 */
+provide('opsGo', (target: PageKey) => {
+  if (target === 'createTaobao' || target === 'createVideo' || target === 'createJm') clickCreate(target);
+  else onSubnav(target, target);
+});
 
 /* 商品创建子项：高亮 + 切页 + 展开菜单（原版 setActive + showCreate） */
 const clickCreate = (key: 'createTaobao' | 'createVideo' | 'createJm') => {

@@ -1,0 +1,415 @@
+/* =========================================================
+   品控中心 2.0 专属样式（壳布局复用 quality/style.css 的 .qc-page/.qc-side/.qc-main）
+   颜色 / 字号 / 圆角 / 阴影一律取 index.css token；CAT_COLOR / 健康色为图表色板白名单（数据驱动内联）
+   ========================================================= */
+
+/* ---------- 通用小件 ---------- */
+
+.qc2-link-btn {
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  font-size: var(--fs-base);
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.qc2-link-btn:hover { text-decoration: underline; }
+
+.qc2-seg { display: inline-flex; height: 40px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; background: var(--color-fill); }
+.qc2-seg button {
+  border: none;
+  background: none;
+  padding: 0 16px;
+  font-size: var(--fs-base);
+  color: var(--color-text-2);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.qc2-seg button + button { border-left: 1px solid var(--color-border); }
+.qc2-seg button.on { background: var(--color-primary-light); color: var(--color-primary); font-weight: 600; }
+
+.qc2-switch {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+  flex: none;
+  width: 34px;
+  height: 19px;
+  border-radius: var(--radius-lg);
+  background: var(--color-text-4);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.qc2-switch i {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--color-fill);
+  transition: left 0.15s;
+  box-shadow: var(--shadow-sm);
+}
+.qc2-switch.on { background: var(--color-primary); }
+.qc2-switch.on i { left: 17px; }
+
+/* ---------- 概览 ---------- */
+
+.qc2-dash { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px 20px; }
+
+/* 轻量化 hero（渐变 + 玻璃感装饰） */
+.qc2-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-2xl);
+  padding: 24px 32px;
+  background: linear-gradient(115deg, var(--color-primary-light) 0%, var(--color-primary-light-2) 52%, var(--color-bg) 100%);
+}
+.qc2-hero-txt { position: relative; z-index: 1; max-width: 720px; }
+.qc2-hero-chip {
+  display: inline-flex;
+  padding: 3px 12px;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-lg);
+  color: var(--color-primary);
+  font-size: var(--fs-aux);
+  font-weight: 600;
+  background: var(--color-fill);
+}
+.qc2-hero h2 { margin: 12px 0 6px; font-size: 26px; font-weight: 800; color: var(--color-text); letter-spacing: 0.5px; }
+.qc2-hero p { font-size: var(--fs-md); color: var(--color-text-2); }
+
+/* hero 右侧玻璃感装饰（纯 CSS） */
+.qc2-hero-art { position: absolute; inset: 0; pointer-events: none; }
+.qc2-hero-art i { position: absolute; border-radius: 50%; }
+.qc2-hero-art .b1 { right: 120px; top: -40px; width: 190px; height: 190px; background: var(--color-primary); opacity: 0.14; filter: blur(46px); }
+.qc2-hero-art .b2 { right: -30px; bottom: -60px; width: 220px; height: 220px; background: var(--color-primary-hover); opacity: 0.12; filter: blur(52px); }
+.qc2-hero-art .g1 {
+  right: 150px;
+  top: 34px;
+  width: 120px;
+  height: 74px;
+  border-radius: var(--radius-xl);
+  background: var(--color-fill);
+  opacity: 0.6;
+  transform: rotate(-8deg);
+  box-shadow: var(--shadow-md);
+}
+.qc2-hero-art .g2 {
+  right: 90px;
+  top: 74px;
+  width: 96px;
+  height: 60px;
+  border-radius: var(--radius-xl);
+  background: var(--color-fill);
+  opacity: 0.45;
+  transform: rotate(6deg);
+  box-shadow: var(--shadow-md);
+}
+
+/* 区块标题行（数据总览 / 占比 / 推荐共用） */
+.qc2-sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.qc2-sec-head b { font-size: var(--fs-md); color: var(--color-text); }
+.qc2-sec-head > span { font-size: var(--fs-aux); color: var(--color-text-3); }
+
+/* ---------- 本月时机推荐：独立大模块（卡片逐条标注推荐原因） ---------- */
+
+.qc2-timing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.qc2-timing-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border-2);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.qc2-timing-item:hover { border-color: var(--color-primary); box-shadow: var(--shadow-sm); }
+.qc2-timing-item-head { display: flex; align-items: center; gap: 8px; }
+.qc2-timing-item-head b { font-size: var(--fs-md); font-weight: 700; color: var(--color-text); }
+.qc2-timing-item-why { font-size: var(--fs-aux); line-height: 1.6; color: var(--color-text-3); }
+.qc2-timing-item-go { font-size: var(--fs-aux); font-weight: 600; color: var(--color-primary); }
+.qc2-timing-empty { font-size: var(--fs-aux); color: var(--color-text-3); }
+
+/* ---------- 大类命中占比：数据磁贴铺满（字号对齐品控中心 .qc-stat：值 25px/800 · 标签与占比 12px） ---------- */
+
+.qc2-pie-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.qc2-pie-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+.qc2-pie-tile:hover { background: var(--color-primary-light-2); }
+.qc2-pie-tile-head { display: flex; align-items: center; gap: 6px; font-size: var(--fs-aux); color: var(--color-text-3); }
+.qc2-pie-tile-head i { width: 8px; height: 8px; border-radius: 3px; flex: none; }
+.qc2-pie-tile-num { display: flex; align-items: baseline; gap: 8px; }
+.qc2-pie-tile-num b { font-size: 25px; font-weight: 800; line-height: 1.2; color: var(--color-text); }
+.qc2-pie-tile-num i { font-style: normal; font-size: var(--fs-aux); color: var(--color-text-3); }
+
+.qc2-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-fill);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  padding: 16px 18px;
+  min-width: 0;
+}
+/* ---------- 抽屉内容（壳复用项目统一 .drawer 规范，见 permission/style.css） ---------- */
+
+.qc-page .drawer.qc2-edit-drawer {
+  width: 720px;
+  /* .pm-page 作用域把 --radius-lg 降级为 8px（权限紧凑档）；本抽屉是业务档表单，
+     在此恢复全局输入件圆角 10px，与图二及其他业务页控件保持一致 */
+  --radius-lg: 10px;
+}
+
+/* ---------- 标签配置（规则管理台） ---------- */
+
+.qc2-config { display: flex; flex-direction: column; gap: 16px; }
+
+.qc2-cfg-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+/* 搜索框定宽：覆盖 OpsCenter.css 后加载的 .sg-input{width:100%}，保证条件与按钮同排 */
+.qc2-cfg-toolbar .qc2-cfg-search { width: 260px; flex: none; }
+/* 筛选下拉定宽：覆盖 OpsCenter.css 后加载的 .sg-select{width:100%} */
+.qc2-cfg-toolbar .qc2-cfg-filter { width: 140px; flex: none; }
+.qc2-cfg-spacer { flex: 1; }
+
+/* 新建 / 编辑统一表单件（控件规格对齐设计稿：40px 高 / 10px 圆角 / 描边浅底 / 14px 字号） */
+.qc2-edit-field > label { display: block; font-size: var(--fs-md); color: var(--color-text-2); margin-bottom: 8px; }
+.qc2-edit-field > label .req { font-style: normal; color: var(--color-danger); margin-right: 2px; }
+.qc2-cfg-text {
+  width: 100%;
+  height: 40px;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 0 12px;
+  font-size: var(--fs-base);
+  color: var(--color-text);
+  background: var(--color-fill);
+}
+.qc2-cfg-text::placeholder { color: var(--color-text-3); }
+.qc2-cfg-text:focus { outline: none; border-color: var(--color-primary); }
+/* 阈值参数：行式条件组（当/且或 + 维度 + 运算符 + 阈值/单位 + 删除，底部添加条件；各列跨行对齐，
+   周期列已移除——时间口径作为独立条件行表达；控件规格同表单件） */
+.qc2-cond-rows { display: flex; flex-direction: column; gap: 8px; }
+.qc2-cond-row { display: flex; align-items: center; gap: 8px; }
+/* 「当」占位与连接词选择同宽，保证各行后续列严格对齐 */
+.qc2-cond-when { width: 64px; flex: none; text-align: center; font-size: var(--fs-base); color: var(--color-text-2); }
+/* 行内控件宽度/伸缩：OpsCenter.css 的 .sg-select{width:100%} 后加载，须用 .qc2-cond-row 复合选择器提特异性覆盖 */
+.qc2-cond-row .qc2-cond-conj { width: 64px; flex: none; }
+.qc2-cond-row .qc2-cond-metric { flex: 1.3 1 0%; min-width: 0; width: auto; }
+.qc2-cond-row .qc2-cond-op { width: 84px; flex: none; }
+.qc2-cond-row .sg-select {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-fill);
+  font-size: var(--fs-base);
+  color: var(--color-text);
+}
+.qc2-cond-val {
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding-left: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-fill);
+  transition: border-color 0.15s;
+}
+.qc2-cond-val:focus-within { border-color: var(--color-primary); }
+.qc2-cond-val input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  background: none;
+  outline: none;
+  font-size: var(--fs-base);
+  color: var(--color-text);
+}
+.qc2-cond-val input::placeholder { color: var(--color-text-3); }
+.qc2-cond-unit {
+  flex: none;
+  margin-left: 6px;
+  padding: 0 12px;
+  align-self: center;
+  height: 16px;
+  line-height: 16px;
+  border-left: 1px solid var(--color-border);
+  font-size: var(--fs-base);
+  color: var(--color-text-3);
+}
+.qc2-cond-del {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--color-danger);
+  cursor: pointer;
+  opacity: 0.75;
+}
+.qc2-cond-del:hover { opacity: 1; background: var(--color-danger-light, rgb(230 69 92 / 8%)); }
+.qc2-cond-add {
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-fill);
+  color: var(--color-text-2);
+  font-size: var(--fs-base);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.qc2-cond-add:hover { color: var(--color-primary); border-color: var(--color-primary); }
+.qc2-cat-bs { min-width: 220px; }
+.qc2-cat-bs.sg-select { width: 100%; height: 40px; border-radius: var(--radius-lg); font-size: var(--fs-base); }
+
+/* 评估周期行：下拉 + 每 N 单位（仅指定天数/每 X 周/每 X 月档展示数量输入） */
+.qc2-cycle-row { display: flex; align-items: center; gap: 8px; }
+.qc2-cycle-row .sg-select {
+  width: 150px;
+  flex: none;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-fill);
+  font-size: var(--fs-base);
+  color: var(--color-text);
+}
+.qc2-cycle-pre { font-size: var(--fs-base); color: var(--color-text-2); }
+.qc2-cycle-num {
+  width: 72px;
+  height: 40px;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 0 8px;
+  text-align: center;
+  font-size: var(--fs-base);
+  color: var(--color-text);
+  background: var(--color-fill);
+}
+.qc2-cycle-num:focus { outline: none; border-color: var(--color-primary); }
+.qc2-cycle-unit { font-size: var(--fs-base); color: var(--color-text-3); }
+
+.qc2-cfg-layout { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 12px; align-items: start; }
+
+/* 左：大类导航 */
+.qc2-cfg-cats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  background: var(--color-fill);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  position: sticky;
+  top: 0;
+}
+.qc2-cfg-cats button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  cursor: pointer;
+  font-size: var(--fs-base);
+  color: var(--color-text-2);
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+}
+.qc2-cfg-cats button:hover { background: var(--color-primary-light-2); }
+.qc2-cfg-cats button.on { background: var(--color-primary-light); color: var(--color-primary); font-weight: 700; }
+.qc2-cfg-dot { width: 8px; height: 8px; border-radius: 3px; flex: none; }
+.qc2-cfg-cat-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qc2-cfg-cat-n { font-size: 11px; color: var(--color-text-3); font-weight: 400; }
+
+/* 右：规则表格 */
+.qc2-cfg-table {
+  background: var(--color-fill);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+.qc2-cfg-table .table { margin: 0; }
+.qc2-cfg-table tbody tr.off td { opacity: 0.6; }
+/* 列表行节奏：双行单元格行高收紧至业务表格常规（评估周期辅行已移除，内边距同步收窄） */
+.qc2-cfg-table tbody td { padding: 10px 12px; }
+.qc2-cfg-name-line { display: flex; align-items: center; gap: 8px; }
+.qc2-cfg-name-line b { font-size: var(--fs-base); color: var(--color-text); }
+.qc2-cfg-rule-ell {
+  display: block;
+  max-width: 640px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-aux);
+  color: var(--color-text-3);
+  margin-top: 2px;
+}
+
+/* 编辑抽屉表单 */
+.qc2-edit-field { margin-bottom: 16px; }
+
+/* 综合评定维度选择（AI 分析标签） */
+.qc2-dims-pick { display: flex; flex-wrap: wrap; gap: 8px; }
+.qc2-dims-chip {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-fill);
+  padding: 5px 14px;
+  font-size: var(--fs-aux);
+  color: var(--color-text-3);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.qc2-dims-chip:hover { color: var(--color-primary); border-color: var(--color-primary); }
+.qc2-dims-chip.on {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.qc2-cfg-rule {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 10px 12px;
+  font-size: var(--fs-base);
+  color: var(--color-text-2);
+  line-height: 1.7;
+  resize: vertical;
+  min-height: 96px;
+  font-family: inherit;
+  box-sizing: border-box;
+  background: var(--color-fill);
+}
+.qc2-cfg-rule::placeholder { color: var(--color-text-3); }
+.qc2-cfg-rule:focus { outline: none; border-color: var(--color-primary); }

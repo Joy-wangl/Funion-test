@@ -500,3 +500,67 @@
   cursor: pointer;
 }
 .qc-center-page .qc-create-form .ev-thumb .x:hover { color: var(--danger); border-color: var(--danger); }
+
+/* ---------- 原功能 / 商品标签 模式切换（内容列头部，分段控件沿用 1.0 规范） ---------- */
+.qc-center-page.qc-mode-page {
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  min-height: 100%;
+}
+.qc-mode-bar { display: flex; align-items: center; gap: 14px; padding: 0 0 16px; }
+.qc-mode-tabs { display: inline-flex; gap: 2px; padding: 3px; background: #e9edf4; border-radius: 10px; }
+.qc-mode-tabs button {
+  border: none;
+  background: transparent;
+  padding: 7px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #5b6475;
+  cursor: pointer;
+  font-family: inherit;
+}
+.qc-mode-tabs button.active { background: #fff; color: #4f7cff; font-weight: 700; box-shadow: 0 1px 4px rgba(32, 41, 58, 0.1); }
+.qc-mode-desc { font-size: 12px; color: #8b92a1; }
+.qc-mode-page > .qc-page { flex: 1; min-height: auto; }
+
+/* ---------- 标签合并件：健康徽章 / 平台矩阵标签列 ---------- */
+.qc-center-page .qc-health-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid currentColor;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* ---------- 系列详情 · 商品标签维度：平台页签切换 + 标签按大类分组分行（健康度各平台不一致不做跨平台聚合，只展示情况不展示规则） ---------- */
+.qc-center-page .qc-tag-plat-tabs { margin: 0 0 10px; }
+.qc-center-page .qc-tag-none { color: var(--text-4); font-size: 12px; }
+/* 当前平台标签面板 */
+.qc-center-page .qc-tag-plat-card {
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff;
+}
+.qc-center-page .qc-tag-cat-row { display: flex; align-items: flex-start; gap: 8px; padding: 3px 0; }
+.qc-center-page .qc-tag-cat-k {
+  width: 82px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 4px;
+  font-size: 12px;
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qc-center-page .qc-tag-cat-k i { width: 6px; height: 6px; border-radius: 2px; flex: none; }
+.qc-center-page .qc-tag-cat-row .prob-tags { flex: 1; min-width: 0; }

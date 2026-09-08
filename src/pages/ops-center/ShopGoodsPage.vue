@@ -3,9 +3,11 @@ import { computed, reactive, ref, watch } from 'vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
 import SortTh from '../../components/SortTh.vue';
+import MoreActions from '../../components/MoreActions.vue';
+import Modal from '../../components/Modal.vue';
 import { pushToast } from '../../components/toast';
 import { PLATFORM_LOGO } from './data';
-import { sgProducts, SG_CHIPS, SG_STATUS_META, sgRowActions, SG_OFF_FAIL_TYPES, SG_OFF_GROUP, SG_OFF_GROUPS, sgWarnType } from './shopGoodsData';
+import { sgProducts, SG_CHIPS, JM_CHIPS, SG_STATUS_META, sgRowActions, SG_OFF_FAIL_TYPES, SG_OFF_GROUP, SG_OFF_GROUPS, sgWarnType } from './shopGoodsData';
 import type { SgProduct, SgTab } from './shopGoodsData';
 import SgDetailPage from './SgDetailPage.vue';
 import JmCreateDetailPage from './JmCreateDetailPage.vue';
@@ -35,12 +37,80 @@ const jmDetailRow = computed(() => detail.value && detail.value.storePlatform ==
 /* 批量调价：勾选 + 弹窗 + toast */
 const checked = ref<Set<string>>(new Set());
 const bpOpen = ref(false);
+/* 京麦详情打开时是否直达编辑态（行操作「修改」） */
+const detailEdit = ref(false);
 
 /* 筛选 */
 const emptyFilter = { store: '', title: '', goodsId: '', seriesCode: '', tpl: '', linkId: '', source: '全部来源', publisher: '', strategy: '全部策略', publishMode: '全部', hitWarn: '全部' };
 const filter = ref({ ...emptyFilter });
 const applied = ref({ ...emptyFilter });
 const patchFilter = (patch: Partial<typeof emptyFilter>) => { filter.value = { ...filter.value, ...patch }; };
+
+/* ---------- 京麦（京东 POP）商品列表：对齐京麦 11.0 商品列表（状态页签/查询/批量改价改库存/状态流转） ---------- */
+const jmList = ref<SgProduct[]>(sgProducts['京麦']);
+const jmEmpty = { title: '', goodsId: '', skuId: '', itemNo: '', brand: '', cat: '' };
+const jmFilter = ref({ ...jmEmpty });
+const jmApplied = ref({ ...jmEmpty });
+const patchJmFilter = (patch: Partial<typeof jmEmpty>) => { jmFilter.value = { ...jmFilter.value, ...patch }; };
+/* 批量快捷修改：京东价/可用库存（仅在售+待售可勾选） */
+const jmChecked = ref<Set<string>>(new Set());
+const jmCheckable = (p: SgProduct) => p.status === 'jmOnsale' || p.status === 'jmPending';
+const jmSel = computed(() => jmList.value.filter((p) => jmChecked.value.has(p.id) && jmCheckable(p)).length);
+const jmSelRows = computed(() => rows.value.filter((p) => jmCheckable(p)));
+const jmAllChecked = computed(() => jmSelRows.value.length > 0 && jmSelRows.value.every((p) => jmChecked.value.has(p.id)));
+const toggleJmCheck = (id: string) => { const n = new Set(jmChecked.value); if (n.has(id)) n.delete(id); else n.add(id); jmChecked.value = n; };
+const toggleAllJm = () => {
+  const n = new Set(jmChecked.value);
+  jmSelRows.value.forEach((p) => { if (jmAllChecked.value) n.delete(p.id); else n.add(p.id); });
+  jmChecked.value = n;
+};
+const jmPriceOpen = ref(false);
+const jmStockOpen = ref(false);
+const jmPriceVal = ref('');
+const jmStockVal = ref('');
+const applyJmPrice = () => {
+  const v = Number(jmPriceVal.value.trim());
+  if (!jmPriceVal.value.trim() || !Number.isFinite(v) || v <= 0) { pushToast('请输入有效的京东价', 'warning'); return; }
+  jmList.value.forEach((p) => { if (jmChecked.value.has(p.id)) p.jdPrice = v.toFixed(2); });
+  pushToast(`批量改价成功：已对 ${jmChecked.value.size} 件商品生效`);
+  jmChecked.value = new Set(); jmPriceVal.value = ''; jmPriceOpen.value = false;
+};
+const applyJmStock = () => {
+  const v = Number(jmStockVal.value.trim());
+  if (!jmStockVal.value.trim() || !Number.isInteger(v) || v < 0) { pushToast('请输入有效的可用库存（整数）', 'warning'); return; }
+  jmList.value.forEach((p) => { if (jmChecked.value.has(p.id)) p.stockAvail = String(v); });
+  pushToast(`批量改库存成功：已对 ${jmChecked.value.size} 件商品生效`);
+  jmChecked.value = new Set(); jmStockVal.value = ''; jmStockOpen.value = false;
+};
+const nowStr = () => {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+};
+/* 状态流转：在售⇄待售、删除→回收站、回收站→还原/彻底删除、复制→新待售商品、审核中→催审 */
+const jmDelTarget = ref<SgProduct | null>(null);
+const jmAct = (p: SgProduct, a: string) => {
+  if (a === '修改') { detailEdit.value = true; detail.value = p; return; }
+  if (a === '催审') { pushToast('已催审：审核结果将通过京麦消息通知'); return; }
+  if (a === '上架') { p.status = 'jmOnsale'; p.jmSub = undefined; p.shelfTime = nowStr(); pushToast('已上架：商品状态变更为在售'); return; }
+  if (a === '下架') { p.status = 'jmPending'; p.jmSub = '自主下架'; p.offTime = nowStr(); pushToast('已下架：商品转入待售商品管理'); return; }
+  if (a === '删除') { p.status = 'jmRecycle'; p.jmSub = undefined; p.offTime = nowStr(); pushToast('已删除：移入商品回收站（保留 45 天）'); return; }
+  if (a === '还原') { p.status = 'jmPending'; p.jmSub = '自主下架'; pushToast('已还原：商品回到待售'); return; }
+  if (a === '彻底删除') { jmDelTarget.value = p; return; }
+  if (a === '复制') {
+    const nid = String(Number(p.id) + 100);
+    jmList.value = [...jmList.value, { ...p, id: nid, linkId: nid, skuId: `${nid}1`, itemNo: `${p.itemNo ?? 'JM'}-C`, status: 'jmPending', jmSub: '未上架', jmReject: undefined }];
+    pushToast('复制成功：已生成新的待售商品');
+  }
+};
+const confirmJmDelete = () => {
+  const t = jmDelTarget.value;
+  if (!t) return;
+  jmList.value = jmList.value.filter((x) => x.id !== t.id);
+  jmDelTarget.value = null;
+  pushToast('已彻底删除：商品无法恢复');
+};
+const openJmDetail = (p: SgProduct) => { detailEdit.value = false; detail.value = p; };
 
 /* 消息通知跳转定位：收到令牌后回全部态并按商品ID自动查询 */
 const props = defineProps<{ locate?: { id: string; ts: number } | null }>();
@@ -56,6 +126,21 @@ const warnConds = computed(() => ['all', 'selling', 'off'].includes(chip.value))
 const isFailOff = (p: SgProduct) => !!p.offType && SG_OFF_FAIL_TYPES.includes(p.offType);
 
 const rows = computed(() => {
+  /* 京麦：独立查询口径（状态页签 + 商品名/商品ID/SKU ID/货号/品牌/类目） */
+  if (tab.value === '京麦') {
+    const jmChip = JM_CHIPS.find((c) => c.key === chip.value) ?? JM_CHIPS[0];
+    return jmList.value.filter((p) => {
+      if (!jmChip.match(p.status)) return false;
+      const a = jmApplied.value;
+      if (a.title && !p.title.includes(a.title)) return false;
+      if (a.goodsId && !p.id.includes(a.goodsId)) return false;
+      if (a.skuId && !(p.skuId ?? '').includes(a.skuId)) return false;
+      if (a.itemNo && !(p.itemNo ?? '').includes(a.itemNo)) return false;
+      if (a.brand && !(p.brand ?? '').includes(a.brand)) return false;
+      if (a.cat && !(p.catPath ?? '').includes(a.cat)) return false;
+      return true;
+    });
+  }
   const chipDef = SG_CHIPS.find((c) => c.key === chip.value) ?? SG_CHIPS[0];
   const list = sgProducts[tab.value].filter((p) => {
     if (!chipDef.match(p.status)) return false;
@@ -115,12 +200,15 @@ const showOffPop = (e: MouseEvent, text: string) => {
 const hideOffPop = () => { offPop.show = false; };
 
 const countOf = (key: string) => {
-  const def = SG_CHIPS.find((c) => c.key === key)!;
-  return sgProducts[tab.value].filter((p) => def.match(p.status)).length;
+  const jm = tab.value === '京麦';
+  const def = (jm ? JM_CHIPS : SG_CHIPS).find((c) => c.key === key)!;
+  return (jm ? jmList.value : sgProducts[tab.value]).filter((p) => def.match(p.status)).length;
 };
+/* 状态页签：京麦用商品列表子菜单口径，其余平台用通用口径 */
+const chipsDef = computed(() => (tab.value === '京麦' ? JM_CHIPS : SG_CHIPS));
 
-/* 批量调价除淘宝外各 TAB 提供，且仅「销售中」状态商品可勾选调价 */
-const canPrice = computed(() => tab.value !== '淘宝');
+/* 批量调价除淘宝外各 TAB 提供，且仅「销售中」状态商品可勾选调价；京麦走自己的批量改价/改库存 */
+const canPrice = computed(() => tab.value !== '淘宝' && tab.value !== '京麦');
 const sellingSel = computed(() => sgProducts[tab.value].filter((p) => checked.value.has(p.id) && p.status === 'selling').length);
 const sellRows = computed(() => rows.value.filter((p) => p.status === 'selling'));
 const allChecked = computed(() => sellRows.value.length > 0 && sellRows.value.every((p) => checked.value.has(p.id)));
@@ -135,11 +223,14 @@ const toggleAll = () => {
   checked.value = n;
 };
 
-const onTab = (t: SgTab) => { tab.value = t; chip.value = 'all'; offType.value = '全部'; checked.value = new Set(); };
+const onTab = (t: SgTab) => {
+  tab.value = t; chip.value = 'all'; offType.value = '全部'; checked.value = new Set();
+  jmChecked.value = new Set(); jmFilter.value = { ...jmEmpty }; jmApplied.value = { ...jmEmpty };
+};
 </script>
 
 <template>
-  <JmCreateDetailPage v-if="detail && jmDetailRow" :row="jmDetailRow" @back="detail = null" @open-pub="pushToast('已关联发布任务')" />
+  <JmCreateDetailPage v-if="detail && jmDetailRow" :row="jmDetailRow" :start-edit="detailEdit" @back="detail = null; detailEdit = false" @open-pub="pushToast('已关联发布任务')" />
   <SgDetailPage v-else-if="detail" :product="detail" @back="detail = null" />
   <div v-else class="sg-page">
     <div class="sg-tabs">
@@ -149,12 +240,49 @@ const onTab = (t: SgTab) => { tab.value = t; chip.value = 'all'; offType.value =
     </div>
 
     <div class="sg-statusbar">
-      <button v-for="c in SG_CHIPS" :key="c.key" class="sg-chip" :class="chip === c.key ? 'active' : ''" @click="onChip(c.key)">
+      <button v-for="c in chipsDef" :key="c.key" class="sg-chip" :class="chip === c.key ? 'active' : ''" @click="onChip(c.key)">
         {{ c.label }}({{ countOf(c.key) }})
       </button>
     </div>
 
-    <div class="sg-filter">
+    <!-- 京麦查询：对齐京麦 11.0 商品列表查询设置（商品名/商品ID/SKU ID/货号/品牌/类目）+ 批量快捷改价改库存 -->
+    <div v-if="tab === '京麦'" class="sg-filter">
+      <div class="sg-grid">
+        <div class="sg-field">
+          <label>商品名</label>
+          <input class="sg-input" placeholder="请输入商品名" :value="jmFilter.title" @input="patchJmFilter({ title: ($event.target as HTMLInputElement).value })" />
+        </div>
+        <div class="sg-field">
+          <label>商品ID</label>
+          <input class="sg-input" placeholder="请输入商品ID" :value="jmFilter.goodsId" @input="patchJmFilter({ goodsId: ($event.target as HTMLInputElement).value })" />
+        </div>
+        <div class="sg-field">
+          <label>SKU ID</label>
+          <input class="sg-input" placeholder="请输入SKU ID" :value="jmFilter.skuId" @input="patchJmFilter({ skuId: ($event.target as HTMLInputElement).value })" />
+        </div>
+        <div class="sg-field">
+          <label>货号</label>
+          <input class="sg-input" placeholder="请输入货号" :value="jmFilter.itemNo" @input="patchJmFilter({ itemNo: ($event.target as HTMLInputElement).value })" />
+        </div>
+        <div class="sg-field">
+          <label>品牌</label>
+          <input class="sg-input" placeholder="请输入品牌" :value="jmFilter.brand" @input="patchJmFilter({ brand: ($event.target as HTMLInputElement).value })" />
+        </div>
+        <div class="sg-field">
+          <label>类目</label>
+          <input class="sg-input" placeholder="请输入类目关键词" :value="jmFilter.cat" @input="patchJmFilter({ cat: ($event.target as HTMLInputElement).value })" />
+        </div>
+        <div class="sg-actions">
+          <div v-if="jmSel > 0" class="sg-mini">已选 <b>{{ jmSel }}</b> 件商品</div>
+          <button class="sg-btn primary" :disabled="jmSel === 0" :title="jmSel === 0 ? '请先勾选在售/待售商品' : '对勾选商品批量修改京东价'" @click="jmPriceOpen = true">批量改价</button>
+          <button class="sg-btn primary" :disabled="jmSel === 0" :title="jmSel === 0 ? '请先勾选在售/待售商品' : '对勾选商品批量修改可用库存'" @click="jmStockOpen = true">批量改库存</button>
+          <button class="sg-btn" @click="jmFilter = { ...jmEmpty }; jmApplied = { ...jmEmpty }">重置</button>
+          <button class="sg-btn primary" @click="jmApplied = { ...jmFilter }">查询</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="sg-filter">
       <div class="sg-grid">
         <div class="sg-field">
           <label>店铺名</label>
@@ -258,7 +386,7 @@ const onTab = (t: SgTab) => { tab.value = t; chip.value = 'all'; offType.value =
 
     <div class="sg-card">
       <div :style="{ overflow: 'auto' }">
-        <table class="sg-table">
+        <table v-if="tab !== '京麦'" class="sg-table">
           <thead>
             <tr>
               <th v-if="canPrice" :style="{ width: '44px' }"><input type="checkbox" :checked="allChecked" @change="toggleAll" /></th>
@@ -352,6 +480,69 @@ const onTab = (t: SgTab) => { tab.value = t; chip.value = 'all'; offType.value =
             </tr>
           </tbody>
         </table>
+        <!-- 京麦列表：商品信息（含商品ID/SKU ID/货号）+ 京东价 + 可用库存 + 商品状态（含待售子状态/驳回原因）+ 平铺操作 -->
+        <table v-else class="sg-table jm-table">
+          <thead>
+            <tr>
+              <th :style="{ width: '44px' }"><input type="checkbox" :checked="jmAllChecked" @change="toggleAllJm" /></th>
+              <th :style="{ width: '420px' }">商品信息</th>
+              <th :style="{ width: '110px' }">京东价</th>
+              <th :style="{ width: '110px' }">可用库存</th>
+              <th :style="{ width: '180px' }">商品状态</th>
+              <th :style="{ width: '220px' }">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="p in rows" :key="p.id">
+              <td>
+                <input v-if="jmCheckable(p)" type="checkbox" :checked="jmChecked.has(p.id)" @change="toggleJmCheck(p.id)" />
+              </td>
+              <td>
+                <div class="sg-goods">
+                  <img class="sg-thumb" :src="p.img" alt="" />
+                  <div class="sg-ginfo">
+                    <div class="sg-gtitle"><Ellipsis :text="p.title" /></div>
+                    <div class="sg-gid">
+                      商品ID：<span>{{ p.id }}</span>
+                      <button class="sg-copy" title="复制" @click="copy(p.id)">⧉</button>
+                    </div>
+                    <div class="sg-gid">
+                      SKU ID：<span>{{ p.skuId }}</span>
+                      <button class="sg-copy" title="复制" @click="copy(p.skuId ?? '')">⧉</button>
+                    </div>
+                    <div class="sg-gid">
+                      货号：<span>{{ p.itemNo }}</span>
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td><b class="jm-price">¥{{ p.jdPrice }}</b></td>
+              <td>{{ p.stockAvail }}</td>
+              <td>
+                <div class="sg-status">
+                  <span class="sg-dot" :style="{ background: SG_STATUS_META[p.status].dot }" />
+                  <span :style="{ color: SG_STATUS_META[p.status].color }">{{ SG_STATUS_META[p.status].label }}</span>
+                </div>
+                <div v-if="p.jmReject" class="sg-failtag" :title="p.jmReject">
+                  审核驳回 <i class="sg-fail-i" :title="p.jmReject">i</i>
+                </div>
+                <div v-else-if="p.jmSub" class="sg-offtag normal">{{ p.jmSub }}</div>
+              </td>
+              <td>
+                <div class="jm-acts">
+                  <a
+                    v-for="a in rowActions(p)"
+                    :key="a"
+                    class="sg-link"
+                    href="javascript:void(0)"
+                    @click.prevent="jmAct(p, a)"
+                  >{{ a }}</a>
+                  <MoreActions :items="[{ label: '商品详情', onClick: () => openJmDetail(p) }]" />
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
         <div v-if="rows.length === 0" class="sg-empty">
           <div class="sg-empty-wrap">
             <div class="sg-empty-icon">◌</div>
@@ -368,6 +559,49 @@ const onTab = (t: SgTab) => { tab.value = t; chip.value = 'all'; offType.value =
         @close="bpOpen = false"
         @ok="pushToast"
       />
+      <!-- 京麦批量改价：快捷修改京东价（勾选在售/待售商品后批量生效） -->
+      <Modal v-if="jmPriceOpen" title="批量改价" :sub="`将对 ${jmSel} 件商品生效`" @close="jmPriceOpen = false">
+        <div class="bp-rows">
+          <div class="bp-row">
+            <span class="bp-label">京东价</span>
+            <input v-model="jmPriceVal" class="sg-input bp-input" placeholder="如 39.90" />
+            <span class="bp-unit">元</span>
+            <span class="bp-hint">批量修改勾选商品的京东价</span>
+          </div>
+        </div>
+        <template #foot>
+          <button class="btn" @click="jmPriceOpen = false">取消</button>
+          <button class="btn primary" @click="applyJmPrice">确定</button>
+        </template>
+      </Modal>
+      <!-- 京麦批量改库存：快捷修改可用库存（勾选在售/待售商品后批量生效） -->
+      <Modal v-if="jmStockOpen" title="批量改库存" :sub="`将对 ${jmSel} 件商品生效`" @close="jmStockOpen = false">
+        <div class="bp-rows">
+          <div class="bp-row">
+            <span class="bp-label">可用库存</span>
+            <input v-model="jmStockVal" class="sg-input bp-input" placeholder="如 100" />
+            <span class="bp-unit">件</span>
+            <span class="bp-hint">批量修改勾选商品的可用库存</span>
+          </div>
+        </div>
+        <template #foot>
+          <button class="btn" @click="jmStockOpen = false">取消</button>
+          <button class="btn primary" @click="applyJmStock">确定</button>
+        </template>
+      </Modal>
+      <!-- 京麦彻底删除确认：回收站商品彻底删除后无法恢复 -->
+      <Modal v-if="jmDelTarget" title="删除确认" sub="彻底删除后商品无法恢复" @close="jmDelTarget = null">
+        <div class="bp-rows">
+          <div class="bp-row">
+            <span class="bp-label">商品</span>
+            <span>{{ jmDelTarget.title }}（{{ jmDelTarget.id }}）</span>
+          </div>
+        </div>
+        <template #foot>
+          <button class="btn" @click="jmDelTarget = null">取消</button>
+          <button class="btn primary" @click="confirmJmDelete">确认删除</button>
+        </template>
+      </Modal>
     </div>
 
     <div v-if="offPop.show" class="sg-fail-pop" :style="{ left: offPop.x + 'px', top: offPop.y + 'px' }">

@@ -91,7 +91,7 @@ const tipItem = computed(() => {
       <text :x="cx" :y="cy - 2" text-anchor="middle" class="pie-total">{{ total }}</text>
       <text :x="cx" :y="cy + 16" text-anchor="middle" class="pie-sub">问题数</text>
     </svg>
-    <div v-if="tip && tipItem" class="pie-tip" :style="{ left: tip.x, top: tip.y }">
+    <div v-if="tip && tipItem" class="pie-tip" :style="{ left: tip.x + 'px', top: tip.y + 'px' }">
       <div class="pie-tip-line">
         <i :style="{ background: tipItem.color }" />
         {{ tipItem.label }}

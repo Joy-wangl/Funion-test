@@ -11,6 +11,9 @@
 }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
+/* 只留滚动交互，默认隐藏滚动条 */
+html,pre.box{scrollbar-width:none}
+*::-webkit-scrollbar{display:none}
 body{
   font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
   background:radial-gradient(900px 500px at 15% -5%,#1e3a5f 0%,var(--bg) 50%);

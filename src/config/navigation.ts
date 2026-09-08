@@ -24,10 +24,11 @@ export interface TabConfig {
 export const navigation: TabConfig[] = [
   { key: 'app-center', label: '应用中心', menus: [] },
   { key: 'ops-center', label: '智能运营中心', menus: [] },
-  { key: 'qc-center', label: '品控中心', menus: [] },
+  { key: 'qc-center', label: '运维管理后台', menus: [] },
   { key: 'reception-center', label: '聚合接待', menus: [] },
   { key: 'bee-plugin', label: '蜜蜂插件', menus: [] },
   { key: 'funion-s', label: 'Funion s', menus: [] },
   { key: 'token-manage', label: '令牌管理', menus: [] },
   { key: 'shunmai', label: '顺买商机', menus: [] },
+  { key: 'knowledge', label: '知识库', menus: [] },
 ];

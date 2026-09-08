@@ -8,7 +8,6 @@ import { computed, ref } from 'vue';
 import { LIVE_PLATFORMS, liveStoresOf, type LivePlatform, type LiveStore } from './liveData';
 import { RC_COMPANY, RC_GROUPS } from './data';
 import BubbleSelect from '../../components/BubbleSelect.vue';
-import SortTh from '../../components/SortTh.vue';
 
 const nowStr = () => {
   const d = new Date();
@@ -161,13 +160,39 @@ const query = () => {
 
     <!-- ---------- 视图切换：异常驱动分段器 ---------- -->
     <div v-if="shown.length > 0" class="rc-live-viewbar">
-      <div class="rc-viewseg">
-        <button type="button" :class="{ on: view === 'all' }" @click="view = 'all'">全部<i>{{ viewCounts.all }}</i></button>
-        <button type="button" :class="{ on: view === 'alert' }" @click="view = 'alert'">仅异常<i :class="{ hot: viewCounts.alert > 0 }">{{ viewCounts.alert }}</i></button>
-        <button type="button" :class="{ on: view === 'online' }" @click="view = 'online'">仅在线<i>{{ viewCounts.online }}</i></button>
-        <button type="button" :class="{ on: view === 'offline' }" @click="view = 'offline'">仅离线<i>{{ viewCounts.offline }}</i></button>
+      <div class="rc-viewbar-left">
+        <div class="rc-viewseg">
+          <button type="button" :class="{ on: view === 'all' }" @click="view = 'all'">全部<i>{{ viewCounts.all }}</i></button>
+          <button type="button" :class="{ on: view === 'alert' }" @click="view = 'alert'">仅异常<i :class="{ hot: viewCounts.alert > 0 }">{{ viewCounts.alert }}</i></button>
+          <button type="button" :class="{ on: view === 'online' }" @click="view = 'online'">仅在线<i>{{ viewCounts.online }}</i></button>
+          <button type="button" :class="{ on: view === 'offline' }" @click="view = 'offline'">仅离线<i>{{ viewCounts.offline }}</i></button>
+        </div>
+        <!-- 卡片态排序入口：与原表头排序同逻辑（降序 → 升序 → 取消） -->
+        <div class="rc-sortseg">
+          <span class="rc-sortseg-label">排序</span>
+          <button type="button" :class="{ on: sort?.key === 'net' }" title="点击排序：在线端数" @click="clickSort('net')">
+            在线状态
+            <svg class="sort-th-ico" width="12" height="14" viewBox="0 0 12 14" aria-hidden="true">
+              <path d="M6 1.2l3.4 4H2.6l3.4-4z" :fill="sortCls('net') === 'asc' ? 'var(--color-primary)' : '#c3c9d4'" />
+              <path d="M6 12.8l-3.4-4h6.8l3.4 4z" :fill="sortCls('net') === 'desc' ? 'var(--color-primary)' : '#c3c9d4'" />
+            </svg>
+          </button>
+          <button type="button" :class="{ on: sort?.key === 'recv' }" title="点击排序：接待数" @click="clickSort('recv')">
+            接待
+            <svg class="sort-th-ico" width="12" height="14" viewBox="0 0 12 14" aria-hidden="true">
+              <path d="M6 1.2l3.4 4H2.6l3.4-4z" :fill="sortCls('recv') === 'asc' ? 'var(--color-primary)' : '#c3c9d4'" />
+              <path d="M6 12.8l-3.4-4h6.8l3.4 4z" :fill="sortCls('recv') === 'desc' ? 'var(--color-primary)' : '#c3c9d4'" />
+            </svg>
+          </button>
+          <button type="button" :class="{ on: sort?.key === 'unreplied' }" title="点击排序：未回复数" @click="clickSort('unreplied')">
+            未回复
+            <svg class="sort-th-ico" width="12" height="14" viewBox="0 0 12 14" aria-hidden="true">
+              <path d="M6 1.2l3.4 4H2.6l3.4-4z" :fill="sortCls('unreplied') === 'asc' ? 'var(--color-primary)' : '#c3c9d4'" />
+              <path d="M6 12.8l-3.4-4h6.8l3.4 4z" :fill="sortCls('unreplied') === 'desc' ? 'var(--color-primary)' : '#c3c9d4'" />
+            </svg>
+          </button>
+        </div>
       </div>
-      <span class="rc-view-tip">{{ view === 'all' ? '监控视图：按店铺浏览全部账号' : view === 'alert' ? '异常视图：仅展示未回复账号' : view === 'online' ? '在线视图：仅展示 PC 在线账号' : '离线视图：仅展示 PC 离线账号' }}</span>
     </div>
 
     <!-- ---------- 店铺流：单列全宽卡 ---------- -->
@@ -193,100 +218,82 @@ const query = () => {
           <a class="rc-link">修改</a>
         </div>
 
-        <table class="rc-acc-table">
-          <thead>
-            <tr>
-              <th>账号</th>
-              <SortTh label="在线状态" :state="sortCls('net')" tip="点击排序：在线端数" @sort="clickSort('net')" />
-              <SortTh label="接待" :state="sortCls('recv')" tip="点击排序：接待数" @sort="clickSort('recv')" />
-              <SortTh label="未回复" :state="sortCls('unreplied')" tip="点击排序：未回复数" @sort="clickSort('unreplied')" />
-              <th>接待开关</th>
-              <th>登录开关</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <template v-for="a in s.rows" :key="a.id">
-              <tr :class="{ alert: a.unreplied > 0 }">
-                <td>
-                  <div class="rc-td-name">
-                    <!-- 展开角标：与品控系列列表同款 chevron 交互（无下级时占位保对齐） -->
-                    <button
-                      v-if="a.staff && a.staff.length"
-                      type="button"
-                      class="rc-acc-caret"
-                      :class="{ open: accOpen[a.id] }"
-                      :title="accOpen[a.id] ? '收起客服' : '展开客服'"
-                      @click="toggleAcc(a.id)"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6" /></svg>
-                    </button>
-                    <span v-else class="rc-acc-caret ph" aria-hidden="true">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6" /></svg>
-                    </span>
-                    <div class="rc-acc-main">
-                      <span class="rc-acc-name">{{ a.name }}</span>
-                      <div class="rc-acc-id">ID: {{ a.id }}</div>
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  <span class="rc-td-net">
-                    <span class="rc-net-chip" :class="{ on: a.pc }">PC</span>
-                    <span class="rc-net-chip" :class="{ on: a.mobile }">移动</span>
-                  </span>
-                </td>
-                <td class="rc-td-num">{{ a.recv }}</td>
-                <td class="rc-td-num"><b :class="{ red: a.unreplied > 0 }">{{ a.unreplied }}</b></td>
-                <td>
-                  <span
-                    v-if="a.full"
-                    class="rc-switch"
-                    :class="{ on: a.recvSwitch }"
-                    @click="toggleSwitch(s.name, a.id, 'recvSwitch')"
-                  ><i /></span>
-                  <span v-else class="rc-td-dash">—</span>
-                </td>
-                <td>
-                  <span
-                    v-if="a.full"
-                    class="rc-switch"
-                    :class="{ on: a.loginSwitch }"
-                    @click="toggleSwitch(s.name, a.id, 'loginSwitch')"
-                  ><i /></span>
-                  <span v-else class="rc-td-dash">—</span>
-                </td>
-                <td>
-                  <div class="rc-ops">
-                    <button v-if="a.transfer" type="button" class="rc-transfer" title="转移接待">转移</button>
-                    <button v-if="a.pull" class="rc-pull" title="拉取未回复">拉取</button>
+        <!-- 账号卡片：网格卡片（业务反馈卡片化），字段与交互与表版完全一致 -->
+        <div class="rc-acc-cards">
+          <template v-for="a in s.rows" :key="a.id">
+            <div class="rc-acc-card" :class="{ alert: a.unreplied > 0 }">
+              <div class="rc-card-head">
+                <!-- 展开角标：与表版同款 chevron 交互（无下级时占位保对齐） -->
+                <button
+                  v-if="a.staff && a.staff.length"
+                  type="button"
+                  class="rc-acc-caret"
+                  :class="{ open: accOpen[a.id] }"
+                  :title="accOpen[a.id] ? '收起客服' : '展开客服'"
+                  @click="toggleAcc(a.id)"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6" /></svg>
+                </button>
+                <span v-else class="rc-acc-caret ph" aria-hidden="true">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6" /></svg>
+                </span>
+                <div class="rc-acc-main">
+                  <span class="rc-acc-name">{{ a.name }}</span>
+                  <div class="rc-acc-id">ID: {{ a.id }}</div>
+                </div>
+                <span class="rc-td-net">
+                  <span class="rc-net-chip" :class="{ on: a.pc }">PC</span>
+                  <span class="rc-net-chip" :class="{ on: a.mobile }">移动</span>
+                </span>
+              </div>
+              <div class="rc-card-metrics">
+                <span class="rc-card-m">接待<b>{{ a.recv }}</b></span>
+                <span class="rc-card-m">未回复<b :class="{ red: a.unreplied > 0 }">{{ a.unreplied }}</b></span>
+              </div>
+              <div class="rc-card-foot">
+                <span class="rc-card-ctrls">
+                  <span class="rc-card-ctrl">
+                    接待开关
+                    <span
+                      v-if="a.full"
+                      class="rc-switch"
+                      :class="{ on: a.recvSwitch }"
+                      @click="toggleSwitch(s.name, a.id, 'recvSwitch')"
+                    ><i /></span>
                     <span v-else class="rc-td-dash">—</span>
+                  </span>
+                  <span class="rc-card-ctrl">
+                    登录开关
+                    <span
+                      v-if="a.full"
+                      class="rc-switch"
+                      :class="{ on: a.loginSwitch }"
+                      @click="toggleSwitch(s.name, a.id, 'loginSwitch')"
+                    ><i /></span>
+                    <span v-else class="rc-td-dash">—</span>
+                  </span>
+                </span>
+                <span class="rc-ops rc-card-ops">
+                  <button v-if="a.transfer" type="button" class="rc-transfer" title="转移接待">转移</button>
+                  <button v-if="a.pull" class="rc-pull" title="拉取未回复">拉取</button>
+                  <span v-else class="rc-td-dash">—</span>
+                </span>
+              </div>
+              <!-- 下级：客服维度子列表（展开态与表版一致） -->
+              <div v-if="accOpen[a.id] && a.staff" class="rc-card-staff">
+                <div v-for="st in a.staff" :key="`${a.id}-${st.name}`" class="rc-card-staff-row">
+                  <div class="rc-sub-main">
+                    <div class="rc-sub-name">{{ st.name }}</div>
+                    <div class="rc-acc-id">{{ st.group }}</div>
                   </div>
-                </td>
-              </tr>
-              <!-- 下级：客服维度子行 -->
-              <template v-if="accOpen[a.id] && a.staff">
-                <tr v-for="st in a.staff" :key="`${a.id}-${st.name}`" class="rc-subrow">
-                  <td>
-                    <div class="rc-sub-main">
-                      <div class="rc-sub-name">{{ st.name }}</div>
-                      <div class="rc-acc-id">{{ st.group }}</div>
-                    </div>
-                  </td>
-                  <td><span class="rc-td-dash">—</span></td>
-                  <td class="rc-td-num">{{ st.recv }}</td>
-                  <td class="rc-td-num"><b :class="{ red: st.unreplied > 0 }">{{ st.unreplied }}</b></td>
-                  <td><span class="rc-td-dash">—</span></td>
-                  <td><span class="rc-td-dash">—</span></td>
-                  <td><span class="rc-td-dash">—</span></td>
-                </tr>
-              </template>
-            </template>
-            <tr v-if="s.accounts.length === 0">
-              <td colspan="7" class="rc-td-empty">暂无账号</td>
-            </tr>
-          </tbody>
-        </table>
+                  <span class="rc-card-m">接待<b>{{ st.recv }}</b></span>
+                  <span class="rc-card-m">未回复<b :class="{ red: st.unreplied > 0 }">{{ st.unreplied }}</b></span>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+        <div v-if="s.accounts.length === 0" class="rc-acc-empty">暂无账号</div>
 
         <div v-if="view === 'all' && s.total > PAGE" class="rc-more" @click="expanded = { ...expanded, [s.name]: !expanded[s.name] }">
           {{ expanded[s.name] ? '收起' : `查看更多(${s.total - PAGE}个)` }}

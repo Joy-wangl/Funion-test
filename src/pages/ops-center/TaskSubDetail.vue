@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, inject, ref } from 'vue';
 import type { ParentTask, SubTask } from './data';
 import { retrySub } from './data';
 import { pushToast } from '../../components/toast';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import TcRange from './TcRange.vue';
-import { stepsOf, stepLabels } from './tcSteps';
+import { firstStepFailed, createPageOf, type CreatePageKey } from './tcSteps';
+import TcStepsCell from './TcStepsCell.vue';
+import TcShopsCell from './TcShopsCell.vue';
 
 const props = defineProps<{ parent: ParentTask }>();
 
@@ -87,12 +89,13 @@ const visible = computed(() => subs.value.filter((s) => {
   const okTab =
     applied.value.tab === 'all' ||
     (applied.value.tab === 'done' ? s.status === 'success' : applied.value.tab === 'failed' ? s.status === 'failed' : s.status === applied.value.tab);
-  const okChip = applied.value.tab !== 'failed' || applied.value.chip === '全部' || s.reason === applied.value.chip;
+  /* 失败原因/平台/店铺/是否重试：任一店铺结果命中即可 */
+  const okChip = applied.value.tab !== 'failed' || applied.value.chip === '全部' || s.shops.some((x) => x.reason === applied.value.chip);
   const okTpl = !applied.value.templateNo || s.templateNo.indexOf(applied.value.templateNo) > -1;
   const okLink = !applied.value.linkId || s.linkId.indexOf(applied.value.linkId) > -1;
-  const okPlatform = applied.value.platform === '全部' || s.platform === applied.value.platform;
-  const okShop = !applied.value.shop || s.shop.indexOf(applied.value.shop) > -1;
-  const okRetried = applied.value.retried === '全部' || (applied.value.retried === '是') === s.retried;
+  const okPlatform = applied.value.platform === '全部' || s.shops.some((x) => x.platform === applied.value.platform);
+  const okShop = !applied.value.shop || s.shops.some((x) => x.shop.indexOf(applied.value.shop) > -1);
+  const okRetried = applied.value.retried === '全部' || s.shops.some((x) => (applied.value.retried === '是') === x.retried);
   return okTab && okChip && okTpl && okLink && okPlatform && okShop && okRetried;
 }));
 
@@ -118,6 +121,9 @@ const retryOne = (s: SubTask) => {
   pushToast('重试中…');
   window.setTimeout(() => pushToast('重试成功，任务状态已同步'), 1200);
 };
+/* 详情：除首节点失败外的任务可跳商品创建（按首个发布店铺平台映射子页） */
+const opsGo = inject<(target: CreatePageKey) => void>('opsGo');
+const goCreate = (s: SubTask) => opsGo?.(createPageOf(s.shops[0]?.platform ?? '淘宝'));
 </script>
 
 <template>
@@ -219,22 +225,10 @@ const retryOne = (s: SubTask) => {
               </div>
             </td>
             <td>
-              <div class="tc-steps" :class="s.status === 'queued' ? 'gray' : ''">
-                <div v-for="(st, i) in stepsOf(s)" :key="stepLabels[i]" class="tc-step">
-                  <i :class="st.dot" />
-                  <span>{{ stepLabels[i] }}：</span>
-                  <span class="v" :class="st.cls">{{ st.v }}</span>
-                </div>
-              </div>
+              <TcStepsCell :sub="s" />
             </td>
             <td>
-              <div class="tc-pf">
-                <span>平台名称</span>
-                <span class="tc-pf-shop">
-                  <i class="tc-pf-badge">淘</i>
-                  {{ s.shop }}
-                </span>
-              </div>
+              <TcShopsCell :sub="s" />
             </td>
             <td>
               <div class="tc-cell-lines">
@@ -243,8 +237,9 @@ const retryOne = (s: SubTask) => {
               </div>
             </td>
             <td v-if="!isQueued" class="actions-col">
+              <a v-if="!firstStepFailed(s)" class="tc-link" @click.prevent="goCreate(s)">详情</a>
               <a v-if="s.status === 'failed'" class="tc-link" @click.prevent="retryOne(s)">重试</a>
-              <span v-else class="tc-dash">–</span>
+              <span v-if="firstStepFailed(s) && s.status !== 'failed'" class="tc-dash">–</span>
             </td>
           </tr>
         </tbody>

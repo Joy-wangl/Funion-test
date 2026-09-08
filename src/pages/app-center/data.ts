@@ -169,15 +169,6 @@ export const CREATOR_DEPT: Record<string, string> = {
 export const creatorDept = (name: string): string =>
   INITIAL_MEMBERS.find((m) => m.name === name)?.dept ?? CREATOR_DEPT[name] ?? '其他部门';
 
-/** 平台公告 */
-export interface PlatformNotice { id: string; title: string; date: string; tag: string; content: string; }
-
-export const PLATFORM_NOTICES: PlatformNotice[] = [
-  { id: 'pn-1', title: '应用中心新版上线：首页与贡献榜发布', date: '2026/08/20', tag: '公告', content: '为帮助大家更快发现好应用，应用中心全新上线「首页」：支持最近使用、我收藏的应用、应用上新与升级公告、平台公告、贡献榜等能力，欢迎体验并反馈建议。' },
-  { id: 'pn-2', title: '应用市场例行维护通知', date: '2026/08/15', tag: '维护', content: '为保障服务稳定，平台将于 8 月 16 日 02:00 - 04:00 进行系统例行维护，期间应用的添加、更新操作将短暂不可用，请提前安排相关操作。' },
-  { id: 'pn-3', title: '创作者激励计划报名开启', date: '2026/08/08', tag: '活动', content: '本月起，上榜个人/部门贡献榜的创作者将获得季度激励与「创作之星」标识，最佳应用榜上榜应用将在首页获得推荐位，期待大家的优秀作品。' },
-];
-
 /** 首页轮播彩蛋位：应用中心三张 banner 图，点击弹出喝咖啡彩蛋提示 */
 export const AC_EASTER_BANNERS: { src: string; alt: string }[] = [
   { src: '/ac-banners/ac-banner-square.png', alt: '应用广场' },

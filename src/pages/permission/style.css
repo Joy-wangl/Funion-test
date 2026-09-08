@@ -403,6 +403,8 @@
 .pm-page .modal.md { width: 640px; }
 .pm-page .modal.lg { width: 820px; }
 .pm-page .modal.xl { width: 1080px; max-width: 94vw; }
+/* 加大一档：实时监控图表等大图表弹窗 */
+.pm-page .modal.xxl { width: 1360px; max-width: 96vw; max-height: 92vh; }
 .pm-page .modal-head { padding: 18px 20px; display: flex; align-items: center; border-bottom: 1px solid var(--border-2); }
 .pm-page .modal-head .m-title { font-size: 16px; font-weight: 600; }
 .pm-page .modal-head .m-sub { font-size: 12px; color: var(--text-3); margin-top: 3px; }

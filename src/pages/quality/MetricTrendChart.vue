@@ -147,8 +147,8 @@ function smoothPath(pts: { x: number; y: number }[]): string {
       v-if="hover && visible.length > 0"
       class="mt-tip"
       :style="{
-        left: hover.px,
-        top: hover.py,
+        left: hover.px + 'px',
+        top: hover.py + 'px',
         transform: hover.px > wrapW() - 190 ? 'translate(calc(-100% - 12px), -50%)' : 'translate(12px, -50%)',
       }"
     >

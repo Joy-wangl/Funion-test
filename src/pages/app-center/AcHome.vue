@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /* 应用中心首页（1:1 移植自 AppCenter.tsx 的 renderHome） */
 import { computed } from 'vue';
-import { AC_EASTER_BANNERS, PLATFORM_NOTICES, RANK_RANGES, creatorDept, usageInRange, type AppItem, type FeedbackItem } from './data';
+import { AC_EASTER_BANNERS, RANK_RANGES, creatorDept, usageInRange, type AppItem, type FeedbackItem } from './data';
 import { IC } from './acHelpers';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import AcSvg from './AcSvg.vue';
@@ -20,7 +20,6 @@ const props = defineProps<{
   rankOpen: string | null;
   fbFilter: 'all' | 'pending' | 'replied';
   fbList: FeedbackItem[];
-  onNotice: (id: string) => void;
   onBannerIdx: (i: number) => void;
   onEaster: () => void;
   onOpenDetail: (id: string) => void;
@@ -89,29 +88,22 @@ const fbShown = computed(() => props.fbList.filter((f) => {
   return props.fbFilter === 'all' || (props.fbFilter === 'replied') === replied;
 }));
 
-/* 轮播 = 平台公告（文字）+ 彩蛋 banner（图片）；图片位点击走彩蛋提示 */
-const bannerTotal = PLATFORM_NOTICES.length + AC_EASTER_BANNERS.length;
-const curNotice = computed(() => (props.bannerIdx < PLATFORM_NOTICES.length ? PLATFORM_NOTICES[props.bannerIdx] : null));
-const curImg = computed(() => (props.bannerIdx < PLATFORM_NOTICES.length ? null : AC_EASTER_BANNERS[props.bannerIdx - PLATFORM_NOTICES.length]));
+/* 轮播仅保留应用中心三张彩蛋 banner；点击走喝咖啡彩蛋提示 */
+const curImg = computed(() => AC_EASTER_BANNERS[props.bannerIdx] ?? null);
 </script>
 
 <template>
   <div class="ap-home">
     <div class="ap-home-banner-row">
-      <div class="ap-banner" :class="curImg ? 'img-mode' : ''" @click="curNotice ? onNotice(curNotice.id) : onEaster()">
-        <template v-if="curNotice">
-          <em class="ap-banner-tag">{{ curNotice.tag }} · {{ curNotice.date }}</em>
-          <h3>{{ curNotice.title }}</h3>
-          <p>{{ curNotice.content }}</p>
-        </template>
-        <img v-else class="ap-banner-img" :src="curImg!.src" :alt="curImg!.alt">
+      <div class="ap-banner" @click="onEaster()">
+        <img v-if="curImg" class="ap-banner-img" :src="curImg.src" :alt="curImg.alt">
         <div class="ap-banner-dots" @click.stop>
           <button
-            v-for="i in bannerTotal"
-            :key="i"
+            v-for="(b, i) in AC_EASTER_BANNERS"
+            :key="b.src"
             type="button"
-            :class="i - 1 === bannerIdx ? 'on' : ''"
-            @click="onBannerIdx(i - 1)"
+            :class="i === bannerIdx ? 'on' : ''"
+            @click="onBannerIdx(i)"
           />
         </div>
       </div>

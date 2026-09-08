@@ -1042,6 +1042,32 @@
 }
 /* 重点操作二次确认弹窗：略窄，正文常规字号 */
 .sm-modal-confirm { width: 420px; }
+/* 使用教程弹窗：大尺寸近全屏，iframe 嵌入引导页 */
+.sm-modal-tutorial {
+  width: min(1280px, calc(100vw - 96px));
+  height: min(880px, 92vh);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sm-tutorial-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+}
+.sm-tutorial-head h3 { margin: 0; }
+.sm-tutorial-frame {
+  flex: 1;
+  min-height: 0;
+}
+.sm-tutorial-frame iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
 .sm-modal-confirm .sm-modal-body {
   font-size: 13px;
   color: #465064;

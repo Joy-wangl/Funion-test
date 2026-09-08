@@ -29,6 +29,9 @@ function footAction(p: SgProduct): { text: string; cls: string } {
       return { text: '立即上架', cls: 'primary' };
     case 'draft':
       return { text: '发布上架', cls: 'primary' };
+    default:
+      /* 京麦等其它平台商品走各自详情页（JmCreateDetailPage），此处仅兜底保证 switch 类型完备 */
+      return { text: '立即上架', cls: 'primary' };
   }
 }
 

@@ -5,7 +5,7 @@ import { omProducts, toSgProduct } from './data';
 import ProductTable from './ProductTable.vue';
 import SgDetailPage from './SgDetailPage.vue';
 import { sgRowActions, SG_CHIPS } from './shopGoodsData';
-import BubbleSelect, { COLOR_ENUM } from '../../components/BubbleSelect.vue';
+import BubbleSelect from '../../components/BubbleSelect.vue';
 import type { BubbleOption } from '../../components/BubbleSelect.vue';
 import { pushToast } from '../../components/toast';
 
@@ -17,72 +17,25 @@ const SHOP_OPTIONS = [...new Set(omProducts.map((r) => r.storeMeta.text))];
 const CAT1_OPTIONS = [...new Set(omProducts.map((r) => r.category.split('/')[0]))];
 const CAT2_OPTIONS = [...new Set(omProducts.map((r) => r.category.split('/')[1]).filter(Boolean))];
 
-/* 星星/旗帜彩色枚举：同色集（灰红橙黄绿蓝靛紫）不同图标（star/flag），旗帜多一项空白 */
-const STAR_OPTIONS: BubbleOption[] = COLOR_ENUM.map((c) => ({ value: c.name, label: c.name, icon: 'star', color: c.color }));
-const FLAG_OPTIONS: BubbleOption[] = [{ value: '空白', label: '空白' }, ...COLOR_ENUM.map((c) => ({ value: c.name, label: c.name, icon: 'flag' as const, color: c.color }))];
-
-/* 自动化标签枚举：基础 5 项 + 业务全量标签（下拉支持模糊搜索） */
-const AUTO_TAG_OPTIONS = [
-  '全部', '爆款', '滞销', '清仓', '新品',
-  '武汉-多多暴力自动化-单规格-竞品', '武汉-多多暴力自动化-免费-竞品', '武汉-抖音暴力自动化-折扣-竞品',
-  '武汉-多多优卓饰品自动化-活动+推广', '武汉-多多暴力自动化-只有推广裂变', '南昌-京东暴力自动化-商品卡成本115',
-  '单品5折', '单', '武汉-多多暴力自动化-量化运营-强付费-竞品', '武汉-多多暴力自动化-强付费-竞品',
-  '武汉-多多暴力自动化-只有活动', '单品直降', '测试使用', '22', '成本+快递', '暴力', '单品直降4.5折', '个人测试',
-  '武汉-暴力自动化-5折', '武汉-多多暴力自动化-全店推广', '允臻精选', '武汉-抖音暴力自动化-竞品',
-  '武汉-抖音暴力自动化-4.2折-竞品', 'AI测试', '暴力熊', '暴力-竞品',
-  '武汉-多多暴力自动化-单规格-竞品-优卓饰品', '武汉-抖音暴力自动化', '武汉-多多暴力自动化-免费',
-  '武汉-抖音暴力自动化-小茶日记', '武汉-多多暴力自动化-单规格', '武汉-抖音暴力自动化-单品直降-竞品',
-  '武汉-多多暴力自动化-量化运营-免费', '武汉-多多暴力自动化-只有推广', '杭州-暴力自动化-淘宝-普通',
-  '杭州-暴力自动化-淘宝-秒杀', '杭州-暴力自动化-视频号-手', '南昌-快手暴力自动化-商品卡成本115',
-  '武汉-多多暴力自动化-活动+强付费推广', '杭州-暴力自动化-淘宝-顺买', '武汉-抖音暴力自动化- 8折-竞品',
-  '武汉-抖音暴力自动化-店铺8折-竞品', '武汉-抖音暴力自动化-4.2折', '武汉-多多暴力自动化-活动+推广',
-  '武汉-多多暴力自动化-强付费', '快手自动化测试', '武汉-多多暴力自动化-活动+推广-竞品',
-  '南昌-抖音暴力自动化-无折扣', '武汉-多多暴力自动化-量化运营-强付费-竞品-优卓饰品',
-  '武汉-多多暴力自动化-量化运营-免费-竞品', '武汉自动化-活动+推广', '测试过滤-竞品',
-  '武汉-抖音暴力自动化-无折扣', '武汉-抖音暴力自动化-折扣', '南昌-快手暴力自动化-免费（成本*150%后抹零+1.9）',
-  '武汉-多多优卓饰品自动化-活动+推广-竞品', '朋意丞瑁家居清洁专卖店', '推广裂变-推广+活动',
-  '武汉-多多暴力自动化-只有推广-竞品', '武汉-抖音暴力自动化-单品直降', '推广裂变',
-  '武汉-多多暴力自动化-小茶日记', '武汉-多多暴力自动化-只有活动-竞品', '武汉-抖音暴力自动化-无折扣-竞品',
-  '22-竞品', '南昌-暴力自动化', '武汉-抖音暴力自动化-店铺8折',
-  '武汉-多多暴力自动化-只有活动-竞品-优卓饰品', '武汉-多多暴力自动化-全店推广-竞品',
-  '南昌-抖音暴力自动化-单品直降5.5', '武汉-抖音暴力自动化-单品直降4.5折', '武汉-抖音暴力自动化- 8折',
-  '杭州-暴力自动化-视频号-快', '测试使用-竞品', '测试过滤', '武汉-暴力自动化',
-];
-
 /** ID数据筛选器字段：标题仅作占位展示，不作为选择项；cond=条件型（先选 低于/高于/等于/介于 再输入值）；所有条件统一单列展示 */
 interface IdField { label: string; options: (string | BubbleOption)[]; cond?: boolean }
 const idSelectFields: IdField[] = [
   { label: '店铺', options: SHOP_OPTIONS },
-  { label: '采购', options: ['陈晓', '刘洋', '周敏'] },
   { label: '运营组', options: ['运营一组', '运营二组', '运营三组'] },
   { label: '运营专员', options: ['王芳', '李娜', '赵磊'] },
   { label: '运营助理', options: ['孙悦', '吴倩'] },
-  { label: '发生毛利2', options: PROFIT_OPTIONS, cond: true },
-  { label: '发生毛利3', options: PROFIT_OPTIONS, cond: true },
-  { label: '发生毛利4', options: PROFIT_OPTIONS, cond: true },
-  { label: '发生净利润', options: PROFIT_OPTIONS, cond: true },
-  { label: '星星', options: STAR_OPTIONS },
-  { label: '旗帜', options: FLAG_OPTIONS },
 ];
 
 const idSelectFields2: IdField[] = [
   { label: '出仓利润', options: PROFIT_OPTIONS, cond: true },
-  { label: '禁用仓', options: YES_NO_OPTIONS },
   { label: '查看全仓', options: YES_NO_OPTIONS },
   { label: '请选择项目', options: ['全部项目', '新品项目', '爆品项目', '清仓项目'] },
-  { label: '请选择爆品', options: YES_NO_OPTIONS },
 ];
 
 const idSelectFields3: IdField[] = [
-  { label: '毛二利润率', options: RATE_OPTIONS, cond: true },
-  { label: '毛四利润率', options: RATE_OPTIONS, cond: true },
-  { label: '毛五利润率', options: RATE_OPTIONS, cond: true },
   { label: '毛六利润率', options: RATE_OPTIONS, cond: true },
-  { label: '运营毛五利', options: RATE_OPTIONS, cond: true },
   { label: '运营毛六利', options: RATE_OPTIONS, cond: true },
-  { label: '运营毛三（减税）', options: RATE_OPTIONS, cond: true },
   { label: '运营毛四（减税）', options: RATE_OPTIONS, cond: true },
-  { label: '运营毛五（减税）', options: RATE_OPTIONS, cond: true },
   { label: '运营毛六（减税）', options: RATE_OPTIONS, cond: true },
 ];
 
@@ -119,10 +72,8 @@ const onAction = (r: ProductRow, a: string) => { if (a === '商品详情') detai
 
 /* 数字相关列：表头加排序（点击循环 降序→升序→取消） */
 const NUMERIC_KEYS = [
-  '发生毛利2', '发生毛利3', '发生毛利4', '发生净利润',
   'yesterday', 'week7', 'refund', 'refundAfter',
-  '毛二利润率', '毛四利润率', '毛五利润率', '毛六利润率',
-  '运营毛五利', '运营毛六利', '运营毛三（减税）', '运营毛四（减税）', '运营毛五（减税）', '运营毛六（减税）',
+  '毛六利润率', '运营毛六利', '运营毛四（减税）', '运营毛六（减税）',
   '总广告费', '外仓率最小值 %', '外仓率最大值 %',
 ];
 const sortKey = ref<string | null>(null);
@@ -193,11 +144,10 @@ const hiddenCols = ref<string[]>([]);
 /* 查询条件字段 → 列表扩展列（key 多与筛选标签一致；备注列按标注显示为「备注」；▦ 气泡可控制显隐） */
 const QUERY_COLS: { key: string; label: string }[] = [
   '系列编码',
-  '采购', '运营组', '运营专员', '运营助理',
-  '发生毛利2', '发生毛利3', '发生毛利4', '发生净利润', '星星', '旗帜',
+  '运营组', '运营专员', '运营助理',
   '出仓利润', '备注',
-  '毛二利润率', '毛四利润率', '毛五利润率', '毛六利润率', '运营毛五利', '运营毛六利',
-  '运营毛三（减税）', '运营毛四（减税）', '运营毛五（减税）', '运营毛六（减税）',
+  '毛六利润率', '运营毛六利',
+  '运营毛四（减税）', '运营毛六（减税）',
   '总广告费', '经营大类', '一级类目', '二级类目',
 ].map((label) => ({ key: label, label }));
 /* 气泡全量字段 = 原有 9 项（结构不变）+ 查询条件扩展列 */
@@ -377,11 +327,6 @@ const onLog = () => {
               <input class="id-input" placeholder="外仓率最大值 %" />
             </div>
           </div>
-          <div class="id-field">
-            <label>自动化标签</label>
-            <BubbleSelect class-name="id-select" default-value="自动化标签" searchable :options="AUTO_TAG_OPTIONS" />
-          </div>
-
           <!-- 按钮组一列（单排）展示：▦ 最左 + 业务操作 + 重置/查询最右，嵌入网格末位右对齐 -->
           <div class="id-actions">
             <button class="id-btn icon" :class="{ on: hiddenCols.length > 0 }" title="管理列表字段" @click="openColPop">▦</button>

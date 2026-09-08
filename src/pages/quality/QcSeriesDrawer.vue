@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /* ---------- 系列编码详情抽屉（无任务/审核维度） ---------- */
 import { computed, ref } from 'vue';
-import { AFTER_SALES_ORDERS, type ChatHit, type ChatSession } from './data';
+import { AFTER_SALES_ORDERS, type ChatHit, type ChatSession, type Platform } from './data';
 import {
   PROBLEM_TYPE_COLOR,
   pct,
@@ -10,6 +10,7 @@ import {
   type QcCenterSeries,
 } from './qcCenterData';
 import { OPT_STATUS_LABELS, type OptTask } from './qcOptData';
+import { CAT_COLOR, QC2_CATS, QC2_CODES, briefOf, seriesTagBrief, type Qc2Code } from '../quality2/qc2Data';
 import TypeBars from './TypeBars.vue';
 import PlatformMatrix from './PlatformMatrix.vue';
 import SessionCard from './SessionCard.vue';
@@ -49,11 +50,41 @@ const shownSessions = computed(() => (chatTab.value === 'all' ? sessions.value :
 const problemHits = computed(() => (selCode.value ? selCode.value.problemHits : props.series.problemHits));
 const hitsTotal = computed(() => problemHits.value.reduce((s, h) => s + h.count, 0));
 const hits = computed(() => platformProblemHits(selCodes.value));
+
+/* 商品标签维度：标签命中按「该平台在售编码」聚合；健康度各平台不一致不做跨平台聚合，只展示情况不展示规则 */
+const qc2Scope = computed(() => {
+  const scope = new Set(selCodes.value.map((c) => c.code));
+  return QC2_CODES.filter((c) => scope.has(c.code));
+});
+/* 平台页签切换：全部态看系列各编码在该平台的命中情况；具体编码态看该编码在该平台的命中情况 */
+const platTab = ref<string>(props.series.platforms[0] ?? '');
+const activePlat = computed(() => (props.series.platforms.includes(platTab.value as Platform) ? platTab.value : props.series.platforms[0] ?? '') as Platform);
+const platTabCounts = computed(() => props.series.platforms.map((pl) => {
+  const codes = qc2Scope.value.filter((c) => c.platforms.includes(pl));
+  return { pl, count: codes.length ? briefOf(codes).labels.length : 0 };
+}));
+const platScopeCodes = computed(() => qc2Scope.value.filter((c) => c.platforms.includes(activePlat.value)));
+/* 标签按大类分组分行，避免多 chips 无序换行显得杂乱 */
+const groupsOf = (codes: Qc2Code[]) => {
+  const labels = codes.length ? briefOf(codes).labels : [];
+  return QC2_CATS.map((cat) => ({ cat, items: labels.filter((l) => l.cat === cat) })).filter((g) => g.items.length);
+};
+/* 具体编码态：该编码在当前平台内的命中分组 */
+const platTagGroups = computed(() => groupsOf(platScopeCodes.value));
+/* 全部态：系列维度聚合（编码命中 ∪ 系列维度命中，按标签 id 去重；系列维度标签仅在此展示，编码态不重复） */
+const allTagGroups = computed(() => {
+  const labels = seriesTagBrief(props.series.seriesCode).labels;
+  return QC2_CATS.map((cat) => ({ cat, items: labels.filter((l) => l.cat === cat) })).filter((g) => g.items.length);
+});
+const visibleGroups = computed(() => (selCode.value ? platTagGroups.value : allTagGroups.value));
+const noneText = computed(() => (selCode.value
+  ? (platScopeCodes.value.length ? '暂无标签命中' : '该编码未在此平台上架')
+  : '暂无标签命中'));
 </script>
 
 <template>
   <div class="drawer-mask" @click="props.onClose" />
-  <div class="drawer">
+  <div class="drawer qc-series-drawer">
     <div class="drawer-head">
       <div class="d-title">系列编码详情</div>
       <span class="x" @click="props.onClose">
@@ -152,6 +183,34 @@ const hits = computed(() => platformProblemHits(selCodes.value));
         :problem-hits="hits"
         :show-last-order="false"
       />
+
+      <!-- 商品标签：模块置底；全部态看所有编码各平台去重后汇总，具体编码态平台页签看该编码在各平台的命中情况 -->
+      <div class="section-title">商品标签</div>
+      <div v-if="selCode" class="qc-range-toggle qc-code-tabs qc-tag-plat-tabs">
+        <button
+          v-for="t in platTabCounts"
+          :key="t.pl"
+          type="button"
+          :class="activePlat === t.pl ? 'active' : ''"
+          @click="platTab = t.pl"
+        >{{ t.pl }} {{ t.count }}</button>
+      </div>
+      <div class="qc-tag-plat-card">
+        <div v-if="visibleGroups.length" class="qc-tag-cat-rows">
+          <div v-for="g in visibleGroups" :key="g.cat" class="qc-tag-cat-row">
+            <span class="qc-tag-cat-k" :title="g.cat"><i :style="{ background: CAT_COLOR[g.cat] || '#4f7cff' }" />{{ g.cat }}</span>
+            <div class="prob-tags">
+              <span
+                v-for="l in g.items"
+                :key="l.id"
+                class="tag"
+                :style="{ background: `${CAT_COLOR[l.cat] || '#4f7cff'}1a`, color: CAT_COLOR[l.cat] || '#4f7cff' }"
+              >{{ l.name }}</span>
+            </div>
+          </div>
+        </div>
+        <div v-else class="qc-tag-none">{{ noneText }}</div>
+      </div>
     </div>
     <div class="drawer-foot">
       <button class="btn primary" @click="props.onCreateOpt">创建优化任务</button>

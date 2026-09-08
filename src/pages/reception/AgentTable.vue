@@ -4,16 +4,20 @@
    多公司树形表：公司父行（可展开）→ 分组标签 → 成员子表
    筛选 / 分页（按公司行）/ 导出 / 转移会话
    ========================================================= */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
   RC_COMPANY, RC_COMPANIES, RC_COMPANY_GROUPS, RC_ALL_GROUPS,
   RC_GROUP_STRATEGY_INIT, RC_STRATEGIES,
-  rcAgentLabel, rcCompanySumOf, rcCsvOf, rcHoursLabel, rcMonitorOf, rcOrderOf, rcSalesLabel, rcTimeoutOf, type RcAgent,
+  rcAgentLabel, rcCompanySumOf, rcCsvOf, rcDutyOf, rcHoursLabel, rcOrderOf, rcSalesLabel, rcTimeoutOf, rcTimelineOf, type RcAgent,
 } from './data';
 import Modal from '../../components/Modal.vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import MoreActions from '../../components/MoreActions.vue';
+import CascadeSelect from '../../components/CascadeSelect.vue';
 import SortTh from '../../components/SortTh.vue';
+import RecordModal from './RecordModal.vue';
+import RealtimeData from './RealtimeData.vue';
+import RcMonChartModal, { type MonChartScope } from './RcMonChartModal.vue';
 
 interface Props {
   agents: RcAgent[];
@@ -51,15 +55,6 @@ const STATUS_CLS: Record<string, string> = { 在线: 'rc-st on', 小休: 'rc-st 
 /** AI 回复占比 = AI 回复数 ÷ 总会话数（人工+AI） */
 function aiRateOf(ai: number, human: number) { return ai + human > 0 ? Math.round((ai / (ai + human)) * 100) : 0; }
 
-/** 饼图扇形 path（起/止角为弧度） */
-const piePath = (cx: number, cy: number, r: number, a0: number, a1: number) => {
-  const x0 = (cx + r * Math.cos(a0)).toFixed(3);
-  const y0 = (cy + r * Math.sin(a0)).toFixed(3);
-  const x1 = (cx + r * Math.cos(a1)).toFixed(3);
-  const y1 = (cy + r * Math.sin(a1)).toFixed(3);
-  return `M${cx},${cy} L${x0},${y0} A${r},${r} 0 ${a1 - a0 > Math.PI ? 1 : 0} 1 ${x1},${y1} Z`;
-};
-
 const draft = ref<Filter>({ ...EMPTY_FILTER });
 const applied = ref<Filter>({ ...EMPTY_FILTER });
 const page = ref(1);
@@ -91,14 +86,102 @@ const toggleSort = (k: SortKey) => {
 const sortIco = (k: SortKey): 'none' | 'asc' | 'desc' => (sortKey.value === k ? sortDir.value : 'none');
 
 const transfer = ref<{ mode: 'single'; agent: RcAgent } | { mode: 'batch' } | null>(null);
-/** 转移目标级联选择：组 或 组内成员（单选） */
+/** 转移目标：组（组内在线均摊） 或 组内成员（单选） */
 const pick = ref<{ kind: 'group'; group: string } | { kind: 'agent'; id: number } | null>(null);
-/** 级联：右栏当前预览的分组（默认第一组） */
-const cascActive = ref<string>(RC_COMPANY_GROUPS[RC_COMPANY]?.[0] ?? '');
-/** 值班监控弹窗（操作列点击） */
-const monitor = ref<RcAgent | null>(null);
-/** 值班监控饼图 tab：值班/登录/WS */
-const monTab = ref<'duty' | 'login' | 'ws'>('duty');
+/** 转移目标搜索关键字（按成员名过滤分组区块） */
+const transferKw = ref('');
+/** 值班监控弹窗：操作列入口=单人块；分组头入口=当前分组内全员堆叠（全部 tab=公司全员） */
+type MonState = { kind: 'agent'; agent: RcAgent } | { kind: 'group'; company: string; group: string };
+const monitor = ref<MonState | null>(null);
+/** 接待记录弹窗（操作列第一位入口，预选该客服定位） */
+const recordAgent = ref<RcAgent | null>(null);
+/** 接待记录弹窗公司级入口（公司行：分组/客服默认全部） */
+const recordCompany = ref<string | null>(null);
+/** 内容区主 tab：绩效指标（本页）/ 实时数据（实时指标列表） */
+const mainTab = ref<'kpi' | 'rt'>('kpi');
+/** 实时监控图表弹窗：公司行 / 分组头 / 客服行三维度入口 */
+const monChart = ref<MonChartScope | null>(null);
+/** 分组头入口：全部 tab 下等同公司维度 */
+const openGroupChart = (c: string) => {
+  const g = tabMap.value[c] ?? 'all';
+  monChart.value = g === 'all' ? { kind: 'company', company: c } : { kind: 'group', company: c, group: g };
+};
+const openGroupMon = (c: string) => { monitor.value = { kind: 'group', company: c, group: tabMap.value[c] ?? 'all' }; };
+/** 值班监控抽屉查询条件：分组/客服两级级联多选（值=客服叶子集，组行✓=整组全选，空选=不限）+ 名称关键字；查询按钮生效（每次开抽屉重置） */
+const monSel = ref<string[]>([]);
+const monKw = ref('');
+/** 已提交的查询口径（monPersons 依此统计） */
+const monQuery = ref<{ sel: string[]; kw: string }>({ sel: [], kw: '' });
+/** 组内客服名（入口公司口径） */
+const monAgentsOfGroup = (g: string) => {
+  const m = monitor.value;
+  if (!m) return [] as string[];
+  /* 单人态公司挂在 agent 上，分组态在顶层：先归一再过滤 */
+  const company = m.kind === 'agent' ? m.agent.company : m.company;
+  return props.agents.filter((a) => a.company === company && a.group === g).map((a) => a.name);
+};
+watch(monitor, (m) => {
+  const g = m?.kind === 'group' && m.group !== 'all' ? m.group : '';
+  monSel.value = g ? monAgentsOfGroup(g) : [];
+  monKw.value = '';
+  monQuery.value = { sel: [...monSel.value], kw: '' };
+});
+/** 级联分组：入口公司下属各组为左列、组内客服名为右列 */
+const monCascGroups = computed(() => {
+  const m = monitor.value;
+  if (!m || m.kind === 'agent') return [] as { name: string; children: string[] }[];
+  return (RC_COMPANY_GROUPS[m.company] ?? []).map((g) => ({ name: g, children: monAgentsOfGroup(g) }));
+});
+const doMonQuery = () => {
+  monQuery.value = { sel: [...monSel.value], kw: monKw.value.trim() };
+};
+/** 多人态（分组入口）：显示查询行与逐人头部 */
+const monIsGroup = computed(() => monitor.value?.kind === 'group');
+const monPersons = computed<RcAgent[]>(() => {
+  const m = monitor.value;
+  if (!m) return [];
+  if (m.kind === 'agent') return [m.agent];
+  const q = monQuery.value;
+  const selSet = new Set(q.sel);
+  return props.agents.filter((a) => a.company === m.company
+    && (!selSet.size || selSet.has(a.name))
+    && (!q.kw || a.name.includes(q.kw)));
+});
+const monSub = computed(() => {
+  const m = monitor.value;
+  if (!m) return '';
+  if (m.kind === 'agent') return `${m.agent.name}（${m.agent.group}） · ID: ${m.agent.id}`;
+  /* 整组全选的组折叠回显组名；部分勾选不入副标题 */
+  const q = monQuery.value;
+  const full = monCascGroups.value.filter((g) => g.children.length > 0 && g.children.every((c) => q.sel.includes(c))).map((g) => g.name);
+  return full.length ? `${m.company} · ${full.join('、')}` : m.company;
+});
+const monStatsOf = (a: RcAgent) => {
+  const m = rcDutyOf(a);
+  return [
+    { label: '在线时长', value: m.online, color: 'var(--color-success)' },
+    { label: '小休时长', value: m.rest, color: 'var(--color-warning)' },
+    { label: '离线时长', value: m.offline, color: 'var(--color-text-4)' },
+    { label: '登录时长', value: m.login, color: 'var(--color-success)' },
+    { label: '登出时长', value: m.logout, color: 'var(--color-text-4)' },
+    { label: 'WS在线时长', value: m.wsOn, color: 'var(--color-success)' },
+    { label: 'WS离线时长', value: m.wsOff, color: 'var(--color-text-4)' },
+  ];
+};
+/** 三条时间线：值班/登录/WS（登录 lane 的 in/out 映射 on/off 色类） */
+const MON_LANES = [
+  { key: 'duty', title: '值班状态', legend: [{ cls: 'on', label: '在线' }, { cls: 'off', label: '离线' }, { cls: 'rest', label: '小休' }] },
+  { key: 'login', title: '登录状态', legend: [{ cls: 'on', label: '登录' }, { cls: 'off', label: '登出' }] },
+  { key: 'ws', title: 'WS状态', legend: [{ cls: 'on', label: '在线' }, { cls: 'off', label: '离线' }] },
+] as const;
+const monLanesOf = (a: RcAgent) => {
+  const t = rcTimelineOf(a);
+  return MON_LANES.map((l) => ({
+    ...l,
+    segs: t[l.key].map((s) => ({ ...s, cls: s.cls === 'in' ? 'on' : s.cls === 'out' ? 'off' : s.cls })),
+  }));
+};
+const MON_AXIS = ['0:00', '4:00', '8:00', '12:00', '16:00', '20:00', '23:00'];
 
 const filtered = computed(() => props.agents.filter((a) => {
   if (applied.value.company !== '' && a.company !== applied.value.company) return false;
@@ -154,12 +237,14 @@ const toggleGroupStrategy = (c: string, tab: string) => {
 
 const openTransfer = (t: typeof transfer.value) => {
   pick.value = null;
+  transferKw.value = '';
+  trfActive.value = '';
   transfer.value = t;
 };
 
-/** Esc：关闭转移会话 / 值班监控弹窗 */
+/** Esc：关闭转移会话 / 值班监控 / 接待记录弹窗 */
 const onKey = (e: KeyboardEvent) => {
-  if (e.key === 'Escape') { transfer.value = null; monitor.value = null; }
+  if (e.key === 'Escape') { transfer.value = null; monitor.value = null; recordAgent.value = null; recordCompany.value = null; }
 };
 onMounted(() => window.addEventListener('keydown', onKey));
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
@@ -197,77 +282,70 @@ const confirmTransfer = () => {
   if (t.mode === 'batch') sel.value = new Set();
 };
 
-/* ---------- 操作列：直出最多 3 个，超出收进「更多」气泡 ---------- */
+/* ---------- 操作列：竖排直出（接待记录/实时监控/转移会话/关联策略/值班监控） ---------- */
 interface Op { label: string; kind: 'btn' | 'link'; cls?: string; onClick: () => void }
 const opsOf = (a: RcAgent): Op[] => {
   const relOk = (groupStrategy.value[`${a.company}::${a.group}`] ?? true) && a.strategy && RC_STRATEGIES.some((s) => s.group === a.group);
   const ops: Op[] = [
+    { label: '接待记录', kind: 'link', onClick: () => { recordAgent.value = a; } },
+    { label: '实时监控', kind: 'link', onClick: () => { monChart.value = { kind: 'agent', company: a.company, group: a.group, name: a.name, id: a.id }; } },
     { label: '转移会话', kind: 'btn', onClick: () => openTransfer({ mode: 'single', agent: a }) },
   ];
   if (relOk) ops.push({
     label: '关联策略', kind: 'link',
     onClick: () => { const rel = RC_STRATEGIES.find((s) => s.group === a.group); if (rel) props.onGoStrategy(rel.id); },
   });
-  ops.push({ label: '值班监控', kind: 'link', cls: 'rc-op-mon', onClick: () => { monTab.value = 'duty'; monitor.value = a; } });
+  ops.push({ label: '值班监控', kind: 'link', cls: 'rc-op-mon', onClick: () => { monitor.value = { kind: 'agent', agent: a }; } });
   return ops;
 };
-const directOpsOf = (a: RcAgent) => { const o = opsOf(a); return o.length > 3 ? o.slice(0, 3) : o; };
-const moreOpsOf = (a: RcAgent) => { const o = opsOf(a); return o.length > 3 ? o.slice(3) : []; };
+/* 操作列规范：直出最多 3 个动作，超出项收进「更多」气泡 */
+const flatOps = (a: RcAgent) => opsOf(a).slice(0, 3);
+const moreOps = (a: RcAgent) => opsOf(a).slice(3).map((o) => ({ label: o.label, onClick: o.onClick }));
 
-/* ---------- 转移弹窗级联数据 ----------
-   离线/小休客服无法承接业务，不进入可转移目标（组计数与成员列表仅统计在线） */
-const cascExcl = computed(() => {
-  if (!transfer.value) return new Set<number>();
-  return transfer.value.mode === 'single' ? new Set([transfer.value.agent.id]) : sel.value;
-});
+/* ---------- 转移弹窗目标数据 ----------
+   离线/小休客服无法承接业务，不进入可选目标；源客服禁选 */
 const cascGroups = computed(() => RC_COMPANIES.flatMap((c) => (RC_COMPANY_GROUPS[c] ?? []).map((g) => ({ c, g }))));
-const cascCountOf = (c: string, g: string) => props.agents.filter((a) => a.company === c && a.group === g && a.status === '在线' && !cascExcl.value.has(a.id)).length;
-const cascMembers = computed(() => props.agents.filter((a) => a.group === cascActive.value && a.status === '在线' && !cascExcl.value.has(a.id)));
-
-/* ---------- 值班监控弹窗数据 ---------- */
-const monInfo = computed(() => {
-  if (!monitor.value) return null;
-  const m = rcMonitorOf(monitor.value);
-  const segs = monTab.value === 'duty' ? [
-    { label: '在线', value: m.online, color: '#00b42a' },
-    { label: '小休', value: m.rest, color: '#ff7d00' },
-    { label: '离线', value: m.offline, color: '#c9cdd4' },
-  ] : monTab.value === 'login' ? [
-    { label: '登录', value: m.login, color: '#00b42a' },
-    { label: '登出', value: m.logout, color: '#c9cdd4' },
-  ] : [
-    { label: '在线', value: m.wsOn, color: '#00b42a' },
-    { label: '离线', value: m.wsOff, color: '#c9cdd4' },
-  ];
-  const total = segs.reduce((t, s) => t + s.value, 0) || 1;
-  const live = segs.filter((s) => s.value > 0);
-  let ang = -Math.PI / 2;
-  const arcs = live.map((s) => {
-    const a0 = ang;
-    const a1 = ang + (s.value / total) * Math.PI * 2;
-    ang = a1;
-    return { ...s, a0, a1 };
-  });
-  const stats = [
-    { label: '在线时长', value: m.online, color: '#00b42a' },
-    { label: '小休时长', value: m.rest, color: '#ff7d00' },
-    { label: '离线时长', value: m.offline, color: '#c9cdd4' },
-    { label: '登录时长', value: m.login, color: '#00b42a' },
-    { label: '登出时长', value: m.logout, color: '#c9cdd4' },
-    { label: 'WS在线时长', value: m.wsOn, color: '#00b42a' },
-    { label: 'WS离线时长', value: m.wsOff, color: '#c9cdd4' },
-  ];
-  return { segs, total, live, arcs, stats };
+/** 转移源：单人=该客服；批量=勾选集 */
+const transferSources = computed<RcAgent[]>(() => {
+  const t = transfer.value;
+  if (!t) return [];
+  return t.mode === 'single' ? [t.agent] : props.agents.filter((a) => sel.value.has(a.id));
 });
+const sourceIds = computed(() => new Set(transferSources.value.map((a) => a.id)));
+const batchUnreplied = computed(() => transferSources.value.reduce((s, a) => s + a.unreplied, 0));
+/** 目标客服分组区块：直接过滤非在线客服，左列仅含有在线成员的组；搜索按成员名过滤 */
+const transferSections = computed(() => {
+  const k = transferKw.value.trim();
+  return cascGroups.value.map(({ c, g }) => {
+    const members = props.agents
+      .filter((a) => a.company === c && a.group === g && a.status === '在线' && (!k || a.name.includes(k)))
+      .map((a) => ({ a, selectable: !sourceIds.value.has(a.id) }));
+    return { key: `${c}::${g}`, group: g, members, onlineCount: members.filter((m) => m.selectable).length, pickable: members.some((m) => m.selectable) };
+  }).filter((s) => s.members.length > 0);
+});
+/** 右列当前展示组：跟随左列点击；搜索过滤后不在结果中则回落首组 */
+const trfActive = ref('');
+const activeSec = computed(() => transferSections.value.find((s) => s.group === trfActive.value) ?? transferSections.value[0] ?? null);
+/** 左列组行：切换右列成员 + 单选该组（组内在线均摊），再点取消；无可选成员组不可选 */
+const pickGroupSec = (sec: (typeof transferSections.value)[number]) => {
+  trfActive.value = sec.group;
+  if (!sec.pickable) return;
+  pick.value = pick.value?.kind === 'group' && pick.value.group === sec.group ? null : { kind: 'group', group: sec.group };
+};
 
 const STATUS_MENU_OPTS = [{ v: '', t: '全部' }, { v: '在线', t: '在线' }, { v: '小休', t: '小休' }, { v: '离线', t: '离线' }];
-const MON_TABS = [{ k: 'duty', t: '值班状态' }, { k: 'login', t: '登录状态' }, { k: 'ws', t: 'WS状态' }] as const;
 </script>
 
 <template>
   <div class="rc-view">
-    <div class="qc-body rc-table-card">
-      <!-- 筛选区 -->
+    <!-- 内容区主 tab：绩效指标（当前页）/ 实时数据 -->
+    <div class="rc-main-tabs">
+      <button type="button" :class="{ active: mainTab === 'kpi' }" @click="mainTab = 'kpi'">绩效指标</button>
+      <button type="button" :class="{ active: mainTab === 'rt' }" @click="mainTab = 'rt'">实时数据</button>
+    </div>
+
+    <!-- 筛选区（独立白卡，与列表卡以灰色间隙分隔） -->
+    <div v-show="mainTab === 'kpi'" class="qc-body rc-filter-card">
       <div class="qc-filters rc-filter-row">
         <BubbleSelect
           class-name="input rc-bs"
@@ -300,7 +378,10 @@ const MON_TABS = [{ k: 'duty', t: '值班状态' }, { k: 'login', t: '登录状�
           <button type="button" class="btn" @click="doBatchRoute">批量转移会话</button>
         </div>
       </div>
+    </div>
 
+    <!-- 列表区（独立白卡）：树形表格 + 分页 -->
+    <div v-show="mainTab === 'kpi'" class="qc-body rc-table-card">
       <!-- 树形表格：公司父行 × N -->
       <div class="rc-wide">
         <table class="table rc-tree">
@@ -320,6 +401,7 @@ const MON_TABS = [{ k: 'duty', t: '值班状态' }, { k: 'login', t: '登录状�
               <th>平均退款率</th>
               <th>平均在线时长</th>
               <th>接待排名</th>
+              <th>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -355,9 +437,15 @@ const MON_TABS = [{ k: 'duty', t: '值班状态' }, { k: 'login', t: '登录状�
                 <td>{{ rcCompanySumOf(c, filtered).refund }}%</td>
                 <td>{{ rcCompanySumOf(c, filtered).hours }}</td>
                 <td>{{ rcCompanySumOf(c, filtered).rank }}</td>
+                <td>
+                  <div class="rc-ops">
+                    <a class="rc-rel-link" @click="recordCompany = c">接待记录</a>
+                    <a class="rc-rel-link" @click="monChart = { kind: 'company', company: c }">实时监控</a>
+                  </div>
+                </td>
               </tr>
               <tr v-if="openMap[c]" class="expand-row">
-                <td colspan="14">
+                <td colspan="15">
                   <div class="rc-expand-head">
                     <div class="qc-range-toggle rc-group-tabs">
                       <button
@@ -373,14 +461,18 @@ const MON_TABS = [{ k: 'duty', t: '值班状态' }, { k: 'login', t: '登录状�
                         @click="tabMap = { ...tabMap, [c]: g }"
                       >{{ g }}</button>
                     </div>
-                    <div v-if="(tabMap[c] ?? 'all') !== 'all'" class="rc-group-strategy">
-                      <span>策略状态</span>
-                      <span
-                        class="rc-switch"
-                        :class="{ on: groupStrategy[`${c}::${tabMap[c]}`] }"
-                        :title="`启用/禁用${tabMap[c]}策略`"
-                        @click="toggleGroupStrategy(c, tabMap[c] ?? 'all')"
-                      ><i /></span>
+                    <div class="rc-head-right">
+                      <div v-if="(tabMap[c] ?? 'all') !== 'all'" class="rc-group-strategy">
+                        <span>策略状态</span>
+                        <span
+                          class="rc-switch"
+                          :class="{ on: groupStrategy[`${c}::${tabMap[c]}`] }"
+                          :title="`启用/禁用${tabMap[c]}策略`"
+                          @click="toggleGroupStrategy(c, tabMap[c] ?? 'all')"
+                        ><i /></span>
+                      </div>
+                      <button type="button" class="btn" @click="openGroupChart(c)">实时监控</button>
+                      <button type="button" class="btn" @click="openGroupMon(c)">值班监控</button>
                     </div>
                   </div>
                   <table class="matrix rc-sub">
@@ -480,11 +572,11 @@ const MON_TABS = [{ k: 'duty', t: '值班状态' }, { k: 'login', t: '登录状�
                         </td>
                         <td>
                           <div class="rc-ops">
-                            <template v-for="o in directOpsOf(a)" :key="o.label">
+                            <template v-for="o in flatOps(a)" :key="o.label">
                               <button v-if="o.kind === 'btn'" type="button" class="rc-btn-manual" @click="o.onClick()">{{ o.label }}</button>
                               <a v-else class="rc-rel-link" :class="o.cls ?? ''" @click="o.onClick()">{{ o.label }}</a>
                             </template>
-                            <MoreActions v-if="moreOpsOf(a).length > 0" :items="moreOpsOf(a).map((o) => ({ label: o.label, onClick: o.onClick }))" />
+                            <MoreActions v-if="moreOps(a).length" :items="moreOps(a)" />
                           </div>
                         </td>
                       </tr>
@@ -538,119 +630,161 @@ const MON_TABS = [{ k: 'duty', t: '值班状态' }, { k: 'login', t: '登录状�
       </div>
     </div>
 
-    <!-- ---------- 转移会话弹窗（单人 / 批量） ---------- -->
+    <!-- ---------- 实时数据 tab（列表形式：筛选+统计 chip+评判着色+分页） ---------- -->
+    <RealtimeData v-show="mainTab === 'rt'" :agents="props.agents" :push-toast="props.pushToast" />
+
+    <!-- ---------- 转移会话弹窗（单人/批量）：源信息条 + 目标客服左右两栏单选（左分组/右在线成员，非在线直接过滤） ---------- -->
     <Modal
       v-if="transfer"
       title="转移会话"
-      size="lg"
+      size="md"
       @close="transfer = null"
     >
-      <div class="rc-form">
-        <div class="f-row">
-          <span class="f-label">目标客服：</span>
-          <BubbleSelect
-            v-if="transfer.mode === 'single'"
-            class-name="select"
-            disabled
-            :value="rcAgentLabel(transfer.agent)"
-            :options="[rcAgentLabel(transfer.agent)]"
-          />
-          <BubbleSelect
-            v-else
-            class-name="select"
-            disabled
-            :value="`已选 ${sel.size} 名客服（批量）`"
-            :options="[`已选 ${sel.size} 名客服（批量）`]"
-          />
-        </div>
-        <div class="f-row">
-          <span class="f-label">转移客服：</span>
-          <div class="rc-casc">
-            <div class="rc-casc-col rc-casc-groups">
-              <div
-                v-for="{ c, g } in cascGroups"
-                :key="`${c}::${g}`"
-                class="rc-casc-g"
-                :class="{ on: cascActive === g }"
-                @click="cascActive = g"
-              >
-                <input
-                  type="checkbox"
-                  :checked="pick?.kind === 'group' && pick.group === g"
-                  @change="pick = (pick?.kind === 'group' && pick.group === g) ? null : { kind: 'group', group: g }"
-                />
-                <span class="rc-casc-gname">{{ g }}</span>
-                <span class="rc-casc-count">{{ cascCountOf(c, g) }}</span>
-              </div>
-            </div>
-            <div class="rc-casc-col rc-casc-members">
-              <div v-if="cascMembers.length === 0" class="empty tight">暂无在线成员</div>
-              <template v-else>
-                <label v-for="a in cascMembers" :key="a.id" class="rc-casc-m">
-                  <input
-                    type="checkbox"
-                    :checked="pick?.kind === 'agent' && pick.id === a.id"
-                    @change="pick = (pick?.kind === 'agent' && pick.id === a.id) ? null : { kind: 'agent', id: a.id }"
-                  />
-                  {{ a.name }}
-                </label>
-              </template>
-            </div>
+      <div class="rc-trf-src">
+        <template v-if="transfer.mode === 'single'">
+          <span class="rc-trf-ava">{{ transfer.agent.name[0] }}</span>
+          <b>{{ rcAgentLabel(transfer.agent) }}</b>
+          <i>未回复会话 {{ transfer.agent.unreplied }} 个</i>
+        </template>
+        <template v-else>
+          <b>已选 {{ sel.size }} 名客服（批量转移）</b>
+          <i>未回复会话共 {{ batchUnreplied }} 个</i>
+        </template>
+      </div>
+      <div class="input-icon rc-trf-search">
+        <span class="ic">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-3.5-3.5" />
+          </svg>
+        </span>
+        <input v-model="transferKw" class="input" placeholder="搜索目标客服" />
+      </div>
+      <div class="rc-trf-list">
+        <div class="rc-trf-col left">
+          <div
+            v-for="sec in transferSections"
+            :key="sec.key"
+            class="rc-trf-row rc-trf-group"
+            :class="{ on: pick?.kind === 'group' && pick.group === sec.group, active: activeSec?.key === sec.key, dim: !sec.pickable }"
+            :title="sec.pickable ? '转移给该分组（组内在线客服均摊）' : '该组在线客服仅为源本人'"
+            @click="pickGroupSec(sec)"
+          >
+            <span class="rc-trf-gname">{{ sec.group }}</span>
+            <span class="rc-trf-count">在线 {{ sec.onlineCount }}</span>
+            <span class="rc-trf-check">{{ pick?.kind === 'group' && pick.group === sec.group ? '✓' : '' }}</span>
           </div>
+          <div v-if="transferSections.length === 0" class="rc-trf-empty">无匹配客服</div>
+        </div>
+        <div class="rc-trf-col right">
+          <template v-if="activeSec">
+            <div
+              v-for="m in activeSec.members"
+              :key="m.a.id"
+              class="rc-trf-row rc-trf-member"
+              :class="{ on: pick?.kind === 'agent' && pick.id === m.a.id, disabled: !m.selectable }"
+              :title="m.selectable ? `转移给 ${m.a.name}` : '源客服不可承接'"
+              @click="m.selectable && (pick = (pick?.kind === 'agent' && pick.id === m.a.id) ? null : { kind: 'agent', id: m.a.id })"
+            >
+              <span class="rc-trf-ava sm">{{ m.a.name[0] }}</span>
+              <span class="rc-trf-name">{{ m.a.name }}</span>
+              <span v-if="sourceIds.has(m.a.id)" class="rc-trf-srctag">源</span>
+              <span class="rc-trf-check">{{ pick?.kind === 'agent' && pick.id === m.a.id ? '✓' : '' }}</span>
+            </div>
+            <div v-if="activeSec.members.length === 0" class="rc-trf-empty">无在线客服</div>
+          </template>
         </div>
       </div>
       <template #foot>
         <button type="button" class="btn" @click="transfer = null">取消</button>
-        <button type="button" class="btn primary" @click="confirmTransfer">确定转移</button>
+        <button type="button" class="btn primary" :disabled="!pick" @click="confirmTransfer">确定转移</button>
       </template>
     </Modal>
 
-    <!-- ---------- 值班监控弹窗（头部人员信息 + tab 切换饼图 + 右侧时长统计） ---------- -->
-    <Modal
-      v-if="monitor && monInfo"
-      title="值班监控"
-      :sub="`${monitor.name}（${monitor.group}） · ID: ${monitor.id}`"
-      size="lg"
-      @close="monitor = null"
-    >
-      <div class="rc-mon">
-        <div class="rc-mon-tabs">
-          <button
-            v-for="t in MON_TABS"
-            :key="t.k"
-            type="button"
-            class="rc-mon-tab"
-            :class="{ on: monTab === t.k }"
-            @click="monTab = t.k"
-          >{{ t.t }}</button>
+    <!-- ---------- 接待记录弹窗（大：三维度筛选 + 三栏客服/会话/聊天） ---------- -->
+    <RecordModal
+      v-if="recordAgent || recordCompany"
+      :agent="recordAgent ?? undefined"
+      :company="recordCompany ?? undefined"
+      @close="recordAgent = null; recordCompany = null"
+    />
+
+    <!-- ---------- 实时监控图表弹窗（公司/分组/客服三维度入口） ---------- -->
+    <RcMonChartModal v-if="monChart" :scope="monChart" @close="monChart = null" />
+
+    <!-- ---------- 值班监控抽屉（分组维度下拉 + 客服搜索显隐；左时长指标 + 右 24h 时间线） ---------- -->
+    <div v-if="monitor" class="rc-mon-mask" @click="monitor = null" />
+    <aside v-if="monitor" class="rc-mon-drawer">
+      <div class="rc-mon-head">
+        <div>
+          <b>值班监控</b>
+          <span class="rc-mon-sub">{{ monSub }}</span>
         </div>
-        <div class="rc-mon-body">
-          <div class="rc-mon-pie">
-            <svg viewBox="0 0 200 200" width="190" height="190">
-              <circle v-if="monInfo.live.length === 1" cx="100" cy="100" r="88" :fill="monInfo.live[0].color" />
-              <template v-else><path v-for="s in monInfo.arcs" :key="s.label" :d="piePath(100, 100, 88, s.a0, s.a1)" :fill="s.color" /></template>
-            </svg>
-            <div class="rc-mon-legend">
-              <div v-for="s in monInfo.segs" :key="s.label" class="rc-mon-lg">
-                <i :style="{ background: s.color }" />
-                <span>{{ s.label }}</span>
-                <b>{{ s.value.toFixed(2) }}h</b>
-                <em>{{ Math.round((s.value / monInfo.total) * 100) }}%</em>
+        <button type="button" class="rc-mon-x" title="关闭" @click="monitor = null">✕</button>
+      </div>
+      <div class="rc-mon-body">
+        <div v-if="monIsGroup" class="rc-mon-tools">
+          <!-- 分组/客服合并为单个级联条件：左列分组（✓整组全选）/右列客服，全部行=清除 -->
+          <CascadeSelect
+            class-name="rc-mon-sel"
+            :groups="monCascGroups"
+            multiple
+            :values="monSel"
+            all-label="全部"
+            searchable
+            @multi-change="(v: string[]) => (monSel = v)"
+          />
+          <div class="rc-mon-kwwrap">
+            <input v-model="monKw" class="rc-mon-search" placeholder="搜索客服名称" @keydown.enter="doMonQuery" />
+            <!-- 清除 icon 复用知识库实心灰圆×：有值才显，点击清空并立即重查 -->
+            <button v-if="monKw" type="button" class="rc-mon-clear" title="清除" @click="monKw = ''; doMonQuery()">
+              <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+            </button>
+          </div>
+          <button type="button" class="btn primary" @click="doMonQuery">查询</button>
+        </div>
+        <div class="rc-duty-list">
+          <div v-for="a in monPersons" :key="a.id" class="rc-duty-person">
+            <!-- 单人态身份已在副标题呈现，仅堆叠多人时逐人重复头部 -->
+            <div v-if="monIsGroup" class="rc-duty-person-hd">{{ a.name }}（{{ a.group }}） · ID: {{ a.id }}</div>
+            <div class="rc-duty">
+              <div class="rc-duty-stats">
+                <div v-for="s in monStatsOf(a)" :key="s.label" class="rc-duty-stat">
+                  <i :style="{ background: s.color }" />
+                  <span class="k">{{ s.label }}</span>
+                  <b>{{ s.value.toFixed(2) }}h</b>
+                </div>
+              </div>
+              <div class="rc-duty-tl">
+                <div v-for="lane in monLanesOf(a)" :key="lane.key" class="rc-duty-lane">
+                  <div class="rc-duty-tl-head">
+                    <span class="t">{{ lane.title }}</span>
+                    <span class="rc-duty-legend">
+                      <span v-for="lg in lane.legend" :key="lg.cls + lg.label"><i :class="lg.cls" />{{ lg.label }}</span>
+                    </span>
+                  </div>
+                  <div class="rc-duty-bar">
+                    <span
+                      v-for="(s, i) in lane.segs"
+                      :key="i"
+                      class="rc-duty-seg"
+                      :class="s.cls"
+                      :style="{ left: (s.from / 24) * 100 + '%', width: ((s.to - s.from) / 24) * 100 + '%' }"
+                    />
+                  </div>
+                  <div class="rc-duty-axis">
+                    <span v-for="t in MON_AXIS" :key="t">{{ t }}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          <div class="rc-mon-stats">
-            <div v-for="s in monInfo.stats" :key="s.label" class="rc-mon-stat">
-              <i :style="{ background: s.color }" />
-              <span>{{ s.label }}</span>
-              <b>{{ s.value.toFixed(2) }}h</b>
-            </div>
-          </div>
+          <div v-if="monIsGroup && monPersons.length === 0" class="rc-mon-empty">暂无匹配的客服</div>
         </div>
       </div>
-      <template #foot>
+      <div class="rc-mon-foot">
         <button type="button" class="btn" @click="monitor = null">关闭</button>
-      </template>
-    </Modal>
+      </div>
+    </aside>
   </div>
 </template>

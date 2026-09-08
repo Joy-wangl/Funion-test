@@ -3,7 +3,7 @@
    toast 接入全局 pushToast + ToastWrap（迁移约定，等价 React 本地 ap-toast 提示） */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import {
-  CATEGORIES, FORM_CATEGORIES, PLATFORM_NOTICES,
+  CATEGORIES, FORM_CATEGORIES,
   AC_EASTER_BANNERS, AC_EASTER_TOAST,
   FB_TYPES, INITIAL_FEEDBACKS,
   actKind, creatorDept, initialApps, seedAppFeedbacks, seedReviews, versionOf,
@@ -41,7 +41,6 @@ const view = ref<View>({ kind: 'home' });
 const detailBack = ref<View>({ kind: 'list' });
 const recent = ref<{ id: string; at: number }[]>([]);
 const favIds = ref<string[]>([]);
-const noticeId = ref<string | null>(null);
 const rankRange = ref('近30天');
 const rankTab = ref<'person' | 'dept' | 'best'>('person');
 const rankOpen = ref<string | null>(null);
@@ -93,9 +92,9 @@ const editVal = ref('');
 const dragIdx = ref<number | null>(null);
 const pickIdx = ref<number | null>(null);
 
-/* 平台公告 banner 自动轮播（含彩蛋图片位） */
+/* 首页轮播自动轮播（三张彩蛋 banner） */
 let bannerTimer: number | undefined;
-const bannerTotal = PLATFORM_NOTICES.length + AC_EASTER_BANNERS.length;
+const bannerTotal = AC_EASTER_BANNERS.length;
 onMounted(() => {
   bannerTimer = window.setInterval(() => { bannerIdx.value = (bannerIdx.value + 1) % bannerTotal; }, 5000);
 });
@@ -517,7 +516,6 @@ const confirmUpdate = () => {
 /* ---------- 弹层派生数据 ---------- */
 const fbDetail = computed(() => fbList.value.find((f) => f.id === fbDetailId.value) ?? null);
 const fbReplies = computed(() => (fbDetail.value ? fbDetail.value.msgs.filter((m) => m.role === 'admin').length : 0));
-const notice = computed(() => (noticeId.value ? PLATFORM_NOTICES.find((x) => x.id === noticeId.value) ?? null : null));
 const verHistApp = computed(() => (verHistId.value ? apps.value.find((a) => a.id === verHistId.value) ?? null : null));
 const revAllList = computed(() => reviews.value.filter((r) => r.appId === revAllId.value));
 const devDrawerApp = computed(() => (devDrawerId.value ? apps.value.find((a) => a.id === devDrawerId.value) ?? null : null));
@@ -608,7 +606,6 @@ const gotoAppDetail = (appId: string) => {
         :rank-open="rankOpen"
         :fb-filter="fbFilter"
         :fb-list="fbList"
-        :on-notice="(id) => (noticeId = id)"
         :on-banner-idx="(i) => (bannerIdx = i)"
         :on-easter="() => pushToast(AC_EASTER_TOAST)"
         :on-open-detail="openDetail"
@@ -1015,23 +1012,6 @@ const gotoAppDetail = (appId: string) => {
               <ul><li>性能优化与体验改进。</li></ul>
             </div>
           </template>
-        </div>
-      </div>
-    </div>
-
-    <!-- 平台公告详情 -->
-    <div v-if="notice" class="ap-mask">
-      <div class="ap-modal">
-        <div class="ap-modal-head">
-          <span>{{ notice.title }}</span>
-          <button type="button" @click="noticeId = null"><AcSvg :d="IC.clear" :size="14" /></button>
-        </div>
-        <div class="ap-modal-body ap-notice-body">
-          <i>{{ notice.date }} · {{ notice.tag }}</i>
-          <p>{{ notice.content }}</p>
-        </div>
-        <div class="ap-modal-foot">
-          <button type="button" class="ap-btn-blue" @click="noticeId = null">我知道了</button>
         </div>
       </div>
     </div>

@@ -1,0 +1,140 @@
+/* ============ QA 管理：问答库 / 会话挖掘（复用 kb- 设计令牌与卡片/表格/弹窗规范） ============ */
+.qa-wrap { flex: 1; min-width: 0; overflow-y: auto; display: flex; flex-direction: column; scrollbar-width: none; }
+.qa-wrap::-webkit-scrollbar { display: none; }
+
+/* 子页切换：下划线式 tab（页面首元素，顶部留白替代原页头） */
+.qa-tabs { display: flex; gap: 4px; margin: 18px 24px 0; border-bottom: 1px solid var(--color-border-2); }
+.qa-tabs button {
+  position: relative; border: none; background: none; cursor: pointer;
+  padding: 8px 14px 10px; font-size: var(--fs-base); color: var(--color-text-2);
+}
+.qa-tabs button:hover { color: var(--color-primary); }
+.qa-tabs button.on { color: var(--color-primary); font-weight: 600; }
+.qa-tabs button.on::after {
+  content: ''; position: absolute; left: 12px; right: 12px; bottom: -1px; height: 2px;
+  background: var(--color-primary); border-radius: 2px;
+}
+.qa-tabs-badge {
+  margin-left: 6px; padding: 0 6px; border-radius: 8px; background: var(--color-danger);
+  color: #fff; font-size: 11px; line-height: 16px; font-weight: 600;
+}
+
+/* 问答库筛选区：重置/查询紧邻条件列，新建QA 固定最右（覆盖 .kb-query 四列网格为 3条件+按钮组+弹性间隔+主按钮） */
+.qa-query { grid-template-columns: repeat(3, minmax(0, 1fr)) auto minmax(0, 1fr) auto; }
+.qa-query .kb-query-actions { grid-column: 4; justify-self: start; }
+.qa-query .qa-create { grid-column: -1; justify-self: end; align-self: end; }
+
+/* 表格列宽与单元格 */
+.qa-table th:nth-child(1) { width: 22%; }
+.qa-table td { vertical-align: top; }
+.qa-td-q { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.qa-td-q b { font-weight: 600; color: var(--color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qa-td-q i { font-style: normal; font-size: var(--fs-aux); color: var(--color-text-4); }
+.qa-td-q-b { font-style: normal; font-weight: 600; color: var(--color-text); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qa-td-a { display: block; color: var(--color-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qa-dim { color: var(--color-text-4); }
+
+/* 命中场景标签（列表内只读小标签） */
+.qa-scenes { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.qa-scenes em {
+  font-style: normal; padding: 1px 8px; border-radius: var(--radius-sm);
+  background: var(--color-fill-2); color: var(--color-text-2); font-size: var(--fs-aux);
+}
+.qa-scenes em.more { background: var(--color-primary-light); color: var(--color-primary); }
+
+/* 状态开关（列表内直接切换启停） */
+.qa-switch {
+  position: relative; width: 36px; height: 20px; flex: none;
+  border: none; border-radius: 10px; background: #d3d9e3; cursor: pointer; transition: background .2s;
+}
+.qa-switch::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+  border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .2); transition: left .2s;
+}
+.qa-switch.on { background: var(--color-primary); }
+.qa-switch.on::after { left: 18px; }
+
+/* 操作列：竖排展示；链接色统一（删除为危险红）；动作≤3 个直接平铺不收纳「更多」 */
+.qa-ops { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; white-space: nowrap; }
+.qa-ops a { color: var(--color-primary); text-decoration: none; cursor: pointer; }
+.qa-ops a:hover { opacity: .85; }
+.qa-ops a.danger { color: var(--color-danger); }
+.kb-link.dim { color: var(--color-text-3); }
+
+/* 挖掘特有列 */
+.qa-reason { color: var(--color-text-2); font-size: var(--fs-aux); }
+.qa-count { font-weight: 700; color: var(--color-danger); }
+
+/* ============ 新建/编辑抽屉：右置常规宽表单（单列布局） ============ */
+.qa-drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 2601;
+  width: min(640px, 92vw); display: flex; flex-direction: column;
+  background: #fff; box-shadow: -12px 0 40px rgba(0, 0, 0, 0.25);
+}
+.qa-d-head {
+  flex: none; display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 24px; border-bottom: 1px solid var(--color-border-2);
+}
+.qa-d-head b { font-size: 15px; font-weight: 600; color: var(--color-text); }
+.qa-d-body {
+  flex: 1; min-height: 0; overflow-y: auto; padding: 20px 24px;
+  display: grid; grid-template-columns: 1fr; gap: 18px; align-content: start;
+  scrollbar-width: thin;
+}
+.qa-full { grid-column: 1 / -1; }
+.qa-d-foot { flex: none; display: flex; justify-content: flex-end; gap: 8px; padding: 14px 24px; border-top: 1px solid var(--color-border-2); }
+
+/* 相似问法查看态：类输入框描边盒逐行展示（定稿视觉）；删除用统一垃圾桶 icon（kb-row-del）；新增按钮置于列表下方 */
+.qa-simlist { display: flex; flex-direction: column; gap: 10px; }
+.qa-simrow { display: flex; align-items: center; gap: 8px; }
+.qa-simbox {
+  flex: 1; min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border-2); border-radius: var(--radius-md); background: #fff;
+  font-size: var(--fs-base); color: var(--color-text-2); line-height: 1.6; word-break: break-all;
+  white-space: pre-wrap; /* 多行问法按录入换行展示 */
+}
+/* 新增输入复用 .qa-textarea 多行规格（禁套单行 .kb-input：其定高 34px 会把 textarea 压成单行） */
+.qa-simlist > .kb-btn { align-self: flex-start; }
+/* 行内编辑态：多行文本域，主色描边；铅笔 icon 与垃圾桶同规格 */
+textarea.qa-simbox {
+  padding: 8px 12px;
+  border: 1px solid var(--color-primary); border-radius: var(--radius-md); background: #fff;
+  font-family: inherit; outline: none; resize: vertical;
+}
+.qa-simrow .kb-row-edit { flex: none; border: none; background: none; padding: 4px; color: #8a94a6; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.qa-simrow .kb-row-edit:hover { color: var(--color-primary); }
+
+/* 关键词：场景标签式标签流（灰标签+✕移除），＋虚线标签内联输入新增（复用 kb-scene-tag/kb-scene-create） */
+.qa-kwtags { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.qa-kwtags .kb-scene-tag { display: inline-flex; align-items: center; gap: 6px; cursor: default; }
+.qa-kwtags .kb-scene-tag i { font-style: normal; font-size: 10px; color: var(--color-text-4); cursor: pointer; }
+.qa-kwtags .kb-scene-tag i:hover { color: var(--color-danger); }
+
+/* 标准答案多行 */
+.qa-textarea {
+  width: 100%; padding: 8px 10px; resize: vertical;
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  font-size: var(--fs-base); font-family: inherit; color: var(--color-text); line-height: 1.6;
+}
+.qa-textarea:focus { border-color: var(--color-primary); outline: none; }
+
+/* 答案素材缩略 */
+.qa-mats { display: flex; flex-wrap: wrap; gap: 8px; }
+.qa-mat { position: relative; width: 64px; height: 64px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--color-border); }
+.qa-mat img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.qa-mat i {
+  position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; line-height: 16px; text-align: center;
+  border-radius: 50%; background: rgba(24, 26, 30, .6); color: #fff; font-style: normal; font-size: 10px; cursor: pointer;
+}
+.qa-mat.add {
+  display: flex; align-items: center; justify-content: center;
+  border: 1px dashed var(--color-border); background: #fff; color: var(--color-text-3);
+  font-size: 18px; cursor: pointer;
+}
+.qa-mat.add:hover { color: var(--color-primary); border-color: var(--color-primary); }
+
+/* 删除确认弹窗 */
+.qa-confirm { width: 420px; }
+.qa-confirm .kb-modal-body p { font-size: var(--fs-base); color: var(--color-text-2); line-height: 1.6; }
+.qa-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--color-border-2); }

@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import type { ProductRow } from './data';
 import { PLATFORM_LOGO, platformOfStore } from './data';
-import BubbleSelect, { BUBBLE_ICON_PATHS, COLOR_ENUM } from '../../components/BubbleSelect.vue';
+import BubbleSelect from '../../components/BubbleSelect.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
 import SortTh from '../../components/SortTh.vue';
 import { SG_STATUS_META, sgOffTagOfStatus } from './shopGoodsData';
@@ -53,9 +53,6 @@ const BASE_COLS = [
 ];
 /* 中列（商品信息与操作之间）：colOrder 优先（可排序），否则基础序 + 扩展列 */
 const middleCols = computed(() => props.colOrder ?? [...BASE_COLS, ...(props.extraCols ?? [])]);
-/* 星星/旗帜 列表按标注「使用图标样式」：颜色名→色值，空白不渲染 */
-const COLOR_OF: Record<string, string> = Object.fromEntries(COLOR_ENUM.map((c) => [c.name, c.color]));
-const iconColorOf = (row: ProductRow, key: string) => COLOR_OF[row.extra?.[key] ?? ''] ?? '';
 /* 状态列：行带店铺商品同源 sg（运营管理行）时按店铺商品「商品状态」样式渲染；内部商机无 sg 保留在售徽章 */
 const sgStatusOf = (row: ProductRow): SgStatus | null => (row as { sg?: { status: SgStatus } }).sg?.status ?? null;
 const sgMetaOf = (row: ProductRow) => {
@@ -150,17 +147,6 @@ const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
                   </div>
                 </template>
                 <span v-else class="badge-green">在售</span>
-              </td>
-              <td v-else-if="!isHidden(c.key) && (c.key === '星星' || c.key === '旗帜')" class="ib-center">
-                <svg
-                  v-if="iconColorOf(row, c.key)"
-                  class="cell-icon"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  :style="{ color: iconColorOf(row, c.key) }"
-                  aria-hidden="true"
-                ><path :d="BUBBLE_ICON_PATHS[c.key === '星星' ? 'star' : 'flag']" fill="currentColor" /></svg>
               </td>
               <td v-else-if="!isHidden(c.key)">{{ cellText(row, c.key) }}</td>
             </template>

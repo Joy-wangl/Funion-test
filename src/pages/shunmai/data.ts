@@ -3,7 +3,7 @@
  * 与业务层解耦：设备连接态、账号登录态、抓取任务、抓取数据各自独立
  */
 
-export type SmTaskStatus = 'pending' | 'queued' | 'running' | 'paused' | 'success' | 'fail' | 'canceled';
+export type SmTaskStatus = 'queued' | 'running' | 'paused' | 'success' | 'fail' | 'canceled';
 export interface SmTask {
   id: string;
   /** 任务名称 */
@@ -24,7 +24,8 @@ export interface SmTask {
   finishedAt?: string;
 }
 
-export type SmRecordStatus = 'success' | 'fail';
+/* 商机即抓取成功的商品：失败尝试不产生商机记录，故无失败态 */
+export type SmRecordStatus = 'success';
 export interface SmRecord {
   id: string;
   /** 平台 */
@@ -57,7 +58,6 @@ export interface SmAccount {
 }
 
 export const SM_TASK_STATUS_META: Record<SmTaskStatus, { label: string; color: string; bg: string }> = {
-  pending: { label: '待抓取', color: '#667080', bg: '#f2f4f7' },
   queued: { label: '队列中', color: '#d97706', bg: '#fff7e8' },
   running: { label: '抓取中', color: '#2563eb', bg: '#eef4ff' },
   paused: { label: '已暂停', color: '#7c3aed', bg: '#f5f3ff' },
@@ -68,7 +68,6 @@ export const SM_TASK_STATUS_META: Record<SmTaskStatus, { label: string; color: s
 
 export const SM_RECORD_STATUS_META: Record<SmRecordStatus, { label: string; color: string; bg: string }> = {
   success: { label: '成功', color: '#16a34a', bg: '#ecfdf3' },
-  fail: { label: '失败', color: '#dc2626', bg: '#fef2f2' },
 };
 
 /** 执行步骤人工标记结果 */
@@ -104,7 +103,7 @@ export const smTasksSeed: SmTask[] = [
   { id: 'T004', name: '工装夹克外套抓取', topic: '工装夹克外套', targetCount: 16, status: 'fail', successCount: 0, failCount: 16, createdAt: '2026-09-03 11:42', startedAt: '2026-09-03 11:43', finishedAt: '2026-09-03 11:50' },
   { id: 'T005', name: '加厚羊羔绒卫衣抓取', topic: '加厚羊羔绒卫衣', targetCount: 24, status: 'success', successCount: 24, failCount: 0, createdAt: '2026-08-28 09:12', startedAt: '2026-08-28 09:15', finishedAt: '2026-08-28 09:31' },
   { id: 'T006', name: '复古直筒牛仔裤抓取', topic: '复古直筒牛仔裤', targetCount: 20, status: 'success', successCount: 18, failCount: 2, createdAt: '2026-08-27 15:40', startedAt: '2026-08-27 15:42', finishedAt: '2026-08-27 16:02' },
-  { id: 'T007', name: '轻量羽绒服抓取', topic: '轻量羽绒服', targetCount: 25, status: 'pending', successCount: 0, failCount: 0, createdAt: '2026-08-26 10:05' },
+  { id: 'T007', name: '轻量羽绒服抓取', topic: '轻量羽绒服', targetCount: 25, status: 'queued', successCount: 0, failCount: 0, createdAt: '2026-08-26 10:05' },
   { id: 'T008', name: '羊毛混纺大衣抓取', topic: '羊毛混纺大衣', targetCount: 30, status: 'canceled', successCount: 5, failCount: 1, createdAt: '2026-08-25 14:22', startedAt: '2026-08-25 14:25', finishedAt: '2026-08-25 14:30' },
   { id: 'T009', name: '纯棉休闲衬衫抓取', topic: '纯棉休闲衬衫', targetCount: 40, status: 'success', successCount: 40, failCount: 0, createdAt: '2026-08-24 11:18', startedAt: '2026-08-24 11:20', finishedAt: '2026-08-24 11:47' },
   { id: 'T010', name: '加绒打底裤抓取', topic: '加绒打底裤', targetCount: 35, status: 'paused', successCount: 9, failCount: 0, createdAt: '2026-08-23 16:33', startedAt: '2026-08-23 16:35' },
@@ -113,9 +112,9 @@ export const smTasksSeed: SmTask[] = [
 export const smRecordsSeed: SmRecord[] = [
   { id: 'R001', platform: '淘宝顺买', title: '无印良品毛巾超强吸水速干7A抗菌', price: 14.8, shop: '天猫无印良品赫图专卖店', scraper: '白语', time: '2026-09-03 16:04:32', status: 'success', taskId: 'T001' },
   { id: 'R002', platform: '淘宝顺买', title: '【秋冬养护】滋润补水润唇膏正品', price: 2.9, shop: '天猫健美创研官方旗舰店', scraper: '白语', time: '2026-09-03 16:04:32', status: 'success', taskId: 'T001' },
-  { id: 'R003', platform: '淘宝顺买', title: '山姆同款软毛加宽深洁牙刷', price: 3.58, shop: '淘宝名汇百货10店', scraper: '白语', time: '2026-09-03 16:04:21', status: 'fail', taskId: 'T001' },
+  { id: 'R003', platform: '淘宝顺买', title: '山姆同款软毛加宽深洁牙刷', price: 3.58, shop: '淘宝名汇百货10店', scraper: '白语', time: '2026-09-03 16:04:21', status: 'success', taskId: 'T001' },
   { id: 'R004', platform: '淘宝顺买', title: '比比赞_原米芡实糕15包_健康糕点', price: 5.1, shop: '天猫比比赞旗舰店', scraper: '白语', time: '2026-09-03 16:04:21', status: 'success', taskId: 'T002' },
-  { id: 'R005', platform: '淘宝顺买', title: '【肖战同款】舒客冷光美白牙膏', price: 7.9, shop: '天猫saky舒客专卖店', scraper: '白语', time: '2026-09-02 14:51:21', status: 'fail', taskId: 'T004' },
+  { id: 'R005', platform: '淘宝顺买', title: '【肖战同款】舒客冷光美白牙膏', price: 7.9, shop: '天猫saky舒客专卖店', scraper: '白语', time: '2026-09-02 14:51:21', status: 'success', taskId: 'T004' },
 ];
 
 export const smDeviceSeed: SmDevice = {
@@ -141,8 +140,8 @@ const SM_SHOPS = ['天猫无印良品赫图专卖店', '天猫健美创研官方
 const SM_SUFFIXES = ['男款', '女款', '经典款', '新款'];
 const SM_SCRAPERS = ['白语', '顺买助手'];
 
-/** 为任务生成单条抓取记录 */
-export const makeRecord = (task: SmTask, ok: boolean): SmRecord => ({
+/** 为任务生成单条商机记录（仅成功尝试产生记录） */
+export const makeRecord = (task: SmTask): SmRecord => ({
   id: `R${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 900 + 100)}`,
   platform: '淘宝顺买',
   title: `${task.topic}${SM_SUFFIXES[Math.floor(Math.random() * SM_SUFFIXES.length)]}`,
@@ -150,7 +149,7 @@ export const makeRecord = (task: SmTask, ok: boolean): SmRecord => ({
   shop: SM_SHOPS[Math.floor(Math.random() * SM_SHOPS.length)],
   scraper: SM_SCRAPERS[Math.floor(Math.random() * SM_SCRAPERS.length)],
   time: nowTime(),
-  status: ok ? 'success' : 'fail',
+  status: 'success',
   taskId: task.id,
 });
 
