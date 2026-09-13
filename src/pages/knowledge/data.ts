@@ -13,7 +13,7 @@ export interface KbMedia {
   name?: string;
   /** 内容描述（一句话内容与发送时机描述，RAG 向量检索语料；新增/编辑必填） */
   desc: string;
-  /** 命中场景（细分场景，商品咨询/退换退款 等结构化过滤面；选填多选，会话维度场景推断不依赖该字段） */
+  /** 命中场景（细分场景，快递咨询/商品破损 等结构化过滤面；选填多选，会话维度场景推断不依赖该字段） */
   scenes: string[];
 }
 
@@ -38,7 +38,7 @@ export interface KbKnowledgeEntry {
   materials: KbMaterial[];
   /** 内容链接（可选） */
   link: string;
-  /** 命中场景（细分场景，商品咨询/退换退款 等结构化过滤面；选填多选） */
+  /** 命中场景（细分场景，快递咨询/商品破损 等结构化过滤面；选填多选） */
   scenes: string[];
 }
 
@@ -48,17 +48,23 @@ export const KB_KNOWLEDGE_TYPES = ['安装视频', '使用方法', '注意事项
 export const KB_IMAGE_TYPES = ['商品图片', '实物图片', '外包装图', '白底图', '透明图', '场景图', '详情长图', '尺码表'];
 /** 新增视频可选类型 */
 export const KB_VIDEO_TYPES = ['商品视频', '穿戴视频', '安装视频', '详情视频', '质检视频'];
-/** 命中场景两级模型：场景类型（一级）+ 细分场景（二级）；覆盖电商客服全链路，自建场景并入所建组行尾 */
+/** 商品安装/使用视频可选类型（独立素材组，与商品视频区分：安装/使用教程导向） */
+export const KB_GUIDE_TYPES = ['安装视频', '使用视频'];
+/** 命中场景树模型：场景类型（一级）+ 细分场景（二级）+ 二级子组（三级，如 售前›特殊要求›指定备注）；
+ *  枚举以业务场景树为准（售前/售中/售后三型）；自建场景并入所建组行尾 */
+export interface KbSceneSub {
+  name: string;
+  children: string[];
+}
+export type KbSceneEntry = string | KbSceneSub;
 export interface KbSceneGroup {
   group: string;
-  scenes: string[];
+  scenes: KbSceneEntry[];
 }
 export const KB_SCENE_GROUPS: KbSceneGroup[] = [
-  { group: '售前', scenes: ['商品咨询', '尺码咨询', '材质工艺', '对比推荐', '库存查询'] },
-  { group: '售中', scenes: ['下单支付', '改址拦截', '催发货', '物流查询', '发票开具'] },
-  { group: '售后', scenes: ['退换退款', '质量问题', '投诉安抚', '使用指导', '养护维修'] },
-  { group: '营销活动', scenes: ['大促规则', '优惠券', '直播福利', '赠品说明'] },
-  { group: '客户维系', scenes: ['复购召回', '评价关怀', '会员权益'] },
+  { group: '售前', scenes: ['快递咨询', '包邮咨询', '发货时效', '发货地址', { name: '特殊要求', children: ['指定备注', '指定快递', '指定款式'] }, '预售规则', '优惠折扣', '支付方式', '咨询定制'] },
+  { group: '售中', scenes: ['物流异常', '签收异常', '取消订单'] },
+  { group: '售后', scenes: ['运费险咨询', '商品错漏发', '商品破损', '快递破损', '商品补寄', '退货物流查询', '好评返现', '催开票'] },
 ];
 
 export interface KbCode {
@@ -136,12 +142,12 @@ const base = (cost: string, material: string, weight: string, len: string, width
   { label: '适用年龄', value: age },
 ];
 
-/* 种子素材内容描述与命中场景回填（描述含发送时机口径，检索链路与演示展示不空） */
+/* 种子素材内容描述与命中场景回填（描述含发送时机口径，场景取新枚举；检索链路与演示展示不空） */
 const SEED_MEDIA_META: Record<string, { desc: string; scenes: string[] }> = {
-  商品图片: { desc: '正面整体商品图，白底无道具无模特，客户咨询款式外观时发送', scenes: ['商品咨询'] },
-  实物图片: { desc: '实物手持细节图，自然光拍摄，客户质疑材质做工时发送', scenes: ['商品咨询', '退换退款'] },
-  外包装图: { desc: '外包装展开图，含规格参数与条码，客户询问发货包装时发送', scenes: ['物流查询', '退换退款'] },
-  商品视频: { desc: '商品整体展示视频，环绕拍摄含使用演示，客户咨询使用方法时发送', scenes: ['使用指导', '商品咨询'] },
+  商品图片: { desc: '正面整体商品图，白底无道具无模特，客户咨询款式或定制时发送', scenes: ['咨询定制', '指定款式'] },
+  实物图片: { desc: '实物手持细节图，自然光拍摄，客户签收质疑材质做工或反馈破损时发送', scenes: ['签收异常', '商品破损'] },
+  外包装图: { desc: '外包装展开图，含规格参数与条码，客户反馈错漏发或快递破损时核对发送', scenes: ['商品错漏发', '快递破损'] },
+  商品视频: { desc: '商品整体展示视频，环绕拍摄含使用演示，客户咨询使用方法或定制时发送', scenes: ['咨询定制'] },
 };
 const imgs = (src: string): KbMedia[] => ['商品图片', '实物图片', '外包装图'].map((label) => ({
   label, src, desc: SEED_MEDIA_META[label].desc, scenes: [...SEED_MEDIA_META[label].scenes],
@@ -152,16 +158,16 @@ const videos = (src: string): KbMedia[] => [{ label: '商品视频', src, desc: 
 let knSeq = 0;
 /** 内置资产转图片素材（种子数据用） */
 const mat = (url: string): KbMaterial => ({ name: url.split('/').pop() ?? '知识素材', url, kind: 'image' });
-/* 种子知识命中场景回填（按类型映射，未命中类型为空） */
+/* 种子知识命中场景回填（按类型映射新枚举，未命中类型为空） */
 const SEED_KN_SCENES: Record<string, string[]> = {
-  尺码选购: ['尺码咨询'],
-  注意事项: ['使用指导'],
-  材质养护: ['养护维修'],
-  使用方法: ['使用指导'],
-  常见问答: ['商品咨询'],
-  发货包装: ['物流查询'],
-  售后保障: ['退换退款', '投诉安抚'],
-  安装视频: ['使用指导'],
+  尺码选购: ['咨询定制', '指定款式'],
+  注意事项: ['咨询定制'],
+  材质养护: ['商品破损'],
+  使用方法: ['咨询定制'],
+  常见问答: ['咨询定制'],
+  发货包装: ['指定备注', '咨询定制'],
+  售后保障: ['运费险咨询', '商品补寄'],
+  安装视频: ['咨询定制'],
 };
 const know = (type: string, text: string, materials: KbMaterial[] = [], link = ''): KbKnowledgeEntry =>
   ({ id: `KN${String(++knSeq).padStart(3, '0')}`, type, text, materials, link, scenes: [...(SEED_KN_SCENES[type] ?? [])] });
@@ -380,7 +386,7 @@ const kbSeed: Omit<KbProduct, 'items'>[] = [
         images: imgs(SHOES),
         videos: videos(SHOES),
         knowledge: [
-          know('安装视频', '鞋带快速穿法与厚底防滑演示视频，可供客服在售后场景直接引用发送。', [], 'https://example.com/video-lacing'),
+          know('安装视频', '鞋带快速穿法与厚底防滑演示视频，可供客服在售前咨询场景直接引用发送。', [], 'https://example.com/video-lacing'),
           know('注意事项', '反光条工艺，避免刮擦；夜拍素材需补光说明。'),
         ],
       },

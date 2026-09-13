@@ -33,7 +33,7 @@ type Filter = { company: string; group: string; name: string; status: string };
 const EMPTY_FILTER: Filter = { company: '', group: '', name: '', status: '' };
 
 /** 子表可排序数值列 */
-type SortKey = 'sessions' | 'aiRate' | 'resp' | 'unreplied' | 'r3m' | 'r30s' | 'hours' | 'rank' | 'conv' | 'sales' | 'refund';
+type SortKey = 'sessions' | 'aiRate' | 'resp' | 'unreplied' | 'r3m' | 'r30s' | 'hours' | 'conv' | 'sales' | 'refund';
 const sortValOf = (a: RcAgent, k: SortKey): number => {
   switch (k) {
     case 'sessions': return a.human + a.ai;
@@ -43,7 +43,6 @@ const sortValOf = (a: RcAgent, k: SortKey): number => {
     case 'r3m': return a.r3m;
     case 'r30s': return a.r30s;
     case 'hours': return a.hours;
-    case 'rank': return a.rank;
     case 'conv': return rcOrderOf(a).conv;
     case 'sales': return rcOrderOf(a).sales;
     case 'refund': return rcOrderOf(a).refund;
@@ -84,6 +83,31 @@ const toggleSort = (k: SortKey) => {
   else { sortKey.value = null; sortDir.value = 'desc'; }
 };
 const sortIco = (k: SortKey): 'none' | 'asc' | 'desc' => (sortKey.value === k ? sortDir.value : 'none');
+
+/** 公司表指标列排序（聚合口径同公司行 rcCompanySumOf：降序 → 升序 → 取消） */
+const companySortKey = ref<SortKey | null>(null);
+const companySortDir = ref<'asc' | 'desc'>('desc');
+const toggleCompanySort = (k: SortKey) => {
+  if (companySortKey.value !== k) { companySortKey.value = k; companySortDir.value = 'desc'; }
+  else if (companySortDir.value === 'desc') companySortDir.value = 'asc';
+  else { companySortKey.value = null; companySortDir.value = 'desc'; }
+};
+const companySortIco = (k: SortKey): 'none' | 'asc' | 'desc' => (companySortKey.value === k ? companySortDir.value : 'none');
+const companySortValOf = (c: string, k: SortKey): number => {
+  const s = rcCompanySumOf(c, filtered.value);
+  switch (k) {
+    case 'sessions': return s.human + s.ai;
+    case 'aiRate': return aiRateOf(s.ai, s.human);
+    case 'resp': return s.resp;
+    case 'unreplied': return s.unreplied;
+    case 'r3m': return s.r3m;
+    case 'r30s': return s.r30s;
+    case 'hours': return s.hours;
+    case 'conv': return s.conv;
+    case 'sales': return s.sales;
+    case 'refund': return s.refund;
+  }
+};
 
 const transfer = ref<{ mode: 'single'; agent: RcAgent } | { mode: 'batch' } | null>(null);
 /** 转移目标：组（组内在线均摊） 或 组内成员（单选） */
@@ -191,11 +215,17 @@ const filtered = computed(() => props.agents.filter((a) => {
   return true;
 }));
 
-/* 外层公司行（公司筛选后），分页按公司行数 */
+/* 外层公司行（公司筛选后 + 指标列排序），分页按公司行数 */
 const companies = computed(() => RC_COMPANIES.filter((c) => applied.value.company === '' || c === applied.value.company));
-const pages = computed(() => Math.max(1, Math.ceil(companies.value.length / pageSize.value)));
+const sortedCompanies = computed(() => {
+  const k = companySortKey.value;
+  if (!k) return companies.value;
+  const dir = companySortDir.value === 'desc' ? -1 : 1;
+  return [...companies.value].sort((a, b) => dir * (companySortValOf(a, k) - companySortValOf(b, k)));
+});
+const pages = computed(() => Math.max(1, Math.ceil(sortedCompanies.value.length / pageSize.value)));
 const safePage = computed(() => Math.min(page.value, pages.value));
-const pageCompanies = computed(() => companies.value.slice((safePage.value - 1) * pageSize.value, safePage.value * pageSize.value));
+const pageCompanies = computed(() => sortedCompanies.value.slice((safePage.value - 1) * pageSize.value, safePage.value * pageSize.value));
 
 /** 展开子表行：本公司 + 分组标签 + 名称/状态筛选 */
 const rowsOf = (c: string) => {
@@ -389,18 +419,17 @@ const STATUS_MENU_OPTS = [{ v: '', t: '全部' }, { v: '在线', t: '在线' }, 
             <tr>
               <th class="check" />
               <th>所属公司</th>
-              <th>接待会话数</th>
+              <SortTh label="接待会话数" :state="companySortIco('sessions')" @sort="toggleCompanySort('sessions')" />
               <th>接待数据(条)</th>
-              <th>AI回复平均占比</th>
-              <th>平均均响</th>
-              <th>未回复</th>
-              <th>3分钟平均回复率</th>
-              <th>30秒平均响应率</th>
-              <th>平均转化率</th>
-              <th>销售额</th>
-              <th>平均退款率</th>
-              <th>平均在线时长</th>
-              <th>接待排名</th>
+              <SortTh label="AI回复平均占比" :state="companySortIco('aiRate')" @sort="toggleCompanySort('aiRate')" />
+              <SortTh label="平均均响" :state="companySortIco('resp')" @sort="toggleCompanySort('resp')" />
+              <SortTh label="未回复" :state="companySortIco('unreplied')" @sort="toggleCompanySort('unreplied')" />
+              <SortTh label="3分钟平均回复率" :state="companySortIco('r3m')" @sort="toggleCompanySort('r3m')" />
+              <SortTh label="30秒平均响应率" :state="companySortIco('r30s')" @sort="toggleCompanySort('r30s')" />
+              <SortTh label="平均转化率" :state="companySortIco('conv')" @sort="toggleCompanySort('conv')" />
+              <SortTh label="销售额" :state="companySortIco('sales')" @sort="toggleCompanySort('sales')" />
+              <SortTh label="平均退款率" :state="companySortIco('refund')" @sort="toggleCompanySort('refund')" />
+              <SortTh label="平均在线时长" :state="companySortIco('hours')" @sort="toggleCompanySort('hours')" />
               <th>操作</th>
             </tr>
           </thead>
@@ -436,7 +465,6 @@ const STATUS_MENU_OPTS = [{ v: '', t: '全部' }, { v: '在线', t: '在线' }, 
                 <td>{{ rcSalesLabel(rcCompanySumOf(c, filtered).sales) }}</td>
                 <td>{{ rcCompanySumOf(c, filtered).refund }}%</td>
                 <td>{{ rcCompanySumOf(c, filtered).hours }}</td>
-                <td>{{ rcCompanySumOf(c, filtered).rank }}</td>
                 <td>
                   <div class="rc-ops">
                     <a class="rc-rel-link" @click="recordCompany = c">接待记录</a>
@@ -445,7 +473,7 @@ const STATUS_MENU_OPTS = [{ v: '', t: '全部' }, { v: '在线', t: '在线' }, 
                 </td>
               </tr>
               <tr v-if="openMap[c]" class="expand-row">
-                <td colspan="15">
+                <td colspan="14">
                   <div class="rc-expand-head">
                     <div class="qc-range-toggle rc-group-tabs">
                       <button
@@ -525,7 +553,6 @@ const STATUS_MENU_OPTS = [{ v: '', t: '全部' }, { v: '在线', t: '在线' }, 
                         <SortTh label="销售额" :state="sortIco('sales')" @sort="toggleSort('sales')" />
                         <SortTh label="退款率" :state="sortIco('refund')" @sort="toggleSort('refund')" />
                         <SortTh label="在线时长(h)" :state="sortIco('hours')" @sort="toggleSort('hours')" />
-                        <SortTh label="接待排名" :state="sortIco('rank')" @sort="toggleSort('rank')" />
                         <th>策略状态</th>
                         <th>操作</th>
                       </tr>
@@ -555,7 +582,6 @@ const STATUS_MENU_OPTS = [{ v: '', t: '全部' }, { v: '在线', t: '在线' }, 
                         <td>{{ rcSalesLabel(rcOrderOf(a).sales) }}</td>
                         <td>{{ rcOrderOf(a).refund }}%</td>
                         <td>{{ rcHoursLabel(a) }}</td>
-                        <td>{{ a.rank }}</td>
                         <td>
                           <span
                             class="rc-switch"

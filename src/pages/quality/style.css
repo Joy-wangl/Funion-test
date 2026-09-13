@@ -58,6 +58,9 @@
 .qc-page .qc-nav.active { background: #eef3ff; color: #4f7cff; font-weight: 700; }
 .qc-page .qc-nav-ico { width: 18px; flex: 0 0 18px; text-align: center; }
 .qc-page .qc-nav-text { flex: 1; min-width: 0; }
+/* 品控-线上壳：侧栏菜单无图标 · 文本居中（还原线上版形态） */
+.qc-page .qc-side.qcon-side .qc-nav { justify-content: center; }
+.qc-page .qc-side.qcon-side .qc-nav-text { flex: 0 0 auto; }
 .qc-page .qc-badge {
   min-width: 20px;
   padding: 0 6px;

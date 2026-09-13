@@ -166,13 +166,12 @@
 .rc-rt-chip b.w { color: var(--color-warning); }
 .rc-rt-chip b.r { color: var(--color-danger); }
 .rc-rt-time { font-size: var(--fs-aux); color: var(--color-text-3); white-space: nowrap; }
-/* 指标按团队均值评判：绿=达标 / 黄=均值 20% 以内 / 红=超 20%；字体统一黑 + 更浅档浅底(-light-2，不扎眼)；优先级压过 .qc-page td 色 */
-.rc-lv-g, .qc-page .table tbody td.rc-lv-g { color: var(--color-text); font-weight: 600; background: var(--color-success-light-2); }
-.rc-lv-y, .qc-page .table tbody td.rc-lv-y { color: var(--color-text); font-weight: 600; background: var(--color-warning-light-2); }
-.rc-lv-r, .qc-page .table tbody td.rc-lv-r { color: var(--color-text); font-weight: 600; background: var(--color-danger-light-2); }
-/* 列头：指标名+筛选漏斗（菜单复用子表 .rc-col-*）；relative 供菜单定位 */
-.rc-rt-th { display: inline-flex; align-items: center; gap: 6px; position: relative; }
-/* 评判等级图例点（脚注 / 筛选菜单选项内）：静态展示，不可点击 */
+/* 指标单元格：字体统一黑 600；不铺浅底、排名标签统一灰（.tag 中性），评判等级口径仅在列头漏斗筛选 */
+.rc-rt-val { color: var(--color-text); font-weight: 600; }
+/* 排名标签：统一灰色（.tag 中性底色 fill-2 + text-2）；定宽+居中保证同列标签等长、指标值左缘成一条线；与值间距 12px
+   选择器带 .rc-rt-val 提权：覆盖 .pm-page .tag 基类的 margin: 2px */
+.rc-rt-val .tag.rc-rt-rank { width: 54px; justify-content: center; margin: 0 12px 0 0; }
+/* 评判等级图例点（列头筛选菜单选项内）：静态展示，不可点击 */
 .rc-rt-dot {
   display: inline-block; /* i 标签默认 inline，不写则宽高不生效 */
   width: 9px;
@@ -185,8 +184,6 @@
 .rc-rt-dot.g { color: var(--color-success); }
 .rc-rt-dot.y { color: var(--color-warning); }
 .rc-rt-dot.r { color: var(--color-danger); }
-/* 评判标准脚注：置于表格下方，避免与筛选条件抢位 */
-.rc-rt-note { margin-top: 10px; font-size: var(--fs-aux); line-height: 20px; color: var(--color-text-3); }
 .rc-rt-table { min-width: 960px; }
 .rc-rt-foot { justify-content: space-between; }
 .rc-rt-foot .rc-pager { margin: 0; }
@@ -307,6 +304,8 @@
 
 /* 子表列头筛选（接待状态） */
 .rc-th-st { position: relative; }
+/* SortTh 插槽内漏斗+菜单锚点：菜单相对它定位，整体 @click.stop 防触发列排序 */
+.rc-col-anchor { position: relative; display: inline-flex; align-items: center; }
 .rc-col-filter { display: inline-flex; vertical-align: -1px; margin-left: 4px; color: #9aa1ae; cursor: pointer; }
 .rc-col-filter:hover { color: var(--primary); }
 .rc-col-filter.on { color: var(--primary); }

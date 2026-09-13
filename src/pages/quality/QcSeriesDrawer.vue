@@ -24,6 +24,8 @@ const props = defineProps<{
   onCreateOpt: () => void;
   allSessions: ChatSession[];
   onUpdateHits: (id: string, hits: ChatHit[]) => void;
+  /** 品控-线上壳：无商品标签维度，隐藏标签模块 */
+  online?: boolean;
 }>();
 
 const codeTab = ref<string>(props.initialCode ?? 'all');
@@ -185,32 +187,34 @@ const noneText = computed(() => (selCode.value
       />
 
       <!-- 商品标签：模块置底；全部态看所有编码各平台去重后汇总，具体编码态平台页签看该编码在各平台的命中情况 -->
-      <div class="section-title">商品标签</div>
-      <div v-if="selCode" class="qc-range-toggle qc-code-tabs qc-tag-plat-tabs">
-        <button
-          v-for="t in platTabCounts"
-          :key="t.pl"
-          type="button"
-          :class="activePlat === t.pl ? 'active' : ''"
-          @click="platTab = t.pl"
-        >{{ t.pl }} {{ t.count }}</button>
-      </div>
-      <div class="qc-tag-plat-card">
-        <div v-if="visibleGroups.length" class="qc-tag-cat-rows">
-          <div v-for="g in visibleGroups" :key="g.cat" class="qc-tag-cat-row">
-            <span class="qc-tag-cat-k" :title="g.cat"><i :style="{ background: CAT_COLOR[g.cat] || '#4f7cff' }" />{{ g.cat }}</span>
-            <div class="prob-tags">
-              <span
-                v-for="l in g.items"
-                :key="l.id"
-                class="tag"
-                :style="{ background: `${CAT_COLOR[l.cat] || '#4f7cff'}1a`, color: CAT_COLOR[l.cat] || '#4f7cff' }"
-              >{{ l.name }}</span>
+      <template v-if="!online">
+        <div class="section-title">商品标签</div>
+        <div v-if="selCode" class="qc-range-toggle qc-code-tabs qc-tag-plat-tabs">
+          <button
+            v-for="t in platTabCounts"
+            :key="t.pl"
+            type="button"
+            :class="activePlat === t.pl ? 'active' : ''"
+            @click="platTab = t.pl"
+          >{{ t.pl }} {{ t.count }}</button>
+        </div>
+        <div class="qc-tag-plat-card">
+          <div v-if="visibleGroups.length" class="qc-tag-cat-rows">
+            <div v-for="g in visibleGroups" :key="g.cat" class="qc-tag-cat-row">
+              <span class="qc-tag-cat-k" :title="g.cat"><i :style="{ background: CAT_COLOR[g.cat] || '#4f7cff' }" />{{ g.cat }}</span>
+              <div class="prob-tags">
+                <span
+                  v-for="l in g.items"
+                  :key="l.id"
+                  class="tag"
+                  :style="{ background: `${CAT_COLOR[l.cat] || '#4f7cff'}1a`, color: CAT_COLOR[l.cat] || '#4f7cff' }"
+                >{{ l.name }}</span>
+              </div>
             </div>
           </div>
+          <div v-else class="qc-tag-none">{{ noneText }}</div>
         </div>
-        <div v-else class="qc-tag-none">{{ noneText }}</div>
-      </div>
+      </template>
     </div>
     <div class="drawer-foot">
       <button class="btn primary" @click="props.onCreateOpt">创建优化任务</button>

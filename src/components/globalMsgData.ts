@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue';
 
-/** 全局站内信：区分应用推送，应用下分「订单消息通知 / 任务完成通知」两类 */
-export type GMsgKind = '订单消息通知' | '任务完成通知';
+/** 全局站内信：区分应用推送，应用下分「订单消息通知 / 任务完成通知 / 掉店提醒 / 人工介入提醒」四类 */
+export type GMsgKind = '订单消息通知' | '任务完成通知' | '掉店提醒' | '人工介入提醒';
 
 export interface GlobalMsg {
   id: string;
@@ -17,12 +17,14 @@ export interface GlobalMsg {
   target: string;
   /** 单号/店铺等 kv 信息（可选） */
   kvs?: { k: string; v: string }[];
+  /** 掉店提醒前往：目标账号ID（打开店铺管理-管理账号抽屉） */
+  acct?: string;
 }
 
 /** 第一层 tab：有站内信推送的应用 */
-export const GMSG_APPS = ['顺买商机', '蜜蜂插件', '运维管理后台'];
+export const GMSG_APPS = ['顺买商机', '蜜蜂插件', '运维管理后台', '智能运营中心'];
 /** 第二层 tab：应用下消息类别 */
-export const GMSG_KINDS: GMsgKind[] = ['订单消息通知', '任务完成通知'];
+export const GMSG_KINDS: GMsgKind[] = ['订单消息通知', '任务完成通知', '掉店提醒', '人工介入提醒'];
 
 export const gmsgs = ref<GlobalMsg[]>([
   {
@@ -58,8 +60,52 @@ export const gmsgs = ref<GlobalMsg[]>([
     time: '2026-09-02 09:12', read: true, target: 'shunmai',
     kvs: [{ k: '订单号', v: '202609020879' }, { k: '店铺', v: 'AAA小店' }],
   },
+  /* 掉店提醒：店铺登录掉线（与店铺管理离线口径同源），含平台/店铺名称与提醒内容 */
+  {
+    id: 'gm-7', app: '智能运营中心', kind: '掉店提醒', title: '掉店提醒',
+    desc: '店铺登录状态已掉线，发布任务暂停派发，请及时重新登录恢复在线',
+    time: '2026-09-09 08:30', read: false, target: 'ops-center',
+    kvs: [{ k: '平台', v: '淘宝' }, { k: '店铺名称', v: '淘系C店-义乌日用家居直供店' }],
+    acct: '15742',
+  },
+  {
+    id: 'gm-8', app: '智能运营中心', kind: '掉店提醒', title: '掉店提醒',
+    desc: '店铺登录状态已掉线，发布任务暂停派发，请及时重新登录恢复在线',
+    time: '2026-09-08 21:12', read: false, target: 'ops-center',
+    kvs: [{ k: '平台', v: '淘宝' }, { k: '店铺名称', v: '淘系C店-天天有百货直供店' }],
+    acct: '15739',
+  },
+  /* 人工介入提醒：RPA 发布商品遇验证码等需人工处理场景，含店铺名称/商品名称 */
+  {
+    id: 'gm-9', app: '智能运营中心', kind: '人工介入提醒', title: '商品发布需人工介入',
+    desc: 'RPA 发布商品过程中弹出验证码，发布任务已暂停，请人工完成验证后恢复发布',
+    time: '2026-09-11 10:26', read: false, target: 'ops-center',
+    kvs: [{ k: '店铺名称', v: '淘系C店-义乌日用家居直供店' }, { k: '商品名称', v: '日式简约桌面收纳盒三件套' }],
+  },
+  {
+    id: 'gm-10', app: '智能运营中心', kind: '人工介入提醒', title: '商品发布需人工介入',
+    desc: 'RPA 发布商品过程中弹出验证码，发布任务已暂停，请人工完成验证后恢复发布',
+    time: '2026-09-11 09:48', read: false, target: 'ops-center',
+    kvs: [{ k: '店铺名称', v: '淘系C店-天天有百货直供店' }, { k: '商品名称', v: '加厚防滑浸塑衣架10支装' }],
+  },
 ]);
+
+/* 掉店提醒「前往」跨组件桥：铃铛发起 → 运营中心切账号管理页 + AccountManagement 打开管理账号抽屉 */
+export const shopAcctReq = ref<{ acct: string; nonce: number } | null>(null);
+export const requestShopAcct = (acct: string) => { shopAcctReq.value = { acct, nonce: Date.now() }; };
 
 export const gUnreadCount = computed(() => gmsgs.value.filter((m) => !m.read).length);
 
 export const gMarkAll = () => { gmsgs.value.forEach((m) => { m.read = true; }); };
+
+/* 运行期新推送（如 RPA 发布遇验证码触发的人工介入提醒）：id/未读/时间自动生成 */
+export const pushGMsg = (m: Omit<GlobalMsg, 'id' | 'read' | 'time'>) => {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  gmsgs.value.push({
+    ...m,
+    id: `gm-${d.getTime()}`,
+    read: false,
+    time: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`,
+  });
+};

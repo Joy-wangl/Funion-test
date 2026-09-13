@@ -1,0 +1,34 @@
+/* ============ 知识库共享表单编辑器样式（多行问法/关键词标签编辑器，GoodsKbV2 等复用） ============ */
+
+/* 多行文本域：标准问答/问法录入（禁套单行 .kb-input：其定高 34px 会把 textarea 压成单行框） */
+.qa-textarea {
+  width: 100%; padding: 8px 10px; resize: vertical;
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  font-size: var(--fs-base); font-family: inherit; color: var(--color-text); line-height: 1.6;
+}
+.qa-textarea:focus { border-color: var(--color-primary); outline: none; }
+
+/* 相似问法列表：逐行分隔 + 铅笔编辑/垃圾桶删除；新增输入复用 .qa-textarea 多行规格 */
+.qa-simlist { display: flex; flex-direction: column; gap: 10px; }
+.qa-simlist > .kb-btn { align-self: flex-start; }
+.qa-simrow { display: flex; align-items: center; gap: 8px; }
+.qa-simbox {
+  flex: 1; min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border-2); border-radius: var(--radius-md); background: #fff;
+  font-size: var(--fs-base); color: var(--color-text-2); line-height: 1.6; word-break: break-all;
+  white-space: pre-wrap; /* 多行问法按录入换行展示 */
+}
+textarea.qa-simbox {
+  padding: 8px 12px;
+  border: 1px solid var(--color-primary); border-radius: var(--radius-md); background: #fff;
+  font-family: inherit; outline: none; resize: vertical;
+}
+.qa-simrow .kb-row-edit { flex: none; border: none; background: none; padding: 4px; color: #8a94a6; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.qa-simrow .kb-row-edit:hover { color: var(--color-primary); }
+
+/* 关键词：场景标签式标签流（灰标签+✕移除），＋虚线标签内联输入新增（复用 kb-scene-tag/kb-scene-create） */
+.qa-kwtags { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.qa-kwtags .kb-scene-tag { display: inline-flex; align-items: center; gap: 6px; cursor: default; }
+.qa-kwtags .kb-scene-tag i { font-style: normal; font-size: 10px; color: var(--color-text-4); cursor: pointer; }
+.qa-kwtags .kb-scene-tag i:hover { color: var(--color-danger); }

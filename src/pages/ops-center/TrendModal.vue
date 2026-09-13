@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { chartPeriod, formatChartValue, makeTrendValues, parseNumberText } from './trendChart';
 
 const props = defineProps<{
   metric: string;
@@ -11,105 +12,6 @@ const props = defineProps<{
   mode: string;
 }>();
 const emit = defineEmits<{ (e: 'close'): void }>();
-
-function parseNumberText(txt: string) {
-  const s = (txt || '').replace(/[¥,%]/g, '').replace(/,/g, '').trim();
-  const n = parseFloat(s);
-  return Number.isNaN(n) ? 0 : n;
-}
-function isRateMetric(name: string) {
-  return name.indexOf('率') > -1;
-}
-function metricUnit(name: string) {
-  if (isRateMetric(name)) return '%';
-  if (name.indexOf('利润') > -1 || name.indexOf('费') > -1 || name.indexOf('成本') > -1 || name === '销售金额')
-    return '¥';
-  return '';
-}
-function formatChartValue(name: string, v: number) {
-  if (isRateMetric(name)) return v.toFixed(1) + '%';
-  if (metricUnit(name) === '¥') return '¥' + Math.round(v).toLocaleString();
-  if (name === '店铺数' || name === '下架链接数') return v.toFixed(0);
-  return Math.round(v).toLocaleString();
-}
-function dateAdd(d: Date, n: number) {
-  const x = new Date(d);
-  x.setDate(x.getDate() + n);
-  return x;
-}
-function parseYmd(s: string) {
-  const a = s.split('-');
-  if (a.length !== 3) return null;
-  return new Date(+a[0], +a[1] - 1, +a[2]);
-}
-function chartPeriod(dateText: string, mode: string) {
-  const text = dateText.trim();
-  if (text.indexOf('~') > -1) {
-    const ps = text.split('~').map((x) => x.trim());
-    const s = parseYmd(ps[0]);
-    const e = parseYmd(ps[1]);
-    if (s && e) {
-      const labels: string[] = [];
-      let cur = new Date(s);
-      let guard = 0;
-      while (cur <= e && guard < 31) {
-        labels.push(cur.getMonth() + 1 + '/' + cur.getDate());
-        cur = dateAdd(cur, 1);
-        guard++;
-      }
-      return { labels, desc: text };
-    }
-  }
-  if (mode === '7') {
-    const e7 = new Date(2026, 7, 12);
-    const l7: string[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d7 = dateAdd(e7, -i);
-      l7.push(d7.getMonth() + 1 + '/' + d7.getDate());
-    }
-    return { labels: l7, desc: '近7天' };
-  }
-  if (mode === '30') {
-    const e30 = new Date(2026, 7, 12);
-    const l30: string[] = [];
-    for (let j = 29; j >= 0; j--) {
-      const d30 = dateAdd(e30, -j);
-      l30.push(d30.getMonth() + 1 + '/' + d30.getDate());
-    }
-    return { labels: l30, desc: '近30天' };
-  }
-  if (mode === 'month') {
-    const mp = text.split('-');
-    const my = +mp[0];
-    const mm = +mp[1];
-    if (my && mm) {
-      const n = new Date(my, mm, 0).getDate();
-      const lm: string[] = [];
-      for (let i = 1; i <= n; i++) lm.push(mm + '/' + i);
-      return { labels: lm, desc: text };
-    }
-  }
-  if (mode === 'day') {
-    return { labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'], desc: '日 · ' + text };
-  }
-  return { labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'], desc: '实时 · ' + text };
-}
-function makeTrendValues(metric: string, count: number, base: number) {
-  const factors = [
-    0.82, 0.91, 0.88, 1.02, 0.97, 1.08, 1.0, 1.05, 0.94, 1.11, 1.03, 0.98, 1.07, 1.02, 0.96, 1.09, 1.12, 1.04,
-    0.99, 1.06, 1.01, 0.95, 1.1, 1.03, 1.08, 1.0, 0.97, 1.05, 1.02, 1.0, 1.04,
-  ];
-  const vals: number[] = [];
-  for (let i = 0; i < count; i++) {
-    const f = factors[i % factors.length];
-    const wave = Math.sin(i * 0.83) * 0.055;
-    let v = base * (f + wave);
-    if (isRateMetric(metric)) v = Math.max(0, v);
-    vals.push(v);
-  }
-  if (vals.length) vals[vals.length - 1] = base;
-  return vals;
-}
 
 const chartType = ref<'line' | 'bar'>('line');
 
@@ -140,8 +42,8 @@ const geo = computed(() => {
   max = max + pad;
   const y = (v: number) => T + ((max - v) / (max - min)) * plotH;
   const x = (i: number) => (labels.length <= 1 ? L + plotW / 2 : L + i * (plotW / (labels.length - 1)));
-  // X轴标签：最多显示10个，避免30天太挤
-  const step = Math.max(1, Math.ceil(labels.length / 10));
+  // X轴标签：最多显示13个（小时轴每 2 小时一个），避免密集刻度太挤
+  const step = Math.max(1, Math.ceil(labels.length / 13));
   const bw = Math.max(8, Math.min(34, plotW / (labels.length * 1.6)));
   const grids = [0, 1, 2, 3, 4].map((g) => ({
     g,

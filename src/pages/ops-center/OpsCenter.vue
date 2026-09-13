@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { provide, ref, watch } from 'vue';
 import './OpsCenter.css';
+import OverviewPage from './OverviewPage.vue';
 import DashboardPage from './DashboardPage.vue';
 import InternalPage from './InternalPage.vue';
 import MarketPage from './MarketPage.vue';
@@ -12,14 +13,20 @@ import CreateProductPage from './CreateProductPage.vue';
 import TaskCenterPage from './TaskCenterPage.vue';
 import CodeWarnPage from './CodeWarnPage.vue';
 import StrategyPage from './StrategyPage.vue';
+import MovePage from './MovePage.vue';
 import AiAssistantPage from './AiAssistantPage.vue';
 import MsgBell from './MsgBell.vue';
+import { shopAcctReq } from '../../components/globalMsgData';
+import { amOfflineCount } from '../permission/accountData';
 import MemberManagement from '../permission/MemberManagement.vue';
+import ShopManagement from '../permission/ShopManagement.vue';
+import AccountManagement from '../permission/AccountManagement.vue';
 import DepartmentManagement from '../permission/DepartmentManagement.vue';
 import RolePermission from '../permission/RolePermission.vue';
 import OpsGroupManagement from '../permission/OpsGroupManagement.vue';
 
 type PageKey =
+  | 'overview'
   | 'dashboard'
   | 'internal'
   | 'market'
@@ -32,8 +39,11 @@ type PageKey =
   | 'createJm'
   | 'codeWarn'
   | 'taskCenter'
+  | 'move'
   | 'strategy'
   | 'permMember'
+  | 'permShop'
+  | 'permAcct'
   | 'permDept'
   | 'permRole'
   | 'permOpsGroup'
@@ -59,6 +69,7 @@ const active = ref<string>('internal');
 const productOpen = ref(true);
 const createOpen = ref(false);
 const permissionOpen = ref(false);
+const automationOpen = ref(false);
 
 /* 切到商品创建子页时自动展开菜单（原版 showCreateTaobao / showCreateVideo） */
 const showCreate = (key: 'createTaobao' | 'createVideo' | 'createJm') => {
@@ -70,6 +81,14 @@ const onSubnav = (key: string, target?: PageKey) => {
   active.value = key;
   if (target) page.value = target;
 };
+
+/* 掉店提醒「前往」：切账号管理页并展开权限分组（管理账号抽屉由 AccountManagement 监听同一桥打开） */
+watch(shopAcctReq, (v) => {
+  if (!v) return;
+  page.value = 'permAcct';
+  active.value = '账号管理';
+  permissionOpen.value = true;
+});
 
 /* 子页跨页跳转（如市场商机操作列「全网搜索」、任务详情「详情」→商品创建）；商品创建键走 clickCreate 以同步展开侧边栏分组 */
 provide('opsGo', (target: PageKey) => {
@@ -87,8 +106,8 @@ const navCls = (key: PageKey) => `nav ${active.value === key ? 'active' : ''}`;
 const pageCls = (key: PageKey) => `page ${page.value === key ? 'show' : ''}`;
 
 /* 收起态点击分组：展开侧边栏并打开该组；展开态：正常收合切换 */
-const toggleGroup = (key: 'product' | 'create' | 'permission') => {
-  const open = key === 'product' ? productOpen : key === 'create' ? createOpen : permissionOpen;
+const toggleGroup = (key: 'product' | 'create' | 'permission' | 'automation') => {
+  const open = key === 'product' ? productOpen : key === 'create' ? createOpen : key === 'automation' ? automationOpen : permissionOpen;
   if (collapsed.value) {
     open.value = true;
     toggleCollapsed();
@@ -98,8 +117,8 @@ const toggleGroup = (key: 'product' | 'create' | 'permission') => {
 };
 
 const permItems: { name: string; target?: PageKey }[] = [
-  { name: '店铺管理' },
-  { name: '账号管理' },
+  { name: '店铺管理', target: 'permShop' },
+  { name: '账号管理', target: 'permAcct' },
   { name: '成员管理', target: 'permMember' },
   { name: '部门管理', target: 'permDept' },
   { name: '角色管理', target: 'permRole' },
@@ -109,6 +128,7 @@ const permItems: { name: string; target?: PageKey }[] = [
 /* 收起态路由图标悬浮气泡：展示路由名称，有二级路由则展示，点击跳转对应页面 */
 interface RailSub { name: string; target?: PageKey; create?: 'createTaobao' | 'createVideo' | 'createJm' }
 const railMenus: Record<string, { title: string; subs: RailSub[] }> = {
+  overview: { title: '概览', subs: [{ name: '概览', target: 'overview' }] },
   dashboard: { title: '运营驾驶舱', subs: [{ name: '运营驾驶舱', target: 'dashboard' }] },
   operationManage: { title: '运营管理', subs: [{ name: '运营管理', target: 'operationManage' }] },
   product: { title: '商机中心', subs: [{ name: '全网搜索', target: 'search' }, { name: '内部商机', target: 'internal' }, { name: '市场商机', target: 'market' }, { name: '竞价商品', target: 'bidding' }] },
@@ -118,7 +138,7 @@ const railMenus: Record<string, { title: string; subs: RailSub[] }> = {
   taskCenter: { title: '任务中心', subs: [{ name: '任务中心', target: 'taskCenter' }] },
   strategy: { title: '商品策略', subs: [{ name: '商品策略', target: 'strategy' }] },
   aiAssistant: { title: 'AI助手', subs: [{ name: 'AI助手', target: 'aiAssistant' }] },
-  automation: { title: '自动化中心', subs: [] },
+  automation: { title: '自动化中心', subs: [{ name: '视频号全店搬家', target: 'move' }] },
   permission: { title: '权限设置', subs: permItems.map((p) => ({ name: p.name, target: p.target })) },
 };
 const railPop = ref<{ key: string; x: number; y: number } | null>(null);
@@ -158,6 +178,10 @@ const onMsgJump = (id: string) => {
           </div>
         </div>
         <div class="side-scroll">
+          <div :class="navCls('overview')" @click="onSubnav('overview', 'overview')" @mouseenter="railEnter('overview', $event)" @mouseleave="railLeave()">
+            <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="4" height="9" rx="1.5" /><rect x="10" y="4" width="4" height="16" rx="1.5" /><rect x="16" y="14" width="4" height="6" rx="1.5" /></svg></span>
+            <span class="nav-text">概览</span>
+          </div>
           <div :class="navCls('dashboard')" @click="onSubnav('dashboard', 'dashboard')" @mouseenter="railEnter('dashboard', $event)" @mouseleave="railLeave()">
             <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></svg></span>
             <span class="nav-text">运营驾驶舱</span>
@@ -237,14 +261,24 @@ const onMsgJump = (id: string) => {
             <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l1.8 4.7 4.7 1.8-4.7 1.8L12 17l-1.8-4.7-4.7-1.8 4.7-1.8Z" /><path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8Z" /></svg></span>
             <span class="nav-text">AI助手</span>
           </div>
-          <div class="nav" @mouseenter="railEnter('automation', $event)" @mouseleave="railLeave()">
-            <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" /></svg></span>
-            <span class="nav-text">自动化中心</span>
+          <div class="nav nav-parent" :class="automationOpen ? 'open' : ''" @click.stop="toggleGroup('automation')" @mouseenter="railEnter('automation', $event)" @mouseleave="railLeave()">
+            <div class="nav-left">
+              <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" /></svg></span>
+              <span class="nav-text">自动化中心</span>
+            </div>
+            <span class="nav-arrow">▶</span>
+          </div>
+          <div class="subnav-wrap" :class="automationOpen ? 'show' : ''">
+            <div class="subnav" :class="active === 'move' ? 'active' : ''" @click.stop="onSubnav('move', 'move')">
+              视频号全店搬家
+            </div>
           </div>
           <div class="nav nav-parent" :class="permissionOpen ? 'open' : ''" @click.stop="toggleGroup('permission')" @mouseenter="railEnter('permission', $event)" @mouseleave="railLeave()">
             <div class="nav-left">
               <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.4-2.9 7.5-7 9-4.1-1.5-7-4.6-7-9V6Z" /><path d="m9.3 11.8 2 2 3.4-3.6" /></svg></span>
               <span class="nav-text">权限设置</span>
+              <!-- 掉店未读徽标：离线账号数 > 0 时展示，提醒及时处理 -->
+              <span v-if="amOfflineCount" class="ops-nav-badge" :title="`${amOfflineCount} 个账号掉线，请及时处理`">{{ amOfflineCount }}</span>
             </div>
             <span class="nav-arrow">▶</span>
           </div>
@@ -257,6 +291,7 @@ const onMsgJump = (id: string) => {
               @click.stop="onSubnav(item.name, item.target)"
             >
               {{ item.name }}
+              <span v-if="item.name === '账号管理' && amOfflineCount" class="ops-nav-badge" :title="`${amOfflineCount} 个账号掉线，请及时处理`">{{ amOfflineCount }}</span>
             </div>
           </div>
         </div>
@@ -280,6 +315,9 @@ const onMsgJump = (id: string) => {
         <div class="ops-topbar"><MsgBell @jump="onMsgJump" /></div>
         <main class="main">
         <div class="content">
+          <section :class="pageCls('overview')">
+            <OverviewPage />
+          </section>
           <section :class="pageCls('dashboard')">
             <DashboardPage />
           </section>
@@ -322,6 +360,9 @@ const onMsgJump = (id: string) => {
           <section :class="pageCls('taskCenter')">
             <TaskCenterPage />
           </section>
+          <section :class="pageCls('move')">
+            <MovePage />
+          </section>
           <section :class="pageCls('permMember')">
             <div class="page-header">
               <div class="page-title">
@@ -331,6 +372,12 @@ const onMsgJump = (id: string) => {
             <div class="pm-page pm-embed">
               <MemberManagement />
             </div>
+          </section>
+          <section :class="pageCls('permShop')">
+            <ShopManagement />
+          </section>
+          <section :class="pageCls('permAcct')">
+            <AccountManagement />
           </section>
           <section :class="pageCls('permDept')">
             <div class="pm-page pm-embed">

@@ -1,0 +1,157 @@
+/* 自动化中心-视频号全店搬家：mv- 前缀；通用筛选/表格/徽章复用 sg-* 与 badge-* */
+
+/* 入仓库蓝徽章（badge-* 无蓝色，模块内补齐） */
+.ops-center .mv-badge-blue {
+  display: inline-block;
+  background: #eef4ff;
+  color: #3d6df2;
+  border: 1px solid #cfdcff;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+/* 任务/店铺两行信息 */
+.ops-center .mv-name { font-size: 13px; color: #1f2733; font-weight: 600; }
+.ops-center .mv-sub { font-size: 12px; color: #8a94a4; margin-top: 2px; }
+.ops-center .mv-desc { font-size: 12px; color: #8a94a4; margin: -4px 0 10px; }
+.ops-center .mv-shopline { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #4a5468; }
+.ops-center .mv-shopline + .mv-shopline { margin-top: 4px; }
+.ops-center .mv-shopline .store-logo img { width: 16px; height: 16px; border-radius: 4px; }
+.ops-center .mv-shopline i { font-style: normal; color: #b6bfcc; }
+
+/* 配置抽屉：右滑 640px */
+.ops-center .mv-drawer-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  z-index: 60;
+}
+.ops-center .mv-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 640px;
+  max-width: 94vw;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -8px 0 24px rgba(15, 23, 42, 0.12);
+}
+.ops-center .mv-dr-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #edf0f4;
+}
+.ops-center .mv-dr-title { font-size: 15px; font-weight: 600; color: #1f2733; }
+.ops-center .mv-dr-sub { font-size: 12px; color: #8a94a4; margin-top: 2px; }
+.ops-center .mv-dr-x { cursor: pointer; color: #8a94a4; display: inline-flex; }
+.ops-center .mv-dr-body { flex: 1; overflow: auto; padding: 16px 20px 24px; }
+
+/* 三步向导步骤条：抽屉固定尺寸，步骤切换仅换 body 内容（步内滚动），不改抽屉大小 */
+.ops-center .mv-steps { flex: none; display: flex; align-items: center; padding: 12px 20px; border-bottom: 1px solid #edf0f4; }
+.ops-center .mv-step { display: flex; align-items: center; gap: 6px; font-size: var(--fs-aux); color: #8a94a4; }
+.ops-center .mv-step i {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid #d4dae3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-style: normal;
+  font-size: var(--fs-aux);
+  color: #8a94a4;
+}
+.ops-center .mv-step + .mv-step { margin-left: 28px; position: relative; }
+.ops-center .mv-step + .mv-step::before { content: ''; position: absolute; left: -20px; top: 50%; width: 12px; height: 1px; background: #d4dae3; }
+.ops-center .mv-step.on { color: var(--color-primary); font-weight: 600; }
+.ops-center .mv-step.on i { border-color: var(--color-primary); background: var(--color-primary); color: #fff; }
+.ops-center .mv-step.done { color: #4a5468; }
+.ops-center .mv-step.done i { border-color: var(--color-primary); color: var(--color-primary); }
+.ops-center .mv-step.done + .mv-step::before { background: var(--color-primary); }
+
+/* 步骤3 配置回看灰底块 */
+.ops-center .mv-recap { background: #f7f8fa; border: 1px solid #edf0f4; border-radius: var(--radius-lg); padding: 10px 12px; }
+.ops-center .mv-recap-row { display: flex; gap: 8px; font-size: var(--fs-aux); line-height: 20px; }
+.ops-center .mv-recap-row + .mv-recap-row { margin-top: 4px; }
+.ops-center .mv-recap-row > span { flex: none; width: 56px; color: #8a94a4; }
+.ops-center .mv-recap-row > b { color: #1f2733; font-weight: 500; }
+.ops-center .mv-dr-foot {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid #edf0f4;
+}
+
+/* 抽屉分区 */
+.ops-center .mv-sec { font-size: 13px; font-weight: 600; color: #1f2733; margin: 18px 0 10px; }
+.ops-center .mv-sec:first-child { margin-top: 0; }
+.ops-center .mv-sec .mv-req { color: #ff6a6f; margin-left: 2px; }
+.ops-center .mv-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.ops-center .mv-row > label { flex: none; width: 76px; font-size: 12px; color: #4a5468; }
+.ops-center .mv-row .sg-input { width: 220px; }
+.ops-center .mv-row .sg-select { width: 160px; flex: none; }
+.ops-center .mv-hint { font-size: 12px; color: #8a94a4; }
+
+/* 任务类型 radio 卡 */
+.ops-center .mv-typecards { display: flex; gap: 8px; flex: 1; }
+.ops-center .mv-typecard {
+  flex: 1;
+  border: 1px solid #e2e7ee;
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  text-align: left;
+  background: #fff;
+}
+.ops-center .mv-typecard.on { border-color: var(--color-primary, #3d6df2); background: #f2f6ff; }
+.ops-center .mv-typecard b { display: block; font-size: 13px; color: #1f2733; }
+.ops-center .mv-typecard span { display: block; font-size: 11px; color: #8a94a4; margin-top: 2px; }
+
+/* 店铺复选/单选列表 */
+.ops-center .mv-shoplist { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.ops-center .mv-shopitem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #e2e7ee;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 12px;
+  color: #4a5468;
+  cursor: pointer;
+}
+.ops-center .mv-shopitem.on { border-color: var(--color-primary, #3d6df2); background: #f2f6ff; }
+.ops-center .mv-shopitem .store-logo img { width: 16px; height: 16px; border-radius: 4px; }
+
+/* 弹层 foot 按钮：.btn 基类不在 ops 作用域，模块内补齐；确认类 danger 实心红（全局规范） */
+.ops-center .mv-page .btn {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid #e2e7ee;
+  background: #fff;
+  color: #1f2733;
+  cursor: pointer;
+}
+.ops-center .mv-page .btn.danger { background: #e6455c; border-color: #e6455c; color: #fff; }
+.ops-center .mv-page .btn.danger:hover { background: #d13a50; border-color: #d13a50; }
+
+/* 抽屉内注意项灰底块 */
+.ops-center .mv-caution {
+  background: #fff7e8;
+  border: 1px solid #ffe1b3;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #7a4f01;
+  line-height: 20px;
+}
+.ops-center .mv-caution div + div { margin-top: 2px; }

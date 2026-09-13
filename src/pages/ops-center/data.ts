@@ -71,6 +71,8 @@ export interface LossRow {
   problem: string;
   status: string;
   statusCls: 'badge-red' | 'badge-orange' | 'badge-green';
+  /** 商品状态：与店铺商品列表同源枚举（SG_STATUS_META） */
+  goodsStatus: SgStatus;
 }
 export const lossRows: LossRow[] = [
   {
@@ -84,6 +86,7 @@ export const lossRows: LossRow[] = [
     problem: '广告费偏高 / 利润倒挂',
     status: '亏损中',
     statusCls: 'badge-red',
+    goodsStatus: 'selling',
   },
   {
     title: '益智魔块3D立体拼图3到6岁动物趣味恐龙模型儿童手工',
@@ -96,6 +99,7 @@ export const lossRows: LossRow[] = [
     problem: '退款率偏高 / 客诉增加',
     status: '亏损中',
     statusCls: 'badge-red',
+    goodsStatus: 'selling',
   },
   {
     title: '迷你随身小烟炮音响驱动无线蓝牙便携式重低音抽绳盒',
@@ -108,6 +112,7 @@ export const lossRows: LossRow[] = [
     problem: '快递费过高',
     status: '待优化',
     statusCls: 'badge-orange',
+    goodsStatus: 'offManual',
   },
 ];
 
@@ -124,6 +129,8 @@ export interface StockRow {
   risk: string;
   status: string;
   statusCls: 'badge-red' | 'badge-orange' | 'badge-green';
+  /** 商品状态：与店铺商品列表同源枚举（SG_STATUS_META） */
+  goodsStatus: SgStatus;
 }
 export const stockRows: StockRow[] = [
   {
@@ -138,6 +145,7 @@ export const stockRows: StockRow[] = [
     risk: '库存已清零，建议立即补货',
     status: '缺货',
     statusCls: 'badge-red',
+    goodsStatus: 'selling',
   },
   {
     title: '密封胶泥空调孔填缝堵洞防虫防水家用耐高温下水道修补',
@@ -151,6 +159,7 @@ export const stockRows: StockRow[] = [
     risk: '库存偏低，预计 1 天内售罄',
     status: '库存紧张',
     statusCls: 'badge-orange',
+    goodsStatus: 'selling',
   },
   {
     title: '证件防丢卡套卡套防复制身份证银行卡保护隐私便携款',
@@ -164,6 +173,7 @@ export const stockRows: StockRow[] = [
     risk: '销量增长明显，库存不足',
     status: '待补货',
     statusCls: 'badge-orange',
+    goodsStatus: 'offManual',
   },
 ];
 
@@ -377,6 +387,7 @@ export const PLATFORM_LOGO: Record<string, string> = {
   抖音: '/logos/douyin.png',
   快手: '/logos/kuaishou.png',
   京麦: '/logos/jd.png',
+  京东: '/logos/jd.png',
 };
 
 /* ---------- 商品创建（淘宝） ---------- */
@@ -495,6 +506,18 @@ export const createJmRows: CreateRow[] = [
 ];
 
 /* ---------- 任务中心 ---------- */
+const p2 = (n: number) => String(n).padStart(2, '0');
+/** 今日日期串：任务详情创建时间筛选默认区间与今日批次种子共用 */
+export const TC_TODAY = `${new Date().getFullYear()}-${p2(new Date().getMonth() + 1)}-${p2(new Date().getDate())}`;
+const wcTime = (h: number, m: number, s: number) => `${TC_TODAY} ${p2(h)}:${p2(m)}:${p2(s)}`;
+/** n 天前日期串：批次种子按日散布（概览时间窗口切片有数据） */
+const dateDaysAgo = (n: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+};
+/** 运行时当前时刻串：重试/通过/拒绝等动作回写时间 */
+const nowStr = () => `${TC_TODAY} ${new Date().toTimeString().slice(0, 8)}`;
 const taskThumb = (bg: string, text: string) =>
   "data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2748%27%20height%3D%2748%27%3E%0A%20%20%20%20%3Crect%20width%3D%2748%27%20height%3D%2748%27%20rx%3D%279%27%20fill%3D%27" +
   encodeURIComponent(bg).replace(/'/g, '%27') +
@@ -503,14 +526,21 @@ const taskThumb = (bg: string, text: string) =>
   '%3C/text%3E%0A%20%20%20%20%3C/svg%3E';
 
 export type ParentStatus = 'queued' | 'running' | 'done';
-export type SubStatus = 'queued' | 'running' | 'success' | 'failed';
+/** confirm=风控待二次确认；cancelled=已取消（取消方式见 cancelType） */
+export type SubStatus = 'queued' | 'running' | 'success' | 'failed' | 'confirm' | 'cancelled';
+/** 取消方式：risk=风控自动取消 / manual=手动取消执行 */
+export type CancelType = 'risk' | 'manual';
+/** 风控取消原因（品控中心垃圾品口径） */
+export const RISK_JUNK_REASON = '商品命中公司垃圾品管控，不允许上架';
+/** 风险管控失败原因（校验管控商品节点命中禁止上架商品） */
+export const RISK_CTRL_REASON = '命中我司风险管控商品，该商品禁止上架';
 
 /** 店铺发布结果（任务节点三集合元素）：商品发到不同店铺时各自的独立结果 */
 export interface ShopResult {
   platform: string;
   shop: string;
   status: SubStatus;
-  /** 失败原因（失败tab筛选 chips：发品超限/库存不足/其它） */
+  /** 失败原因（失败tab筛选 chips：发品受限/价格异常/母链接同步失败/风控拦截/材料缺失/系列编码异常/其它） */
   reason: string;
   retried: boolean;
   startTime: string;
@@ -519,8 +549,8 @@ export interface ShopResult {
 
 export interface SubTask {
   id: number;
-  /** 全局唯一任务ID：任务中心列表/详情 与 个人商品库-关联发布任务抽屉 联动展示 */
-  taskId: number;
+  /** 全局唯一任务ID：任务中心列表/详情 与 个人商品库-关联发布任务抽屉 联动展示（字符串避免 18 位雪花ID 精度丢失） */
+  taskId: string;
   templateNo: string;
   name: string;
   thumb: string;
@@ -529,9 +559,15 @@ export interface SubTask {
   publisher?: string;
   /** 任务状态（聚合：统一节点失败 > 店铺结果集） */
   status: SubStatus;
-  /** 失败节点（0 起，仅 0/1 统一节点）：该节点失败则店铺集合未触达 */
+  /** 失败节点（0 起，统一节点索引：含校验管控商品节点）：该节点失败则店铺集合未触达 */
   failStep?: number;
-  /** 节点三：商品发布店铺结果集（一个商品发到 N 个店铺 = 一个任务） */
+  /** 校验管控商品节点结果（发布/铺货类任务）：总数/通过/失败/待确认 */
+  verify?: { total: number; pass: number; fail: number; pending: number };
+  /** 取消方式（仅 cancelled）：区分风控自动取消/手动取消（已取消 tab 子状态） */
+  cancelType?: CancelType;
+  /** 风险说明（confirm/cancelled）：弹窗与取消原因展示 */
+  riskReason?: string;
+  /** 一品一店一任务：单店发布结果集（长度恒为 1） */
   shops: ShopResult[];
   startTime: string;
   endTime: string;
@@ -539,7 +575,7 @@ export interface SubTask {
 
 /** 任务状态聚合规则：统一节点（一/二）失败优先；否则看店铺集合——全待执行=队列中、含失败=执行失败、全成功=已完成、其余=执行中 */
 export function taskStatusOf(s: { failStep?: number; shops: ShopResult[] }): SubStatus {
-  if (s.failStep !== undefined && s.failStep < 2) return 'failed';
+  if (s.failStep !== undefined) return 'failed';
   const st = s.shops.map((x) => x.status);
   if (st.every((x) => x === 'queued')) return 'queued';
   if (st.some((x) => x === 'failed')) return 'failed';
@@ -573,13 +609,17 @@ export interface ParentTask {
 const SUB_NAME = 'Nike Sock durk 男子运动鞋采用优质舒适休闲设计';
 const subThumb = taskThumb('#f6e7dc', '鞋');
 const makers = ['张三', '李四', '王五'];
-const failReasons = ['发品超限', '库存不足', '其它'];
+const failReasons = ['发品受限', '价格异常', '母链接同步失败', '风控拦截', '材料缺失', '系列编码异常', '其它'];
 
-/** 各父任务状态下的子任务状态序列 */
-const subPattern: Record<ParentStatus, SubStatus[]> = {
+/** 种子状态：在 SubStatus 基础上区分取消来源（风控/手动），建模时归一为 cancelled */
+type SubSeed = SubStatus | 'risk_cancelled' | 'manual_cancelled';
+const seedStatus = (st: SubSeed): SubStatus => (st === 'risk_cancelled' || st === 'manual_cancelled' ? 'cancelled' : st);
+
+/** 各父任务状态下的子任务状态序列（含风控样本：confirm=待二次确认 / risk_cancelled=风控取消 / manual_cancelled=手动取消） */
+const subPattern: Record<ParentStatus, SubSeed[]> = {
   queued: Array.from({ length: 10 }, () => 'queued' as SubStatus),
-  running: ['success', 'success', 'failed', 'success', 'running', 'failed', 'running', 'success', 'queued', 'queued'],
-  done: ['success', 'failed', 'success', 'success', 'failed', 'success', 'success', 'failed', 'success', 'success'],
+  running: ['success', 'confirm', 'failed', 'success', 'running', 'risk_cancelled', 'running', 'success', 'queued', 'queued'],
+  done: ['success', 'failed', 'success', 'manual_cancelled', 'failed', 'success', 'success', 'risk_cancelled', 'success', 'confirm'],
 };
 
 /* 个人商品库-关联发布任务：该商品在任务中心的发布批次（与任务列表同源，状态联动） */
@@ -600,14 +640,16 @@ const pickShops = (seed: number, i: number) => {
   return Array.from({ length: n }, (_, k) => ({ platform: g.platform, shop: g.shops[(start + k) % g.shops.length] }));
 };
 /* 店铺结果集：按任务状态推导各店独立结果（失败且统一节点失败=未触达；节点三失败=部分店失败） */
-function buildShops(seed: number, i: number, st: SubStatus): ShopResult[] {
+function buildShops(seed: number, i: number, st: SubStatus, day: string): ShopResult[] {
   const pools = pickShops(seed, i);
-  const failReason = failReasons[(seed + i) % 3];
+  const failReason = failReasons[(seed + i) % failReasons.length];
   const retried = (seed + i) % 2 === 0;
   const unifiedFailed = st === 'failed' && (seed + i) % 3 < 2;
   const allFailed = st === 'failed' && (seed + i) % 4 === 0;
   return pools.map((p, k) => {
     let status: SubStatus = st;
+    /* 风控态（待确认/已取消）：任务未进入店铺发布，全部店铺保持待执行 */
+    if (st === 'confirm' || st === 'cancelled') status = 'queued';
     if (st === 'running') status = k === 0 ? 'success' : k === 1 ? 'running' : 'queued';
     if (st === 'failed') status = unifiedFailed ? 'queued' : allFailed ? 'failed' : k === pools.length - 1 ? 'failed' : 'success';
     return {
@@ -616,42 +658,40 @@ function buildShops(seed: number, i: number, st: SubStatus): ShopResult[] {
       status,
       reason: status === 'failed' ? failReason : '',
       retried: status === 'failed' ? retried : false,
-      startTime: status === 'queued' ? '' : '2026-04-04 12:01:00',
-      endTime: status === 'success' || status === 'failed' ? '2026-04-04 12:04:00' : '',
+      startTime: status === 'queued' ? '' : `${day} 12:01:00`,
+      endTime: status === 'success' || status === 'failed' ? `${day} 12:04:00` : '',
     };
   });
 }
 function buildPubBatch(row: CreateRow, seed: number): ParentTask {
   const m = row.link.match(/[?&]id=(\d+)/);
-  /* 新模型：一个商品×N店铺=一个任务；六个店铺结果归为三个任务（每任务两店） */
-  const subs: SubTask[] = [0, 1, 2].map((t) => {
-    const g = PLATFORM_SHOPS[(seed + t) % PLATFORM_SHOPS.length];
-    const shops: ShopResult[] = PUB_PATTERN.slice(t * 2, t * 2 + 2).map((st, k) => {
-      return {
-        platform: g.platform,
-        shop: g.shops[k % g.shops.length],
-        status: st,
-        reason: st === 'failed' ? failReasons[(seed + t + k) % 3] : '',
-        retried: false,
-        startTime: `2026-04-04 12:0${t * 2 + k}:00`,
-        endTime: `2026-04-04 12:0${t * 2 + k + 1}:00`,
-      };
-    });
+  const day = row.time.slice(0, 10);
+  /* 一品一店一任务：单平台店铺池逐店生成任务（六店 = 六个任务，taskId 60000 段） */
+  const g = PLATFORM_SHOPS[seed % PLATFORM_SHOPS.length];
+  const subs: SubTask[] = PUB_PATTERN.map((st, idx) => {
+    const shop: ShopResult = {
+      platform: g.platform,
+      shop: g.shops[idx % g.shops.length],
+      status: st,
+      reason: st === 'failed' ? failReasons[(seed + idx) % failReasons.length] : '',
+      retried: false,
+      startTime: st === 'success' || st === 'failed' ? `${day} 12:0${idx}:00` : '',
+      endTime: st === 'success' || st === 'failed' ? `${day} 12:0${idx + 1}:00` : '',
+    };
     return {
-      id: seed * 100 + t,
-      taskId: seed * 100 + t,
-      templateNo: `V${String(seed).padStart(4, '0')}-0${t + 1}`,
+      id: idx,
+      taskId: String(60000 + seed * 100 + idx),
+      templateNo: `V${String(seed).padStart(4, '0')}-0${idx + 1}`,
       name: row.title,
       thumb: row.thumb,
       linkId: m?.[1] ?? '888877776666',
       publisher: row.person ?? '周梦琪',
-      status: taskStatusOf({ shops }),
-      shops,
-      startTime: `2026-04-04 12:0${t * 2}:00`,
-      endTime: `2026-04-04 12:0${t * 2 + 2}:00`,
+      status: st,
+      shops: [shop],
+      startTime: shop.startTime,
+      endTime: shop.endTime,
     };
   });
-  const allShops = subs.flatMap((s) => s.shops);
   return {
     id: 50 + seed,
     creator: row.person,
@@ -660,43 +700,58 @@ function buildPubBatch(row: CreateRow, seed: number): ParentTask {
     status: 'done',
     channel: '智能',
     pubWay: '蜂联发布',
-    shops: allShops.length,
+    shops: subs.length,
     links: subs.length,
-    success: allShops.filter((s) => s.status === 'success').length,
-    failed: allShops.filter((s) => s.status === 'failed').length,
+    success: subs.filter((s) => s.status === 'success').length,
+    failed: subs.filter((s) => s.status === 'failed').length,
     running: 0,
-    startTime: '2026-04-04 12:00:00',
-    endTime: '2026-04-04 12:06:00',
+    startTime: `${day} 12:00:00`,
+    endTime: `${day} 12:06:00`,
     subs,
     pubFor: row.link,
   };
 }
 
-function buildSubs(seed: number, status: ParentStatus): SubTask[] {
-  return subPattern[status].map((st, i) => {
-    const shops = buildShops(seed, i, st);
-    const failStep = st === 'failed' ? (seed + i) % 3 : undefined;
-    return {
-      id: seed * 100 + i,
-      taskId: 1000 + (seed - 1) * 10 + i,
-      templateNo: `V${String(seed).padStart(4, '0')}-${String(i + 1).padStart(2, '0')}`,
-      name: SUB_NAME,
-      thumb: subThumb,
-      linkId: '888877776666',
-      status: taskStatusOf({ failStep, shops }),
-      failStep,
-      shops,
-      startTime: st === 'queued' ? '' : '2026-04-04 12:01:00',
-      endTime: st === 'success' || st === 'failed' ? '2026-04-04 12:04:00' : '',
-    };
+/* 一品一店一任务：状态种子逐店展开，每店一个独立子任务（taskId=父批次*1000+槽位*10+店序） */
+function buildSubs(seed: number, status: ParentStatus, day: string): SubTask[] {
+  const subs: SubTask[] = [];
+  subPattern[status].forEach((sd, i) => {
+    const st = seedStatus(sd);
+    /* 风控态：待确认（风险管控，可能亏损）/ 已取消（垃圾品管控或手动取消），店铺未触达 */
+    const risk = st === 'confirm' || st === 'cancelled';
+    /* 失败样本分流：统一节点失败（0/1，店铺未触达）与店铺级失败（failStep 缺省）按槽位交替 */
+    const failStep = st === 'failed' && (seed + i) % 3 < 2 ? (seed + i) % 2 : undefined;
+    const shops = buildShops(seed, i, risk ? 'queued' : st, day);
+    const cancelType: CancelType | undefined = sd === 'risk_cancelled' ? 'risk' : sd === 'manual_cancelled' ? 'manual' : undefined;
+    shops.forEach((sp, k) => {
+      const rowSt: SubStatus = risk ? st : taskStatusOf({ failStep, shops: [sp] });
+      subs.push({
+        id: i * 10 + k,
+        taskId: String(seed * 1000 + i * 10 + k),
+        templateNo: `V${String(seed).padStart(4, '0')}-${String(i + 1).padStart(2, '0')}`,
+        name: SUB_NAME,
+        thumb: subThumb,
+        linkId: '888877776666',
+        status: rowSt,
+        failStep,
+        cancelType,
+        riskReason: risk ? RISK_JUNK_REASON : undefined,
+        shops: [sp],
+        startTime: rowSt === 'queued' || rowSt === 'confirm' ? '' : sp.startTime || `${day} 12:01:00`,
+        endTime: rowSt === 'success' || rowSt === 'failed' || rowSt === 'cancelled' ? sp.endTime || `${day} 12:04:00` : '',
+      });
+    });
   });
+  return subs;
 }
 
-function buildParent(id: number, status: ParentStatus): ParentTask {
+function buildParent(id: number, status: ParentStatus, day?: string): ParentTask {
+  /* 批次日期按 id 散布近 30 天（含今日/昨日），概览时间窗口切片有数据 */
+  const d = day ?? dateDaysAgo((id * 7) % 30);
   return {
     id,
     creator: makers[id % 3],
-    createTime: `2026-04-0${(id % 9) + 1} 12:00:00`,
+    createTime: `${d} 12:00:00`,
     type: '快速铺货',
     status,
     channel: id % 2 === 0 ? '蜂联' : '智能',
@@ -707,18 +762,18 @@ function buildParent(id: number, status: ParentStatus): ParentTask {
     success: status === 'queued' ? 0 : 504,
     failed: status === 'queued' ? 0 : 56,
     running: status === 'running' ? 400 : 0,
-    startTime: status === 'queued' ? '' : '2026-04-04 12:01:00',
-    endTime: status === 'done' ? '2026-04-04 12:04:00' : '',
-    subs: buildSubs(id, status),
+    startTime: status === 'queued' ? '' : `${d} 12:01:00`,
+    endTime: status === 'done' ? `${d} 12:04:00` : '',
+    subs: buildSubs(id, status, d),
   };
 }
 
 /** 父任务（批次）列表：前 3 行对应原型（已完成/执行中/队列中），共 50 批 = 15 队列 + 20 执行中 + 15 完成；
     末尾追加个人商品库发布批次（pubFor），与关联发布任务抽屉同源 */
 export const parentTasks = reactive<ParentTask[]>([
-  { ...buildParent(1, 'done'), creator: '张三', createTime: '2026-04-04 12:00:00' },
-  { ...buildParent(2, 'running'), creator: '张三', createTime: '2026-04-04 12:00:00' },
-  { ...buildParent(3, 'queued'), creator: '张三', createTime: '2026-04-04 12:00:00' },
+  { ...buildParent(1, 'done', '2026-04-04'), creator: '张三', createTime: '2026-04-04 12:00:00' },
+  { ...buildParent(2, 'running', '2026-04-04'), creator: '张三', createTime: '2026-04-04 12:00:00' },
+  { ...buildParent(3, 'queued', '2026-04-04'), creator: '张三', createTime: '2026-04-04 12:00:00' },
 ]);
 {
   const need: [ParentStatus, number][] = [
@@ -733,17 +788,183 @@ export const parentTasks = reactive<ParentTask[]>([
   createTaobaoRows.forEach((row, ri) => parentTasks.push(buildPubBatch(row, ri + 1)));
 }
 
+/* ---- 参照版（客户端 v1.0.3）任务详情种子：微信小店今日商品发布批次（执行失败 98 条，前 4 行对齐参照截图） ---- */
+const wcProducts = [
+  { name: '盒装100根数数棒数学小学一年级计算棒算术教具', thumb: taskThumb('#e8f4e6', '数'), linkId: '3840586443' },
+  { name: '卡皮巴拉硅胶拍拍小夜灯充电款创意可爱玩具', thumb: taskThumb('#f6e7dc', '灯'), linkId: '2696075564' },
+  { name: '家用高压水枪喷头卫浴手持花洒套装', thumb: taskThumb('#e6f0f6', '水'), linkId: '2696088794' },
+  { name: '乒乓球批发100个三星级b训练球', thumb: taskThumb('#fdf3e0', '球'), linkId: '3842240765' },
+  { name: '不锈钢保温杯大容量便携水杯定制logo', thumb: taskThumb('#eef0f6', '杯'), linkId: '3840112266' },
+  { name: '儿童益智积木拼装玩具男孩女孩礼物', thumb: taskThumb('#f6ece8', '积'), linkId: '2696118823' },
+];
+const wcShopOf = (i: number) => ((i + 1) % 4 === 0 ? '真子名品' : '首力茹愕小店');
+
+function buildWcParents(): ParentTask[] {
+  const makerOf = ['陈葛豪', '张晋菘', '张晋菘', '陈葛豪', '张晋菘', '陈葛豪', '张晋菘', '陈葛豪'];
+  const createOf = [wcTime(9, 30, 41), wcTime(9, 29, 45), wcTime(9, 28, 12), wcTime(9, 27, 36), wcTime(9, 26, 5), wcTime(9, 25, 48), wcTime(9, 24, 19), wcTime(9, 23, 52)];
+  const groups: SubTask[][] = Array.from({ length: 8 }, () => []);
+  const mk = (
+    pi: number,
+    taskId: string,
+    prodIdx: number,
+    status: SubStatus,
+    start: string,
+    end: string,
+    reason: string,
+    retried: boolean,
+    shop: string,
+    opts?: { failStep?: number; verify?: SubTask['verify']; shopStatus?: SubStatus; riskReason?: string },
+  ): SubTask => {
+    const p = wcProducts[prodIdx % wcProducts.length];
+    return {
+      id: groups[pi].length,
+      taskId,
+      templateNo: `V0913-${p2(pi + 1)}`,
+      name: p.name,
+      thumb: p.thumb,
+      linkId: p.linkId,
+      publisher: makerOf[pi],
+      status,
+      failStep: opts?.failStep,
+      verify: opts?.verify,
+      riskReason: opts?.riskReason,
+      shops: [{ platform: '微信小店', shop, status: opts?.shopStatus ?? status, reason, retried, startTime: start, endTime: end }],
+      startTime: start,
+      endTime: end,
+    };
+  };
+  /* 前 4 行：任务ID/店铺/创建人/执行起止时间逐一对齐参照截图 */
+  groups[0].push(mk(0, '224460576923043006', 0, 'failed', wcTime(9, 30, 41), wcTime(9, 39, 43), '发品受限', false, '首力茹愕小店'));
+  groups[1].push(mk(1, '224823860986230464', 1, 'failed', wcTime(9, 29, 45), wcTime(9, 38, 37), '价格异常', false, '首力茹愕小店'));
+  groups[1].push(mk(1, '224823860986230380', 2, 'failed', wcTime(9, 29, 45), wcTime(9, 37, 57), '母链接同步失败', false, '首力茹愕小店'));
+  groups[1].push(mk(1, '224823860986230280', 3, 'failed', wcTime(9, 29, 45), wcTime(9, 38, 0), '风控拦截', false, '真子名品'));
+  /* 待确认样本：命中待确认商品，暂停在校验管控商品节点（操作列 通过/拒绝） */
+  groups[0].push(mk(0, '224823860986230195', 4, 'confirm', '', '', '', false, '首力茹愕小店', { verify: { total: 4, pass: 0, fail: 0, pending: 1 }, shopStatus: 'queued', riskReason: RISK_CTRL_REASON }));
+  groups[2].push(mk(2, '224823860986230171', 5, 'confirm', '', '', '', false, '真子名品', { verify: { total: 4, pass: 0, fail: 0, pending: 2 }, shopStatus: 'queued', riskReason: RISK_CTRL_REASON }));
+  /* 其余样本：失败 94（合计 98）+ 完成 40 + 执行中 12 + 队列中 10，落入批次 3-8 */
+  let i = 0;
+  const plan: [SubStatus, number][] = [['failed', 94], ['success', 40], ['running', 12], ['queued', 10]];
+  for (const [st, n] of plan) {
+    for (let k = 0; k < n; k++, i++) {
+      const pi = 2 + (i % 6);
+      const start = st === 'queued' ? '' : wcTime(9, 20 + (i % 9), (i * 7) % 60);
+      const end = st === 'failed' || st === 'success' ? wcTime(9, 30 + (i % 9), (i * 11) % 60) : '';
+      /* 风险管控失败样本：校验管控商品节点失败（0/4 通过 1 失败），失败类型 风险管控 */
+      const riskFail = st === 'failed' && i % 7 === 3;
+      groups[pi].push(
+        mk(
+          pi,
+          `2248238609862${String(30280 - (i + 1) * 4).padStart(5, '0')}`,
+          i,
+          st,
+          start,
+          end,
+          riskFail ? '风险管控' : st === 'failed' ? failReasons[i % failReasons.length] : '',
+          st === 'failed' && i % 5 === 0,
+          wcShopOf(i),
+          riskFail ? { failStep: 1, verify: { total: 4, pass: 0, fail: 1, pending: 0 }, riskReason: RISK_CTRL_REASON } : undefined,
+        ),
+      );
+    }
+  }
+  return groups.map((subs, pi) => ({
+    id: 100 + pi,
+    creator: makerOf[pi],
+    createTime: createOf[pi],
+    type: '商品发布',
+    status: (subs.some((s) => s.status === 'running') ? 'running' : subs.every((s) => s.status === 'queued') ? 'queued' : 'done') as ParentStatus,
+    channel: '智能',
+    pubWay: '蜂联发布',
+    shops: subs.length,
+    links: subs.length,
+    success: subs.filter((s) => s.status === 'success').length,
+    failed: subs.filter((s) => s.status === 'failed').length,
+    running: subs.filter((s) => s.status === 'running').length,
+    startTime: createOf[pi],
+    endTime: subs.every((s) => s.status === 'success' || s.status === 'failed') ? wcTime(9, 40, 0) : '',
+    subs,
+  }));
+}
+parentTasks.unshift(...buildWcParents());
+
+/** 风控二次确认-继续上架：待确认任务清风险态进入执行中，店铺集合开始发布，1.2s 后跑完同步批次聚合 */
+export function confirmSub(sub: SubTask): void {
+  if (sub.status !== 'confirm') return;
+  const parent = parentTasks.find((p) => p.subs.includes(sub));
+  sub.status = 'running';
+  sub.riskReason = undefined;
+  /* 通过：校验管控商品节点全部通过，任务进入下一步 */
+  if (sub.verify) sub.verify = { ...sub.verify, pass: sub.verify.total, fail: 0, pending: 0 };
+  sub.startTime = sub.startTime || nowStr();
+  sub.shops.forEach((sh) => {
+    sh.status = 'running';
+    sh.startTime = sh.startTime || nowStr();
+  });
+  if (parent) parent.running += sub.shops.length;
+  window.setTimeout(() => {
+    sub.shops.forEach((sh) => {
+      sh.status = 'success';
+      sh.endTime = nowStr();
+    });
+    sub.status = taskStatusOf(sub);
+    sub.endTime = nowStr();
+    if (parent) {
+      parent.running = Math.max(0, parent.running - sub.shops.length);
+      parent.success += sub.shops.length;
+    }
+  }, 1200);
+}
+
+/** 待确认-拒绝发布：审核拒绝后校验管控商品节点失败，任务执行失败（失败类型 风险管控） */
+export function rejectSub(sub: SubTask): void {
+  if (sub.status !== 'confirm') return;
+  const parent = parentTasks.find((p) => p.subs.includes(sub));
+  const t = `${TC_TODAY} ${new Date().toTimeString().slice(0, 8)}`;
+  sub.status = 'failed';
+  sub.failStep = 1;
+  sub.verify = { total: sub.verify?.total ?? 4, pass: sub.verify?.pass ?? 0, fail: Math.max(1, sub.verify?.fail ?? 0), pending: 0 };
+  sub.riskReason = RISK_CTRL_REASON;
+  sub.startTime = sub.startTime || t;
+  sub.endTime = t;
+  sub.shops.forEach((sh) => {
+    sh.status = 'failed';
+    sh.reason = '风险管控';
+    sh.startTime = sh.startTime || t;
+    sh.endTime = t;
+  });
+  if (parent) parent.failed += sub.shops.length;
+}
+
+/** 取消任务：待确认弹窗选「取消任务」（risk）或列表手动取消队列中/执行中任务（manual）；批次聚合不变（仅统计成功/失败/执行中） */
+export function cancelSub(sub: SubTask, type: CancelType): void {
+  if (sub.status !== 'confirm' && sub.status !== 'queued' && sub.status !== 'running') return;
+  const parent = parentTasks.find((p) => p.subs.includes(sub));
+  if (parent && sub.status === 'running') parent.running = Math.max(0, parent.running - sub.shops.filter((sh) => sh.status !== 'success').length);
+  sub.status = 'cancelled';
+  sub.cancelType = type;
+  if (type === 'risk') sub.riskReason = sub.riskReason || RISK_JUNK_REASON;
+  sub.endTime = nowStr();
+  sub.shops.forEach((sh) => {
+    if (sh.status !== 'success') {
+      sh.status = 'queued';
+      sh.startTime = '';
+      sh.endTime = '';
+    }
+  });
+}
+
 /** 重试/重新发布：失败店铺（或未触达店铺）重跑→成功，并同步更新所属批次聚合（任务中心与关联发布任务抽屉联动） */
 export function retrySub(sub: SubTask): void {
   if (sub.status !== 'failed') return;
   const parent = parentTasks.find((p) => p.subs.includes(sub));
   const n = Math.max(1, sub.shops.filter((sh) => sh.status === 'failed').length);
   sub.failStep = undefined;
+  if (sub.verify) sub.verify = { ...sub.verify, pass: sub.verify.total, fail: 0, pending: 0 };
   sub.shops.forEach((sh) => {
     if (sh.status === 'failed' || sh.status === 'queued') {
       sh.status = 'running';
       sh.endTime = '';
-      sh.startTime = sh.startTime || '2026-04-04 12:08:00';
+      sh.startTime = sh.startTime || nowStr();
     }
   });
   sub.status = 'running';
@@ -758,41 +979,14 @@ export function retrySub(sub: SubTask): void {
         sh.status = 'success';
         sh.reason = '';
         sh.retried = true;
-        sh.endTime = '2026-04-04 12:09:00';
+        sh.endTime = nowStr();
       }
     });
     sub.status = taskStatusOf(sub);
-    sub.endTime = '2026-04-04 12:09:00';
+    sub.endTime = nowStr();
     if (parent) {
       parent.running = Math.max(0, parent.running - n);
       parent.success += n;
-    }
-  }, 1200);
-}
-
-/** 店铺级重试：仅重跑指定失败店铺→成功，同步任务状态与所属批次聚合（快速重试单店失败） */
-export function retryShop(sub: SubTask, shop: ShopResult): void {
-  if (shop.status !== 'failed') return;
-  const parent = parentTasks.find((p) => p.subs.includes(sub));
-  shop.status = 'running';
-  shop.reason = '';
-  shop.endTime = '';
-  shop.startTime = shop.startTime || '2026-04-04 12:08:00';
-  sub.status = taskStatusOf(sub);
-  sub.endTime = '';
-  if (parent) {
-    parent.failed = Math.max(0, parent.failed - 1);
-    parent.running += 1;
-  }
-  window.setTimeout(() => {
-    shop.status = 'success';
-    shop.retried = true;
-    shop.endTime = '2026-04-04 12:09:00';
-    sub.status = taskStatusOf(sub);
-    sub.endTime = '2026-04-04 12:09:00';
-    if (parent) {
-      parent.running = Math.max(0, parent.running - 1);
-      parent.success += 1;
     }
   }, 1200);
 }
@@ -924,8 +1118,15 @@ export interface BiddingRow {
   skus: BiddingSku[];
   /** 导入时间 */
   imported: string;
-  /** 竞价状态 */
-  status: '报名待开启' | '报名中' | '待开始';
+  /** 商品抓取状态：待抓取行操作列仅「抓取」，已抓取行展示详情/添加到 */
+  fetchStatus: '待抓取' | '已抓取';
+  /** 竞价类型 */
+  bidType: '基准竞价' | '排名竞价';
+  /** 招募/活动起止时间：招募状态由当前时间对照推导，不存静态值 */
+  recruitStart: string;
+  recruitEnd: string;
+  actStart: string;
+  actEnd: string;
 }
 export const biddingRows: BiddingRow[] = [
   {
@@ -938,7 +1139,12 @@ export const biddingRows: BiddingRow[] = [
       { sku: '颜色:原色|规格:升级款', threshold: '¥12.90', stock: '有货', code: 'DJ-2202', profit: '¥4.10' },
     ],
     imported: '2026-08-13 18:24',
-    status: '报名中',
+    fetchStatus: '已抓取',
+    bidType: '基准竞价',
+    recruitStart: '2026-09-05 00:00:00',
+    recruitEnd: '2026-09-12 17:00:00',
+    actStart: '2026-09-15 10:00:00',
+    actEnd: '2026-09-25 03:00:00',
   },
   {
     img: svgThumb('#d9f4e7', '益智'),
@@ -950,7 +1156,12 @@ export const biddingRows: BiddingRow[] = [
       { sku: '款式:恐龙|年龄:3-6岁', required: true, threshold: '¥18.50', stock: '有货', code: 'WJ-036', profit: '¥6.80' },
     ],
     imported: '2026-08-13 18:24',
-    status: '报名待开启',
+    fetchStatus: '待抓取',
+    bidType: '排名竞价',
+    recruitStart: '2026-09-15 00:00:00',
+    recruitEnd: '2026-09-20 17:00:00',
+    actStart: '2026-09-22 10:00:00',
+    actEnd: '2026-09-30 23:59:59',
   },
   {
     img: svgThumb('#dfe8ff', '音响'),
@@ -962,7 +1173,12 @@ export const biddingRows: BiddingRow[] = [
       { sku: '颜色:白色', threshold: '¥22.00', stock: '有货', code: 'SM-119', profit: '¥8.40' },
     ],
     imported: '2026-08-12 09:41',
-    status: '报名中',
+    fetchStatus: '已抓取',
+    bidType: '基准竞价',
+    recruitStart: '2026-09-07 00:00:00',
+    recruitEnd: '2026-09-10 17:00:00',
+    actStart: '2026-09-11 15:00:00',
+    actEnd: '2026-09-25 03:00:00',
   },
   {
     img: svgThumb('#fff0c9', '挂钩'),
@@ -974,7 +1190,12 @@ export const biddingRows: BiddingRow[] = [
       { sku: '规格:20只装', required: true, threshold: '¥12.80', stock: '有货', code: 'SY-043', profit: '¥3.60' },
     ],
     imported: '2026-08-11 16:05',
-    status: '待开始',
+    fetchStatus: '已抓取',
+    bidType: '基准竞价',
+    recruitStart: '2026-08-20 00:00:00',
+    recruitEnd: '2026-08-30 17:00:00',
+    actStart: '2026-09-12 10:00:00',
+    actEnd: '2026-09-22 23:59:59',
   },
   {
     img: svgThumb('#ffe1eb', '卡套'),
@@ -985,7 +1206,12 @@ export const biddingRows: BiddingRow[] = [
       { sku: '图案:混发', required: true, threshold: '¥4.50', stock: '缺货', code: 'KQ-006', profit: '¥1.60' },
     ],
     imported: '2026-08-10 11:32',
-    status: '报名中',
+    fetchStatus: '待抓取',
+    bidType: '排名竞价',
+    recruitStart: '2026-07-15 00:00:00',
+    recruitEnd: '2026-07-25 17:00:00',
+    actStart: '2026-07-28 10:00:00',
+    actEnd: '2026-08-15 23:59:59',
   },
   {
     img: svgThumb('#e6f0ff', '胶泥'),
@@ -997,7 +1223,12 @@ export const biddingRows: BiddingRow[] = [
       { sku: '规格:20包装', threshold: '¥6.90', stock: '有货', code: 'JN-234', profit: '¥2.00' },
     ],
     imported: '2026-08-08 15:47',
-    status: '待开始',
+    fetchStatus: '已抓取',
+    bidType: '基准竞价',
+    recruitStart: '2026-08-28 00:00:00',
+    recruitEnd: '2026-09-06 17:00:00',
+    actStart: '2026-09-10 15:00:00',
+    actEnd: '2026-09-18 03:00:00',
   },
   {
     img: svgThumb('#e9e2ff', '面霜'),
@@ -1009,6 +1240,159 @@ export const biddingRows: BiddingRow[] = [
       { sku: '容量:30g', threshold: '¥12.90', stock: '有货', code: 'MF-502', profit: '¥4.20' },
     ],
     imported: '2026-08-07 10:12',
-    status: '报名待开启',
+    fetchStatus: '已抓取',
+    bidType: '基准竞价',
+    recruitStart: '2026-08-25 00:00:00',
+    recruitEnd: '2026-09-01 17:00:00',
+    actStart: '2026-09-05 15:00:00',
+    actEnd: '2026-09-20 03:00:00',
   },
+];
+
+/* =========================================================
+   概览页：店铺池与发布受限情况（四类分组，店铺名与发布任务店铺池同源）
+   ========================================================= */
+/** 概览店铺池：发布任务店铺池按「平台+店铺」去重（与任务中心口径一致） */
+export const ovShops: { platform: string; shop: string }[] = PLATFORM_SHOPS.flatMap((g) => g.shops.map((s) => ({ platform: g.platform, shop: s })));
+
+/** 店铺发布受限分类：发品数量受限 / 类目受限 / 保证金不足 / 店铺异常 */
+export type OvLimitKind = 'quota' | 'category' | 'deposit' | 'abnormal';
+/** 受限类目：类目名 + 该类目各自的受限原因（同类目受限店多类目原因可能不一致） */
+export interface OvLimitCat { name: string; note: string }
+export interface OvLimitRow { platform: string; shop: string; note: string; cats?: OvLimitCat[]; time: string }
+/** 分组标题与色档（橙=受限提醒 / 红=阻断类） */
+export const OV_LIMIT_META: Record<OvLimitKind, { label: string; cls: string }> = {
+  quota: { label: '发品数量受限', cls: 'warn' },
+  category: { label: '类目受限', cls: 'warn' },
+  deposit: { label: '保证金不足', cls: 'bad' },
+  abnormal: { label: '店铺异常', cls: 'bad' },
+};
+export const ovLimits: Record<OvLimitKind, OvLimitRow[]> = {
+  quota: [
+    { platform: '淘宝', shop: '小二女装店', note: '今日发品额度 20/20 已用完，0 点重置', time: '09-09 09:40' },
+    { platform: '拼多多', shop: '小二百货店', note: '今日发品额度 50/50 已用完，0 点重置', time: '09-09 08:15' },
+    { platform: '抖音', shop: '小二小店', note: '本周新品 300/300，超平台新品上限', time: '09-08 16:47' },
+  ],
+  category: [
+    { platform: '天猫', shop: '小二美妆专营店', note: '', cats: [{ name: '美妆个护', note: '平台类目资质审核未通过' }, { name: '香水', note: '香水类目需补充备案资质' }], time: '09-08 14:32' },
+    { platform: '快手', shop: '小二特产店', note: '', cats: [{ name: '食品', note: '类目未开通，需补交资质' }], time: '09-07 10:18' },
+    { platform: '淘宝', shop: '小二母婴店', note: '', cats: [{ name: '母婴', note: '类目发布权限到期' }, { name: '玩具', note: '玩具类目资质审核未通过' }], time: '09-06 09:26' },
+  ],
+  deposit: [
+    { platform: '拼多多', shop: '小二生鲜店', note: '保证金缺口 ¥2,000，发品已冻结', time: '09-08 11:02' },
+    { platform: '抖音', shop: '小二潮玩店', note: '类目保证金未缴纳（¥5,000）', time: '09-05 15:44' },
+  ],
+  abnormal: [
+    { platform: '天猫', shop: '小二官方旗舰店', note: '店铺处罚期中，全店禁止发布', time: '09-07 20:31' },
+    { platform: '快手', shop: '小二老铁店', note: '营业执照过期，店铺已冻结', time: '09-03 09:12' },
+  ],
+};
+
+/** 概览·今日发布总览关键因子（当日口径；delta 为较昨日增幅 % / pp） */
+export const OV_TODAY = {
+  date: '09-09',
+  pub: 128, pubDelta: 12,
+  success: 118, rate: 92.2, rateDelta: 1.0,
+  failed: 10, failedOpen: 6,
+  limitShops: 10,
+};
+/** 概览·商品维度库存与动销快照（存量口径：不随时间查询变化；split 为卡头平台 chips 口径拆分，视频号/淘宝 为全部子集，逐行求和等于合计） */
+export const OV_GOODS = {
+  onSale: 1286, offShelf: 342, active: 894,
+  split: {
+    视频号: { onSale: 486, offShelf: 128, active: 352 },
+    淘宝: { onSale: 800, offShelf: 214, active: 542 },
+  },
+};
+/** 概览·近 30 日发布趋势（发品/成功 件数，末日=今日与 OV_TODAY 同源）；头部 16 天为扩展段，供近30天/自定义时间窗口切片 */
+const OV_TREND_HEAD: { d: string; pub: number; success: number }[] = [
+  { d: '08-11', pub: 78, success: 71 },
+  { d: '08-12', pub: 84, success: 77 },
+  { d: '08-13', pub: 90, success: 82 },
+  { d: '08-14', pub: 76, success: 69 },
+  { d: '08-15', pub: 88, success: 80 },
+  { d: '08-16', pub: 95, success: 87 },
+  { d: '08-17', pub: 82, success: 75 },
+  { d: '08-18', pub: 87, success: 79 },
+  { d: '08-19', pub: 92, success: 84 },
+  { d: '08-20', pub: 79, success: 72 },
+  { d: '08-21', pub: 96, success: 88 },
+  { d: '08-22', pub: 85, success: 78 },
+  { d: '08-23', pub: 99, success: 91 },
+  { d: '08-24', pub: 83, success: 76 },
+  { d: '08-25', pub: 94, success: 86 },
+  { d: '08-26', pub: 89, success: 81 },
+];
+const OV_TREND_TAIL: { d: string; pub: number; success: number }[] = [
+  { d: '08-27', pub: 86, success: 79 },
+  { d: '08-28', pub: 91, success: 84 },
+  { d: '08-29', pub: 98, success: 91 },
+  { d: '08-30', pub: 81, success: 74 },
+  { d: '08-31', pub: 93, success: 86 },
+  { d: '09-01', pub: 102, success: 95 },
+  { d: '09-02', pub: 88, success: 82 },
+  { d: '09-03', pub: 96, success: 88 },
+  { d: '09-04', pub: 104, success: 97 },
+  { d: '09-05', pub: 88, success: 79 },
+  { d: '09-06', pub: 112, success: 105 },
+  { d: '09-07', pub: 90, success: 84 },
+  { d: '09-08', pub: 114, success: 104 },
+  { d: '09-09', pub: 128, success: 118 },
+];
+export const OV_TREND = [...OV_TREND_HEAD, ...OV_TREND_TAIL];
+/** 扩展段逐日拆分：五平台固定占比、快手兜底余数，保证逐日合计与 OV_TREND 总口径对齐 */
+const splitDay = (pub: number, success: number) => {
+  const pt = Math.round(pub * 0.28);
+  const pm = Math.round(pub * 0.23);
+  const pp = Math.round(pub * 0.19);
+  const pd = Math.round(pub * 0.16);
+  const st = Math.round(success * 0.28);
+  const sm = Math.round(success * 0.23);
+  const sp = Math.round(success * 0.19);
+  const sd = Math.round(success * 0.16);
+  return {
+    淘宝: { pub: pt, success: st },
+    天猫: { pub: pm, success: sm },
+    拼多多: { pub: pp, success: sp },
+    抖音: { pub: pd, success: sd },
+    快手: { pub: pub - pt - pm - pp - pd, success: success - st - sm - sp - sd },
+  };
+};
+/** 概览·近 30 日发布趋势分平台拆分（尾段 14 日为逐日实录，头段 16 日由 splitDay 生成；五平台逐日合计与 OV_TREND 总口径对齐，供趋势图平台维度切换） */
+const BY_PLAT_TAIL: Record<string, { pub: number; success: number }[]> = {
+  淘宝: [{ pub: 24, success: 22 }, { pub: 25, success: 23 }, { pub: 27, success: 25 }, { pub: 23, success: 21 }, { pub: 26, success: 24 }, { pub: 28, success: 26 }, { pub: 25, success: 23 }, { pub: 26, success: 24 }, { pub: 28, success: 26 }, { pub: 24, success: 22 }, { pub: 30, success: 28 }, { pub: 25, success: 23 }, { pub: 31, success: 28 }, { pub: 34, success: 31 }],
+  天猫: [{ pub: 20, success: 18 }, { pub: 21, success: 19 }, { pub: 23, success: 21 }, { pub: 19, success: 17 }, { pub: 22, success: 20 }, { pub: 24, success: 22 }, { pub: 21, success: 20 }, { pub: 22, success: 20 }, { pub: 24, success: 22 }, { pub: 20, success: 18 }, { pub: 26, success: 24 }, { pub: 21, success: 20 }, { pub: 26, success: 24 }, { pub: 29, success: 27 }],
+  拼多多: [{ pub: 16, success: 15 }, { pub: 17, success: 16 }, { pub: 18, success: 17 }, { pub: 15, success: 14 }, { pub: 17, success: 16 }, { pub: 19, success: 18 }, { pub: 16, success: 15 }, { pub: 18, success: 16 }, { pub: 20, success: 19 }, { pub: 16, success: 14 }, { pub: 22, success: 21 }, { pub: 17, success: 16 }, { pub: 22, success: 20 }, { pub: 25, success: 23 }],
+  抖音: [{ pub: 14, success: 13 }, { pub: 15, success: 14 }, { pub: 16, success: 15 }, { pub: 13, success: 12 }, { pub: 15, success: 14 }, { pub: 17, success: 16 }, { pub: 14, success: 13 }, { pub: 16, success: 15 }, { pub: 18, success: 17 }, { pub: 15, success: 13 }, { pub: 19, success: 18 }, { pub: 15, success: 14 }, { pub: 20, success: 18 }, { pub: 22, success: 20 }],
+  快手: [{ pub: 12, success: 11 }, { pub: 13, success: 12 }, { pub: 14, success: 13 }, { pub: 11, success: 10 }, { pub: 13, success: 12 }, { pub: 14, success: 13 }, { pub: 12, success: 11 }, { pub: 14, success: 13 }, { pub: 14, success: 13 }, { pub: 13, success: 12 }, { pub: 15, success: 14 }, { pub: 12, success: 11 }, { pub: 15, success: 14 }, { pub: 18, success: 17 }],
+};
+export const OV_TREND_BY_PLAT: Record<string, { pub: number; success: number }[]> = Object.fromEntries(
+  Object.keys(BY_PLAT_TAIL).map((p) => [
+    p,
+    [...OV_TREND_HEAD.map((x) => splitDay(x.pub, x.success)[p as keyof ReturnType<typeof splitDay>]), ...BY_PLAT_TAIL[p]],
+  ]),
+);
+/** 概览·个人贡献榜（今日口径：全员展示不截断，按发布 ID 件数降序；合计与 OV_TODAY 同源对齐：ids=128=ok118+bad10；发品与任务同义仅留发布总数 ids；split 为平台维度拆分，视频号+淘宝逐行求和等于行合计） */
+export interface OvMemberStat { ids: number; ok: number; bad: number }
+export interface OvMemberRow { name: string; group: string; ids: number; ok: number; bad: number; split: Record<'视频号' | '淘宝', OvMemberStat> }
+export const OV_MEMBER_RANK: OvMemberRow[] = [
+  { name: '陈默', group: '运营A组', ids: 30, ok: 28, bad: 2, split: { 视频号: { ids: 12, ok: 11, bad: 1 }, 淘宝: { ids: 18, ok: 17, bad: 1 } } },
+  { name: '林悦', group: '运营A组', ids: 24, ok: 22, bad: 2, split: { 视频号: { ids: 10, ok: 9, bad: 1 }, 淘宝: { ids: 14, ok: 13, bad: 1 } } },
+  { name: '周舟', group: '运营B组', ids: 20, ok: 18, bad: 2, split: { 视频号: { ids: 8, ok: 7, bad: 1 }, 淘宝: { ids: 12, ok: 11, bad: 1 } } },
+  { name: '吴桐', group: '运营B组', ids: 16, ok: 15, bad: 1, split: { 视频号: { ids: 6, ok: 6, bad: 0 }, 淘宝: { ids: 10, ok: 9, bad: 1 } } },
+  { name: '郑楠', group: '选品组', ids: 12, ok: 11, bad: 1, split: { 视频号: { ids: 5, ok: 4, bad: 1 }, 淘宝: { ids: 7, ok: 7, bad: 0 } } },
+  { name: '孙倩', group: '运营A组', ids: 8, ok: 6, bad: 2, split: { 视频号: { ids: 3, ok: 2, bad: 1 }, 淘宝: { ids: 5, ok: 4, bad: 1 } } },
+  { name: '何静', group: '运营B组', ids: 6, ok: 6, bad: 0, split: { 视频号: { ids: 2, ok: 2, bad: 0 }, 淘宝: { ids: 4, ok: 4, bad: 0 } } },
+  { name: '苏芮', group: '运营C组', ids: 4, ok: 4, bad: 0, split: { 视频号: { ids: 2, ok: 2, bad: 0 }, 淘宝: { ids: 2, ok: 2, bad: 0 } } },
+  { name: '唐薇', group: '选品组', ids: 3, ok: 3, bad: 0, split: { 视频号: { ids: 1, ok: 1, bad: 0 }, 淘宝: { ids: 2, ok: 2, bad: 0 } } },
+  { name: '罗成', group: '运营C组', ids: 3, ok: 3, bad: 0, split: { 视频号: { ids: 2, ok: 2, bad: 0 }, 淘宝: { ids: 1, ok: 1, bad: 0 } } },
+  { name: '冯雪', group: '运营A组', ids: 2, ok: 2, bad: 0, split: { 视频号: { ids: 1, ok: 1, bad: 0 }, 淘宝: { ids: 1, ok: 1, bad: 0 } } },
+];
+/** 概览·店铺发布榜 TOP5（今日发品件数与成功率；platform 与店铺池口径一致） */
+export const OV_SHOP_RANK: { shop: string; platform: string; pub: number; rate: number }[] = [
+  { shop: '小二官方旗舰店', platform: '天猫', pub: 24, rate: 95.8 },
+  { shop: '小二女装店', platform: '淘宝', pub: 21, rate: 90.5 },
+  { shop: '小二美妆专营店', platform: '天猫', pub: 18, rate: 94.4 },
+  { shop: '小二百货店', platform: '拼多多', pub: 16, rate: 87.5 },
+  { shop: '小二母婴店', platform: '淘宝', pub: 13, rate: 92.3 },
 ];

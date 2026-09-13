@@ -4,7 +4,7 @@
    1. 问题类型看板：数据总览 · 问题类型占比 · 问题趋势（今日/近7天/自定义）
    2. 系列编码列表：复刻品控管理系列维度 · 展开各平台数据 · 命中问题类型列
    ========================================================= */
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import {
   QC_CENTER_SERIES,
   applySeriesView,
@@ -17,6 +17,7 @@ import {
 import { CHAT_SESSIONS, SHOP_NAME, type ChatHit, type ChatSession, type Platform, type PlatformStat } from './data';
 import { QC_OPT_TASKS, OPT_GROUPS, OPT_PICKERS, type OptTask, type OptStatus, type StatusTab } from './qcOptData';
 import { codesMatchTagFilter } from '../quality2/qc2Data';
+import { onlineSeries, onlineSeriesOfCode, onlineSessionsOf, patchOnlineSession } from './qcOnlineData';
 import { pushToast } from '../../components/toast';
 import QcDashboard from './QcDashboard.vue';
 import QcSeriesList, { DEFAULT_SERIES_FILTER, type SeriesFilter, type SortKey } from './QcSeriesList.vue';
@@ -37,9 +38,15 @@ type View = 'dashboard' | 'series' | 'opt' | 'cfg';
 /** 壳级模式：原功能（问题类型驱动）/ 商品标签（数据概览的标签模块切换，左侧菜单不变） */
 type Mode = 'legacy' | 'tags';
 
-defineProps<{ sidebarCollapsed: boolean }>();
+const props = defineProps<{ sidebarCollapsed: boolean; online?: boolean }>();
 
-const view = ref<View>('dashboard');
+/* 深链：hash 第二段指定初始视图（分享 HTML 直落监控列表等）；线上壳 cfg 由下方 watch 回落 */
+const readInitialView = (): View => {
+  const seg = location.hash.replace(/^#/, '').split('/')[1];
+  return seg === 'series' || seg === 'opt' || seg === 'cfg' ? seg : 'dashboard';
+};
+
+const view = ref<View>(readInitialView());
 const mode = ref<Mode>('legacy');
 /* 模板分支内直接比较会被 TS 窄化报错，统一走 helper */
 const modeIs = (m: Mode) => mode.value === m;
@@ -51,13 +58,35 @@ const chatCtx = ref<{ codes: QcCenterCode[]; platforms: Platform[]; platform: Pl
 const trendCtx = ref<{ title: string; totals: ScopeTotals; seriesCode: string } | null>(null);
 /** 优化任务数据与状态 tab（概览点击可跳转列表对应状态） */
 const optTasks = ref<OptTask[]>(QC_OPT_TASKS);
+/* 品控-线上壳无标签配置菜单：切入线上态时若停留在该视图回退数据概览；优化任务线上为 0 条 */
+watch(() => props.online, (v) => {
+  if (v) { if (view.value === 'cfg') view.value = 'dashboard'; optTasks.value = []; }
+  else optTasks.value = QC_OPT_TASKS;
+}, { immediate: true });
 const optStatusTab = ref<StatusTab>('all');
 /** 创建优化任务弹层上下文（监控列表操作列 / 详情抽屉入口） */
 const createCtx = ref<QcCenterSeries | null>(null);
-/** 聊天会话（上提：全屏弹窗修改命中类型后卡片 / 统计同步闭环） */
+/** 聊天会话（上提：全屏弹窗修改命中类型后卡片 / 统计同步闭环）；线上壳按系列惰性生成（命中总数=聊天风险） */
 const chatSessions = ref<ChatSession[]>(CHAT_SESSIONS);
+const onlineSessions = ref<ChatSession[]>([]);
+const onlineSessionVer = ref(0);
+watch(detail, (d) => { if (props.online && d) onlineSessions.value = [...onlineSessionsOf(d.series)]; });
+const drawerSessions = computed(() => (props.online ? onlineSessions.value : chatSessions.value));
+const chatModalSessions = computed(() => {
+  if (!props.online || !chatCtx.value) return chatSessions.value;
+  void onlineSessionVer.value;
+  const first = chatCtx.value.codes[0];
+  const s = first ? onlineSeriesOfCode(first.code) : null;
+  return s ? [...onlineSessionsOf(s)] : [];
+});
 const updateSessionHits = (id: string, hits: ChatHit[]) => {
-  chatSessions.value = chatSessions.value.map((x) => (x.id === id ? { ...x, hits } : x));
+  if (props.online) {
+    patchOnlineSession(id, hits);
+    onlineSessions.value = onlineSessions.value.map((x) => (x.id === id ? { ...x, hits } : x));
+    onlineSessionVer.value++;
+  } else {
+    chatSessions.value = chatSessions.value.map((x) => (x.id === id ? { ...x, hits } : x));
+  }
 };
 const draft = ref<SeriesFilter>(DEFAULT_SERIES_FILTER);
 const applied = ref<SeriesFilter>(DEFAULT_SERIES_FILTER);
@@ -121,7 +150,7 @@ const submitCreateOpt = (form: { problem: string; demand: string; evidence: stri
   pushToast('已创建优化任务，可在「优化任务」列表查看');
 };
 
-const viewSeries = computed(() => QC_CENTER_SERIES
+const viewSeries = computed(() => (props.online ? onlineSeries() : QC_CENTER_SERIES)
   .map((s) => applySeriesView(s, {
     platform: applied.value.platform === '全部平台' ? null : (applied.value.platform as Platform),
     range: applied.value.range,
@@ -138,9 +167,9 @@ const filtered = computed(() => {
   if (applied.value.duty !== '全部部门') {
     list = list.filter((s) => (dutyMap.value[s.seriesCode] ?? defaultDutyDept(s)) === applied.value.duty);
   }
-  /* 标签筛选（级联多选 + 健康等级 + 判定方式）：系列下属任一商品编码命中即保留（与编码标签页同源口径） */
+  /* 标签筛选（级联多选 + 健康等级 + 判定方式）：系列下属任一商品编码命中即保留（与编码标签页同源口径）；线上壳无该维度 */
   const f = applied.value;
-  if (f.tags.length || f.tagHealth !== '全部等级' || f.tagJudge !== '全部方式') {
+  if (!props.online && (f.tags.length || f.tagHealth !== '全部等级' || f.tagJudge !== '全部方式')) {
     list = list.filter((s) => codesMatchTagFilter(s.seriesCode, f.tags, f.tagHealth, f.tagJudge));
   }
   const kw = applied.value.q.trim().toLowerCase();
@@ -176,9 +205,9 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
 <template>
   <div class="pm-page qc-page qc-center-page qc-mode-page">
     <div class="qc-page qc-mode-body">
-      <aside class="qc-side" :class="sidebarCollapsed ? 'collapsed' : ''">
+      <aside class="qc-side" :class="[sidebarCollapsed ? 'collapsed' : '', online ? 'qcon-side' : '']">
       <div class="qc-side-brand">
-        运维管理后台
+        {{ online ? '品控中心' : '运维管理后台' }}
         <span>问题类型驱动 · 系列编码追踪</span>
       </div>
       <div
@@ -186,7 +215,7 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
         :class="view === 'dashboard' ? 'active' : ''"
         @click="view = 'dashboard'; draft = { ...draft, q: '' }"
       >
-        <span class="qc-nav-ico">▦</span>
+        <span v-if="!online" class="qc-nav-ico">▦</span>
         <span class="qc-nav-text">数据概览</span>
       </div>
       <div
@@ -194,7 +223,7 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
         :class="view === 'series' ? 'active' : ''"
         @click="view = 'series'; draft = { ...draft, q: '' }"
       >
-        <span class="qc-nav-ico">▤</span>
+        <span v-if="!online" class="qc-nav-ico">▤</span>
         <span class="qc-nav-text">监控列表</span>
       </div>
       <div
@@ -202,10 +231,11 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
         :class="view === 'opt' ? 'active' : ''"
         @click="view = 'opt'"
       >
-        <span class="qc-nav-ico">⚑</span>
+        <span v-if="!online" class="qc-nav-ico">⚑</span>
         <span class="qc-nav-text">优化任务</span>
       </div>
       <div
+        v-if="!online"
         class="qc-nav"
         :class="view === 'cfg' ? 'active' : ''"
         @click="view = 'cfg'"
@@ -217,7 +247,7 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
 
     <div class="qc-main">
       <!-- 模式切换仅作为数据概览的模块切换：左侧菜单与其余视图不随模式变化 -->
-      <div v-if="view === 'dashboard'" class="qc-mode-bar">
+      <div v-if="view === 'dashboard' && !online" class="qc-mode-bar">
         <div class="qc-mode-tabs">
           <button type="button" :class="{ active: modeIs('legacy') }" @click="mode = 'legacy'">原功能</button>
           <button type="button" :class="{ active: modeIs('tags') }" @click="mode = 'tags'">商品标签</button>
@@ -225,8 +255,9 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
         <span class="qc-mode-desc">{{ modeIs('legacy') ? '问题类型驱动 · 系列编码追踪' : '商品标签驱动 · 时机与决策' }}</span>
       </div>
       <QcDashboard
-        v-if="view === 'dashboard' && modeIs('legacy')"
+        v-if="view === 'dashboard' && (online || modeIs('legacy'))"
         :opt-tasks="optTasks"
+        :online="online"
         :on-open-opt-status="(s: OptStatus) => { optStatusTab = s; view = 'opt'; }"
         :on-pick-type="(t: string) => {
           draft = { ...draft, type: t };
@@ -234,12 +265,12 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
           view = 'series';
         }"
         :on-open-code="(seriesCode: string, code: string) => {
-          const s = QC_CENTER_SERIES.find((x) => x.seriesCode === seriesCode);
+          const s = (online ? onlineSeries() : QC_CENTER_SERIES).find((x) => x.seriesCode === seriesCode);
           if (s) detail = { series: s, code };
         }"
       />
       <Qc2Dashboard
-        v-else-if="view === 'dashboard'"
+        v-else-if="view === 'dashboard' && !online"
         :on-pick-cat="pickTagCat"
         :on-pick-label="pickTagLabel"
       />
@@ -265,6 +296,7 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
         :on-duty="changeDuty"
         :opt-tasks="optTasks"
         :on-create-opt="(s: QcCenterSeries) => (createCtx = s)"
+        :online="online"
       />
       <OptTaskView
         v-else-if="view === 'opt'"
@@ -288,15 +320,16 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
       :opt-tasks="optTasks.filter((t) => t.seriesCode === detail!.series.seriesCode)"
       :on-create-opt="() => (createCtx = detail!.series)"
       :on-close="() => (detail = null)"
-      :all-sessions="chatSessions"
+      :all-sessions="drawerSessions"
       :on-update-hits="updateSessionHits"
+      :online="online"
     />
     <QcChatModal
       v-if="chatCtx"
       :codes="chatCtx.codes"
       :platforms="chatCtx.platforms"
       :initial-platform="chatCtx.platform"
-      :sessions="chatSessions"
+      :sessions="chatModalSessions"
       :on-update-hits="updateSessionHits"
       :on-close="() => (chatCtx = null)"
     />

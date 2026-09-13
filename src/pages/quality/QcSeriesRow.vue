@@ -37,6 +37,8 @@ const props = defineProps<{
   onDuty: (code: string, dept: string | null) => void;
   optCount: number;
   onCreateOpt: () => void;
+  /** 品控-线上壳：列序对齐线上（关联优化任务数前置）、无健康等级/命中标签列 */
+  online?: boolean;
 }>();
 
 const codeTab = ref<string>('all');
@@ -71,6 +73,12 @@ const platTagBrief = (pl: Platform): TagBrief | null => {
   const codes = QC2_CODES.filter((c) => scope.includes(c.code) && c.platforms.includes(pl));
   return codes.length ? briefOf(codes) : null;
 };
+
+/* 操作列菜单：责任部门列两壳均保留，修改入口一致 */
+const menuItems = computed(() => [
+  { label: '创建优化任务', onClick: props.onCreateOpt },
+  { label: '修改责任部门', onClick: () => (dutyOpen.value = true) },
+]);
 </script>
 
 <template>
@@ -89,6 +97,7 @@ const platTagBrief = (pl: Platform): TagBrief | null => {
     <td>{{ series.afterSales }}</td>
     <td><span v-if="series.chatRiskHits" class="rate bad">{{ series.chatRiskHits }}</span><template v-else>0</template></td>
     <td>{{ series.orders ? pct(series.chatRiskHits / series.orders) : '0.0%' }}</td>
+    <td v-if="online"><span v-if="optCount > 0" class="opt-cnt">{{ optCount }}</span><span v-else style="color: var(--text-4)">0</span></td>
     <td>
       <div class="plat-chips">
         <span v-for="p in series.platforms" :key="p" class="plat-chip">
@@ -109,7 +118,7 @@ const platTagBrief = (pl: Platform): TagBrief | null => {
         </span>
       </div>
     </td>
-    <td>
+    <td v-if="!online">
       <span
         v-if="tag.health"
         class="qc-health-tag"
@@ -118,7 +127,7 @@ const platTagBrief = (pl: Platform): TagBrief | null => {
       >{{ tag.health }}</span>
       <span v-else style="color: var(--text-4)">-</span>
     </td>
-    <td>
+    <td v-if="!online">
       <div v-if="tag.chips.length" class="prob-tags">
         <span
           v-for="l in tag.chips"
@@ -150,17 +159,12 @@ const platTagBrief = (pl: Platform): TagBrief | null => {
         <span class="tag duty-tag" :title="hasOverride ? '已手动绑定' : '默认责任部门（问题数最多部门）'">{{ duty }}</span>
       </div>
     </td>
-    <td><span v-if="optCount > 0" class="opt-cnt">{{ optCount }}</span><span v-else style="color: var(--text-4)">0</span></td>
+    <td v-if="!online"><span v-if="optCount > 0" class="opt-cnt">{{ optCount }}</span><span v-else style="color: var(--text-4)">0</span></td>
     <td>
       <div class="qc-op-col">
         <a @click="props.onDetail">查看详情</a>
         <a @click="props.onTrend">趋势图</a>
-        <MoreActions
-          :items="[
-            { label: '创建优化任务', onClick: props.onCreateOpt },
-            { label: '修改责任部门', onClick: () => (dutyOpen = true) },
-          ]"
-        />
+        <MoreActions :items="menuItems" />
         <div ref="dutyRef" class="duty-edit">
           <div v-if="dutyOpen" class="duty-pop">
             <span
@@ -179,7 +183,7 @@ const platTagBrief = (pl: Platform): TagBrief | null => {
     </td>
   </tr>
   <tr v-if="open" class="expand-row">
-    <td colspan="15">
+    <td :colspan="online ? 13 : 15">
       <div class="qc-range-toggle qc-code-tabs">
         <button type="button" :class="codeTab === 'all' ? 'active' : ''" @click="codeTab = 'all'">全部</button>
         <button
@@ -197,7 +201,7 @@ const platTagBrief = (pl: Platform): TagBrief | null => {
         :threshold="0.25"
         :problem-hits="hits"
         :show-last-order="false"
-        :tag-brief="platTagBrief"
+        :tag-brief="online ? undefined : platTagBrief"
         :on-chat="(p: Platform) => props.onChat(
           selCode ? [selCode] : series.codes,
           selCode ? selCode.platforms.map((x) => x.platform) : series.platforms,

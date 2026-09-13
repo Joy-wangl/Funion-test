@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { computed, inject, ref, watch } from 'vue';
-import { parentTasks, retrySub, retryShop, PLATFORM_LOGO, type ParentTask, type SubTask, type ShopResult } from './data';
+import { parentTasks, retrySub, cancelSub, confirmSub, rejectSub, ovShops, TC_TODAY, type ParentTask, type SubTask } from './data';
 import { pushToast } from '../../components/toast';
 import BubbleSelect from '../../components/BubbleSelect.vue';
-import TcRange from './TcRange.vue';
-import { firstStepFailed, createPageOf, shopStatusText, type CreatePageKey } from './tcSteps';
-import TcExecInfo from './TcExecInfo.vue';
+import SortTh from '../../components/SortTh.vue';
+import TcStepsCell from './TcStepsCell.vue';
+import { firstStepFailed, createPageOf, type CreatePageKey } from './tcSteps';
 
-const platformOptions = ['全部', '淘宝', '天猫', '拼多多', '抖音', '快手', '京东', '阿里巴巴', '微信视频号小店'];
-const typeOptions = ['全部', '快速铺货', '商品铺货', '商品发布', '批量上架', '自动定价', '自动换图'];
-const channelOptions = ['全部', '智能', '蜂联'];
+const platformOptions = ['全部', '淘宝', '天猫', '拼多多', '抖音', '快手', '京东', '阿里巴巴', '微信视频号小店', '微信小店'];
+const typeOptions = ['快速铺货', '商品铺货', '商品发布', '批量上架', '自动定价', '自动换图'];
+const shopOptions = ['全部', ...new Set([...ovShops.map((s) => s.shop), '首力茹愕小店', '真子名品'])];
+/** 失败原因 chips（执行失败 tab）：参照版客户端 v1.0.3 词表 + 风险管控（校验管控商品节点命中） */
+const failChips = ['全部', '发品受限', '价格异常', '母链接同步失败', '风控拦截', '风险管控', '材料缺失', '系列编码异常', '其它'];
 
-/* ================= 按任务详情（扁平子任务列表） ================= */
+/* ================= 按任务详情（一品一店一任务扁平列表） ================= */
 interface FlatRow {
   sub: SubTask;
   parent: ParentTask;
@@ -23,98 +25,117 @@ const subStatusText: Record<SubTask['status'], string> = {
   running: '执行中',
   success: '已完成',
   failed: '执行失败',
+  confirm: '待确认',
+  cancelled: '已取消',
 };
 const subStatusCls: Record<SubTask['status'], string> = {
   queued: 'queued',
   running: 'running',
   success: 'done',
   failed: 'failed',
+  confirm: 'confirm',
+  cancelled: 'cancelled',
 };
 
 interface FlatFilter {
   tab: string;
   chip: string;
-  creator: string;
-  platform: string;
-  channel: string;
-  type: string;
+  types: string[];
+  linkId: string;
   shop: string;
-  retried: string;
+  platform: string;
+  creator: string;
+  taskId: string;
+  compete: string;
+  retrying: string;
+  start: string;
+  end: string;
 }
-const defaultFlatFilter: FlatFilter = {
+const defaultFlatFilter = (): FlatFilter => ({
   tab: 'all',
   chip: '全部',
-  creator: '',
-  platform: '全部',
-  channel: '全部',
-  type: '全部',
+  types: ['商品发布'],
+  linkId: '',
   shop: '',
-  retried: '全部',
-};
+  platform: '',
+  creator: '',
+  taskId: '',
+  compete: '',
+  retrying: '',
+  start: `${TC_TODAY} 00:00:00`,
+  end: `${TC_TODAY} 23:59:59`,
+});
 
 const tab = ref('all');
 const chip = ref('全部');
-const creator = ref('');
-const platform = ref('全部');
-const channel = ref('全部');
-const type = ref('全部');
+const types = ref<string[]>(['商品发布']);
+const typesOpen = ref(false);
+const linkId = ref('');
 const shop = ref('');
-const retried = ref('全部');
-const applied = ref<FlatFilter>({ ...defaultFlatFilter });
-const checked = ref<string[]>([]);
+const platform = ref('');
+const creator = ref('');
+const taskId = ref('');
+const compete = ref('');
+const retrying = ref('');
+const rangeStart = ref(`${TC_TODAY} 00:00:00`);
+const rangeEnd = ref(`${TC_TODAY} 23:59:59`);
+const applied = ref<FlatFilter>(defaultFlatFilter());
 
-const count = (st: SubTask['status']) => flatAll.value.filter((r) => r.sub.status === st).length;
-const tabs = computed(() => [
-  { key: 'all', text: '全部', n: flatAll.value.length },
-  { key: 'queued', text: '队列中', n: count('queued') },
-  { key: 'running', text: '执行中', n: count('running') },
-  { key: 'done', text: '已完成', n: count('success') },
-  { key: 'failed', text: '执行失败', n: count('failed') },
-]);
+/* 参照版 tabs：无计数下划线式（全部/队列中/执行中/已完成/执行失败） */
+const tabs = [
+  { key: 'all', text: '全部' },
+  { key: 'queued', text: '队列中' },
+  { key: 'running', text: '执行中' },
+  { key: 'done', text: '已完成' },
+  { key: 'failed', text: '执行失败' },
+];
+
+/* 任务类型多选：标签可逐个移除，下拉勾选切换 */
+const toggleType = (t: string) => {
+  types.value = types.value.includes(t) ? types.value.filter((v) => v !== t) : [...types.value, t];
+};
+const removeType = (t: string) => { types.value = types.value.filter((v) => v !== t); };
 
 const snapshot = (nextTab: string, nextChip?: string): FlatFilter => ({
   tab: nextTab,
   chip: nextChip ?? chip.value,
-  creator: creator.value.trim(),
+  types: [...types.value],
+  linkId: linkId.value.trim(),
+  shop: shop.value,
   platform: platform.value,
-  channel: channel.value,
-  type: type.value,
-  shop: shop.value.trim(),
-  retried: retried.value,
+  creator: creator.value.trim(),
+  taskId: taskId.value.trim(),
+  compete: compete.value.trim(),
+  retrying: retrying.value,
+  start: rangeStart.value.trim(),
+  end: rangeEnd.value.trim(),
 });
 const onTab = (key: string) => {
   tab.value = key;
-  checked.value = [];
+  /* 失败原因 chips 仅执行失败 tab 有效，切 tab 重置 */
+  chip.value = '全部';
   applied.value = snapshot(key);
 };
 const onChip = (c: string) => {
   chip.value = c;
-  checked.value = [];
   applied.value = snapshot(tab.value, c);
 };
 const onSearch = () => { applied.value = snapshot(tab.value); };
 const onReset = () => {
+  const d = defaultFlatFilter();
   chip.value = '全部';
-  creator.value = '';
-  platform.value = '全部';
-  channel.value = '全部';
-  type.value = '全部';
+  types.value = [...d.types];
+  linkId.value = '';
   shop.value = '';
-  retried.value = '全部';
+  platform.value = '';
+  creator.value = '';
+  taskId.value = '';
+  compete.value = '';
+  retrying.value = '';
+  rangeStart.value = d.start;
+  rangeEnd.value = d.end;
   tab.value = 'all';
-  checked.value = [];
-  applied.value = { ...defaultFlatFilter };
-};
-const onBatchRetry = () => {
-  if (!checked.value.length) {
-    alert('请先勾选需要重试的任务');
-    return;
-  }
-  const subs = visible.value.filter((r) => checked.value.includes(`${r.parent.id}-${r.sub.id}`));
-  checked.value = [];
-  subs.forEach((r) => retrySub(r.sub));
-  pushToast(`重试中…（${subs.length} 个任务）`);
-  window.setTimeout(() => pushToast('重试成功，任务状态已同步'), 1200);
+  applied.value = d;
 };
 /* 单条重试：与个人商品库-关联发布任务抽屉同源联动 */
 const retryOne = (s: SubTask) => {
@@ -122,35 +143,79 @@ const retryOne = (s: SubTask) => {
   pushToast('重试中…');
   window.setTimeout(() => pushToast('重试成功，任务状态已同步'), 1200);
 };
-/* 店铺级重试：仅重跑该失败店铺 */
-const retryShopOne = (s: SubTask, sp: ShopResult) => {
-  retryShop(s, sp);
-  pushToast('重试中…');
-  window.setTimeout(() => pushToast('重试成功，任务状态已同步'), 1200);
-};
-/* 详情：除首节点失败外的任务可跳商品创建（按首个发布店铺平台映射子页） */
+/* 详情：除首节点失败外的任务可跳商品创建（按发布店铺平台映射子页） */
 const opsGo = inject<(target: CreatePageKey) => void>('opsGo');
 const goCreate = (s: SubTask) => opsGo?.(createPageOf(s.shops[0]?.platform ?? '淘宝'));
 
-const visible = computed(() => flatAll.value.filter((r) => {
-  const okTab =
-    applied.value.tab === 'all' ||
-    (applied.value.tab === 'done' ? r.sub.status === 'success' : applied.value.tab === 'failed' ? r.sub.status === 'failed' : r.sub.status === applied.value.tab);
-  /* 失败原因/是否重试：任一店铺结果命中即可 */
-  const okChip = applied.value.tab !== 'failed' || applied.value.chip === '全部' || r.sub.shops.some((x) => x.reason === applied.value.chip);
-  const okCreator = !applied.value.creator || r.parent.creator.indexOf(applied.value.creator) > -1;
-  const okPlatform = applied.value.platform === '全部' || r.sub.shops.some((x) => x.platform === applied.value.platform);
-  const okChannel = applied.value.channel === '全部' || r.parent.channel === applied.value.channel;
-  const okType = applied.value.type === '全部' || r.parent.type === applied.value.type;
-  const okShop = !applied.value.shop || r.sub.shops.some((x) => x.shop.indexOf(applied.value.shop) > -1);
-  const okRetried = applied.value.retried === '全部' || r.sub.shops.some((x) => (applied.value.retried === '是') === x.retried);
-  return okTab && okChip && okCreator && okPlatform && okChannel && okType && okShop && okRetried;
-}));
+/* 手动取消：队列中/执行中任务可取消执行 */
+const cancelOne = (s: SubTask) => {
+  cancelSub(s, 'manual');
+  pushToast('任务已取消');
+};
+
+/* 待确认-通过/拒绝：二次确认弹窗（通过→下一步；拒绝→任务失败） */
+const dlg = ref<{ sub: SubTask; kind: 'approve' | 'reject' } | null>(null);
+const dlgText = computed(() =>
+  (dlg.value?.kind === 'approve' ? '命中我司风险管控商品，请确认是否继续上架？' : '审核拒绝后发布任务失败，是否确认拒绝发布'));
+const onDlgOk = () => {
+  const d = dlg.value;
+  if (!d) return;
+  dlg.value = null;
+  if (d.kind === 'approve') {
+    confirmSub(d.sub);
+    pushToast('已通过，任务进入下一步');
+  } else {
+    rejectSub(d.sub);
+    pushToast('已拒绝，发布任务失败');
+  }
+};
+
+const visible = computed(() => {
+  const rows = flatAll.value.filter((r) => {
+    const okTab =
+      applied.value.tab === 'all' ||
+      (applied.value.tab === 'done' ? r.sub.status === 'success' : applied.value.tab === 'failed' ? r.sub.status === 'failed' : r.sub.status === applied.value.tab);
+    /* 失败原因 chips（仅执行失败 tab） */
+    const okChip = applied.value.tab !== 'failed' || applied.value.chip === '全部' || (r.sub.shops[0]?.reason || '其它') === applied.value.chip;
+    const okTypes = !applied.value.types.length || applied.value.types.includes(r.parent.type);
+    const okLinkId = !applied.value.linkId || r.sub.linkId.indexOf(applied.value.linkId) > -1;
+    const okShop = !applied.value.shop || r.sub.shops[0]?.shop === applied.value.shop;
+    const okPlatform = !applied.value.platform || r.sub.shops[0]?.platform === applied.value.platform;
+    const okCreator = !applied.value.creator || r.parent.creator.indexOf(applied.value.creator) > -1;
+    const okTaskId = !applied.value.taskId || String(r.sub.taskId).padStart(6, '0').indexOf(applied.value.taskId) > -1;
+    const okCompete = !applied.value.compete || r.sub.linkId.indexOf(applied.value.compete) > -1;
+    const okRetry = !applied.value.retrying || (applied.value.retrying === '是' ? !!r.sub.shops[0]?.retried : !r.sub.shops[0]?.retried);
+    const okRange = (!applied.value.start || r.parent.createTime >= applied.value.start) && (!applied.value.end || r.parent.createTime <= applied.value.end);
+    return okTab && okChip && okTypes && okLinkId && okShop && okPlatform && okCreator && okTaskId && okCompete && okRetry && okRange;
+  });
+  /* 创建时间 / 执行起止时间排序（SortTh：首点降序 → 再点升序 → 三击取消） */
+  const k = sortKey.value;
+  if (k && sortDir.value !== 'none') {
+    const dir = sortDir.value === 'asc' ? 1 : -1;
+    const val = (r: FlatRow) => (k === 'create' ? r.parent.createTime : r.sub.startTime);
+    return [...rows].sort((a, b) => val(a).localeCompare(val(b)) * dir);
+  }
+  return rows;
+});
 
 const isFailed = computed(() => tab.value === 'failed');
-const allChecked = computed(() => paged.value.length > 0 && paged.value.every((r) => checked.value.includes(`${r.parent.id}-${r.sub.id}`)));
-const toggleAll = () => { checked.value = allChecked.value ? [] : paged.value.map((r) => `${r.parent.id}-${r.sub.id}`); };
-const toggleOne = (key: string, on: boolean) => { checked.value = on ? [...checked.value, key] : checked.value.filter((x) => x !== key); };
+
+/* 排序状态：单列激活，点击循环 desc → asc → 取消 */
+const sortKey = ref<'create' | 'exec' | ''>('');
+const sortDir = ref<'none' | 'asc' | 'desc'>('none');
+const onSort = (k: 'create' | 'exec') => {
+  if (sortKey.value !== k) {
+    sortKey.value = k;
+    sortDir.value = 'desc';
+  } else if (sortDir.value === 'desc') {
+    sortDir.value = 'asc';
+  } else if (sortDir.value === 'asc') {
+    sortKey.value = '';
+    sortDir.value = 'none';
+  } else {
+    sortDir.value = 'desc';
+  }
+};
 
 /* 分页：项目统一 ib-pagination 模式（总条数/每页条数/页码/前往） */
 const page = ref(1);
@@ -173,74 +238,104 @@ const onJump = () => {
   if (!Number.isNaN(n)) page.value = Math.min(Math.max(1, n), pageCount.value);
   jumpVal.value = String(page.value);
 };
-watch([applied, pageSize], () => { page.value = 1; jumpVal.value = '1'; });
+
+/* 勾选批量重新发布：仅执行失败行可勾选 */
+const checked = ref<string[]>([]);
+const failedInPage = computed(() => paged.value.filter((r) => r.sub.status === 'failed'));
+const allChecked = computed(() => failedInPage.value.length > 0 && failedInPage.value.every((r) => checked.value.includes(r.sub.taskId)));
+const toggleAll = () => {
+  checked.value = allChecked.value
+    ? checked.value.filter((id) => !failedInPage.value.some((r) => r.sub.taskId === id))
+    : [...new Set([...checked.value, ...failedInPage.value.map((r) => r.sub.taskId)])];
+};
+const toggleCheck = (s: SubTask) => {
+  checked.value = checked.value.includes(s.taskId) ? checked.value.filter((v) => v !== s.taskId) : [...checked.value, s.taskId];
+};
+const batchRepub = () => {
+  const rows = flatAll.value.filter((r) => r.sub.status === 'failed' && checked.value.includes(r.sub.taskId));
+  if (!rows.length) { pushToast('请先勾选执行失败的任务'); return; }
+  rows.forEach((r) => retrySub(r.sub));
+  checked.value = [];
+  pushToast(`已重新发布 ${rows.length} 个任务`);
+};
+watch([applied, pageSize, sortKey, sortDir], () => { page.value = 1; jumpVal.value = '1'; checked.value = []; });
 watch(page, (v) => { jumpVal.value = String(v); });
 watch(pageCount, (v) => { if (page.value > v) page.value = v; });
-
-/* 商品维度展开：查看每个店铺的发布任务执行情况（含失败原因） */
-const expanded = ref<string[]>([]);
-const rowKey = (r: FlatRow) => `${r.parent.id}-${r.sub.id}`;
-const toggleExpand = (k: string) => { expanded.value = expanded.value.includes(k) ? expanded.value.filter((x) => x !== k) : [...expanded.value, k]; };
-/* 失败 tab：当前页自动展开店铺级失败明细，免逐行点开即可定位原因与重试 */
-watch([applied, page, pageSize], () => {
-  if (applied.value.tab === 'failed') expanded.value = paged.value.map((r) => rowKey(r));
-});
-const shopStCls: Record<SubTask['status'], string> = { queued: 'queued', running: 'running', success: 'done', failed: 'failed' };
-const colSpan = computed(() => (isFailed.value ? 10 : 9));
 </script>
 
 <template>
   <div class="tc-tabs">
     <button v-for="t in tabs" :key="t.key" class="tc-tab" :class="tab === t.key ? 'active' : ''" @click="onTab(t.key)">
-      {{ t.text }}({{ t.n }})
+      {{ t.text }}
     </button>
   </div>
 
   <div class="tc-filter">
     <div v-if="isFailed" class="tc-chips">
-      <button v-for="c in ['全部', '发品超限', '库存不足', '其它']" :key="c" class="tc-chip" :class="chip === c ? 'active' : ''" @click="onChip(c)">
+      <button v-for="c in failChips" :key="c" class="tc-chip" :class="chip === c ? 'active' : ''" @click="onChip(c)">
         {{ c }}
       </button>
     </div>
     <div class="sg-grid">
       <div class="sg-field">
-        <label>创建人</label>
-        <input v-model="creator" class="sg-input" placeholder="请输入创建人" />
-      </div>
-      <div class="sg-field">
-        <label>发布平台</label>
-        <BubbleSelect class-name="sg-select" :value="platform" :options="platformOptions" @change="(v: string) => (platform = v)" />
-      </div>
-      <div class="sg-field">
-        <label>渠道</label>
-        <BubbleSelect class-name="sg-select" :value="channel" :options="channelOptions" @change="(v: string) => (channel = v)" />
+        <label>创建时间</label>
+        <div class="sg-range">
+          <input v-model="rangeStart" class="sg-input" placeholder="开始时间" />
+          <span>→</span>
+          <input v-model="rangeEnd" class="sg-input" placeholder="结束时间" />
+        </div>
       </div>
       <div class="sg-field">
         <label>任务类型</label>
-        <BubbleSelect class-name="sg-select" :value="type" :options="typeOptions" @change="(v: string) => (type = v)" />
+        <div class="tc-types">
+          <button type="button" class="tc-types-trigger" @click="typesOpen = !typesOpen">
+            <span v-if="!types.length" class="ph">任务类型</span>
+            <span v-for="t in types" :key="t" class="tc-types-tag">{{ t }}<i title="移除" @click.stop="removeType(t)">×</i></span>
+            <svg class="bselect-arrow" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+              <path d="M2.5 4.5 L6 8 L9.5 4.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div v-if="typesOpen" class="tc-types-menu">
+            <div v-for="o in typeOptions" :key="o" class="tc-types-opt" :class="types.includes(o) ? 'on' : ''" @click="toggleType(o)">
+              <span class="tc-types-ck">{{ types.includes(o) ? '✓' : '' }}</span>{{ o }}
+            </div>
+          </div>
+        </div>
       </div>
       <div class="sg-field">
-        <label>发布店铺名称</label>
-        <input v-model="shop" class="sg-input" placeholder="请输入发布店铺名称" />
+        <label>链接商品ID</label>
+        <input v-model="linkId" class="sg-input" placeholder="链接商品ID" />
       </div>
       <div class="sg-field">
-        <label>创建时间</label>
-        <TcRange />
+        <label>发布店铺</label>
+        <BubbleSelect class-name="sg-select" :value="shop || '发布店铺'" :options="shopOptions" @change="(v: string) => (shop = v === '全部' ? '' : v)" />
       </div>
-      <div v-if="tab !== 'queued'" class="sg-field">
-        <label>执行时间</label>
-        <TcRange />
+      <div class="sg-field">
+        <label>发布平台</label>
+        <BubbleSelect class-name="sg-select" :value="platform || '发布平台'" :options="platformOptions" @change="(v: string) => (platform = v === '全部' ? '' : v)" />
       </div>
-      <div v-if="isFailed" class="sg-field">
-        <label>是否重试</label>
-        <BubbleSelect class-name="sg-select" :value="retried" :options="['全部', '是', '否']" @change="(v: string) => (retried = v)" />
+      <div class="sg-field">
+        <label>创建人</label>
+        <input v-model="creator" class="sg-input" placeholder="创建人" />
+      </div>
+      <div class="sg-field">
+        <label>任务ID</label>
+        <input v-model="taskId" class="sg-input" placeholder="任务ID" />
+      </div>
+      <div class="sg-field">
+        <label>竞品链接</label>
+        <input v-model="compete" class="sg-input" placeholder="竞品链接" />
+      </div>
+      <div class="sg-field">
+        <label>是否重试中</label>
+        <BubbleSelect class-name="sg-select" :value="retrying || '是否重试中'" :options="['全部', '是', '否']" @change="(v: string) => (retrying = v === '全部' ? '' : v)" />
       </div>
     </div>
     <div class="sg-actions">
       <div class="sg-mini" />
       <div class="sg-rightacts">
-        <button v-if="isFailed" class="sg-btn primary" @click="onBatchRetry">
-          批量重试
+        <button class="sg-btn primary" @click="batchRepub">
+          批量重新发布
         </button>
         <button class="sg-btn" @click="onReset">
           重置
@@ -251,73 +346,51 @@ const colSpan = computed(() => (isFailed.value ? 10 : 9));
       </div>
     </div>
   </div>
+  <div v-if="typesOpen" class="tc-types-mask" @click="typesOpen = false" />
 
   <div class="tc-table-card">
     <div class="tc-table-wrap">
       <table class="tc-table tc-detail">
         <thead>
           <tr>
-            <th v-if="isFailed" :style="{ width: '72px' }">
-              <label class="tc-check">
-                <input type="checkbox" class="ib-check" :checked="allChecked" @change="toggleAll" />
-                选择
-              </label>
+            <th class="tc-check">
+              <input type="checkbox" :checked="allChecked" @change="toggleAll" />
             </th>
-            <th class="tc-expander-th" />
             <th :style="{ width: '64px' }">序号</th>
+            <th :style="{ width: '96px' }">任务ID</th>
             <th>商品信息</th>
-            <th>任务信息</th>
-            <th>执行信息</th>
+            <th>任务类型</th>
+            <th>节点状态</th>
             <th>任务状态</th>
-            <th>创建信息</th>
-            <th>
-              执行起止时间 <span class="tc-sort">⇅</span>
+            <th>发布店铺</th>
+            <th class="tc-pubinfo">
+              <div>发布平台</div>
+              <div>创建人</div>
+              <div><SortTh as="span" label="创建时间" :state="sortKey === 'create' ? sortDir : 'none'" @sort="onSort('create')" /></div>
             </th>
+            <SortTh label="执行起止时间" :state="sortKey === 'exec' ? sortDir : 'none'" @sort="onSort('exec')" />
             <th>操作</th>
           </tr>
         </thead>
         <tbody>
-          <template v-for="(r, i) in paged" :key="`${r.parent.id}-${r.sub.id}`">
-          <tr>
-            <td v-if="isFailed">
-              <input
-                type="checkbox"
-                class="ib-check"
-                :checked="checked.includes(`${r.parent.id}-${r.sub.id}`)"
-                @change="toggleOne(`${r.parent.id}-${r.sub.id}`, ($event.target as HTMLInputElement).checked)"
-              />
-            </td>
-            <td>
-              <button
-                type="button"
-                class="tc-expander-btn"
-                :class="expanded.includes(rowKey(r)) ? 'open' : ''"
-                :title="expanded.includes(rowKey(r)) ? '收起' : '展开发布店铺任务'"
-                @click="toggleExpand(rowKey(r))"
-              >
-                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M6 4l4 4-4 4" />
-                </svg>
-              </button>
+          <tr v-for="(r, i) in paged" :key="`${r.parent.id}-${r.sub.taskId}`">
+            <td class="tc-check">
+              <input type="checkbox" :disabled="r.sub.status !== 'failed'" :checked="checked.includes(r.sub.taskId)" @change="toggleCheck(r.sub)" />
             </td>
             <td>{{ pageNo + i + 1 }}</td>
+            <td>{{ String(r.sub.taskId).padStart(6, '0') }}</td>
             <td>
               <div class="tc-product">
                 <img class="tc-thumb" :src="r.sub.thumb" />
                 <div>
                   <div class="tc-pname">{{ r.sub.name }}</div>
-                  <div class="tc-pmeta">竞品链接：{{ r.sub.linkId }}</div>
+                  <div class="tc-pmeta">链接商品ID：{{ r.sub.linkId }}</div>
                 </div>
               </div>
             </td>
+            <td>{{ r.parent.type }}</td>
             <td>
-              <div class="tc-cell-lines">
-                <div><span class="k">任务类型</span>：{{ r.parent.type }}</div>
-                <div><span class="k">任务ID</span>：{{ String(r.sub.taskId).padStart(6, '0') }}</div>
-              </div>
-            </td>
-            <td>
-              <TcExecInfo :sub="r.sub" />
+              <TcStepsCell :sub="r.sub" :type="r.parent.type" />
             </td>
             <td>
               <span class="tc-st" :class="subStatusCls[r.sub.status]">
@@ -325,69 +398,31 @@ const colSpan = computed(() => (isFailed.value ? 10 : 9));
                 {{ subStatusText[r.sub.status] }}
               </span>
             </td>
+            <td>{{ r.sub.shops[0]?.shop ?? '–' }}</td>
             <td>
               <div class="tc-cell-lines">
-                <div><span class="k">创建人</span>：{{ r.parent.creator }}</div>
-                <div><span class="k">创建时间</span>：{{ r.parent.createTime }}</div>
-                <div><span class="k">渠道来源</span>：{{ r.parent.channel }}</div>
+                <div>{{ r.sub.shops[0]?.platform ?? '–' }}</div>
+                <div>{{ r.parent.creator }}</div>
+                <div>{{ r.parent.createTime }}</div>
               </div>
             </td>
             <td>
               <div class="tc-cell-lines">
-                <div>起：{{ r.sub.startTime || '–' }}</div>
-                <div>止：{{ r.sub.endTime || '–' }}</div>
+                <div>{{ r.sub.startTime ? `${r.sub.startTime} 至` : '–' }}</div>
+                <div>{{ r.sub.endTime || '–' }}</div>
               </div>
             </td>
             <td class="actions-col">
-              <a v-if="!firstStepFailed(r.sub)" class="tc-link" @click.prevent="goCreate(r.sub)">详情</a>
+              <a v-if="!firstStepFailed(r.sub, r.parent.type) && r.sub.status !== 'cancelled' && r.sub.status !== 'confirm'" class="tc-link" @click.prevent="goCreate(r.sub)">详情</a>
               <a v-if="r.sub.status === 'failed'" class="tc-link" @click.prevent="retryOne(r.sub)">重试</a>
-              <span v-if="firstStepFailed(r.sub) && r.sub.status !== 'failed'" class="tc-dash">–</span>
+              <a v-if="r.sub.status === 'queued' || r.sub.status === 'running'" class="tc-link" @click.prevent="cancelOne(r.sub)">取消</a>
+              <template v-if="r.sub.status === 'confirm'">
+                <a class="tc-link" @click.prevent="dlg = { sub: r.sub, kind: 'approve' }">通过</a>
+                <a class="tc-link" @click.prevent="dlg = { sub: r.sub, kind: 'reject' }">拒绝</a>
+              </template>
+              <span v-if="(firstStepFailed(r.sub, r.parent.type) || r.sub.status === 'cancelled') && r.sub.status !== 'failed'" class="tc-dash">–</span>
             </td>
           </tr>
-          <tr v-if="expanded.includes(rowKey(r))" class="tc-expand-tr">
-            <td :colspan="colSpan">
-              <table class="tc-matrix">
-                <thead>
-                  <tr>
-                    <th :style="{ width: '120px' }">平台</th>
-                    <th>店铺名称</th>
-                    <th :style="{ width: '110px' }">任务状态</th>
-                    <th>失败原因</th>
-                    <th :style="{ width: '220px' }">执行起止时间</th>
-                    <th :style="{ width: '70px' }">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="sp in r.sub.shops" :key="sp.platform + sp.shop">
-                    <td>
-                      <span class="tc-plat-chip">
-                        <img :src="PLATFORM_LOGO[sp.platform]" :alt="sp.platform" />
-                        {{ sp.platform }}
-                      </span>
-                    </td>
-                    <td>{{ sp.shop }}</td>
-                    <td>
-                      <span class="tc-st" :class="shopStCls[sp.status]"><i />{{ shopStatusText[sp.status] }}</span>
-                    </td>
-                    <td>
-                      <span class="tc-expand-reason" :class="sp.status === 'failed' ? 'fail' : ''">{{ sp.status === 'failed' ? sp.reason || '其它' : '–' }}</span>
-                    </td>
-                    <td>
-                      <span class="tc-expand-time">
-                        <span>起：{{ sp.startTime || '–' }}</span>
-                        <span>止：{{ sp.endTime || '–' }}</span>
-                      </span>
-                    </td>
-                    <td>
-                      <a v-if="sp.status === 'failed'" class="tc-link" @click.prevent="retryShopOne(r.sub, sp)">重试</a>
-                      <span v-else class="tc-dash">–</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </td>
-          </tr>
-          </template>
         </tbody>
       </table>
     </div>
@@ -406,4 +441,20 @@ const colSpan = computed(() => (isFailed.value ? 10 : 9));
       </div>
     </div>
   </div>
+
+  <Teleport to="body">
+    <div v-if="dlg" class="tc-dlg-mask" @click.self="dlg = null">
+      <div class="tc-dlg">
+        <div class="tc-dlg-head">
+          <b>风险提示</b>
+          <button type="button" title="关闭" @click="dlg = null">✕</button>
+        </div>
+        <div class="tc-dlg-body">{{ dlgText }}</div>
+        <div class="tc-dlg-foot">
+          <button type="button" @click="dlg = null">取消</button>
+          <button type="button" class="primary" @click="onDlgOk">确认</button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>

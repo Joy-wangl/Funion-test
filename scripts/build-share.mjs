@@ -1,9 +1,12 @@
-/* 生成可单独分发的单文件 HTML：内联 JS/CSS，public 图片转 base64，双击即可打开 */
+/* 生成可单独分发的单文件 HTML：内联 JS/CSS，public 图片转 base64，双击即可打开
+ * 用法：node scripts/build-share.mjs [输出文件名] [初始 hash（如 qc-online/series，注入后双击直落该页）] */
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = process.cwd();
 const dist = join(root, 'dist');
+const outName = process.argv[2] || 'Funion-预览.html';
+const initialHash = process.argv[3] || '';
 
 let html = readFileSync(join(dist, 'index.html'), 'utf8');
 const jsFile = readdirSync(join(dist, 'assets')).find((f) => f.endsWith('.js'));
@@ -35,7 +38,9 @@ js = `const __A=${JSON.stringify(assetMap)};\n` + js;
 html = html.replace(/<script type="module"[^>]*src="[^"]*"[^>]*>\s*<\/script>/, () => `<script type="module">\n${js}\n</script>`);
 html = html.replace(/<link rel="stylesheet"[^>]*href="[^"]*"[^>]*>/, () => `<style>\n${css}\n</style>`);
 html = html.split('/favicon.svg').join(`data:image/svg+xml;base64,${readFileSync(join(root, 'public', 'favicon.svg')).toString('base64')}`);
+/* 初始 hash 注入 head 顶部（内联经典脚本先于 module 执行），应用启动读 hash 直落目标页 */
+if (initialHash) html = html.replace('<head>', () => `<head>\n<script>location.hash=${JSON.stringify(initialHash)};</script>`);
 
-const out = join(root, 'Funion-预览.html');
+const out = join(root, outName);
 writeFileSync(out, html);
 console.log(`✓ 已生成 ${out}（${(html.length / 1024 / 1024).toFixed(2)} MB），直接发送该文件即可离线预览`);

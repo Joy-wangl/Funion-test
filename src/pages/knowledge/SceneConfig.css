@@ -1,0 +1,86 @@
+/* ============ 场景配置：非商品范畴咨询的兜底场景库（复用 kb- 设计令牌） ============ */
+.sc-wrap { flex: 1; min-width: 0; overflow-y: auto; display: flex; flex-direction: column; scrollbar-width: none; }
+.sc-wrap::-webkit-scrollbar { display: none; }
+.sc-head { display: flex; align-items: flex-start; justify-content: space-between; }
+.sc-head-btns { display: flex; gap: 8px; }
+
+.sc-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 16px 24px 24px; }
+
+.sc-panel { display: flex; flex-direction: column; }
+
+/* ---------- 列表列宽均分（覆盖 kb-table 首列 26%） ---------- */
+.sc-scene-table { min-width: 1180px; }
+.sc-type-table { min-width: 900px; }
+.sc-scene-table th:first-child,
+.sc-type-table th:first-child { width: auto; }
+.sc-scene-table td { vertical-align: top; padding-top: 12px; padding-bottom: 12px; }
+.sc-scene-table tr.off td { opacity: 0.55; }
+/* 一级场景类型行：类型名加粗、场景数量主档加粗 */
+.sc-type-table td { vertical-align: middle; }
+.sc-name-cell { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.sc-name { font-size: var(--fs-base); font-weight: 600; color: var(--color-text); }
+.sc-sys {
+  font-style: normal; flex: none; padding: 0 8px; border-radius: 6px; font-size: var(--fs-base);
+  background: var(--color-primary-light); color: var(--color-primary);
+}
+
+/* 操作列：主操作直出 + 三个点收口，同排一行 */
+.sc-ops { display: inline-flex; align-items: center; gap: 12px; }
+
+/* 未配置内容占位（新建类型尚未补提示语/回复）；表格内文本统一 --fs-base，不用辅助字号混排 */
+.sc-dim { color: var(--color-text-4); font-size: var(--fs-base); }
+
+/* 提示语列：首条 chip（主色浅底）+ 提示语/关键词计数；截断走 Ellipsis 组件，禁手写省略三件套 */
+.sc-ask-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; max-width: 280px; }
+.sc-ask-chips em {
+  font-style: normal; display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: var(--radius-sm);
+  font-size: var(--fs-base); white-space: nowrap;
+}
+.sc-ask-chips em.exact {
+  background: var(--color-primary-light); color: var(--color-primary);
+  max-width: 200px;
+}
+.sc-ask-chips em.more { background: none; color: var(--color-text-4); padding: 0; }
+
+/* 命中条件列：单行省略走 Ellipsis 组件（限宽跟随 td 列宽，保证省略号与气泡判定成立） */
+.sc-cond { display: inline-block; max-width: 100%; color: var(--color-text-3); font-size: var(--fs-base); }
+/* 场景定义列：同 .sc-cond */
+.sc-def-cell { display: inline-block; max-width: 100%; color: var(--color-text-3); font-size: var(--fs-base); }
+
+/* 类型定义带：命中链路回显（条件定义把关 → 场景定义语义命中 → 下挂细分场景）；V1 详情头/V2 右栏共用 */
+.sc-def-band {
+  display: flex; flex-wrap: wrap; gap: 8px 24px; padding: 12px 16px;
+  border: 1px solid var(--color-border-2); border-radius: var(--radius-md); background: var(--color-fill);
+}
+.sc-def-item { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.sc-def-item > b { flex: none; font-size: var(--fs-base); font-weight: 600; color: var(--color-text-2); }
+.sc-def-item > em { font-style: normal; font-size: var(--fs-base); color: var(--color-text-3); line-height: 1.6; }
+
+/* 处置色档 */
+.sc-act { font-style: normal; display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: var(--fs-base); white-space: nowrap; }
+.sc-act.智能回复 { background: var(--color-primary-light); color: var(--color-primary); }
+.sc-act.转人工 { background: var(--color-warning-light); color: var(--color-warning); }
+.sc-act.致歉引导 { background: var(--color-fill-2); color: var(--color-text-3); }
+
+.sc-hits { font-size: var(--fs-base); font-weight: 600; color: var(--color-text); }
+
+/* 状态列开关：启停细分场景（与 qc2-switch 同规格） */
+.sc-switch {
+  position: relative; display: inline-block; vertical-align: middle; flex: none;
+  width: 34px; height: 19px; border-radius: var(--radius-lg);
+  background: var(--color-text-4); cursor: pointer; transition: background 0.15s;
+}
+.sc-switch i {
+  position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%;
+  background: var(--color-fill); transition: left 0.15s; box-shadow: var(--shadow-sm);
+}
+.sc-switch.on { background: var(--color-primary); }
+.sc-switch.on i { left: 17px; }
+
+/* 配置抽屉样式已迁至 SceneCfgDrawer.css（V1/V2 共享组件 SceneCfgDrawer.vue 引入） */
+/* 类型新建/编辑已迁至共享抽屉 TypeCfgDrawer.vue（原单字段弹窗 .sc-create 废弃） */
+
+/* 二次确认弹窗（复用 kb-modal 壳） */
+.sc-confirm { max-width: 400px; }
+.sc-confirm-body { padding: 20px 24px; color: var(--color-text-2); font-size: var(--fs-base); line-height: 1.6; }

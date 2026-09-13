@@ -1,0 +1,53 @@
+/**
+ * 商品知识库 V2 局部样式：只承载 V2 新增视觉（知识卡片问法匹配三件套 + 知识弹窗加宽），
+ * 其余结构样式沿用 Knowledge.css（同源类名不重复定义，避免双份漂移）
+ */
+
+/* 知识卡片：精准问法主行（对齐 QA 列表标准问题语言，单行省略、hover title 全量） */
+.kb-kn-exact {
+  margin: 10px 0 0;
+  font-size: var(--fs-base); font-weight: 600; color: var(--color-text); line-height: 1.6;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* 匹配副行：关键词标签左起、超出换行 */
+.kb-kn-match { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
+/* 相似问法计数：头行右侧簇（margin-left:auto 推右，与 chip/icon 垂直居中），与编辑/删除 icon 留 10px 间距 */
+.kb-kn-sim { margin-left: auto; flex: none; font-style: normal; font-size: var(--fs-aux); color: var(--color-text-4); }
+.kb-kn-sim + .kb-kn-acts { margin-left: 10px; }
+.kb-kn-kws { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.kb-kn-kws em {
+  padding: 2px 8px; border-radius: var(--radius-sm);
+  background: var(--color-fill-2); color: var(--color-text-3);
+  font-style: normal; font-size: var(--fs-aux); line-height: 1.6;
+}
+
+/* 新建/编辑商品知识弹窗：三件套并入后字段变多，弹窗加宽避免挤压 */
+.kb-kn-modal { width: 640px; }
+
+/* ID 维度抽屉上下结构：头部（ID 数据）通顶全宽，下方左右分栏——左列 SKU 选择（主图/名称/售价/关联编码数，点选切换）、右列编码与商品内容独立滚动；整屉白底；编码卡沿用 .kb-d-codes/.kb-code */
+.kb-drawer.kb-v2-split {
+  display: grid;
+  grid-template-columns: 264px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: 'head head' 'rail body';
+  overflow: hidden; padding: 0; width: min(1120px, 80vw);
+}
+/* 头部通顶：占满两列首行（ID 数据区），底细分隔线与下方 SKU 区分界 */
+.kb-v2-split .kb-d-head { grid-area: head; padding: 20px 28px; }
+.kb-v2-split .kb-d-skurail { grid-area: rail; overflow-y: auto; scrollbar-width: none; padding: 20px 16px; border-right: 1px solid var(--color-border); background: #fff; }
+.kb-v2-split .kb-d-skurail::-webkit-scrollbar { display: none; }
+.kb-v2-split .kb-d-skurail-lb { margin-bottom: 12px; font-size: var(--fs-md); font-weight: 600; color: var(--color-text); }
+.kb-v2-split .kb-d-body { grid-area: body; overflow-y: auto; scrollbar-width: none; padding: 20px 28px 36px; }
+.kb-v2-split .kb-d-body::-webkit-scrollbar { display: none; }
+/* SKU 选择卡：白底列内描边卡，选中主色描边浅底 */
+.kb-sku-card { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); cursor: pointer; transition: 0.15s; }
+.kb-sku-card + .kb-sku-card { margin-top: 10px; }
+.kb-sku-card:hover { border-color: var(--color-primary); }
+.kb-sku-card.active { border-color: var(--color-primary); background: var(--color-primary-light); }
+.kb-sku-top { display: flex; gap: 10px; min-width: 0; }
+.kb-sku-top img { flex: none; width: 48px; height: 48px; border-radius: var(--radius-md); object-fit: cover; background: var(--color-fill-2); }
+.kb-sku-info { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.kb-sku-info .n { font-size: var(--fs-md); font-weight: 600; color: var(--color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kb-sku-info .p { font-size: var(--fs-base); font-weight: 600; color: var(--color-primary); }
+.kb-sku-codes { font-size: 12px; color: var(--color-text-3); }

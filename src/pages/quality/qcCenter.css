@@ -564,3 +564,58 @@
 }
 .qc-center-page .qc-tag-cat-k i { width: 6px; height: 6px; border-radius: 2px; flex: none; }
 .qc-center-page .qc-tag-cat-row .prob-tags { flex: 1; min-width: 0; }
+
+/* ---------- 品控-线上 监控列表分页：同构 ops-center 的 ib-pagination 模式（该样式带 .ops-center 前缀，此处补品控作用域） ---------- */
+.qc-center-page .ib-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 18px;
+  padding: 16px 20px;
+  background: #fff;
+  border-top: 1px solid #edf0f5;
+  min-height: 62px;
+  flex-wrap: wrap;
+}
+.qc-center-page .ib-pageinfo { font-size: 13px; color: #596273; white-space: nowrap; }
+.qc-center-page .ib-page-size {
+  height: 34px;
+  min-width: 112px;
+  border: 1px solid #e3e7ee;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #fff;
+  color: #596273;
+  outline: none;
+  cursor: pointer;
+}
+.qc-center-page .ib-pages { display: flex; gap: 4px; align-items: center; }
+.qc-center-page .ib-pagebtn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 9px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: #fff;
+  color: #4f5868;
+  cursor: pointer;
+  transition: 0.18s;
+}
+.qc-center-page .ib-pagebtn:hover { background: #f4f7ff; color: #4f7cff; }
+.qc-center-page .ib-pagebtn.active { background: #eef4ff; border-color: #d8e3ff; color: #4f7cff; font-weight: 700; }
+.qc-center-page .ib-pagebtn.nav { color: #9aa2b1; font-size: 18px; }
+.qc-center-page .ib-pagebtn:disabled { opacity: 0.4; cursor: not-allowed; }
+.qc-center-page .ib-pagebtn:disabled:hover { background: #fff; color: #9aa2b1; }
+.qc-center-page .ib-pagedots { color: #9aa2b1; padding: 0 4px; }
+.qc-center-page .ib-jump { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #596273; white-space: nowrap; }
+.qc-center-page .ib-jump-input {
+  width: 58px;
+  height: 34px;
+  border: 1px solid #e3e7ee;
+  border-radius: 8px;
+  text-align: center;
+  color: #4f5868;
+  background: #fbfcfe;
+  outline: none;
+}
+.qc-center-page .ib-jump-input:focus { border-color: #a9bcff; box-shadow: 0 0 0 3px rgba(79, 124, 255, 0.08); }

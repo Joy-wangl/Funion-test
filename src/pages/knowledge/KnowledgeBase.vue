@@ -1,19 +1,21 @@
 <script setup lang="ts">
 /* 知识库：商品资料卡片化沉淀；首个页面「商品知识库」，卡片点击进详情抽屉（内部数据 + 编码素材 + 商品知识） */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import CascadeSelect from '../../components/CascadeSelect.vue';
 import { pushToast } from '../../components/toast';
 import KbCatSelect from './KbCatSelect.vue';
-import QaManage from './QaManage.vue';
+import GoodsKbV2 from './GoodsKbV2.vue';
+import SceneConfig from './SceneConfig.vue';
+import SceneConfigV2 from './SceneConfigV2.vue';
 import PlatLogo from '../quality/PlatLogo.vue';
 import type { Platform } from '../quality/data';
 import { kbProducts, KB_IMAGE_TYPES, KB_ITEM_STATUS_META, KB_KNOWLEDGE_TYPES, KB_SCENE_GROUPS, KB_VIDEO_TYPES, type KbCode, type KbItem, type KbKnowledgeEntry, type KbMaterial, type KbProduct } from './data';
 import './Knowledge.css';
 
-/* 左侧导航视图切换：商品知识库 / QA管理 */
-type KbView = 'base' | 'qa';
-const kbView = ref<KbView>('base');
+/* 左侧导航视图切换：商品知识库 V2（商品范畴）/ 场景配置（非商品范畴兜底，V1 二级列表 + V2 左右结构并存待择）；关联ID 为系列行钻取的二级列表页（非导航入口） */
+type KbView = 'base' | 'ids' | 'v2' | 'scene' | 'scene2';
+const kbView = ref<KbView>('v2');
 
 /* ---------- 条件查询模块：全部条件为草稿、「查询」统一生效；类目为三级级联多选 ---------- */
 const keyword = ref('');
@@ -105,50 +107,45 @@ const products = computed(() => kbProducts.filter((p) => {
   return true;
 }));
 
-/* ---------- 系列行展开：店铺商品 ID 维度子列表（一个 ID 内含多个商品编码） ---------- */
-const expanded = ref<Set<string>>(new Set());
-const toggleExpand = (p: KbProduct) => {
-  const n = new Set(expanded.value);
-  if (n.has(p.id)) n.delete(p.id);
-  else n.add(p.id);
-  expanded.value = n;
+/* ---------- 关联ID 二级列表页：各平台 ID 维度（字段承原展开子列表）；唯一入口 = 系列行钻入（预填并生效系列条件，页头返回钮回上级） ---------- */
+interface IdsQuery { series: string; item: string; name: string; plat: string; shop: string; status: string; code: string }
+const emptyIds = (): IdsQuery => ({ series: '', item: '', name: '', plat: '', shop: '', status: '全部', code: '' });
+const idsDraft = ref<IdsQuery>(emptyIds());
+const idsApplied = ref<IdsQuery>(emptyIds());
+const idsSearch = () => { idsApplied.value = { ...idsDraft.value }; };
+const idsReset = () => { idsDraft.value = emptyIds(); idsApplied.value = emptyIds(); };
+/* 入口：系列行「关联ID」预填系列条件并生效，以二级页进入 */
+const openIdsView = (seriesId: string) => {
+  const p = kbProducts.find((x) => x.id === seriesId);
+  idsDraft.value = { ...emptyIds(), series: p?.name ?? '' };
+  idsApplied.value = { ...idsDraft.value };
+  kbView.value = 'ids';
 };
-/* 展开子列表平台 tab：全部 + 该系列店铺商品所含平台，切换筛选子行 */
-const TAB_ALL = '全部';
-const subTabs = ref<Record<string, string>>({});
-const subTabOf = (p: KbProduct) => subTabs.value[p.id] ?? TAB_ALL;
-const setSubTab = (p: KbProduct, t: string) => { subTabs.value = { ...subTabs.value, [p.id]: t }; };
-/* 子列表搜索（商品ID/店铺名称）：默认收起仅图标，点击展开搜索框；收起时清空关键词 */
-const subKws = ref<Record<string, string>>({});
-const subKwOf = (p: KbProduct) => subKws.value[p.id] ?? '';
-const subSearchOpen = ref<Record<string, boolean>>({});
-const subSearchOpenOf = (p: KbProduct) => subSearchOpen.value[p.id] ?? false;
-const toggleSubSearch = (p: KbProduct) => {
-  const open = !subSearchOpenOf(p);
-  subSearchOpen.value = { ...subSearchOpen.value, [p.id]: open };
-  /* 展开后待 DOM 更新完成再聚焦对应系列的搜索框（data-pid 定位，多系列展开互不干扰） */
-  if (open) nextTick(() => { document.querySelector<HTMLInputElement>(`.kb-sub-searchbox[data-pid="${p.id}"] input`)?.focus(); });
-  else subKws.value = { ...subKws.value, [p.id]: '' };
-};
-/* 点击其它区域：无内容的搜索框收起，有内容的保持展开 */
-const onDocClick = (e: MouseEvent) => {
-  /* 点击目标节点可能已被 Vue 同 tick 重渲染摘除（closest 失效），用 composedPath（事件派发路径快照）判定搜索区内 */
-  if (e.composedPath().some((n) => n instanceof Element && n.classList.contains('kb-sub-search'))) return;
-  const emptyOpen = Object.keys(subSearchOpen.value).filter((id) => subSearchOpen.value[id] && !(subKws.value[id] ?? '').trim());
-  if (!emptyOpen.length) return;
-  const next = { ...subSearchOpen.value };
-  for (const id of emptyOpen) next[id] = false;
-  subSearchOpen.value = next;
-};
-const itemPlatforms = (p: KbProduct) => [...new Set(p.items.map((it) => it.platform))];
+/* 二级页返回：回商品知识库列表（两级条件态各自独立保留） */
+const backToBase = () => { kbView.value = 'base'; };
+/* 商品状态筛选选项：按 label（与状态圆点口径一致） */
+const idsStatusOptions = ['全部', ...Object.values(KB_ITEM_STATUS_META).map((m) => m.label)];
+/* 列表行：系列 × ID 展平，按已生效条件过滤 */
+const idRows = computed(() => {
+  const a = idsApplied.value;
+  const out: { p: KbProduct; it: KbItem }[] = [];
+  for (const p of kbProducts) {
+    if (a.series && !(p.name.includes(a.series) || p.codes.some((c) => c.code.includes(a.series.toUpperCase())))) continue;
+    for (const it of p.items) {
+      if (a.item && !it.id.includes(a.item)) continue;
+      if (a.name && !it.name.includes(a.name)) continue;
+      if (a.plat && it.platform !== a.plat) continue;
+      if (a.shop && !it.shop.includes(a.shop)) continue;
+      if (a.status !== '全部' && KB_ITEM_STATUS_META[it.status].label !== a.status) continue;
+      if (a.code && !it.codes.some((c) => c.code.includes(a.code.toUpperCase()))) continue;
+      out.push({ p, it });
+    }
+  }
+  return out;
+});
 /* 上架平台列 chip 复用品控 PlatLogo（platform prop 为联合类型） */
+const itemPlatforms = (p: KbProduct) => [...new Set(p.items.map((it) => it.platform))];
 const platList = (p: KbProduct) => itemPlatforms(p) as Platform[];
-const subItems = (p: KbProduct) => {
-  const t = subTabOf(p);
-  /* 模糊搜索：当前条件（主查询+平台 tab）下列表数据，商品ID/店铺名称不区分大小写子串命中 */
-  const kw = subKwOf(p).trim().toLowerCase();
-  return p.items.filter((it) => (t === TAB_ALL || it.platform === t) && (!kw || it.id.toLowerCase().includes(kw) || it.shop.toLowerCase().includes(kw)));
-};
 
 /* ---------- 详情抽屉：系列编码 / 店铺商品 ID 双维度（同页结构），编码切换 ---------- */
 type KbDetail = { kind: 'series'; p: KbProduct } | { kind: 'item'; item: KbItem; series: KbProduct };
@@ -191,12 +188,10 @@ const onEsc = (e: KeyboardEvent) => {
 onMounted(() => {
   window.addEventListener('keydown', onEsc);
   document.addEventListener('fullscreenchange', syncFull);
-  document.addEventListener('click', onDocClick);
 });
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onEsc);
   document.removeEventListener('fullscreenchange', syncFull);
-  document.removeEventListener('click', onDocClick);
 });
 
 /* 演示环境：视频/外链不真实打开 */
@@ -278,7 +273,7 @@ const mediaType = ref('');
 /* 内容描述（必填，RAG 向量语料）与命中场景（选填多选）；描述空值行内报错 */
 const mediaDesc = ref('');
 const descErr = ref(false);
-/* 命中场景两级模型（先场景类型再细分场景）：会话级分组状态；自建场景并入所建组行尾，不单设自定义组 */
+/* 命中场景树模型（场景类型→细分场景→子组，枚举见 data.ts KB_SCENE_GROUPS）：会话级分组状态；自建场景并入所建组行尾，不单设自定义组 */
 const sceneGroups = ref(KB_SCENE_GROUPS.map((g) => ({ group: g.group, scenes: [...g.scenes] })));
 const sceneCascGroups = computed(() => sceneGroups.value.map((g) => ({ name: g.group, children: g.scenes })));
 /* 级联下拉多选场景选择工厂（素材与知识两弹窗共用）：值只存细分场景 */
@@ -472,16 +467,19 @@ const shownKnowledge = computed(() => (currentCode.value?.knowledge ?? []).filte
     <aside class="kb-side">
       <div class="kb-side-head">
         <span class="t">知识库</span>
-        <span class="s">商品资料知识沉淀</span>
+        <span class="s">商品知识 · 兜底场景</span>
       </div>
       <nav class="kb-nav">
-        <div class="kb-nav-item" :class="{ active: kbView === 'base' }" @click="kbView = 'base'">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
-          <span>商品知识库</span>
+        <div class="kb-nav-item" :class="{ active: kbView === 'v2' }" @click="kbView = 'v2'">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /><path d="M9 8.5h7M9 12h4" /></svg>
+          <span>商品知识库 V2</span>
         </div>
-        <div class="kb-nav-item" :class="{ active: kbView === 'qa' }" @click="kbView = 'qa'">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><path d="M9 9h6" /><path d="M9 12.5h4" /></svg>
-          <span>QA管理</span>
+        <div class="kb-nav-item" :class="{ active: kbView === 'scene' }" @click="kbView = 'scene'">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3" /><path d="M1 14h6M9 8h6M17 16h6" /></svg>
+          <span>场景配置</span>
+        </div>
+        <div class="kb-nav-item kb-nav-sub" :class="{ active: kbView === 'scene2' }" @click="kbView = 'scene2'">
+          <span>场景配置 V2（左右结构）</span>
         </div>
       </nav>
     </aside>
@@ -506,7 +504,13 @@ const shownKnowledge = computed(() => (currentCode.value?.knowledge ?? []).filte
             </div>
             <div class="kb-field">
               <label>系列名称/编码</label>
-              <input v-model="keyword" class="kb-input" placeholder="请输入系列名称/编码" @keyup.enter="search" />
+              <span class="kb-kwwrap">
+                <input v-model="keyword" class="kb-input" placeholder="请输入系列名称/编码" @keyup.enter="search" />
+                <!-- 清除钮：框内右侧实心灰圆× 有值才显，点击清空并立即重查（全局查询清除规范） -->
+                <button v-if="keyword" type="button" class="kb-clear" title="清除" @click="keyword = ''; search()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+                </button>
+              </span>
             </div>
             <div class="kb-field">
               <label>上架平台</label>
@@ -519,23 +523,48 @@ const shownKnowledge = computed(() => (currentCode.value?.knowledge ?? []).filte
             </div>
             <div class="kb-field">
               <label>店铺名称</label>
-              <input v-model="shopKw" class="kb-input" placeholder="请输入店铺名称" @keyup.enter="search" />
+              <span class="kb-kwwrap">
+                <input v-model="shopKw" class="kb-input" placeholder="请输入店铺名称" @keyup.enter="search" />
+                <button v-if="shopKw" type="button" class="kb-clear" title="清除" @click="shopKw = ''; search()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+                </button>
+              </span>
             </div>
             <div class="kb-field">
               <label>商品ID</label>
-              <input v-model="itemKw" class="kb-input" placeholder="请输入商品ID" @keyup.enter="search" />
+              <span class="kb-kwwrap">
+                <input v-model="itemKw" class="kb-input" placeholder="请输入商品ID" @keyup.enter="search" />
+                <button v-if="itemKw" type="button" class="kb-clear" title="清除" @click="itemKw = ''; search()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+                </button>
+              </span>
             </div>
             <div class="kb-field">
               <label>编码ID</label>
-              <input v-model="codeKw" class="kb-input" placeholder="请输入编码ID" @keyup.enter="search" />
+              <span class="kb-kwwrap">
+                <input v-model="codeKw" class="kb-input" placeholder="请输入编码ID" @keyup.enter="search" />
+                <button v-if="codeKw" type="button" class="kb-clear" title="清除" @click="codeKw = ''; search()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+                </button>
+              </span>
             </div>
             <div class="kb-field">
               <label>成本价</label>
-              <!-- 区间式：最低-最高，单边不限 -->
+              <!-- 区间式：最低-最高，单边不限；两输入各自带清除 -->
               <div class="kb-range">
-                <input v-model="costMin" class="kb-input" placeholder="最低价" @keyup.enter="search" />
+                <span class="kb-kwwrap">
+                  <input v-model="costMin" class="kb-input" placeholder="最低价" @keyup.enter="search" />
+                  <button v-if="costMin" type="button" class="kb-clear" title="清除" @click="costMin = ''; search()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+                  </button>
+                </span>
                 <span class="kb-range-sep">-</span>
-                <input v-model="costMax" class="kb-input" placeholder="最高价" @keyup.enter="search" />
+                <span class="kb-kwwrap">
+                  <input v-model="costMax" class="kb-input" placeholder="最高价" @keyup.enter="search" />
+                  <button v-if="costMax" type="button" class="kb-clear" title="清除" @click="costMax = ''; search()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+                  </button>
+                </span>
               </div>
             </div>
             <div class="kb-query-actions">
@@ -576,9 +605,6 @@ const shownKnowledge = computed(() => (currentCode.value?.knowledge ?? []).filte
                 <tr>
                   <td>
                     <div class="kb-td-series">
-                      <button class="kb-caret" :class="{ open: expanded.has(p.id) }" title="展开/收起店铺商品" @click.stop="toggleExpand(p)">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6" /></svg>
-                      </button>
                       <span class="kb-td-item">
                         <b :title="p.name">{{ p.name }}</b>
                         <!-- 副行灰底标签：编码数量（编码数列已改为上架平台） -->
@@ -602,71 +628,11 @@ const shownKnowledge = computed(() => (currentCode.value?.knowledge ?? []).filte
                   </td>
                   <td class="kb-td-rate">{{ p.refundRate }}</td>
                   <td class="kb-td-price">{{ costText(p) }}</td>
-                  <td><a class="kb-link" href="#" @click.prevent="openDetail(p)">详情</a></td>
-                </tr>
-                <!-- 展开行：平台 tab + 店铺商品 ID 维度子列表（商品信息/上架店铺/商品状态/编码数量/操作） -->
-                <tr v-if="expanded.has(p.id)" class="kb-sub-row">
-                  <td colspan="8" class="kb-sub-td">
-                    <div class="kb-sub-bar">
-                      <div class="kb-sub-tabs">
-                        <button v-for="t in [TAB_ALL, ...itemPlatforms(p)]" :key="t" :class="{ on: subTabOf(p) === t }" @click="setSubTab(p, t)">{{ t }}</button>
-                      </div>
-                      <!-- 子列表搜索：默认收起仅图标，点击展开；支持商品ID/店铺名称，内容可 ICON 清除 -->
-                      <div class="kb-sub-search">
-                        <div v-if="subSearchOpenOf(p)" class="kb-sub-searchbox" :data-pid="p.id">
-                          <button class="kb-sub-searchbtn" title="收起搜索" @click="toggleSubSearch(p)">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-                          </button>
-                          <input
-                            v-model="subKws[p.id]"
-                            placeholder="搜索商品ID/店铺名称"
-                          >
-                          <button v-if="subKwOf(p)" class="kb-sub-clear" title="清除" @click="subKws[p.id] = ''">
-                            <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
-                          </button>
-                        </div>
-                        <button v-else class="kb-sub-searchbtn" title="搜索商品ID/店铺名称" @click="toggleSubSearch(p)">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-                        </button>
-                      </div>
-                    </div>
-                    <table class="kb-sub-table">
-                      <thead>
-                        <tr>
-                          <th>商品信息</th>
-                          <th>上架店铺</th>
-                          <th>商品状态</th>
-                          <th>商品编码数</th>
-                          <th>操作</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr v-for="it in subItems(p)" :key="it.id">
-                          <td>
-                            <div class="kb-td-series">
-                              <img :src="it.img" alt="" />
-                              <span class="kb-td-item">
-                                <b :title="it.name">{{ it.name }}</b>
-                                <i>ID：{{ it.id }}</i>
-                              </span>
-                            </div>
-                          </td>
-                          <!-- 平台已由 tab 展示，列表仅保留店铺名 -->
-                          <td>{{ it.shop }}</td>
-                          <td>
-                            <span class="kb-status">
-                              <i class="kb-status-dot" :style="{ background: KB_ITEM_STATUS_META[it.status].dot }" />
-                              {{ KB_ITEM_STATUS_META[it.status].label }}
-                            </span>
-                          </td>
-                          <td>{{ it.codes.length }}</td>
-                          <td><a class="kb-link" href="#" @click.prevent="openItemDetail(p, it)">详情</a></td>
-                        </tr>
-                        <tr v-if="!subItems(p).length">
-                          <td colspan="5" class="kb-empty">无匹配商品</td>
-                        </tr>
-                      </tbody>
-                    </table>
+                  <td>
+                    <span class="kb-td-ops">
+                      <a class="kb-link" href="#" @click.prevent="openDetail(p)">详情</a>
+                      <a class="kb-link" href="#" @click.prevent="openIdsView(p.id)">关联ID</a>
+                    </span>
                   </td>
                 </tr>
               </template>
@@ -679,8 +645,149 @@ const shownKnowledge = computed(() => (currentCode.value?.knowledge ?? []).filte
       </div>
     </main>
 
-    <!-- QA管理：标准问答对优先匹配层（独立主区，共用左侧导航） -->
-    <QaManage v-else />
+    <!-- 关联ID：系列行钻入的二级列表页（各平台 ID 维度，字段承原展开子列表；返回钮+三级面包屑） -->
+    <main v-else-if="kbView === 'ids'" class="kb-main">
+      <header class="kb-main-head">
+        <div>
+          <h2>
+            <button class="kb-back" title="返回商品知识库" @click="backToBase">←</button>
+            关联ID
+          </h2>
+          <p class="kb-breadcrumb">知识库<span> / 商品知识库</span><span> / 关联ID</span></p>
+        </div>
+      </header>
+
+      <div class="kb-panel">
+        <!-- 查询条件：系列/商品ID/名称/平台/店铺/状态/编码，查询统一生效 -->
+        <div class="kb-query">
+          <div class="kb-field">
+            <label>系列名称/编码</label>
+            <span class="kb-kwwrap">
+              <input v-model="idsDraft.series" class="kb-input" placeholder="请输入系列名称/编码" @keyup.enter="idsSearch" />
+              <button v-if="idsDraft.series" type="button" class="kb-clear" title="清除" @click="idsDraft.series = ''; idsSearch()">
+                <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+              </button>
+            </span>
+          </div>
+          <div class="kb-field">
+            <label>商品ID</label>
+            <span class="kb-kwwrap">
+              <input v-model="idsDraft.item" class="kb-input" placeholder="请输入商品ID" @keyup.enter="idsSearch" />
+              <button v-if="idsDraft.item" type="button" class="kb-clear" title="清除" @click="idsDraft.item = ''; idsSearch()">
+                <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+              </button>
+            </span>
+          </div>
+          <div class="kb-field">
+            <label>商品名称</label>
+            <span class="kb-kwwrap">
+              <input v-model="idsDraft.name" class="kb-input" placeholder="请输入商品名称" @keyup.enter="idsSearch" />
+              <button v-if="idsDraft.name" type="button" class="kb-clear" title="清除" @click="idsDraft.name = ''; idsSearch()">
+                <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+              </button>
+            </span>
+          </div>
+          <div class="kb-field">
+            <label>上架平台</label>
+            <BubbleSelect
+              class-name="kb-select"
+              :options="platOptions"
+              :value="idsDraft.plat || '全部'"
+              @change="(v: string) => (idsDraft.plat = v === '全部' ? '' : v)"
+            />
+          </div>
+          <div class="kb-field">
+            <label>店铺名称</label>
+            <span class="kb-kwwrap">
+              <input v-model="idsDraft.shop" class="kb-input" placeholder="请输入店铺名称" @keyup.enter="idsSearch" />
+              <button v-if="idsDraft.shop" type="button" class="kb-clear" title="清除" @click="idsDraft.shop = ''; idsSearch()">
+                <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+              </button>
+            </span>
+          </div>
+          <div class="kb-field">
+            <label>商品状态</label>
+            <BubbleSelect
+              class-name="kb-select"
+              :options="idsStatusOptions"
+              :value="idsDraft.status"
+              @change="(v: string) => (idsDraft.status = v)"
+            />
+          </div>
+          <div class="kb-field">
+            <label>商品编码</label>
+            <span class="kb-kwwrap">
+              <input v-model="idsDraft.code" class="kb-input" placeholder="请输入商品编码" @keyup.enter="idsSearch" />
+              <button v-if="idsDraft.code" type="button" class="kb-clear" title="清除" @click="idsDraft.code = ''; idsSearch()">
+                <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+              </button>
+            </span>
+          </div>
+          <div class="kb-query-actions">
+            <button class="kb-btn" @click="idsReset">重置</button>
+            <button class="kb-btn primary" @click="idsSearch">查询</button>
+          </div>
+        </div>
+
+        <!-- ID 维度列表：商品信息/系列编码/上架平台/上架店铺/商品状态/商品编码数/操作 -->
+        <div class="kb-table-wrap">
+          <table class="kb-table">
+            <thead>
+              <tr>
+                <th>商品信息</th>
+                <th>系列编码</th>
+                <th>上架平台</th>
+                <th>上架店铺</th>
+                <th>商品状态</th>
+                <th>商品编码数</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in idRows" :key="row.it.id">
+                <td>
+                  <div class="kb-td-series">
+                    <img :src="row.it.img" alt="" />
+                    <span class="kb-td-item">
+                      <b :title="row.it.name">{{ row.it.name }}</b>
+                      <i>ID：{{ row.it.id }}</i>
+                    </span>
+                  </div>
+                </td>
+                <td>{{ row.p.name }}</td>
+                <td>
+                  <span class="kb-td-plats">
+                    <span class="kb-plat-chip">
+                      <PlatLogo :platform="row.it.platform as Platform" />
+                      {{ row.it.platform }}
+                    </span>
+                  </span>
+                </td>
+                <td>{{ row.it.shop }}</td>
+                <td>
+                  <span class="kb-status">
+                    <i class="kb-status-dot" :style="{ background: KB_ITEM_STATUS_META[row.it.status].dot }" />
+                    {{ KB_ITEM_STATUS_META[row.it.status].label }}
+                  </span>
+                </td>
+                <td>{{ row.it.codes.length }}</td>
+                <td><a class="kb-link" href="#" @click.prevent="openItemDetail(row.p, row.it)">详情</a></td>
+              </tr>
+              <tr v-if="!idRows.length">
+                <td colspan="7" class="kb-empty">无匹配关联ID</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <!-- 商品知识库 V2：同构复刻 + 商品知识条目增补问法匹配三件套（独立数据源，与本页互不影响） -->
+    <GoodsKbV2 v-else-if="kbView === 'v2'" />
+
+    <!-- 场景配置：非商品范畴咨询的兜底场景库（独立主区，共用左侧导航）；V1 二级列表 / V2 左右结构并存待择 -->
+    <SceneConfig v-else-if="kbView === 'scene'" />
+    <SceneConfigV2 v-else-if="kbView === 'scene2'" />
 
     <!-- 详情：右置宽抽屉 + 暗幕（空白处点击 / Esc 关闭） -->
     <template v-if="detail">

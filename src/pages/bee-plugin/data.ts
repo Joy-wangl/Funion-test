@@ -36,6 +36,11 @@ export interface BeeShop {
 
 export const BEE_PLATFORMS = ['淘宝', '天猫', '拼多多', '抖音', '快手'];
 
+/* 插件当前仅支持发布到淘宝平台：店铺/策略按此白名单统一隐藏其它平台干扰项。
+   全量数据保留在本文件，后续恢复其它平台时往白名单加回即可 */
+export const BEE_ENABLED_PLATFORMS = ['淘宝'];
+export const beePlatEnabled = (p: string) => BEE_ENABLED_PLATFORMS.includes(p);
+
 export const BEE_PLATFORM_LOGO: Record<string, string> = {
   淘宝: '/logos/taobao.png',
   天猫: '/logos/tmall.png',
@@ -91,6 +96,10 @@ export const SHIP_TIMES: { value: ShipTime; label: string }[] = [
 ];
 export const shipTimeLabel = (v: ShipTime) => SHIP_TIMES.find((x) => x.value === v)?.label ?? v;
 
+/* 发布方式：直接上架 / 放入仓库（铺货发布后直接上架或入仓待售） */
+export type BeePubMethod = '直接上架' | '放入仓库';
+export const BEE_PUB_METHODS: BeePubMethod[] = ['直接上架', '放入仓库'];
+
 export interface BeeStrategy {
   id: string;
   name: string;
@@ -102,15 +111,17 @@ export interface BeeStrategy {
   profit: number;
   shipTime: ShipTime;
   itemType: 'new' | 'used';
+  /* 发布方式：直接上架 / 放入仓库 */
+  pubMethod: BeePubMethod;
   /* 创建人 / 创建时间（列表可排序） */
   creator: string;
   createTime: string;
 }
 
 export const beeStrategies: BeeStrategy[] = [
-  { id: 'S-001', name: '淘宝标准快速定价', platforms: ['淘宝'], priceMode: 'rate', rate: 30, profit: 0, shipTime: '48h', itemType: 'new', creator: '蜜蜂用户', createTime: '2026-08-02 10:24' },
-  { id: 'S-002', name: '天猫旗舰控利润', platforms: ['天猫'], priceMode: 'profit', rate: 0, profit: 25, shipTime: '24h', itemType: 'new', creator: '蜜蜂用户', createTime: '2026-08-11 15:40' },
-  { id: 'S-003', name: '拼多多低价走量', platforms: ['拼多多', '抖音'], priceMode: 'rate', rate: 15, profit: 0, shipTime: 'today', itemType: 'new', creator: '蜜蜂用户', createTime: '2026-08-20 09:12' },
+  { id: 'S-001', name: '淘宝标准快速定价', platforms: ['淘宝'], priceMode: 'rate', rate: 30, profit: 0, shipTime: '48h', itemType: 'new', pubMethod: '直接上架', creator: '蜜蜂用户', createTime: '2026-08-02 10:24' },
+  { id: 'S-002', name: '天猫旗舰控利润', platforms: ['天猫'], priceMode: 'profit', rate: 0, profit: 25, shipTime: '24h', itemType: 'new', pubMethod: '放入仓库', creator: '蜜蜂用户', createTime: '2026-08-11 15:40' },
+  { id: 'S-003', name: '拼多多低价走量', platforms: ['拼多多', '抖音'], priceMode: 'rate', rate: 15, profit: 0, shipTime: 'today', itemType: 'new', pubMethod: '直接上架', creator: '蜜蜂用户', createTime: '2026-08-20 09:12' },
 ];
 
 export const SHOP_LOGIN_META: Record<ShopLogin, { label: string; color: string }> = {

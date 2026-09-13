@@ -249,6 +249,13 @@ onMounted(() => {
   if (props.initial) pickProduct(props.initial);
 });
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
+
+/* 离开守卫：AI画图进行中时关闭 / 退出 / 路由切换前二次确认，避免中断本次生成。
+   leaveHint 供插件顶层路由切换读取 */
+const leaveHint = () => (generating.value
+  ? { title: '中断 AI 画图', msg: 'AI 画图正在进行中，关闭将中断本次生成。确认关闭？', ok: '关闭', cancel: '继续等待' }
+  : null);
+defineExpose({ leaveHint });
 </script>
 
 <template>

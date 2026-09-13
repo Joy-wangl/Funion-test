@@ -88,7 +88,7 @@ const tipItem = computed(() => {
         />
       </template>
       <circle :cx="cx" :cy="cy" :r="r" fill="#f7f8fa" pointer-events="none" />
-      <text :x="cx" :y="cy - 2" text-anchor="middle" class="pie-total">{{ total }}</text>
+      <text :x="cx" :y="cy - 2" text-anchor="middle" class="pie-total">{{ total.toLocaleString() }}</text>
       <text :x="cx" :y="cy + 16" text-anchor="middle" class="pie-sub">问题数</text>
     </svg>
     <div v-if="tip && tipItem" class="pie-tip" :style="{ left: tip.x + 'px', top: tip.y + 'px' }">

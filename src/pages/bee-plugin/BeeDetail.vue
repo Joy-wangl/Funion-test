@@ -52,6 +52,14 @@ const aiBeautify = () => {
     pushToast('AI 美化完成（演示）');
   }, 900);
 };
+
+/* 离开守卫：编辑态下取消 / 关闭前二次确认，避免误丢失未保存修改。
+   leaveHint 供父级（选品库详情弹窗 / 插件路由切换）读取，非编辑态返回 null 表示可直接离开 */
+const leaveConfirm = ref(false);
+const leaveHint = () => (editing.value
+  ? { title: '放弃商品编辑', msg: '商品资料尚未保存，关闭后本次修改将丢失。确认关闭？', ok: '关闭', cancel: '继续编辑' }
+  : null);
+defineExpose({ leaveHint });
 </script>
 
 <template>
@@ -230,12 +238,24 @@ const aiBeautify = () => {
     <!-- 底栏：查看态 关闭/编辑/铺货；编辑态 取消/保存 -->
     <div class="qd-foot">
       <template v-if="!editing">
-        <button class="bp-btn primary" @click="emit('pub', product)">发起铺货</button>
+        <button class="bp-btn primary" :disabled="!product.complete" :title="product.complete ? '' : '商品完善后方可发布'" @click="emit('pub', product)">发起铺货</button>
       </template>
       <template v-else>
-        <button class="bp-btn" @click="editing = false">取消</button>
+        <button class="bp-btn" @click="leaveConfirm = true">取消</button>
         <button class="bp-btn primary" @click="save">保存</button>
       </template>
+    </div>
+
+    <!-- 放弃编辑二次确认 -->
+    <div v-if="leaveConfirm" class="bee-mask" @click.self="leaveConfirm = false">
+      <div class="bee-modal small">
+        <div class="bm-head"><b>放弃商品编辑</b></div>
+        <p class="st-del-t">退出编辑后，本次未保存的修改将丢失。确认放弃编辑？</p>
+        <div class="bm-foot">
+          <button class="bp-btn" @click="leaveConfirm = false">继续编辑</button>
+          <button class="bp-btn danger" @click="leaveConfirm = false; editing = false">放弃编辑</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>

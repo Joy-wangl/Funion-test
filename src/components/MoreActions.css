@@ -1,0 +1,9 @@
+/* ============ MoreActions 触发器样式（气泡 .add-pop 见 OpsCenter.css 全局） ============ */
+/* 三个点触发器：表格操作列收口入口，24px 圆角浅底 hover */
+.more-dot {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: var(--radius-sm);
+  color: var(--color-text-3); cursor: pointer; line-height: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.more-dot:hover { background: var(--color-fill-2); color: var(--color-text); }

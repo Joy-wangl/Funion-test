@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { pushToast } from '../../components/toast';
-import { BEE_PLATFORM_LOGO, SHOP_LOGIN_META, beeShops } from './data';
+import { BEE_PLATFORM_LOGO, SHOP_LOGIN_META, beePlatEnabled, beeShops } from './data';
 import type { BeeShop } from './data';
 
 const emit = defineEmits<{ (e: 'close'): void }>();
 
-const rows = ref<BeeShop[]>([...beeShops]);
+/* 仅展示已支持平台（当前=淘宝）的店铺，其它平台隐藏不删数据 */
+const rows = ref<BeeShop[]>(beeShops.filter((s) => beePlatEnabled(s.platform)));
 const chip = ref<'all' | 'ok' | 'no'>('all');
 
 const filtered = computed(() => rows.value.filter((s) => {

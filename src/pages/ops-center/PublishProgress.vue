@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch, onBeforeUnmount } from 'vue';
-import { publishTasks, publishVisible, clearPublishTasks, closePublishPanel } from './publishStore';
+import { publishTasks, publishVisible, clearPublishTasks, closePublishPanel, resolvePublishIntervene, resolvePublishRisk, cancelPublishRisk } from './publishStore';
 import type { PublishItem, PublishTask } from './publishStore';
+import { pushToast } from '../../components/toast';
+import TcRiskModal from './TcRiskModal.vue';
 
 const tasks = publishTasks;
 const visible = publishVisible;
@@ -82,36 +84,49 @@ const statsOf = (t: PublishTask) => {
   const success = t.items.filter((i) => i.status === 'success').length;
   const failed = t.items.filter((i) => i.status === 'failed').length;
   const pending = t.items.filter((i) => i.status === 'pending').length;
-  return { total, success, failed, pending, done: total - pending };
+  const confirm = t.items.filter((i) => i.status === 'confirm').length;
+  const cancelled = t.items.filter((i) => i.status === 'cancelled').length;
+  /* 待确认/风控取消均为终态或暂停态，计入已处理 */
+  return { total, success, failed, pending, confirm, cancelled, done: total - pending };
 };
 const pctOf = (t: PublishTask) => {
   const s = statsOf(t);
   return {
     success: s.total ? (s.success / s.total) * 100 : 0,
     failed: s.total ? (s.failed / s.total) * 100 : 0,
+    /* 风控取消灰段：任务级取消全段灰；条目级取消按占比灰 */
+    cancelled: t.risk?.status === 'cancelled' ? 100 : (s.total ? (s.cancelled / s.total) * 100 : 0),
   };
 };
 const statusClassOf = (t: PublishTask) => {
+  if (t.risk?.status === 'cancelled') return 'cancelled';
   const s = statsOf(t);
+  if (t.risk?.status === 'confirm' || s.confirm > 0) return 'risk-confirm';
+  if (t.intervene) return 'intervene';
   if (s.pending > 0) return 'running';
-  if (s.failed > 0) return 'partial';
+  if (s.failed > 0 || s.cancelled > 0) return 'partial';
   return 'success';
 };
 const statusTextOf = (t: PublishTask) => {
+  if (t.risk?.status === 'cancelled') return `风控取消：${t.risk.reason}`;
+  if (t.risk?.status === 'confirm') return '待确认：命中公司风险管控，需二次确认';
   const s = statsOf(t);
+  if (s.confirm > 0) return `待确认：${s.confirm} 个店铺命中公司风险管控，需二次确认`;
+  if (t.intervene) return `待人工介入：${t.intervene.shop} 弹出验证码`;
   if (s.pending > 0) return `发布中… ${s.done}/${s.total}`;
+  if (s.cancelled > 0) return `风控取消 ${s.cancelled} 条${s.failed > 0 ? `，失败 ${s.failed} 条` : ''}${s.success > 0 ? `，成功 ${s.success} 条` : ''}`;
   if (s.failed > 0) return `成功 ${s.success} 条，失败 ${s.failed} 条`;
   return `全部成功（${s.success} 条）`;
 };
-/* 失败按原因归类 */
+/* 异常按原因归类：失败 / 风控取消 / 待确认（与任务中心失败原因 chips 同样式） */
 const groupsOf = (t: PublishTask) => {
-  const map = new Map<string, PublishItem[]>();
-  for (const item of t.items.filter((i) => i.status === 'failed')) {
-    const key = item.reason || '未知原因';
-    if (!map.has(key)) map.set(key, []);
-    map.get(key)!.push(item);
+  const map = new Map<string, { kind: 'failed' | 'cancelled' | 'confirm'; reason: string; items: PublishItem[] }>();
+  for (const item of t.items.filter((i) => i.status === 'failed' || i.status === 'cancelled' || i.status === 'confirm')) {
+    const key = `${item.status}:${item.reason || '未知原因'}`;
+    if (!map.has(key)) map.set(key, { kind: item.status as 'failed' | 'cancelled' | 'confirm', reason: item.reason || '未知原因', items: [] });
+    map.get(key)!.items.push(item);
   }
-  return Array.from(map.entries()).map(([reason, items]) => ({ reason, items }));
+  return Array.from(map.values());
 };
 /* 任务时间 HH:MM */
 const taskTime = (ts: number) => {
@@ -129,10 +144,65 @@ const progressAll = computed(() => (totalAll.value ? ((totalAll.value - pendingA
 /* 悬浮球文案：直接展示进度 x/n，环色表示状态 */
 const ballText = computed(() => `${totalAll.value - pendingAll.value}/${totalAll.value}`);
 const ballStatusClass = computed(() => {
+  if (tasks.value.some((t) => t.risk?.status === 'confirm' || t.items.some((i) => i.status === 'confirm'))) return 'risk-confirm';
+  if (tasks.value.some((t) => t.intervene)) return 'intervene';
   if (pendingAll.value > 0) return 'running';
   if (failedAll.value > 0) return 'partial';
   return 'success';
 });
+
+/* ===== 人工介入（RPA 发布遇验证码）：弹窗输验证码，通过后任务续跑 ===== */
+const ivTask = ref<PublishTask | null>(null);
+const ivCode = ref('');
+const ivInput = ref('');
+const openIv = (t: PublishTask) => {
+  ivTask.value = t;
+  ivCode.value = t.intervene?.code ?? '';
+  ivInput.value = '';
+};
+/* 点击验证码刷新：重生成四位数字 */
+const refreshIvCode = () => {
+  ivCode.value = String(Math.floor(1000 + Math.random() * 9000));
+  if (ivTask.value?.intervene) ivTask.value.intervene.code = ivCode.value;
+};
+const confirmIv = () => {
+  const t = ivTask.value;
+  if (!t) return;
+  if (ivInput.value.trim().toLowerCase() !== ivCode.value.toLowerCase()) {
+    pushToast('验证码错误，请重新输入', 'error');
+    ivInput.value = '';
+    refreshIvCode();
+    return;
+  }
+  resolvePublishIntervene(t.id);
+  ivTask.value = null;
+  pushToast('验证成功，发布任务已恢复');
+};
+
+/* ===== 风控二次确认（条目级）：待确认条目弹窗，继续上架→恢复发布 / 取消任务→风控取消 ===== */
+const riskTask = ref<PublishTask | null>(null);
+const riskItem = ref<PublishItem | null>(null);
+const openRisk = (t: PublishTask, item?: PublishItem) => {
+  riskTask.value = t;
+  riskItem.value = item ?? t.items.find((i) => i.status === 'confirm') ?? null;
+};
+const onRiskContinue = () => {
+  const t = riskTask.value;
+  riskTask.value = null;
+  riskItem.value = null;
+  if (!t) return;
+  resolvePublishRisk(t.id);
+  pushToast('已确认上架，发布任务已恢复');
+};
+const onRiskCancel = () => {
+  const t = riskTask.value;
+  const reason = t?.risk?.reason || riskItem.value?.reason || '商品命中公司风险管控，任务已取消';
+  riskTask.value = null;
+  riskItem.value = null;
+  if (!t) return;
+  cancelPublishRisk(t.id, reason);
+  pushToast('任务已取消（风控）');
+};
 </script>
 
 <template>
@@ -185,20 +255,28 @@ const ballStatusClass = computed(() => {
             <span class="pub-task-count">{{ statsOf(t).done }}/{{ statsOf(t).total }}</span>
           </div>
           <div class="pub-task-bar">
+            <div class="pub-seg seg-cancelled" :style="{ width: pctOf(t).cancelled + '%' }" />
             <div class="pub-seg seg-success" :style="{ width: pctOf(t).success + '%' }" />
             <div class="pub-seg seg-failed" :style="{ width: pctOf(t).failed + '%' }" />
           </div>
           <div class="pub-task-foot">
             <span class="pub-task-status">{{ statusTextOf(t) }}</span>
+            <span v-if="t.risk?.status === 'confirm' || statsOf(t).confirm > 0" class="pub-task-risk" @click="openRisk(t)">查看</span>
+            <span v-else-if="t.intervene" class="pub-task-iv" @click="openIv(t)">处理</span>
             <span
-              v-if="statsOf(t).failed > 0 && statsOf(t).pending === 0"
+              v-if="statsOf(t).failed + statsOf(t).cancelled + statsOf(t).confirm > 0"
               class="pub-task-toggle"
               @click="toggleTask(t.id)"
-            >{{ isExpanded(t.id) ? '收起' : '详情' }}（{{ statsOf(t).failed }}）</span>
+            >{{ isExpanded(t.id) ? '收起' : '详情' }}（{{ statsOf(t).failed + statsOf(t).cancelled + statsOf(t).confirm }}）</span>
           </div>
           <div v-if="isExpanded(t.id)" class="pub-task-fails">
-            <div v-for="g in groupsOf(t)" :key="g.reason" class="pub-fail-group">
-              <div class="pub-fail-reason">{{ g.reason }}（{{ g.items.length }}）</div>
+            <div v-for="g in groupsOf(t)" :key="g.kind + g.reason" class="pub-fail-group">
+              <div class="pub-fail-reason" :class="{ grey: g.kind === 'cancelled' }">
+                <template v-if="g.kind === 'cancelled'">风控取消：{{ g.reason }}（{{ g.items.length }}）</template>
+                <template v-else-if="g.kind === 'confirm'">待确认：命中公司风险管控（{{ g.items.length }}）</template>
+                <template v-else>{{ g.reason }}（{{ g.items.length }}）</template>
+                <span v-if="g.kind === 'confirm'" class="pub-group-risk" @click="openRisk(t, g.items[0])">查看</span>
+              </div>
               <div class="pub-fail-shops">
                 <span v-for="item in g.items" :key="item.id" class="pub-fail-shop-chip">
                   <span class="pub-fail-plat">{{ item.platform }}</span>{{ item.shop }}
@@ -209,6 +287,31 @@ const ballStatusClass = computed(() => {
         </div>
       </div>
     </div>
+
+    <!-- 人工介入弹窗：输入 RPA 弹出的验证码，验证通过后任务自动续跑 -->
+    <div v-if="ivTask && ivTask.intervene" class="pub-iv-mask" @click.self="ivTask = null">
+      <div class="pub-iv-modal">
+        <div class="pub-iv-head">
+          <b>需人工介入</b>
+          <button type="button" title="关闭" @click="ivTask = null">✕</button>
+        </div>
+        <div class="pub-iv-body">
+          <div class="pub-iv-kv"><span>店铺名称</span><b>{{ ivTask.intervene.shop }}</b></div>
+          <div class="pub-iv-kv"><span>商品名称</span><b :title="ivTask.productName">{{ ivTask.productName }}</b></div>
+          <div class="pub-iv-coderow">
+            <span class="pub-iv-code" title="点击刷新" @click="refreshIvCode">{{ ivCode }}</span>
+            <input v-model="ivInput" class="pub-iv-input" maxlength="4" placeholder="输入验证码" @keyup.enter="confirmIv" />
+          </div>
+        </div>
+        <div class="pub-iv-foot">
+          <button type="button" @click="ivTask = null">取消</button>
+          <button type="button" class="primary" @click="confirmIv">确认</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 风控二次确认弹窗：继续上架→恢复发布 / 取消任务→风控取消 -->
+    <TcRiskModal v-if="riskTask" :name="riskTask.productName" :reason="riskTask.risk?.reason || riskItem?.reason" @cancel="onRiskCancel" @continue="onRiskContinue" />
   </Teleport>
 </template>
 
@@ -343,6 +446,7 @@ const ballStatusClass = computed(() => {
 }
 .pub-seg.seg-success { background: #00b42a; }
 .pub-seg.seg-failed { background: #f53f3f; }
+.pub-seg.seg-cancelled { background: #c9cdd4; }
 
 .pub-task-foot {
   display: flex;
@@ -357,6 +461,27 @@ const ballStatusClass = computed(() => {
 .pub-task-card.partial .pub-task-status { color: #f53f3f; }
 .pub-task-card.success .pub-task-status { color: #00b42a; }
 .pub-task-card.running .pub-task-status { color: #4f7cff; }
+.pub-task-card.intervene .pub-task-status { color: #ff7d00; }
+.pub-task-card.risk-confirm .pub-task-status { color: #ff7d00; }
+.pub-task-card.cancelled .pub-task-status { color: #86909c; }
+
+.pub-task-risk {
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ff7d00;
+  cursor: pointer;
+}
+.pub-task-risk:hover { color: #d25f00; }
+
+.pub-task-iv {
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ff7d00;
+  cursor: pointer;
+}
+.pub-task-iv:hover { color: #d25f00; }
 
 .pub-task-toggle {
   flex: none;
@@ -382,6 +507,15 @@ const ballStatusClass = computed(() => {
   line-height: 1.5;
   margin-bottom: 6px;
 }
+/* 风控取消组：灰字；待确认组内联「查看」入口 */
+.pub-fail-reason.grey { color: #86909c; }
+.pub-group-risk {
+  margin-left: 8px;
+  font-weight: 600;
+  color: #ff7d00;
+  cursor: pointer;
+}
+.pub-group-risk:hover { color: #d25f00; }
 .pub-fail-shops {
   display: flex;
   flex-wrap: wrap;
@@ -442,6 +576,8 @@ const ballStatusClass = computed(() => {
 .pub-ball.running .pub-ball-fg { stroke: #4f7cff; }
 .pub-ball.partial .pub-ball-fg { stroke: #f53f3f; }
 .pub-ball.success .pub-ball-fg { stroke: #00b42a; }
+.pub-ball.intervene .pub-ball-fg { stroke: #ff7d00; }
+.pub-ball.risk-confirm .pub-ball-fg { stroke: #ff7d00; }
 .pub-ball-fg { transition: stroke-dasharray 0.3s ease, stroke 0.3s; }
 
 .pub-ball-text {
@@ -452,4 +588,108 @@ const ballStatusClass = computed(() => {
   color: #1d2129;
   line-height: 1;
 }
+
+/* ========== 人工介入弹窗 ========== */
+.pub-iv-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pub-iv-modal {
+  width: 360px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+
+.pub-iv-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.pub-iv-head b { font-size: 14px; color: #1d2129; }
+.pub-iv-head button {
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: #8a94a6;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+  border-radius: 4px;
+}
+.pub-iv-head button:hover { background: #f2f3f7; color: #1d2129; }
+
+.pub-iv-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+.pub-iv-kv { display: flex; gap: 12px; font-size: 13px; }
+.pub-iv-kv span { flex: none; width: 60px; color: #8a94a6; }
+.pub-iv-kv b {
+  flex: 1;
+  color: #1d2129;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pub-iv-coderow { display: flex; align-items: center; gap: 12px; }
+.pub-iv-code {
+  flex: none;
+  width: 96px;
+  padding: 8px 0 8px 6px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: 6px;
+  color: #4f7cff;
+  background: #f2f3f7;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+.pub-iv-input {
+  flex: 1;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid #e5e6eb;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #1d2129;
+  outline: none;
+}
+.pub-iv-input:focus { border-color: #4f7cff; }
+
+.pub-iv-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #f0f0f0;
+}
+.pub-iv-foot button {
+  padding: 6px 16px;
+  border: 1px solid #e5e6eb;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 13px;
+  color: #4e5969;
+  cursor: pointer;
+}
+.pub-iv-foot button:hover { border-color: #c9cdd4; }
+.pub-iv-foot button.primary { background: #4f7cff; border-color: #4f7cff; color: #fff; }
+.pub-iv-foot button.primary:hover { background: #3f6cf2; border-color: #3f6cf2; }
 </style>

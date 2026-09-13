@@ -1,4 +1,4 @@
-import type { ShopResult, SubTask } from './data';
+import type { SubTask } from './data';
 
 /** 统一节点展示态：dot=圆点样式，v=结果文案，cls=文案样式 */
 export interface StepView {
@@ -9,57 +9,72 @@ export interface StepView {
 
 const ok: StepView = { dot: 'ok', v: '成功', cls: '' };
 const dash: StepView = { dot: 'wait', v: '–', cls: 'wait' };
-const fail: StepView = { dot: 'fail', v: '执行失败', cls: 'fail' };
+/* 参照版：节点结果文案统一黑字，红/蓝仅体现在圆点 */
+const fail: StepView = { dot: 'fail', v: '失败', cls: '' };
+const wait: StepView = { dot: 'wait', v: '待执行', cls: 'wait' };
+const confirmV: StepView = { dot: 'confirm', v: '待确认', cls: 'confirm' };
+const cancelledV: StepView = { dot: 'wait', v: '已取消', cls: 'wait' };
 
-/** 节点一/二（获取链接信息、定价策略计算）：任务级统一步骤，不区分店铺 */
-export function headStepsOf(s: SubTask): StepView[] {
-  /* 队列中：首节点待执行，次节点未触及 */
-  if (s.status === 'queued') return [{ dot: 'wait', v: '待执行', cls: 'wait' }, dash];
-  /* 执行失败且失败在统一节点（failStep<2）：失败节点及其后续统一节点均失败 */
-  if (s.status === 'failed' && s.failStep !== undefined && s.failStep < 2) {
-    return [0, 1].map((i) => (i < s.failStep! ? ok : fail));
+/** 发布/铺货类任务：获取链接信息下增加「校验管控商品」节点 */
+const PUB_TYPES = ['商品发布', '商品铺货', '快速铺货'];
+/** 节点标签集：发布/铺货类四节点（含校验管控商品），其余三节点 */
+export const stepLabelsOf = (type: string): string[] =>
+  PUB_TYPES.includes(type)
+    ? ['获取链接信息', '校验管控商品', '定价策略计算', '商品发布店铺']
+    : ['获取链接信息', '定价策略计算', '商品发布店铺'];
+const isPub = (type: string) => PUB_TYPES.includes(type);
+
+/** 校验管控商品节点结果：x/y 通过；失败/待确认时追加计数 */
+function verifyOf(s: SubTask, state: 'ok' | 'fail' | 'confirm'): StepView {
+  const v =
+    s.verify ??
+    (state === 'ok'
+      ? { total: 4, pass: 4, fail: 0, pending: 0 }
+      : state === 'fail'
+        ? { total: 4, pass: 0, fail: 1, pending: 0 }
+        : { total: 4, pass: 0, fail: 0, pending: 1 });
+  const txt =
+    state === 'ok'
+      ? `${v.pass}/${v.total} 通过`
+      : state === 'fail'
+        ? `${v.pass}/${v.total} 通过 ${v.fail} 失败`
+        : `${v.pass}/${v.total} 通过 ${v.pending} 待确认`;
+  return { dot: state === 'ok' ? 'ok' : state === 'fail' ? 'fail' : 'confirm', v: txt, cls: '' };
+}
+
+/** 统一节点（除末节点外）：校验管控商品节点位置随任务类型 */
+export function headStepsOf(s: SubTask, type = ''): StepView[] {
+  const n = stepLabelsOf(type).length - 1;
+  const rest = (k: number) => Array.from({ length: k }, () => dash);
+  /* 队列中：首节点待执行，后续节点未触及 */
+  if (s.status === 'queued') return [wait, ...rest(n - 1)];
+  /* 待确认：发布/铺货类暂停在校验管控商品节点（命中待确认商品），其余暂停在首节点 */
+  if (s.status === 'confirm') return isPub(type) ? [ok, verifyOf(s, 'confirm'), ...rest(n - 2)] : [confirmV, ...rest(n - 1)];
+  /* 已取消（风控/手动）：任务终止，店铺集合未触达 */
+  if (s.status === 'cancelled') return [cancelledV, ...rest(n - 1)];
+  /* 执行失败且失败在统一节点：失败节点及其后续统一节点均失败（校验节点展示通过/失败计数） */
+  if (s.status === 'failed' && s.failStep !== undefined && s.failStep < n) {
+    return Array.from({ length: n }, (_, i) => (i < s.failStep! ? ok : i === s.failStep && i === 1 ? verifyOf(s, 'fail') : fail));
   }
-  /* 已进入节点三：两个统一节点均通过 */
-  return [ok, ok];
+  /* 已进入末节点：统一节点均通过 */
+  return Array.from({ length: n }, (_, i) => (i === 1 && isPub(type) ? verifyOf(s, 'ok') : ok));
 }
 
-/** 节点三（商品发布店铺）：店铺结果集汇总（含未触达/待执行/汇总文案与状态点） */
-export interface Step3View extends StepView {
-  /** 汇总文案，如「3店 · 成功2 失败1」 */
-  sum: string;
+/** 末节点（商品发布店铺）：一品一店一任务，直接取单店行状态 */
+export function step3Of(s: SubTask, type = ''): StepView {
+  if (s.status === 'queued') return wait;
+  /* 待确认：发布/铺货类暂停在校验节点，店铺未触达 */
+  if (s.status === 'confirm') return isPub(type) ? dash : confirmV;
+  if (s.status === 'cancelled') return cancelledV;
+  /* 统一节点失败：店铺未触达 */
+  if (s.status === 'failed' && s.failStep !== undefined) return dash;
+  if (s.status === 'running') return { dot: '', v: '执行中', cls: '' };
+  if (s.status === 'success') return ok;
+  return fail;
 }
-export function step3Of(s: SubTask): Step3View {
-  if (s.status === 'queued') return { dot: 'wait', v: '待执行', cls: 'wait', sum: '' };
-  /* 统一节点失败：尚未触达任何店铺 */
-  if (s.status === 'failed' && s.failStep !== undefined && s.failStep < 2) return { dot: 'wait', v: '未触达', cls: 'wait', sum: '' };
-  const n = s.shops.length;
-  const succ = s.shops.filter((x) => x.status === 'success').length;
-  const bad = s.shops.filter((x) => x.status === 'failed').length;
-  const sum = `${n}店 · 成功${succ}${bad ? ` 失败${bad}` : ''}`;
-  if (s.status === 'running') return { dot: 'ok', v: '执行中', cls: '', sum };
-  if (s.status === 'success') return { dot: 'ok', v: '成功', cls: '', sum };
-  return { dot: 'fail', v: '部分失败', cls: 'fail', sum };
-}
-
-/** 店铺结果行文案：成功/执行中/队列中/失败 */
-export const shopStatusText: Record<ShopResult['status'], string> = {
-  queued: '队列中',
-  running: '执行中',
-  success: '成功',
-  failed: '失败',
-};
-/** 店铺结果行样式：v=文案样式，dot=圆点样式（ok=成功绿 / run=执行中蓝 / fail=红 / wait=灰） */
-export function shopStatusMeta(st: ShopResult['status']): { cls: string; dot: string } {
-  if (st === 'success') return { cls: '', dot: 'ok' };
-  if (st === 'failed') return { cls: 'fail', dot: 'fail' };
-  if (st === 'running') return { cls: '', dot: 'run' };
-  return { cls: 'wait', dot: 'wait' };
-}
-
-export const stepLabels = ['获取链接信息', '定价策略计算', '商品发布店铺'];
 
 /** 首节点（获取链接信息）是否失败：失败任务不提供商品创建详情入口 */
-export const firstStepFailed = (s: SubTask) => headStepsOf(s)[0].dot === 'fail';
+export const firstStepFailed = (s: SubTask, type = '') => headStepsOf(s, type)[0].dot === 'fail';
 
 /** 商品创建子页键：与侧边栏商品创建分组一致 */
 export type CreatePageKey = 'createTaobao' | 'createVideo' | 'createJm';

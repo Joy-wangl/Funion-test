@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { createTaobaoRows, createJmRows, parentTasks, retrySub, PUB_NO_STRATEGY, PUB_STRATEGIES, PUB_SHOPS, PUB_SHOP_PLATFORMS } from './data';
 import type { CreateRow, SubTask } from './data';
 import BubbleSelect from '../../components/BubbleSelect.vue';
@@ -10,57 +10,95 @@ import CreateDetailPage from './CreateDetailPage.vue';
 import JmCreateDetailPage from './JmCreateDetailPage.vue';
 import { pushToast } from '../../components/toast';
 import TcStepsCell from './TcStepsCell.vue';
-import TcRatioBar from './TcRatioBar.vue';
-import { addPublishTask } from './publishStore';
+import { addPublishTask, setPublishResume, setPublishRiskResume } from './publishStore';
+import { pushGMsg } from '../../components/globalMsgData';
 
 /** 商品创建页（jm=京麦平台：列表同源结构，详情走京麦接口字段页） */
 const props = defineProps<{ jm?: boolean }>();
 const rows = ref<CreateRow[]>(props.jm ? createJmRows : createTaobaoRows);
 /* 详情态：复用内部商机/店铺商品详情样式 */
 const detail = ref<CreateRow | null>(null);
-/* 发布到：两步抽屉（第一步选择策略 → 第二步选择店铺） */
-const pubTo = ref<CreateRow | null>(null);
+/* 列表选择列：勾选后「快速铺货」批量发布（支持一件或多件） */
+const selLinks = ref<Set<string>>(new Set());
+const allChecked = computed(() => rows.value.length > 0 && rows.value.every((r) => selLinks.value.has(r.link)));
+const toggleSel = (link: string, on: boolean) => {
+  const next = new Set(selLinks.value);
+  if (on) next.add(link);
+  else next.delete(link);
+  selLinks.value = next;
+};
+const toggleSelAll = (on: boolean) => {
+  selLinks.value = on ? new Set(rows.value.map((r) => r.link)) : new Set();
+};
+/* 发布到：两步向导——第一步多选策略（含不使用策略发布）/ 第二步按策略选店铺，店铺跨策略互斥不可重复 */
+interface PubSel {
+  name: string;
+  method: string;
+  way: string;
+  shopQ: string;
+  platform: string;
+  groupOpen: boolean;
+  shops: number[];
+}
+const pubOpen = ref(false);
 const pubStep = ref<1 | 2>(1);
-const pubStrategy = ref(PUB_NO_STRATEGY);
-const pubMethod = ref('');
-/* 发布方式：蜂联发布 / 插件发布（上架方式之外的独立选择） */
-const pubWay = ref('蜂联发布');
-const pubShopQ = ref('');
-const pubShopPlatform = ref(PUB_SHOP_PLATFORMS[0]);
-const pubGroupOpen = ref(true);
-const pubShopChecked = ref<number[]>([]);
-const openPubTo = (row: CreateRow) => {
-  pubTo.value = row;
-  pubStep.value = 1;
-  pubStrategy.value = PUB_NO_STRATEGY;
-  pubMethod.value = '';
-  pubWay.value = '蜂联发布';
-  pubShopQ.value = '';
-  pubShopPlatform.value = PUB_SHOP_PLATFORMS[0];
-  pubGroupOpen.value = true;
-  pubShopChecked.value = [];
-};
-/* 选中策略后展示策略定义的发布/利润/推广信息；不使用策略时发布方式必填 */
-const pubStrategyInfo = computed(() => PUB_STRATEGIES.find((s) => s.name === pubStrategy.value) ?? null);
-const pubNextEnabled = computed(() => !!pubStrategyInfo.value || pubMethod.value !== '');
-const pubShopsVisible = computed(() => {
-  const q = pubShopQ.value.trim();
-  return PUB_SHOPS.filter((s) => s.platform === pubShopPlatform.value && (!q || s.name.includes(q) || '未分组店铺'.includes(q)));
+const pubProducts = ref<CreateRow[]>([]);
+const pubSel = ref<PubSel[]>([]);
+const newPubSel = (name: string): PubSel => ({
+  name,
+  method: '',
+  way: '蜂联发布',
+  shopQ: '',
+  platform: PUB_SHOP_PLATFORMS[0],
+  groupOpen: true,
+  shops: [],
 });
-const pubAllChecked = computed(() => pubShopsVisible.value.length > 0 && pubShopsVisible.value.every((s) => pubShopChecked.value.includes(s.id)));
-const togglePubShop = (id: number, on: boolean) => {
-  pubShopChecked.value = on ? [...pubShopChecked.value, id] : pubShopChecked.value.filter((x) => x !== id);
+const openPubTo = (products: CreateRow[]) => {
+  pubProducts.value = products;
+  pubSel.value = [];
+  pubStep.value = 1;
+  pubOpen.value = true;
 };
-const toggleAllPubShops = (on: boolean) => {
-  const ids = pubShopsVisible.value.map((s) => s.id);
-  pubShopChecked.value = on ? [...new Set([...pubShopChecked.value, ...ids])] : pubShopChecked.value.filter((x) => !ids.includes(x));
+const openQuickPub = () => {
+  openPubTo(rows.value.filter((r) => selLinks.value.has(r.link)));
 };
-const submitPub = () => {
-  const shops = pubShopChecked.value;
-  const productName = pubTo.value?.title ?? '商品';
-  pubTo.value = null;
+const pubSelOf = (name: string) => pubSel.value.find((s) => s.name === name) ?? null;
+const noStrat = computed(() => pubSelOf(PUB_NO_STRATEGY));
+const togglePubStrat = (name: string, on: boolean) => {
+  pubSel.value = on ? [...pubSel.value, newPubSel(name)] : pubSel.value.filter((s) => s.name !== name);
+};
+const pubStrategyInfo = (name: string) => PUB_STRATEGIES.find((s) => s.name === name) ?? null;
+/* 店铺互斥：记录每个店铺被哪个策略选中，其他策略内禁用并提示 */
+const shopTakenBy = computed(() => {
+  const m = new Map<number, string>();
+  pubSel.value.forEach((g) => g.shops.forEach((id) => m.set(id, g.name)));
+  return m;
+});
+const groupShopsVisible = (g: PubSel) => {
+  const q = g.shopQ.trim();
+  return PUB_SHOPS.filter((s) => s.platform === g.platform && (!q || s.name.includes(q) || '未分组店铺'.includes(q)));
+};
+const groupSelectable = (g: PubSel) =>
+  groupShopsVisible(g).filter((s) => !shopTakenBy.value.has(s.id) || g.shops.includes(s.id));
+const groupAllChecked = (g: PubSel) => {
+  const opts = groupSelectable(g);
+  return opts.length > 0 && opts.every((s) => g.shops.includes(s.id));
+};
+const toggleGroupShop = (g: PubSel, id: number, on: boolean) => {
+  g.shops = on ? [...g.shops, id] : g.shops.filter((x) => x !== id);
+};
+const toggleGroupAll = (g: PubSel, on: boolean) => {
+  const ids = groupSelectable(g).map((s) => s.id);
+  g.shops = on ? [...new Set([...g.shops, ...ids])] : g.shops.filter((x) => !ids.includes(x));
+};
+/* 步骤门槛：第一步已选策略（不使用策略须填上架方式）；第二步每个策略至少选一店 */
+const pubNextEnabled = computed(() => pubSel.value.length > 0 && pubSel.value.every((g) => !!pubStrategyInfo(g.name) || g.method !== ''));
+const pubSubmitEnabled = computed(() => pubSel.value.length > 0 && pubSel.value.every((g) => g.shops.length > 0));
+const pubFootInfo = computed(() => `${pubSel.value.length} 个策略 · 共 ${pubSel.value.reduce((n, g) => n + g.shops.length, 0)} 个店铺`);
+/* 创建发布任务并模拟异步处理（商品×策略组粒度，逐店随机成功/失败） */
+const startPublishTask = (productName: string, shopIds: number[]) => {
   /* 创建新任务（store 单例，跨组件/跨关闭累积多任务）；返回值为响应式引用 */
-  const liveTask = addPublishTask(productName, shops.map((shopId, idx) => {
+  const liveTask = addPublishTask(productName, shopIds.map((shopId, idx) => {
     const shop = PUB_SHOPS.find((s) => s.id === shopId);
     return {
       id: idx,
@@ -69,11 +107,79 @@ const submitPub = () => {
       status: 'pending' as const,
     };
   }));
-  /* 模拟异步发布：逐个处理，随机成功/失败 */
   let idx = 0;
+  /* 风控命中演示：任务创建时命中公司风险项——垃圾品管控直接取消执行；风险管控商品暂停待二次确认 */
+  const riskRoll = Math.random();
+  const RISK_JUNK = '商品命中公司垃圾品管控，不允许上架';
+  if (riskRoll < 0.15) {
+    liveTask.risk = { status: 'cancelled', reason: RISK_JUNK };
+    pushGMsg({
+      app: '智能运营中心', kind: '人工介入提醒', title: '发布任务风控取消',
+      desc: RISK_JUNK + '，发布任务已自动取消',
+      target: 'ops-center',
+      kvs: [{ k: '商品名称', v: productName }],
+    });
+    return;
+  }
+  if (riskRoll < 0.35) {
+    liveTask.risk = { status: 'confirm', reason: '该商品为公司风险管控商品，上架可能会导致亏损，是否确认上架？' };
+    setPublishRiskResume(liveTask.id, () => window.setTimeout(processNext, 500));
+    pushGMsg({
+      app: '智能运营中心', kind: '人工介入提醒', title: '发布任务风险待确认',
+      desc: '商品命中公司风险管控，上架可能会导致亏损，发布任务已暂停，请确认后继续上架或取消任务',
+      target: 'ops-center',
+      kvs: [{ k: '商品名称', v: productName }],
+    });
+    return;
+  }
+  /* 验证码人工介入演示：任务中途随机暂停一次，同步推送站内信，发布进度面板处理后续跑 */
+  const interveneAt = liveTask.items.length > 2 && Math.random() < 0.5
+    ? 1 + Math.floor(Math.random() * (liveTask.items.length - 1))
+    : -1;
+  let intervened = false;
   const processNext = () => {
     if (idx >= liveTask.items.length) return;
+    if (idx === interveneAt && !intervened) {
+      intervened = true;
+      const item = liveTask.items[idx];
+      liveTask.intervene = { shop: item.shop, platform: item.platform, code: String(Math.floor(1000 + Math.random() * 9000)) };
+      setPublishResume(liveTask.id, processNext);
+      pushGMsg({
+        app: '智能运营中心', kind: '人工介入提醒', title: '商品发布需人工介入',
+        desc: 'RPA 发布商品过程中弹出验证码，发布任务已暂停，请人工完成验证后恢复发布',
+        target: 'ops-center',
+        kvs: [{ k: '店铺名称', v: item.shop }, { k: '商品名称', v: liveTask.productName }],
+      });
+      return;
+    }
     const item = liveTask.items[idx];
+    /* 逐店铺风控命中（与任务中心一品一店一任务同口径）：垃圾品管控直接风控取消；风险管控商品暂停待二次确认 */
+    const itemRoll = Math.random();
+    if (itemRoll < 0.1) {
+      item.status = 'cancelled';
+      item.reason = RISK_JUNK;
+      pushGMsg({
+        app: '智能运营中心', kind: '人工介入提醒', title: '发布任务风控取消',
+        desc: `${item.shop}：${RISK_JUNK}，该店铺发布任务已自动取消`,
+        target: 'ops-center',
+        kvs: [{ k: '商品名称', v: productName }, { k: '店铺名称', v: item.shop }],
+      });
+      idx++;
+      if (idx < liveTask.items.length) window.setTimeout(processNext, 300 + Math.random() * 400);
+      return;
+    }
+    if (itemRoll < 0.25) {
+      item.status = 'confirm';
+      item.reason = '该商品为公司风险管控商品，上架可能会导致亏损，是否确认上架？';
+      setPublishRiskResume(liveTask.id, () => window.setTimeout(processNext, 500));
+      pushGMsg({
+        app: '智能运营中心', kind: '人工介入提醒', title: '发布任务风险待确认',
+        desc: `${item.shop}：商品命中公司风险管控，上架可能会导致亏损，发布任务已暂停，请确认后继续上架或取消任务`,
+        target: 'ops-center',
+        kvs: [{ k: '商品名称', v: productName }, { k: '店铺名称', v: item.shop }],
+      });
+      return;
+    }
     /* 模拟 50% 成功率（便于演示失败场景） */
     const success = Math.random() > 0.5;
     item.status = success ? 'success' : 'failed';
@@ -87,6 +193,13 @@ const submitPub = () => {
     }
   };
   window.setTimeout(processNext, 500);
+};
+const submitPub = () => {
+  const products = pubProducts.value;
+  const sels = pubSel.value;
+  pubOpen.value = false;
+  products.forEach((p) => sels.forEach((g) => startPublishTask(p.title, g.shops)));
+  pushToast(`已创建 ${products.length * sels.length} 个发布任务`);
 };
 const PUB_LOGOS: Record<string, string> = { 淘宝: 'taobao', 天猫: 'tmall', 拼多多: 'pinduoduo', 抖音: 'douyin', 快手: 'kuaishou' };
 const pubLogo = (p: string) => `/logos/${PUB_LOGOS[p] ?? 'taobao'}.png`;
@@ -145,8 +258,8 @@ const batchRetryPub = () => {
   pushToast('重新发布中…');
   window.setTimeout(() => pushToast(`重新发布成功（${subs.length} 个任务）`), 1200);
 };
-const pubStatusText: Record<SubTask['status'], string> = { queued: '队列中', running: '执行中', success: '已完成', failed: '执行失败' };
-const pubStatusCls: Record<SubTask['status'], string> = { queued: 'queued', running: 'running', success: 'done', failed: 'failed' };
+const pubStatusText: Record<SubTask['status'], string> = { queued: '队列中', running: '执行中', success: '已完成', failed: '执行失败', confirm: '待确认', cancelled: '已取消' };
+const pubStatusCls: Record<SubTask['status'], string> = { queued: 'queued', running: 'running', success: 'done', failed: 'failed', confirm: 'confirm', cancelled: 'cancelled' };
 const retryPub = (sub: SubTask) => {
   pubChecked.value = pubChecked.value.filter((x) => x !== sub.id);
   retrySub(sub);
@@ -168,6 +281,12 @@ const confirmDelete = () => {
   rows.value = rows.value.filter((r) => r.link !== link);
   delRow.value = null;
 };
+/* ESC 关闭发布抽屉（遮罩点击同样可关） */
+const onPubKey = (e: KeyboardEvent) => {
+  if (e.key === 'Escape' && pubOpen.value) pubOpen.value = false;
+};
+onMounted(() => window.addEventListener('keydown', onPubKey));
+onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
 </script>
 
 <template>
@@ -222,7 +341,7 @@ const confirmDelete = () => {
         </div>
         <div class="create-actions-inline">
           <div class="create-act-left">
-            <button class="primaryBtn">快速铺货</button>
+            <button class="primaryBtn" :disabled="selLinks.size === 0" @click="openQuickPub">快速铺货</button>
             <button class="primaryBtn">竞品导入</button>
           </div>
           <div class="create-act-right">
@@ -238,6 +357,15 @@ const confirmDelete = () => {
         <table class="ib-table create-table">
           <thead>
             <tr>
+              <th :style="{ width: '44px' }">
+                <input
+                  type="checkbox"
+                  class="ib-check"
+                  :checked="allChecked"
+                  @change="toggleSelAll(($event.target as HTMLInputElement).checked)
+                  "
+                />
+              </th>
               <th>商品信息</th>
               <th>上架店铺</th>
               <th>状态</th>
@@ -247,6 +375,14 @@ const confirmDelete = () => {
           </thead>
           <tbody>
             <tr v-for="(row, i) in rows" :key="row.link">
+              <td>
+                <input
+                  type="checkbox"
+                  class="ib-check"
+                  :checked="selLinks.has(row.link)"
+                  @change="toggleSel(row.link, ($event.target as HTMLInputElement).checked)"
+                />
+              </td>
               <td>
                 <div class="create-product">
                   <img class="create-thumb" :src="row.thumb" alt="thumb" />
@@ -275,7 +411,7 @@ const confirmDelete = () => {
                 <a href="#" @click.prevent="detail = row">详情</a>
                 <a
                   href="#"
-                  @click.prevent="openPubTo(row)"
+                  @click.prevent="openPubTo([row])"
                 >
                   发布到
                 </a>
@@ -395,15 +531,14 @@ const confirmDelete = () => {
               <td>{{ String(s.taskId).padStart(6, '0') }}</td>
               <td>
                 <div class="tc-cell-lines">
-                  <div>{{ s.publisher || '–' }} · 共{{ s.shops.length }}店</div>
-                  <TcRatioBar :sub="s" />
+                  <div>{{ s.publisher || '–' }} · {{ s.shops[0]?.shop ?? '–' }}</div>
                 </div>
               </td>
               <td>
                 <span class="tc-st" :class="pubStatusCls[s.status]"><i />{{ pubStatusText[s.status] }}</span>
               </td>
               <td>
-                <TcStepsCell :sub="s" />
+                <TcStepsCell :sub="s" type="商品发布" />
               </td>
               <td>
                 <div class="tc-cell-lines">
@@ -421,108 +556,131 @@ const confirmDelete = () => {
       </div>
     </div>
 
-  <!-- 发布到抽屉：第一步选择策略 → 第二步选择店铺 -->
-  <div v-if="pubTo" class="cp-drawer-mask" @click="pubTo = null" />
-  <div v-if="pubTo" class="cp-pub-drawer">
-    <template v-if="pubStep === 1">
-      <div class="cp-pub-head">选择策略</div>
-      <div class="cp-pub-body">
-        <div class="cp-pub-label">策略名称<i>*</i></div>
-        <BubbleSelect
-          class-name="ib-select cp-pub-select"
-          :value="pubStrategy"
-          :options="[PUB_NO_STRATEGY, ...PUB_STRATEGIES.map((s) => s.name)]"
-          @change="(v) => (pubStrategy = v)"
-        />
-        <template v-if="pubStrategyInfo">
-          <div class="cp-pub-sec">发布信息</div>
-          <div class="cp-pub-kv-row">
-            <div class="cp-pub-kv"><label>上架方式：</label><b>{{ pubStrategyInfo.pubMethod }}</b></div>
-            <div class="cp-pub-kv"><label>发布方式：</label><b>{{ pubStrategyInfo.pubWay }}</b></div>
-          </div>
-          <div class="cp-pub-sec">利润信息</div>
-          <div class="cp-pub-kv-row">
-            <div class="cp-pub-kv"><label>控利方式：</label><b>{{ pubStrategyInfo.profitMode }}</b></div>
-            <div class="cp-pub-kv"><label>利润率：</label><b>{{ pubStrategyInfo.profitRate }}</b></div>
-          </div>
-          <div class="cp-pub-sec">推广信息</div>
-          <div class="cp-pub-kv-row">
-            <div class="cp-pub-kv"><label>是否推广：</label><b>{{ pubStrategyInfo.promote }}</b></div>
-            <div class="cp-pub-kv"><label>出价方式：</label><b>{{ pubStrategyInfo.bidMode }}</b></div>
-            <div class="cp-pub-kv"><label>出价目标：</label><b>{{ pubStrategyInfo.bidTarget }}</b></div>
-            <div class="cp-pub-kv"><label>目标投产比：</label><b>{{ pubStrategyInfo.roi }}</b></div>
-            <div class="cp-pub-kv"><label>预算类型：</label><b>{{ pubStrategyInfo.budgetType }}</b></div>
-            <div class="cp-pub-kv"><label>每日预算：</label><b>{{ pubStrategyInfo.dailyBudget }}</b></div>
-          </div>
-        </template>
-        <template v-else>
-          <div class="cp-pub-label mt">上架方式<i>*</i></div>
+  <!-- 发布到抽屉：两步向导——第一步多选策略 / 第二步按策略选店铺（店铺跨策略互斥） -->
+  <div v-if="pubOpen" class="cp-drawer-mask" @click="pubOpen = false" />
+  <div v-if="pubOpen" class="cp-pub-drawer">
+    <div class="cp-pub-head">
+      <span>{{ pubProducts.length > 1 ? '快速铺货' : '发布到' }}</span>
+      <div class="cp-pub-steps">
+        <span :class="pubStep === 1 ? 'active' : ''">1 选择策略</span>
+        <i />
+        <span :class="pubStep === 2 ? 'active' : ''">2 选择店铺</span>
+      </div>
+    </div>
+    <div class="cp-pub-body">
+      <template v-if="pubStep === 1">
+        <div class="cp-pub-label">选择发布策略<i>*</i></div>
+        <label
+          v-for="s in PUB_STRATEGIES"
+          :key="s.name"
+          class="cp-pub-strat"
+          :class="pubSelOf(s.name) ? 'on' : ''"
+        >
+          <input
+            type="checkbox"
+            class="ib-check"
+            :checked="!!pubSelOf(s.name)"
+            @change="togglePubStrat(s.name, ($event.target as HTMLInputElement).checked)"
+          />
+          <span class="cp-pub-strat-main">
+            <b>{{ s.name }}</b>
+            <span class="cp-pub-strat-meta">上架方式：{{ s.pubMethod }} · 发布方式：{{ s.pubWay }} · 控利：{{ s.profitMode }} {{ s.profitRate }}</span>
+          </span>
+        </label>
+        <label class="cp-pub-strat" :class="noStrat ? 'on' : ''">
+          <input
+            type="checkbox"
+            class="ib-check"
+            :checked="!!noStrat"
+            @change="togglePubStrat(PUB_NO_STRATEGY, ($event.target as HTMLInputElement).checked)"
+          />
+          <span class="cp-pub-strat-main"><b>{{ PUB_NO_STRATEGY }}</b></span>
+        </label>
+        <div v-if="noStrat" class="cp-pub-nostrat">
+          <div class="cp-pub-label">上架方式<i>*</i></div>
           <div class="cp-pub-radios">
-            <label><input v-model="pubMethod" type="radio" value="直接上架" />直接上架</label>
-            <label><input v-model="pubMethod" type="radio" value="放入仓库" />放入仓库</label>
+            <label><input v-model="noStrat.method" type="radio" name="cp-nostrat-m" value="直接上架" />直接上架</label>
+            <label><input v-model="noStrat.method" type="radio" name="cp-nostrat-m" value="放入仓库" />放入仓库</label>
           </div>
           <div class="cp-pub-label mt">发布方式<i>*</i></div>
           <div class="cp-pub-radios">
-            <label><input v-model="pubWay" type="radio" value="蜂联发布" />蜂联发布</label>
-            <label><input v-model="pubWay" type="radio" value="插件发布" />插件发布</label>
+            <label><input v-model="noStrat.way" type="radio" name="cp-nostrat-w" value="蜂联发布" />蜂联发布</label>
+            <label><input v-model="noStrat.way" type="radio" name="cp-nostrat-w" value="插件发布" />插件发布</label>
           </div>
-        </template>
-      </div>
-      <div class="cp-pub-foot">
-        <button class="cp-btn" @click="pubTo = null">取消</button>
+        </div>
+      </template>
+      <template v-else>
+        <div v-for="g in pubSel" :key="g.name" class="cp-pubg">
+          <div class="cp-pubg-head">
+            <b>{{ g.name }}</b>
+            <span v-if="pubStrategyInfo(g.name)" class="cp-pubg-meta">
+              上架方式：{{ pubStrategyInfo(g.name)!.pubMethod }} · 发布方式：{{ pubStrategyInfo(g.name)!.pubWay }}
+            </span>
+            <span v-else class="cp-pubg-meta">上架方式：{{ g.method }} · 发布方式：{{ g.way }}</span>
+          </div>
+          <div class="cp-pubg-body">
+            <div class="cp-pub-shopbar">
+              <div class="cp-pub-search">
+                <input v-model="g.shopQ" class="ib-input" placeholder="店铺名称/分组名称" />
+                <svg class="cp-pub-search-ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M11 4a7 7 0 110 14 7 7 0 010-14zm9 16l-4.35-4.35" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                </svg>
+              </div>
+              <BubbleSelect
+                class-name="ib-select cp-pub-plat"
+                :value="g.platform"
+                :options="PUB_SHOP_PLATFORMS"
+                @change="(v) => (g.platform = v)"
+              />
+            </div>
+            <div class="cp-pub-group-head">
+              <label>
+                <input
+                  type="checkbox"
+                  class="ib-check"
+                  :checked="groupAllChecked(g)"
+                  @change="toggleGroupAll(g, ($event.target as HTMLInputElement).checked)"
+                />
+                <b>未分组店铺</b>
+              </label>
+              <button type="button" class="cp-pub-caret" @click="g.groupOpen = !g.groupOpen">{{ g.groupOpen ? '▼' : '►' }}</button>
+            </div>
+            <template v-if="g.groupOpen">
+              <label
+                v-for="s in groupShopsVisible(g)"
+                :key="s.id"
+                class="cp-pub-shop"
+                :class="shopTakenBy.has(s.id) && shopTakenBy.get(s.id) !== g.name ? 'taken' : ''"
+              >
+                <input
+                  type="checkbox"
+                  class="ib-check"
+                  :checked="g.shops.includes(s.id)"
+                  :disabled="shopTakenBy.has(s.id) && shopTakenBy.get(s.id) !== g.name"
+                  @change="toggleGroupShop(g, s.id, ($event.target as HTMLInputElement).checked)"
+                />
+                <img :src="pubLogo(s.platform)" alt="" />
+                <span class="plat">{{ s.platform }}</span>
+                <span class="name">{{ s.name }}</span>
+                <span v-if="shopTakenBy.has(s.id) && shopTakenBy.get(s.id) !== g.name" class="cp-pub-taken">已被 {{ shopTakenBy.get(s.id) }} 选择</span>
+              </label>
+              <div v-if="groupShopsVisible(g).length === 0" class="cp-pub-empty">暂无店铺</div>
+            </template>
+          </div>
+        </div>
+      </template>
+    </div>
+    <div class="cp-pub-foot">
+      <span v-if="pubStep === 2" class="cp-pub-footinfo">{{ pubFootInfo }}</span>
+      <template v-if="pubStep === 1">
+        <button class="cp-btn" @click="pubOpen = false">取消</button>
         <button class="cp-btn primary" :disabled="!pubNextEnabled" @click="pubStep = 2">下一步</button>
-      </div>
-    </template>
-    <template v-else>
-      <div class="cp-pub-head">批量铺货（1 件商品）</div>
-      <div class="cp-pub-body">
-        <div class="cp-pub-shopbar">
-          <div class="cp-pub-search">
-            <input v-model="pubShopQ" class="ib-input" placeholder="店铺名称/分组名称" />
-            <svg class="cp-pub-search-ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M11 4a7 7 0 110 14 7 7 0 010-14zm9 16l-4.35-4.35" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-            </svg>
-          </div>
-          <BubbleSelect
-            class-name="ib-select cp-pub-plat"
-            :value="pubShopPlatform"
-            :options="PUB_SHOP_PLATFORMS"
-            @change="(v) => (pubShopPlatform = v)"
-          />
-        </div>
-        <div class="cp-pub-group">
-          <div class="cp-pub-group-head">
-            <label>
-              <input
-                type="checkbox"
-                class="ib-check"
-                :checked="pubAllChecked"
-                @change="toggleAllPubShops(($event.target as HTMLInputElement).checked)"
-              />
-              <b>未分组店铺</b>
-            </label>
-            <button type="button" class="cp-pub-caret" @click="pubGroupOpen = !pubGroupOpen">{{ pubGroupOpen ? '▼' : '►' }}</button>
-          </div>
-          <template v-if="pubGroupOpen">
-            <label v-for="s in pubShopsVisible" :key="s.id" class="cp-pub-shop">
-              <input
-                type="checkbox"
-                class="ib-check"
-                :checked="pubShopChecked.includes(s.id)"
-                @change="togglePubShop(s.id, ($event.target as HTMLInputElement).checked)"
-              />
-              <img :src="pubLogo(s.platform)" alt="" />
-              <span class="plat">{{ s.platform }}</span>
-              <span class="name">{{ s.name }}</span>
-            </label>
-            <div v-if="pubShopsVisible.length === 0" class="cp-pub-empty">暂无店铺</div>
-          </template>
-        </div>
-      </div>
-      <div class="cp-pub-foot">
+      </template>
+      <template v-else>
         <button class="cp-btn" @click="pubStep = 1">上一步</button>
-        <button class="cp-btn primary" :disabled="pubShopChecked.length === 0" @click="submitPub">立即发布</button>
-      </div>
-    </template>
+        <button class="cp-btn" @click="pubOpen = false">取消</button>
+        <button class="cp-btn primary" :disabled="!pubSubmitEnabled" @click="submitPub">立即发布</button>
+      </template>
+    </div>
   </div>
 </template>

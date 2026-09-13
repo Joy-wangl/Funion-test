@@ -2,12 +2,14 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import SortTh from '../../components/SortTh.vue';
 import { pushToast } from '../../components/toast';
-import { BEE_PLATFORMS, BEE_PLATFORM_LOGO, beeStrategies, SHIP_TIMES } from './data';
-import type { BeeStrategy, ShipTime } from './data';
+import { BEE_PLATFORMS, BEE_PLATFORM_LOGO, beePlatEnabled, beeStrategies, BEE_PUB_METHODS, SHIP_TIMES } from './data';
+import type { BeePubMethod, BeeStrategy, ShipTime } from './data';
 
 const emit = defineEmits<{ (e: 'close'): void }>();
 
-const rows = ref<BeeStrategy[]>([...beeStrategies]);
+/* 仅展示含已支持平台（当前=淘宝）的策略；表单平台候选同步收窄，其它平台隐藏不删数据 */
+const rows = ref<BeeStrategy[]>(beeStrategies.filter((s) => s.platforms.some(beePlatEnabled)));
+const platOptions = BEE_PLATFORMS.filter(beePlatEnabled);
 
 /* 表单态：null = 列表视图；编辑/新建共用一套配置表单（铺货快速定价，按平台区分） */
 interface StrategyForm {
@@ -19,17 +21,18 @@ interface StrategyForm {
   profit: string;
   shipTime: ShipTime;
   itemType: 'new' | 'used';
+  pubMethod: BeePubMethod;
 }
 const form = ref<StrategyForm | null>(null);
 const formErr = ref<{ platform?: string; name?: string; value?: string }>({});
 
 const openCreate = () => {
   formErr.value = {};
-  form.value = { id: '', name: '', platforms: [], priceMode: 'rate', rate: '', profit: '', shipTime: '48h', itemType: 'new' };
+  form.value = { id: '', name: '', platforms: [], priceMode: 'rate', rate: '', profit: '', shipTime: '48h', itemType: 'new', pubMethod: '直接上架' };
 };
 const openEdit = (s: BeeStrategy) => {
   formErr.value = {};
-  form.value = { id: s.id, name: s.name, platforms: [...s.platforms], priceMode: s.priceMode, rate: s.priceMode === 'rate' ? String(s.rate) : '', profit: s.priceMode === 'profit' ? String(s.profit) : '', shipTime: s.shipTime, itemType: s.itemType };
+  form.value = { id: s.id, name: s.name, platforms: [...s.platforms], priceMode: s.priceMode, rate: s.priceMode === 'rate' ? String(s.rate) : '', profit: s.priceMode === 'profit' ? String(s.profit) : '', shipTime: s.shipTime, itemType: s.itemType, pubMethod: s.pubMethod };
 };
 
 /* 可用平台多选：气泡菜单 + 选择框，点选不关闭，外部点击收起 */
@@ -72,6 +75,7 @@ const save = () => {
     profit: f.priceMode === 'profit' ? Number(f.profit) : 0,
     shipTime: f.shipTime,
     itemType: f.itemType,
+    pubMethod: f.pubMethod,
     creator: old?.creator ?? '蜜蜂用户',
     createTime: old?.createTime ?? `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`,
   };
@@ -102,6 +106,20 @@ const confirmDel = () => {
   pushToast(`已删除策略「${delTarget.value.name}」`);
   delTarget.value = null;
 };
+
+/* 离开守卫：表单态下返回 / 取消 / 关闭 / 路由切换前二次确认，避免误丢失未保存配置。
+   leaveHint 供插件顶层路由切换读取 */
+const leaveConfirm = ref(false);
+const requestLeave = () => { if (form.value) leaveConfirm.value = true; else form.value = null; };
+const leaveHint = () => (form.value
+  ? {
+      title: '离开策略编辑',
+      msg: form.value.id ? '当前策略修改尚未保存，离开后将丢失。确认离开？' : '新建策略尚未保存，离开后已填写内容将丢失。确认离开？',
+      ok: '离开',
+      cancel: '继续编辑',
+    }
+  : null);
+defineExpose({ leaveHint });
 </script>
 
 <template>
@@ -168,7 +186,7 @@ const confirmDel = () => {
 
       <!-- 配置表单视图 -->
       <template v-else>
-        <button class="st-back" @click="form = null">
+        <button class="st-back" @click="requestLeave">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6l-6 6 6 6" /><path d="M4 12h16" /></svg>
           返回
         </button>
@@ -185,7 +203,7 @@ const confirmDel = () => {
                   <svg class="bselect-arrow" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 L6 8 L9.5 4.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /></svg>
                 </button>
                 <div v-if="platOpen" class="bselect-menu st-plat-menu">
-                  <div v-for="p in BEE_PLATFORMS" :key="p" class="bselect-opt" :class="{ selected: form.platforms.includes(p) }" @click="togglePlat(p)">
+                  <div v-for="p in platOptions" :key="p" class="bselect-opt" :class="{ selected: form.platforms.includes(p) }" @click="togglePlat(p)">
                     <span class="st-cb"><i v-if="form.platforms.includes(p)">✓</i></span>
                     <span class="bselect-label">{{ p }}</span>
                   </div>
@@ -249,10 +267,18 @@ const confirmDel = () => {
                 </label>
               </div>
             </div>
+            <div class="st-field">
+              <label class="st-label"><i>*</i>发布方式</label>
+              <div class="st-radios">
+                <label v-for="m in BEE_PUB_METHODS" :key="m" class="st-radio" :class="{ on: form.pubMethod === m }">
+                  <input type="radio" name="st-pub" :checked="form.pubMethod === m" @change="form!.pubMethod = m" />{{ m }}
+                </label>
+              </div>
+            </div>
           </div>
 
           <div class="st-foot">
-            <button class="bp-btn" @click="form = null">取消</button>
+            <button class="bp-btn" @click="requestLeave">取消</button>
             <button class="bp-btn primary" @click="save">保存</button>
           </div>
         </div>
@@ -267,6 +293,18 @@ const confirmDel = () => {
         <div class="bm-foot">
           <button class="bp-btn" @click="delTarget = null">取消</button>
           <button class="bp-btn danger" @click="confirmDel">删除</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 离开策略编辑二次确认（返回 / 取消） -->
+    <div v-if="leaveConfirm" class="bee-mask" @click.self="leaveConfirm = false">
+      <div class="bee-modal small">
+        <div class="bm-head"><b>离开策略编辑</b></div>
+        <p class="st-del-t">{{ form?.id ? '当前策略修改尚未保存，离开后将丢失。确认离开？' : '新建策略尚未保存，离开后已填写内容将丢失。确认离开？' }}</p>
+        <div class="bm-foot">
+          <button class="bp-btn" @click="leaveConfirm = false">继续编辑</button>
+          <button class="bp-btn danger" @click="leaveConfirm = false; form = null">离开</button>
         </div>
       </div>
     </div>

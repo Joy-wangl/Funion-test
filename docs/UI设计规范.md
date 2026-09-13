@@ -166,6 +166,28 @@ Props：`title`、`sub?`、`size?: 'md' | 'lg' | 'xl'`；插槽：默认 = body�
 
 右侧大抽屉复用 `.rc-drawer-mask > .rc-drawer` 模式（920px 宽、左入动画、遮罩可关）；轻量子级弹层 z-index 需高于抽屉（`.pm-page.rc-page .mask { z-index: 1300 }`）。
 
+知识库 / QA 模块走另一套壳规范（落地于 `src/pages/knowledge/Knowledge.css` / `QaManage.css`），新表单抽屉对标此族：
+
+**通用壳**
+- 遮罩 `.kb-mask`：`position:fixed; inset:0; z-index:2600; background:rgba(24,26,30,.72)`，点击遮罩可关；
+- 抽屉体 `z-index:2601`，右贴边全高（`top/right/bottom:0`），阴影统一 `-12px 0 40px rgba(0,0,0,.25)`；
+- 关闭钮：头部右侧幽灵 ✕ `.kb-x`（hover 主色）；遮罩与 ESC 均可关（§4.3）；
+- 滚动条隐藏但保留滚轮 / 拖拽滚动（全局约定）。
+
+**两种子型**
+
+| 子型 | 参考实现 | 宽度 | 滚动模型 |
+|---|---|---|---|
+| 详情宽抽屉 | 知识库 `.kb-drawer` | `min(880px, 66vw)` | 整屉滚动，`padding: 24px 28px 36px` |
+| 表单抽屉 | QA 模块 `.qa-drawer` | `min(640px, 92vw)` | head / body / foot 三段，仅 body 滚动 |
+
+**QA 模块表单抽屉规范**
+- 头 `.qa-d-head`：`padding:16px 24px`，底分割 `--color-border-2`；标题 15px / 600 `--color-text`，右侧 `.kb-x`；
+- 体 `.qa-d-body`：`padding:20px 24px`，单列 grid `gap:18px`、`align-content:start`；字段复用 `.kb-m-field`（label `--fs-aux` / `--color-text-2`、下边距 8px），必填星 `.kb-m-req`、报错 `.kb-m-err` 在控件下方；
+- 足 `.qa-d-foot`：`padding:14px 24px`，顶分割 `--color-border-2`；按钮右对齐 `gap:8px`（取消次要 + 保存唯一主按钮）；
+- 控件复用知识库输入件族 `.kb-input / .kb-select / .kb-textarea`；多行录入一律 textarea，禁止套单行定高盒；
+- 删除类动作走二次确认弹窗（`.kb-modal` 族，宽 420px），同样遮罩 / ESC 可关。
+
 ### 2.6 标签 `.tag`
 
 ```html

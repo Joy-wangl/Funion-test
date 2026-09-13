@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, onBeforeUnmount, ref, watch } from 'vue';
-import { gmsgs, gUnreadCount, gMarkAll, GMSG_APPS, GMSG_KINDS, type GlobalMsg } from './globalMsgData';
+import { gmsgs, gUnreadCount, gMarkAll, GMSG_APPS, GMSG_KINDS, requestShopAcct, type GlobalMsg } from './globalMsgData';
 
 /** 全局站内信入口（顶栏七妮妮侧）：铃铛+未读角标；面板两层 tab（应用→消息类别），点击已读并跳转对应应用 */
 const goApp = inject<(key: string) => void>('goApp', () => {});
@@ -20,6 +20,13 @@ const pickApp = (a: '全部' | string) => { app.value = a; kind.value = '全部'
 const onMsg = (m: GlobalMsg) => {
   m.read = true;
   open.value = false;
+  goApp(m.target);
+};
+/* 掉店提醒「前往」：已读并直达店铺管理对应账号的管理账号抽屉 */
+const onDropGo = (m: GlobalMsg) => {
+  m.read = true;
+  open.value = false;
+  if (m.acct) requestShopAcct(m.acct);
   goApp(m.target);
 };
 
@@ -69,6 +76,10 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocDown));
           <div class="gmsg-desc">{{ m.desc }}</div>
           <div v-if="m.kvs?.length" class="gmsg-kvs">
             <div v-for="kv in m.kvs" :key="kv.k" class="gmsg-kv"><span class="k">{{ kv.k }}</span><span class="v">{{ kv.v }}</span></div>
+          </div>
+          <!-- 掉店提醒专用：前往对应账号的管理账号抽屉 -->
+          <div v-if="m.kind === '掉店提醒' && m.acct" class="gmsg-acts">
+            <button type="button" class="gmsg-go" @click.stop="onDropGo(m)">前往</button>
           </div>
         </div>
         <div v-if="!shown.length" class="gmsg-empty">暂无消息</div>

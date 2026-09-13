@@ -15,12 +15,17 @@ const empty = {
   code: '',
   stock: '全部',
   status: '全部',
+  bidType: '全部',
   thMin: '',
   thMax: '',
   pfMin: '',
   pfMax: '',
   tStart: '',
   tEnd: '',
+  rStart: '',
+  rEnd: '',
+  aStart: '',
+  aEnd: '',
 };
 const filter = ref({ ...empty });
 const applied = ref({ ...empty });
@@ -29,14 +34,25 @@ const num = (s: string) => {
   const n = parseFloat(s.replace(/[^\d.-]/g, ''));
   return Number.isFinite(n) ? n : null;
 };
-/* 招募状态筛选选项 + 徽标配色 */
-const STATUS_OPTIONS = ['全部', '报名待开启', '报名中', '待开始'];
-const statusCls = (s: string) => (s === '报名中' ? 'badge-green' : s === '待开始' ? 'badge-orange' : 'badge-gray');
+/* 招募状态筛选选项 + 状态色（纯文字色档，同图二） */
+const STATUS_OPTIONS = ['全部', '报名待开启', '活动报名中', '待开始', '活动中', '已结束'];
+const statusCls = (s: string) => (s === '活动报名中' ? 'st-blue' : s === '活动中' ? 'st-green' : s === '待开始' ? 'st-orange' : 'st-gray');
+/* 招募状态由时间推导：招募开始前=报名待开启 / 招募期内=活动报名中 / 招募结束未到活动=待开始 / 活动期内=活动中 / 活动结束=已结束 */
+const ts = (s: string) => new Date(s.replace(' ', 'T')).getTime();
+const bidStatus = (r: BiddingRow) => {
+  const n = Date.now();
+  if (n < ts(r.recruitStart)) return '报名待开启';
+  if (n <= ts(r.recruitEnd)) return '活动报名中';
+  if (n < ts(r.actStart)) return '待开始';
+  if (n <= ts(r.actEnd)) return '活动中';
+  return '已结束';
+};
 
 const list = computed(() =>
-  biddingRows.filter((r) => {
+  rows.value.filter((r) => {
     const a = applied.value;
-    if (a.status !== '全部' && r.status !== a.status) return false;
+    if (a.status !== '全部' && bidStatus(r) !== a.status) return false;
+    if (a.bidType !== '全部' && r.bidType !== a.bidType) return false;
     if (a.name && !r.name.includes(a.name)) return false;
     if (a.pid && !r.pid.includes(a.pid)) return false;
     if (a.code && !r.skus.some((s) => s.code.toLowerCase().includes(a.code.toLowerCase()))) return false;
@@ -56,9 +72,21 @@ const list = computed(() =>
     })) return false;
     if (a.tStart && r.imported < a.tStart) return false;
     if (a.tEnd && r.imported > `${a.tEnd} 23:59`) return false;
+    /* 招募/活动时间筛选：查询区间与行区间有交集即命中 */
+    if (a.rStart && r.recruitEnd.slice(0, 10) < a.rStart) return false;
+    if (a.rEnd && r.recruitStart.slice(0, 10) > a.rEnd) return false;
+    if (a.aStart && r.actEnd.slice(0, 10) < a.aStart) return false;
+    if (a.aEnd && r.actStart.slice(0, 10) > a.aEnd) return false;
     return true;
   }),
 );
+
+/* 商品抓取状态：列表行数据本地响应式（抓取操作就地转已抓取） */
+const rows = ref<BiddingRow[]>(biddingRows);
+const doFetch = (r: BiddingRow) => {
+  r.fetchStatus = '已抓取';
+  pushToast('抓取成功');
+};
 
 /* 预估利润区间：当前商品ID 内 SKU 利润最小-最大 */
 const profitRange = (r: BiddingRow) => {
@@ -101,8 +129,8 @@ const doExport = () => {
     return;
   }
   const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
-  const head = '商品ID,商品名称,招募状态,SKU名称,是否必报,门槛价,是否有货,商品编码,预估利润,导入时间';
-  const csv = [head, ...rows.map(({ r, s }) => [r.pid, r.name, r.status, s.sku, s.required ? '是' : '否', s.threshold, s.stock, s.code, s.profit, r.imported].map(esc).join(','))].join('\n');
+  const head = '商品ID,商品名称,招募状态,竞价类型,招募时间,活动时间,SKU名称,是否必报,门槛价,是否有货,商品编码,预估利润,抓取状态,导入时间';
+  const csv = [head, ...rows.map(({ r, s }) => [r.pid, r.name, bidStatus(r), r.bidType, `${r.recruitStart} - ${r.recruitEnd}`, `${r.actStart} - ${r.actEnd}`, s.sku, s.required ? '是' : '否', s.threshold, s.stock, s.code, s.profit, r.fetchStatus, r.imported].map(esc).join(','))].join('\n');
   const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -151,7 +179,10 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
           <label>招募状态</label>
           <BubbleSelect class-name="ib-select" :value="filter.status" :options="STATUS_OPTIONS" @change="(v: string) => filter = { ...filter, status: v }" />
         </div>
-
+        <div class="ib-field">
+          <label>竞价类型</label>
+          <BubbleSelect class-name="ib-select" :value="filter.bidType" :options="['全部', '基准竞价', '排名竞价']" @change="(v: string) => filter = { ...filter, bidType: v }" />
+        </div>
         <div class="ib-field">
           <label>门槛价</label>
           <div class="ib-range">
@@ -174,6 +205,22 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
             <input class="ib-input" placeholder="开始时间" :value="filter.tStart" @input="filter = { ...filter, tStart: ($event.target as HTMLInputElement).value }" />
             <span>→</span>
             <input class="ib-input" placeholder="结束时间" :value="filter.tEnd" @input="filter = { ...filter, tEnd: ($event.target as HTMLInputElement).value }" />
+          </div>
+        </div>
+        <div class="ib-field">
+          <label>招募时间</label>
+          <div class="ib-range">
+            <input class="ib-input" placeholder="开始时间" :value="filter.rStart" @input="filter = { ...filter, rStart: ($event.target as HTMLInputElement).value }" />
+            <span>→</span>
+            <input class="ib-input" placeholder="结束时间" :value="filter.rEnd" @input="filter = { ...filter, rEnd: ($event.target as HTMLInputElement).value }" />
+          </div>
+        </div>
+        <div class="ib-field">
+          <label>活动时间</label>
+          <div class="ib-range">
+            <input class="ib-input" placeholder="开始时间" :value="filter.aStart" @input="filter = { ...filter, aStart: ($event.target as HTMLInputElement).value }" />
+            <span>→</span>
+            <input class="ib-input" placeholder="结束时间" :value="filter.aEnd" @input="filter = { ...filter, aEnd: ($event.target as HTMLInputElement).value }" />
           </div>
         </div>
       </div>
@@ -206,6 +253,7 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
               <th>商品信息</th>
               <th>招募状态</th>
               <th>预估利润区间</th>
+              <th>抓取状态</th>
               <th>导入时间</th>
               <th>操作</th>
             </tr>
@@ -228,16 +276,27 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
                     </div>
                   </div>
                 </td>
-                <td><span :class="statusCls(r.status)">{{ r.status }}</span></td>
+                <td>
+                  <div class="bd-stline">
+                    <span class="bd-st" :class="statusCls(bidStatus(r))">{{ bidStatus(r) }}</span>
+                    <span :class="r.bidType === '基准竞价' ? 'badge-green' : 'badge-gray'">{{ r.bidType }}</span>
+                  </div>
+                  <div class="bd-sttime"><i>招募时间：</i>{{ r.recruitStart }} - {{ r.recruitEnd }}</div>
+                  <div class="bd-sttime"><i>活动时间：</i>{{ r.actStart }} - {{ r.actEnd }}</div>
+                </td>
                 <td>{{ profitRange(r) }}</td>
+                <td><span :class="r.fetchStatus === '已抓取' ? 'badge-green' : 'badge-orange'">{{ r.fetchStatus }}</span></td>
                 <td>{{ r.imported }}</td>
                 <td class="actions-col">
-                  <a href="#" @click.prevent="detail = r">详情</a>
-                  <a href="#" @click.prevent.stop="openAddTip">添加到</a>
+                  <template v-if="r.fetchStatus === '已抓取'">
+                    <a href="#" @click.prevent="detail = r">详情</a>
+                    <a href="#" @click.prevent.stop="openAddTip">添加到</a>
+                  </template>
+                  <a v-else href="#" @click.prevent="doFetch(r)">抓取</a>
                 </td>
               </tr>
               <tr v-if="expanded.has(r.pid)" class="ib-expand-row">
-                <td colspan="6">
+                <td colspan="7">
                   <table class="ib-subtable">
                     <thead>
                       <tr>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch, computed } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { createDetail } from './data';
 import { pushToast } from '../../components/toast';
 import BubbleSelect from '../../components/BubbleSelect.vue';
@@ -9,7 +9,7 @@ import Modal from '../../components/Modal.vue';
 const emit = defineEmits<{ (e: 'back'): void }>();
 
 const d = createDetail;
-const tab = ref<'swap' | 'wm' | 'beauty'>('swap');
+const tab = ref<'swap' | 'beauty'>('swap');
 const mainImgs = ref<string[]>([...d.mainImgs]);
 const detailImgs = ref<string[]>([...d.detailImgs]);
 const SKU_DESC = '德国指甲剪刀套装全套耳勺指甲刀指甲钳修剪专用斜口指甲钳剪刀 用起来还算不错哦';
@@ -100,7 +100,6 @@ onMounted(() => window.addEventListener('keydown', onKey));
 onUnmounted(() => {
   window.removeEventListener('keydown', onKey);
   if (tickTimer != null) clearInterval(tickTimer);
-  if (wmTick != null) clearInterval(wmTick);
 });
 
 /* 拖拽：同类（主图/详情图）内部排序；右栏选中素材拖到左栏批量换图 */
@@ -267,82 +266,6 @@ const tReplace = (t: BeautyTask, i: number) => {
 };
 const tAdd = (t: BeautyTask) => { t.imgs.push(LIB_IMGS[t.imgs.length % LIB_IMGS.length]); pushToast('已添加 1 张'); };
 const tDel = (t: BeautyTask, i: number) => { t.imgs.splice(i, 1); };
-
-/* ================= 一键去水印：针对选图换图/一键美化已保存数据去水印；勾选→批量任务→进度→完成/失败重试 ================= */
-interface WmGroup {
-  id: number; source: 'swap' | 'beauty'; title: string; time: string; owner: string;
-  imgs: TaskImg[]; wm: 'pending' | 'running' | 'done' | 'failed';
-}
-const WM_STATE: Record<WmGroup['wm'], string> = { pending: '有水印', running: '去水印中', done: '已去水印', failed: '去水印失败' };
-const wmGroups = ref<WmGroup[]>([
-  { id: 1, source: 'swap', title: '选图换图保存 · 商品主图 + 详情图', time: '2026-08-27 14:18:12', owner: '王龙', imgs: tImgs(0, 5), wm: 'pending' },
-  { id: 2, source: 'beauty', title: '商品更换为浴室场景风格，背景浅蓝色调', time: '2026-08-25 12:00:00', owner: '王龙', imgs: tImgs(1, 4), wm: 'failed' },
-  { id: 3, source: 'beauty', title: '韩系波点缎面裙摆马尾抓夹 · 美化图', time: '2026-08-21 16:40:03', owner: '七妮妮', imgs: tImgs(2, 4), wm: 'done' },
-]);
-interface WmTask { id: number; title: string; time: string; owner: string; status: 'running' | 'failed' | 'done'; percent: number; groups: number[]; open: boolean }
-const wmTasks = ref<WmTask[]>([
-  { id: 2, title: '去水印 · 1 组图片', time: '2026-08-22 10:12:00', owner: '七妮妮', status: 'done', percent: 100, groups: [3], open: true },
-  { id: 1, title: '去水印 · 1 组图片', time: '2026-08-20 15:30:00', owner: '王龙', status: 'failed', percent: 46, groups: [2], open: false },
-]);
-const wmSel = ref<number[]>([]);
-const wmPickableList = computed(() => wmGroups.value.filter((g) => g.wm === 'pending' || g.wm === 'failed'));
-const wmAll = computed(() => wmPickableList.value.length > 0 && wmPickableList.value.every((g) => wmSel.value.includes(g.id)));
-const pickWm = (id: number) => {
-  const a = wmSel.value;
-  const k = a.indexOf(id);
-  if (k >= 0) a.splice(k, 1); else a.push(id);
-};
-const toggleWmAll = () => { wmSel.value = wmAll.value ? [] : wmPickableList.value.map((g) => g.id); };
-/* 左栏图墙：恒定展示当前生效图（不渲染带水印原图，避免混淆）；水印状态仅由语义徽标表达，完成即效果图 */
-const wmTaskImgs = (t: WmTask): TaskImg[] => t.groups.flatMap((id) => wmGroups.value.find((g) => g.id === id)?.imgs ?? []);
-
-let wmTick: number | null = null;
-const ensureWmTick = () => {
-  if (wmTick != null) return;
-  wmTick = window.setInterval(() => {
-    let any = false;
-    wmTasks.value.forEach((t) => {
-      if (t.status !== 'running') return;
-      any = true;
-      t.percent = Math.min(100, t.percent + 3 + Math.floor(Math.random() * 7));
-      if (t.percent >= 100) {
-        t.status = 'done';
-        t.open = true; /* 完成即默认展开，效果图直接可见，无需点击 */
-        t.groups.forEach((id) => {
-          const g = wmGroups.value.find((x) => x.id === id);
-          if (g) g.wm = 'done';
-        });
-        pushToast('去水印完成');
-      }
-    });
-    if (!any && wmTick != null) { clearInterval(wmTick); wmTick = null; }
-  }, 400);
-};
-const startWmIds = (ids: number[]) => {
-  ids.forEach((id) => {
-    const g = wmGroups.value.find((x) => x.id === id);
-    if (g) g.wm = 'running';
-  });
-  wmTasks.value.unshift({ id: Date.now(), title: `去水印 · ${ids.length} 组图片`, time: nowStr(), owner: '七妮妮', status: 'running', percent: 5, groups: ids, open: false });
-  ensureWmTick();
-  pushToast('去水印任务已提交');
-};
-const startWm = () => {
-  if (!wmSel.value.length) { pushToast('请先勾选要去水印的已保存数据'); return; }
-  const ids = [...wmSel.value];
-  wmSel.value = [];
-  startWmIds(ids);
-};
-const retryWm = (t: WmTask) => {
-  t.groups.forEach((id) => {
-    const g = wmGroups.value.find((x) => x.id === id);
-    if (g) g.wm = 'running';
-  });
-  t.status = 'running';
-  t.percent = 5;
-  ensureWmTick();
-  pushToast('已重新提交去水印');
-};
 </script>
 
 <template>
@@ -355,7 +278,6 @@ const retryWm = (t: WmTask) => {
         </div>
         <div class="mc-seg">
           <button class="mc-tab" :class="tab === 'swap' ? 'active' : ''" @click="tab = 'swap'">选图换图</button>
-          <button class="mc-tab" :class="tab === 'wm' ? 'active' : ''" @click="tab = 'wm'">一键去水印</button>
           <button class="mc-tab" :class="tab === 'beauty' ? 'active' : ''" @click="tab = 'beauty'">一键美化</button>
         </div>
         <span v-if="tab === 'beauty'" class="mc-tab-hint">
@@ -515,91 +437,6 @@ const retryWm = (t: WmTask) => {
             </div>
           </div>
         </div>
-      </div>
-    </div>
-    <!-- 一键去水印：左 已保存数据（勾选）/ 右 去水印任务列表（三态 + 重试） -->
-    <div v-else-if="tab === 'wm'" class="mc-body">
-      <div class="mc-left">
-        <div class="mc-wm-head">
-          <span class="mc-right-title">已保存数据<span class="mc-count">{{ wmGroups.length }}</span></span>
-          <label class="mc-wm-all">
-            <input type="checkbox" :checked="wmAll" :disabled="!wmPickableList.length" @change="toggleWmAll" />
-            全选可选
-          </label>
-          <button class="sg-btn primary" :disabled="!wmSel.length" @click="startWm">一键去水印{{ wmSel.length ? ` ${wmSel.length}` : '' }}</button>
-        </div>
-        <div class="mc-wm-list">
-          <div v-for="g in wmGroups" :key="g.id" class="mc-wm" :class="{ sel: wmSel.includes(g.id) }">
-            <div class="mc-wm-top">
-              <input type="checkbox" class="mc-wm-check" :checked="wmSel.includes(g.id)" :disabled="!wmPickableList.includes(g)" @change="pickWm(g.id)" />
-              <span class="mc-task-tag" :class="g.source">{{ g.source === 'swap' ? '选图换图' : '一键美化' }}</span>
-              <div class="mc-wm-title">{{ g.title }}</div>
-              <span class="mc-wm-state" :class="g.wm">{{ WM_STATE[g.wm] }}</span>
-            </div>
-            <div class="mc-wm-meta">
-              <span>{{ g.time }}</span>
-              <span>{{ g.owner }}</span>
-              <span>{{ g.imgs.length }} 张</span>
-            </div>
-            <!-- 图墙：始终展示当前生效图；未完成组由状态徽标表征待去水印，完成组即效果图 -->
-            <div class="mc-wm-strip">
-              <div v-for="(im, i) in g.imgs.slice(0, 5)" :key="i" class="mc-strip-th">
-                <img :src="im.src" alt="" :style="{ objectPosition: im.pos }" />
-              </div>
-            </div>
-            <div class="mc-wm-foot">
-              <button v-if="g.wm === 'failed'" class="sg-btn primary" @click="startWmIds([g.id])">重试去水印</button>
-              <button v-else-if="g.wm === 'pending'" class="sg-btn primary" @click="startWmIds([g.id])">一键去水印</button>
-              <span v-else-if="g.wm === 'running'" class="mc-wm-running">正在去水印…</span>
-              <span v-else class="mc-wm-donehint">已去水印 · 展示效果图</span>
-            </div>
-          </div>
-          <div v-if="!wmGroups.length" class="mc-wm-empty">暂无已保存数据，先在「选图换图」保存或在「一键美化」生成结果</div>
-        </div>
-      </div>
-
-      <div class="mc-right mc-tasks">
-        <div class="mc-right-head">
-          <span class="mc-right-title">去水印任务<span class="mc-count">{{ wmTasks.length }}</span></span>
-          <span class="mc-tasks-hint">完成任务默认展示全部效果图 · 可收起</span>
-        </div>
-        <div v-for="t in wmTasks" :key="t.id" class="mc-task">
-          <div class="mc-task-head">
-            <div class="mc-task-title">{{ t.title }}</div>
-            <div v-if="t.status === 'running'" class="mc-task-pct">{{ t.percent }}%<span>正在去水印...</span></div>
-            <button v-else-if="t.status === 'failed'" class="mc-regen" @click="retryWm(t)">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" /></svg>
-              重试
-            </button>
-            <button v-else class="mc-fold" @click="t.open = !t.open">{{ t.open ? '收起 ▴' : '展开 ▾' }}</button>
-          </div>
-          <div class="mc-task-meta">
-            <span class="mc-task-tag wm">一键去水印</span>
-            <span v-if="t.status === 'done'" class="mc-wm-state done">已去水印</span>
-            <span>{{ t.time }}</span>
-            <span>{{ t.owner }}</span>
-          </div>
-          <div v-if="t.status === 'running'" class="mc-task-progress">
-            <div class="mc-task-bar"><i :style="{ width: t.percent + '%' }" /></div>
-          </div>
-          <div v-else-if="t.status === 'failed'" class="mc-task-progress fail">
-            <div class="mc-task-bar"><i :style="{ width: t.percent + '%' }" /></div>
-            <span class="mc-fail-txt">失败</span>
-          </div>
-          <!-- 完成态：去水印结果图墙（干净图），收起 4 列 / 展开密铺，悬浮气泡查看 -->
-          <div v-else :class="t.open ? 'mc-task-grid' : 'mc-task-strip'">
-            <div v-for="(im, i) in (t.open ? wmTaskImgs(t) : wmTaskImgs(t).slice(0, 4))" :key="i" class="mc-thwrap">
-              <div class="mc-img">
-                <img :src="im.src" alt="" :style="{ objectPosition: im.pos }" />
-                <span v-if="!t.open && i === 3 && wmTaskImgs(t).length > 4" class="mc-strip-more">+{{ wmTaskImgs(t).length - 3 }}</span>
-              </div>
-              <div class="mc-float-bubble">
-                <a href="#" @click.prevent.stop="preview = im.src">查看</a>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div v-if="!wmTasks.length" class="mc-wm-empty">暂无去水印任务</div>
       </div>
     </div>
     <!-- 一键美化：左 商品图+生成控制 / 右 美化任务列表 -->

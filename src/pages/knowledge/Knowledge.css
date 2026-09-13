@@ -14,19 +14,29 @@
 }
 .kb-nav-item:hover { background: var(--color-fill-2); }
 .kb-nav-item.active { background: var(--color-primary-light); color: var(--color-primary); font-weight: 600; }
+/* 子入口（挂在父路由下的版本/子页，如场景配置 V2）：缩进+降档字号 */
+.kb-nav-item.kb-nav-sub { margin-left: 24px; padding: 7px 12px; font-size: var(--fs-aux); color: var(--color-text-3); }
 
 /* 主区（滚动条隐藏但保留滚轮滚动，全局约定） */
 .kb-main { flex: 1; min-width: 0; overflow-y: auto; display: flex; flex-direction: column; scrollbar-width: none; }
 .kb-main::-webkit-scrollbar { display: none; }
 .kb-main-head { padding: 18px 24px 0; }
-.kb-main-head h2 { font-size: 18px; font-weight: 700; color: var(--color-text); }
+.kb-main-head h2 { font-size: var(--fs-title); font-weight: 700; color: var(--color-text); }
+/* 二级列表页返回钮：与全局 sgd-back 同 token（28px 方钮 + ←），置标题左侧 */
+.kb-back {
+  display: inline-grid; place-items: center; vertical-align: middle;
+  width: 28px; height: 28px; margin-right: 10px;
+  border: 1px solid var(--color-border); border-radius: var(--radius-md); background: #fff;
+  color: var(--color-text-2); font-size: var(--fs-md); cursor: pointer; transition: .15s;
+}
+.kb-back:hover { color: var(--color-primary); border-color: var(--color-primary); }
 .kb-breadcrumb { margin-top: 4px; font-size: var(--fs-aux); color: var(--color-text-3); }
 .kb-breadcrumb span { color: var(--color-text-4); }
 
 /* 页面工作区：条件与列表两张独立白卡（对齐运维管理后台监控列表双卡布局），铺满到底部 */
 .kb-panel {
   flex: 1; display: flex; flex-direction: column;
-  margin: 14px 24px 24px;
+  margin: 12px 24px 24px;
 }
 
 /* ============ 条件查询模块：条件网格（每排 4 个）+ 按钮组末排右对齐（筛选布局规范） ============ */
@@ -35,10 +45,10 @@
   background: #fff;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
-  padding: 16px 18px;
+  padding: 16px;
   box-shadow: var(--shadow-md);
-  margin-bottom: 14px;
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 16px;
+  margin-bottom: 12px;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 16px;
 }
 .kb-field { min-width: 0; }
 .kb-field label { display: block; margin-bottom: 6px; font-size: var(--fs-aux); color: var(--color-text-2); }
@@ -47,6 +57,16 @@
 .kb-range { display: flex; align-items: center; gap: 6px; }
 .kb-range .kb-input { width: auto; flex: 1; min-width: 0; }
 .kb-range-sep { color: var(--color-text-3); }
+/* 查询输入框清除钮：框内右侧实心灰圆×（同全局规范 .rc-mon-clear 图标），有值才显，点击清空并立即重查 */
+.kb-kwwrap { position: relative; min-width: 0; }
+.kb-kwwrap .kb-input { width: 100%; padding-right: 30px; }
+.kb-range .kb-kwwrap { flex: 1; }
+.kb-clear {
+  position: absolute; right: 9px; top: 50%; transform: translateY(-50%);
+  display: inline-flex; border: 0; padding: 0; background: none;
+  color: var(--color-text-3); cursor: pointer;
+}
+.kb-clear:hover { color: var(--color-text-2); }
 /* 按钮组：末排剩余列内右对齐；收起/展开文字钮与按钮垂直居中 */
 .kb-query-actions { grid-column: 4 / -1; justify-self: end; align-self: end; display: flex; align-items: center; gap: 8px; }
 /* 收起/展开：主色文字钮 + 箭头 icon */
@@ -77,7 +97,7 @@
 /* 列表卡：白底 + 细边框 + 大圆角 + 轻阴影（同监控列表 .qc-body 视觉），内容不足时拉伸至底部 */
 .kb-table-wrap {
   flex: 1 0 auto;
-  padding: 16px 18px;
+  padding: 16px;
   background: #fff;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-2xl);
@@ -89,38 +109,40 @@
 /* 系列信息列为两行文本，单独加宽；其余数据列均分 */
 .kb-table th:first-child { width: 26%; }
 .kb-table thead th {
-  background: #f4f5f7; border-bottom: 1px solid #ebedf0;
-  font-size: var(--fs-base); color: #333; font-weight: 600;
+  background: var(--color-fill-2); border-bottom: 1px solid var(--color-border-2);
+  font-size: var(--fs-base); color: var(--color-text-2); font-weight: 600;
   padding: 12px; text-align: left; white-space: nowrap;
 }
 /* 表头带圆角两端（圆角参考图） */
 .kb-table thead th:first-child { border-radius: 8px 0 0 8px; }
 .kb-table thead th:last-child { border-radius: 0 8px 8px 0; }
 .kb-table tbody td {
-  border-bottom: 1px solid #f0f1f3; padding: 14px 12px;
-  font-size: var(--fs-base); color: #333;
+  border-bottom: 1px solid var(--color-border-2); padding: 16px 12px;
+  font-size: var(--fs-base); color: var(--color-text-2);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.kb-table tbody tr:hover { background: #fcfdff; }
+.kb-table tbody tr:hover { background: var(--color-fill); }
 /* 系列/商品信息单元格：caret 或主图 + 两行文本 */
 .kb-td-series { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .kb-td-series img { flex: none; width: 32px; height: 32px; border-radius: 4px; object-fit: cover; background: var(--color-fill-2); }
 /* 两行文本：主行 14px 半粗深字、副行 12px 浅灰（对齐参考样式） */
 .kb-td-item { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.kb-td-item b { font-size: var(--fs-md); font-weight: 600; color: #333; overflow: hidden; text-overflow: ellipsis; }
-.kb-td-item i { font-style: normal; font-size: var(--fs-aux); font-weight: 400; color: #99a0ab; }
+.kb-td-item b { font-size: var(--fs-md); font-weight: 600; color: var(--color-text); overflow: hidden; text-overflow: ellipsis; }
+.kb-td-item i { font-style: normal; font-size: var(--fs-aux); font-weight: 400; color: var(--color-text-3); }
 /* 副行灰底标签：编码数量 */
 .kb-td-tags { display: flex; gap: 6px; }
-.kb-tag { display: inline-block; padding: 1px 8px; border-radius: 4px; background: #f2f3f5; font-size: var(--fs-aux); line-height: 18px; color: #4e5560; }
+.kb-tag { display: inline-block; padding: 1px 8px; border-radius: 4px; background: var(--color-fill-2); font-size: var(--fs-aux); line-height: 18px; color: var(--color-text-2); }
 /* 上架平台列：chip 样式对齐运维管理后台/编码列表（.plat-chip 同 token） */
 .kb-td-plats { display: flex; flex-wrap: wrap; gap: 4px; }
-.kb-plat-chip { display: inline-flex; align-items: center; gap: 5px; border: 1px solid #e8ebf1; border-radius: 8px; padding: 2px 7px; font-size: var(--fs-aux); color: #5b6475; background: #fbfcfe; white-space: nowrap; }
+.kb-plat-chip { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--color-border); border-radius: 8px; padding: 2px 7px; font-size: var(--fs-aux); color: var(--color-text-2); background: var(--color-fill); white-space: nowrap; }
 .kb-plat-chip .plat-logo { width: 16px; height: 16px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
 /* 比率列绿色（对齐参考样式；选择器需压过 tbody td 默认色） */
-.kb-table tbody td.kb-td-rate { color: #00a870; }
+.kb-table tbody td.kb-td-rate { color: var(--color-success); }
 .kb-table tbody td.kb-td-price { color: var(--color-primary); font-weight: 600; }
-.kb-link { color: var(--color-primary); text-decoration: none; cursor: pointer; }
+.kb-link { color: var(--color-primary); text-decoration: none; cursor: pointer; font-size: var(--fs-base); }
 .kb-link:hover { opacity: .85; }
+/* 危险操作链接（删除等）：红色，避免与常规操作同色 */
+.kb-link.danger { color: var(--color-danger); }
 .kb-empty { padding: 48px 0; text-align: center; font-size: var(--fs-base); color: var(--color-text-3); }
 
 /* ============ 类目三级级联多选下拉（气泡式浮层：视觉 token 同 BubbleSelect） ============ */
@@ -171,69 +193,8 @@
 .kbcat-flat::-webkit-scrollbar { display: none; }
 .kbcat-empty { padding: 10px 12px; font-size: 12px; color: #98a0b3; }
 
-/* 展开 caret：系列信息列头部，展开态旋转 90° */
-.kb-caret {
-  flex: none; width: 20px; height: 20px; margin-right: -2px;
-  display: inline-flex; align-items: center; justify-content: center;
-  border: 0; border-radius: 4px; background: transparent; color: #8a92a1; cursor: pointer;
-  transition: transform .18s;
-}
-.kb-caret:hover { background: var(--color-fill-2); color: var(--color-text-2); }
-.kb-caret.open { transform: rotate(90deg); }
-/* ID 维度展开行：白底承接主表，行本身不 hover 变色/不可点 */
-.kb-table tbody tr.kb-sub-row,
-.kb-table tbody tr.kb-sub-row:hover { background: transparent; cursor: default; }
-.kb-table tbody td.kb-sub-td { padding: 4px 12px 18px; background: #fff; white-space: normal; }
-/* 子列表顶栏：平台 tab 左、搜索入口右 */
-.kb-sub-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-/* 平台 tab：胶囊钮（圆角/尺寸参考图：全圆角小尺寸），选中=浅蓝底蓝字 */
-.kb-sub-tabs { display: flex; gap: 8px; padding: 10px 0 12px; }
-.kb-sub-tabs button {
-  padding: 4px 14px; border: 0; border-radius: 999px;
-  background: #f2f3f5; color: #4e5560; font-size: var(--fs-aux); cursor: pointer;
-}
-.kb-sub-tabs button:hover { color: var(--color-primary); }
-.kb-sub-tabs button.on { background: var(--color-primary-light); color: var(--color-primary); font-weight: 600; }
-/* 子列表搜索：收起态=图标钮；展开态=输入框（左图标钮可再收起，右 ICON 清除内容） */
-.kb-sub-search { flex-shrink: 0; display: flex; align-items: center; padding: 10px 0 12px; }
-.kb-sub-searchbtn {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px; border: 0; border-radius: 6px;
-  background: none; color: #4e5560; cursor: pointer;
-}
-.kb-sub-searchbtn:hover { background: #f2f3f5; color: var(--color-primary); }
-.kb-sub-searchbox {
-  display: flex; align-items: center; gap: 6px; width: 240px; height: 30px; padding: 0 8px;
-  border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: #fff;
-}
-.kb-sub-searchbox .kb-sub-searchbtn { width: auto; height: auto; color: var(--color-text-3); }
-.kb-sub-searchbox .kb-sub-searchbtn:hover { background: none; }
-.kb-sub-searchbox input {
-  flex: 1; min-width: 0; border: 0; outline: none; background: transparent;
-  font-size: var(--fs-aux); color: var(--color-text);
-}
-.kb-sub-searchbox input::placeholder { color: var(--color-text-3); }
-.kb-sub-clear { display: inline-flex; border: 0; padding: 0; background: none; color: #99a0ab; cursor: pointer; }
-.kb-sub-clear:hover { color: #4e5560; }
-/* ID 维度子列表：视觉同主表（浅灰表头、无外框） */
-.kb-sub-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
-.kb-sub-table th:first-child { width: 36%; }
-.kb-sub-table thead th {
-  background: #f4f5f7; border-bottom: 1px solid #ebedf0;
-  font-size: var(--fs-base); color: #333; font-weight: 600;
-  padding: 10px 12px; text-align: left; white-space: nowrap;
-}
-/* 子表头同主表：圆角两端 */
-.kb-sub-table thead th:first-child { border-radius: 8px 0 0 8px; }
-.kb-sub-table thead th:last-child { border-radius: 0 8px 8px 0; }
-.kb-sub-table tbody td {
-  border-bottom: 1px solid #f0f1f3; padding: 12px;
-  font-size: var(--fs-base); color: #333;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.kb-sub-table tbody tr:last-child td { border-bottom: 0; }
-.kb-sub-table .kb-empty { padding: 24px 0; font-size: var(--fs-aux); }
-.kb-sub-table tbody tr:hover { background: #fcfdff; }
+/* 操作列：多入口竖排（详情/关联ID） */
+.kb-td-ops { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 /* 商品状态：圆点 + 文本（圆点色与店铺商品状态口径一致） */
 .kb-status { display: inline-flex; align-items: center; gap: 6px; }
 .kb-status-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; }
@@ -277,7 +238,7 @@
 }
 .kb-code .c { display: block; font-size: var(--fs-md); font-weight: 600; color: var(--color-text); }
 .kb-code .n { display: block; margin-top: 2px; font-size: var(--fs-aux); color: var(--color-text-3); }
-/* ID 维度：编码卡附关联系列行 */
+/* ID 维度：编码卡副行仅写关联系列名（一码只属一系列，单行即可） */
 .kb-code .s { display: block; margin-top: 2px; font-size: 12px; color: var(--color-text-3); }
 .kb-code.active { background: var(--color-primary-light); }
 .kb-code.active .c, .kb-code.active .n { color: var(--color-primary); }

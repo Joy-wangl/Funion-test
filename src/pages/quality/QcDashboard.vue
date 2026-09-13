@@ -24,6 +24,14 @@ import {
   type RangeKey,
 } from './qcCenterData';
 import { OPT_STATUS_LABELS, type OptStatus, type OptTask } from './qcOptData';
+import {
+  ONLINE_DEPT_COUNTS,
+  ONLINE_OV,
+  ONLINE_TYPE_COUNTS,
+  onlineOrderTrend,
+  onlineTopCodes,
+  onlineTrend,
+} from './qcOnlineData';
 import PieChart from './PieChart.vue';
 import ProblemTrendChart from './ProblemTrendChart.vue';
 import StatusTag from './StatusTag.vue';
@@ -31,6 +39,8 @@ import QcSectionHead from './QcSectionHead.vue';
 
 const props = defineProps<{
   optTasks: OptTask[];
+  /** 品控-线上壳：看板走线上固定口径，不随时间范围变化 */
+  online?: boolean;
   onOpenOptStatus: (s: OptStatus) => void;
   onOpenCode: (seriesCode: string, code: string) => void;
   onPickType: (type: string) => void;
@@ -47,19 +57,31 @@ const customOpt = ref<DateRange>({ ...DEFAULT_CUSTOM_RANGE });
 
 const ranking = computed(() => problemTypeRanking());
 const topKey = ref<'refundRate' | 'chatRate'>('refundRate');
-const top = computed(() => topProblemCodes(5, topKey.value));
-const ovTotals = computed(() => rangeEventTotals(rangeOv.value, customOv.value));
-const shareCounts = computed(() => rangeTypeCounts(rangeShare.value, customShare.value));
-const shareTotals = computed(() => rangeEventTotals(rangeShare.value, customShare.value));
-const deptCounts = computed(() => rangeDeptCounts(rangeShare.value, customShare.value));
-const trend = computed(() => problemTrendData(rangeTrend.value, customTrend.value));
-const trendOrders = computed(() => orderTrendData(rangeTrend.value, customTrend.value));
+const top = computed(() => (props.online ? onlineTopCodes(5, topKey.value) : topProblemCodes(5, topKey.value)));
+const ovCodes = computed(() => (props.online ? ONLINE_OV.codes : totalCodes()));
+const ovJunk = computed(() => (props.online ? ONLINE_OV.junk : markedJunkCount()));
+const ovTotals = computed(() => (props.online
+  ? { orders: ONLINE_OV.orders, chatHits: ONLINE_OV.chatHits }
+  : rangeEventTotals(rangeOv.value, customOv.value)));
+const shareCounts = computed(() => (props.online ? ONLINE_TYPE_COUNTS : rangeTypeCounts(rangeShare.value, customShare.value)));
+const shareTotals = computed(() => (props.online
+  ? { orders: ONLINE_OV.orders }
+  : rangeEventTotals(rangeShare.value, customShare.value)));
+const deptCounts = computed(() => (props.online ? ONLINE_DEPT_COUNTS : rangeDeptCounts(rangeShare.value, customShare.value)));
+const trend = computed(() => (props.online ? onlineTrend() : problemTrendData(rangeTrend.value, customTrend.value)));
+const trendOrders = computed(() => (props.online ? onlineOrderTrend() : orderTrendData(rangeTrend.value, customTrend.value)));
 
-const shareItems = computed(() => ranking.value.map((r) => ({
-  label: r.type,
-  value: shareCounts.value[r.type] ?? 0,
-  color: PROBLEM_TYPE_COLOR[r.type] || '#4f7cff',
-})));
+const shareItems = computed(() => (props.online
+  ? Object.entries(ONLINE_TYPE_COUNTS).map(([label, value]) => ({
+    label,
+    value,
+    color: PROBLEM_TYPE_COLOR[label] || '#4f7cff',
+  }))
+  : ranking.value.map((r) => ({
+    label: r.type,
+    value: shareCounts.value[r.type] ?? 0,
+    color: PROBLEM_TYPE_COLOR[r.type] || '#4f7cff',
+  }))));
 const deptItems = computed(() => QC_DEPTS.map((d) => ({
   label: d,
   value: deptCounts.value[d] ?? 0,
@@ -89,13 +111,13 @@ const optTotal = computed(() => optInWin.value.length);
     <div class="qc-flat-grid cols-4">
       <div class="flat-card">
         <div class="k">监控系列编码数</div>
-        <div class="v">{{ totalCodes() }}</div>
+        <div class="v">{{ ovCodes.toLocaleString() }}</div>
       </div>
       <div class="flat-card" title="风险占比 = 风险品数量 ÷ 监控系列编码数">
         <div class="k">风险品数量</div>
         <div class="v">
-          {{ markedJunkCount() }}
-          <span class="dept-pct">{{ `${((markedJunkCount() / totalCodes()) * 100).toFixed(1)}%` }}</span>
+          {{ ovJunk.toLocaleString() }}
+          <span class="dept-pct">{{ `${((ovJunk / ovCodes) * 100).toFixed(1)}%` }}</span>
         </div>
       </div>
       <div class="flat-card">

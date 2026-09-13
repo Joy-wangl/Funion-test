@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { kpiItems, lossRows, metricNames, stockRows } from './data';
+import { CMP_COLORS, chartPeriod, formatChartValue, makeTrendValues, parseNumberText } from './trendChart';
+import { SG_STATUS_META } from './shopGoodsData';
+import type { SgStatus } from './shopGoodsData';
 import TrendModal from './TrendModal.vue';
+import SgBatchPriceModal from './SgBatchPriceModal.vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
+import SortTh from '../../components/SortTh.vue';
+import { pushToast } from '../../components/toast';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -39,8 +45,159 @@ const profitOpen = ref(false);
 const profitFilter = ref('all');
 const profitText = ref<string | null>('全部');
 
+/* ----- 数据模式：视图=指标卡墙 / 列表=指标明细表 / 对比=多指标同期趋势图 ----- */
+const viewMode = ref('视图模式');
+
+/* ----- 对比模式：多选指标 + 同期对比趋势 ----- */
+const cmpMetrics = ref<string[]>(['订单量', '新毛六利润']);
+const toggleCmp = (name: string) => {
+  cmpMetrics.value = cmpMetrics.value.includes(name)
+    ? cmpMetrics.value.filter((m) => m !== name)
+    : [...cmpMetrics.value, name];
+};
+
+/* 对比图几何：各序列按自身量程归一后同框对比走势（多单位指标不可共用刻度）；
+   折线样式对标品控趋势图：平滑曲线 + 实心小圆点 + 虚线网格 + 悬浮竖参考线/暗色 tooltip */
+const CMP_W = 1180;
+const CMP_H = 320;
+const CMP_L = 24;
+const CMP_R = 24;
+const CMP_T = 18;
+const CMP_B = 40;
+
+/* 平滑路径（Catmull-Rom → 贝塞尔，同品控 MetricTrendChart） */
+function smoothPath(pts: { x: number; y: number }[]): string {
+  if (!pts.length) return '';
+  let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[Math.min(pts.length - 1, i + 2)];
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+  }
+  return d;
+}
+
+const cmpChart = computed(() => {
+  const period = chartPeriod(dateText.value, mode.value);
+  const n = period.labels.length;
+  const plotW = CMP_W - CMP_L - CMP_R;
+  const plotH = CMP_H - CMP_T - CMP_B;
+  const x = (i: number) => (n <= 1 ? CMP_L + plotW / 2 : CMP_L + i * (plotW / (n - 1)));
+  const series = cmpMetrics.value.map((m, idx) => {
+    const base = parseNumberText(kpiItems.find((k) => k.metric === m)?.value ?? '');
+    const values = makeTrendValues(m, n, base);
+    let min = Math.min(...values);
+    let max = Math.max(...values);
+    if (max === min) max = min + 1;
+    const pad = (max - min) * 0.15;
+    min = Math.max(0, min - pad);
+    max += pad;
+    const y = (v: number) => CMP_T + ((max - v) / (max - min)) * plotH;
+    const pts = values.map((v, i) => ({ x: x(i), y: y(v) }));
+    return {
+      metric: m,
+      color: CMP_COLORS[idx % CMP_COLORS.length],
+      path: smoothPath(pts),
+      dots: pts.map((pt, i) => ({ i, cx: pt.x, cy: pt.y })),
+      values,
+      valueText: formatChartValue(m, base),
+    };
+  });
+  /* 标签抽稀：小时轴(25点)每 2 小时一个，天轴按天数自适应 */
+  const step = Math.max(1, Math.ceil(n / 13));
+  return {
+    series,
+    n,
+    labels: period.labels,
+    xs: period.labels.map((_, i) => x(i)),
+    grids: [0, 1, 2, 3, 4].map((g) => CMP_T + g * (plotH / 4)),
+    xLabels: period.labels.map((label, i) => ({ i, label, x: x(i), show: i % step === 0 || i === n - 1 })),
+  };
+});
+
+/* 对比图悬浮：最近点竖参考线 + 暗色 tooltip（多序列数值同框） */
+const cmpWrapRef = ref<HTMLDivElement | null>(null);
+const cmpHover = ref<{ i: number; px: number; py: number } | null>(null);
+const onCmpMove = (e: MouseEvent) => {
+  const wrap = cmpWrapRef.value;
+  const rect = wrap?.querySelector('svg')?.getBoundingClientRect();
+  if (!wrap || !rect || !cmpChart.value.n) return;
+  const n = cmpChart.value.n;
+  const fx = ((e.clientX - rect.left) / rect.width) * CMP_W;
+  const i = Math.max(0, Math.min(n - 1, Math.round(((fx - CMP_L) / (CMP_W - CMP_L - CMP_R)) * (n - 1))));
+  const wr = wrap.getBoundingClientRect();
+  cmpHover.value = {
+    i,
+    px: (cmpChart.value.xs[i] / CMP_W) * rect.width,
+    py: Math.max(8, Math.min(e.clientY - wr.top, wr.height - 8)),
+  };
+};
+const onCmpLeave = () => { cmpHover.value = null; };
+/* tooltip 靠右缘时左翻转，避免溢出卡片 */
+const cmpTipFlip = computed(() => !!cmpWrapRef.value && !!cmpHover.value && cmpHover.value.px > cmpWrapRef.value.clientWidth - 200);
+
 /* ----- 趋势弹窗 ----- */
 const trendMetric = ref<string | null>(null);
+
+/* ----- 亏损/缺货商品：反应式列表 + 勾选 + 上下架状态流转 + 批量操作 ----- */
+/* 亏损/缺货合并单卡：下划线 tab 切换，批量按钮与表格跟随 tab */
+const listTab = ref<'loss' | 'stock'>('loss');
+const lossList = ref(lossRows.map((r) => ({ ...r })));
+const stockList = ref(stockRows.map((r) => ({ ...r })));
+const lossSel = ref<Set<number>>(new Set());
+const stockSel = ref<Set<number>>(new Set());
+const toggleLossCheck = (i: number) => {
+  const n = new Set(lossSel.value);
+  if (n.has(i)) n.delete(i); else n.add(i);
+  lossSel.value = n;
+};
+const lossAllChecked = computed(() => lossList.value.length > 0 && lossList.value.every((_, i) => lossSel.value.has(i)));
+const toggleLossAll = () => { lossSel.value = lossAllChecked.value ? new Set() : new Set(lossList.value.map((_, i) => i)); };
+const toggleStockCheck = (i: number) => {
+  const n = new Set(stockSel.value);
+  if (n.has(i)) n.delete(i); else n.add(i);
+  stockSel.value = n;
+};
+const stockAllChecked = computed(() => stockList.value.length > 0 && stockList.value.every((_, i) => stockSel.value.has(i)));
+const toggleStockAll = () => { stockSel.value = stockAllChecked.value ? new Set() : new Set(stockList.value.map((_, i) => i)); };
+
+/* 上下架状态流转（与店铺商品同源枚举）：销售中→下架；其余→上架 */
+const shelfLabel = (s: SgStatus) => (s === 'selling' ? '下架' : '上架');
+const applyShelf = (row: { goodsStatus: SgStatus }) => {
+  if (row.goodsStatus === 'selling') {
+    row.goodsStatus = 'offManual';
+    pushToast('已下架：商品状态变更为已下架');
+  } else {
+    row.goodsStatus = 'selling';
+    pushToast('已上架：商品状态变更为销售中');
+  }
+};
+/* 批量下架（亏损商品）：勾选项统一转已下架 */
+const batchOffLoss = () => {
+  const n = lossSel.value.size;
+  if (!n) return;
+  for (const i of lossSel.value) lossList.value[i].goodsStatus = 'offManual';
+  lossSel.value = new Set();
+  pushToast(`批量下架成功：已下架 ${n} 件商品`);
+};
+/* 批量调价（缺货商品）：复用店铺商品批量调价弹窗 */
+const stockBpOpen = ref(false);
+const onStockBpOk = (msg: string) => {
+  pushToast(msg);
+  stockSel.value = new Set();
+};
+/* 批量调价（亏损商品）：亏损主因是定价，与缺货同源复用批量调价弹窗 */
+const lossBpOpen = ref(false);
+const onLossBpOk = (msg: string) => {
+  pushToast(msg);
+  lossSel.value = new Set();
+};
 
 const timebarRef = ref<HTMLDivElement | null>(null);
 const metricWrapRef = ref<HTMLDivElement | null>(null);
@@ -241,6 +398,55 @@ const rangeText = computed(() => {
 });
 
 const trendKpi = computed(() => (trendMetric.value ? kpiItems.find((k) => k.metric === trendMetric.value) : undefined));
+
+/* 列表模式：把卡片 foot 拍平为 本期数值 / 环比上期 / 上期数值 三列，跟随指标选择过滤 */
+/* 列表模式排序：三数值列点击 降→升→取消（取消后回指标默认序，同概览页排序语言） */
+type ListSortKey = 'value' | 'delta' | 'prev';
+const listSort = ref<{ key: ListSortKey; dir: 'asc' | 'desc' } | null>(null);
+const toggleListSort = (key: ListSortKey) => {
+  if (listSort.value?.key !== key) listSort.value = { key, dir: 'desc' };
+  else if (listSort.value.dir === 'desc') listSort.value = { key, dir: 'asc' };
+  else listSort.value = null;
+};
+const listSortState = (key: ListSortKey): 'none' | 'asc' | 'desc' => (listSort.value?.key === key ? listSort.value.dir : 'none');
+/* 排序量级归一：支持万字单位（如 546.33万）；环比 ▼ 计负值 */
+const sortNum = (txt: string) => {
+  const n = parseNumberText(txt);
+  return txt.trim().endsWith('万') ? n * 10000 : n;
+};
+const listRows = computed(() =>
+  kpiItems
+    .filter((k) => selectedMetrics.value.includes(k.metric))
+    .map((k) => {
+      const lines = k.foot.flatMap((s) => s.lines.map((l) => ({ l, cls: s.cls ?? '' })));
+      const delta = lines.find((x) => /^[▼▲]/.test(x.l));
+      const prev = lines.find((x) => x.l.startsWith('上期'));
+      const prevText = prev ? prev.l.replace('上期 ', '') : '—';
+      return {
+        metric: k.metric,
+        value: k.value,
+        delta: delta ? delta.l : '—',
+        deltaCls: delta ? delta.cls : '',
+        prev: prevText,
+        valueNum: sortNum(k.value),
+        deltaNum: delta ? (delta.l.startsWith('▼') ? -1 : 1) * parseNumberText(delta.l.replace(/[▼▲]/g, '')) : 0,
+        prevNum: sortNum(prevText),
+      };
+    }),
+);
+const LIST_SORT_FIELD: Record<ListSortKey, 'valueNum' | 'deltaNum' | 'prevNum'> = {
+  value: 'valueNum',
+  delta: 'deltaNum',
+  prev: 'prevNum',
+};
+const visibleListRows = computed(() => {
+  const rows = listRows.value.slice();
+  if (!listSort.value) return rows;
+  const f = LIST_SORT_FIELD[listSort.value.key];
+  const dir = listSort.value.dir === 'asc' ? 1 : -1;
+  rows.sort((a, b) => (a[f] - b[f]) * dir);
+  return rows;
+});
 </script>
 
 <template>
@@ -483,12 +689,10 @@ const trendKpi = computed(() => (trendMetric.value ? kpiItems.find((k) => k.metr
     <div class="dash-line">
       <BubbleSelect
         class-name="platformSelect"
-        default-value="数据模式"
+        :value="viewMode"
         :options="['视图模式', '列表模式', '对比模式']"
         @change="(v: string) => {
-          if (v && v !== '数据模式') {
-            console.log('已切换视图模式：' + v);
-          }
+          if (v) viewMode = v;
         }"
       />
       <BubbleSelect
@@ -548,7 +752,7 @@ const trendKpi = computed(() => (trendMetric.value ? kpiItems.find((k) => k.metr
     </div>
   </div>
 
-  <div class="kpis">
+  <div v-if="viewMode === '视图模式'" class="kpis">
     <div
       v-for="kpi in kpiItems"
       :key="kpi.metric"
@@ -567,17 +771,154 @@ const trendKpi = computed(() => (trendMetric.value ? kpiItems.find((k) => k.metr
     </div>
   </div>
 
+  <!-- 列表模式：指标明细表，行点击同卡片开趋势弹窗 -->
+  <div v-else-if="viewMode === '列表模式'" class="list-card">
+    <table class="list-table dash-metric-table">
+      <thead>
+        <tr>
+          <th :style="{ width: '240px' }">指标</th>
+          <SortTh label="本期数值" :state="listSortState('value')" @sort="toggleListSort('value')" />
+          <SortTh label="环比上期" :state="listSortState('delta')" @sort="toggleListSort('delta')" />
+          <SortTh label="上期数值" :state="listSortState('prev')" @sort="toggleListSort('prev')" />
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="row in visibleListRows" :key="row.metric" @click="trendMetric = row.metric">
+          <td>{{ row.metric }}</td>
+          <td class="dm-val">{{ row.value }}</td>
+          <td>
+            <span :class="row.deltaCls">{{ row.delta }}</span>
+          </td>
+          <td>{{ row.prev }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 对比模式：左右布局，左侧指标选择列，右侧同期对比趋势图 -->
+  <div v-else class="card cmp-card">
+    <div class="cmp-side">
+      <span class="cmp-title">对比指标</span>
+      <div class="cmp-chips">
+        <button
+          v-for="name in metricNames"
+          :key="name"
+          class="cmp-chip"
+          :class="cmpMetrics.includes(name) ? 'active' : ''"
+          @click="toggleCmp(name)"
+        >
+          {{ name }}
+        </button>
+      </div>
+    </div>
+    <div class="cmp-main">
+      <template v-if="cmpChart.series.length">
+      <div class="cmp-legend">
+        <span v-for="s in cmpChart.series" :key="s.metric" class="cmp-legend-item">
+          <span class="cmp-dot" :style="{ background: s.color }" />
+          {{ s.metric }}
+          <span class="cmp-val">{{ s.valueText }}</span>
+        </span>
+      </div>
+      <div ref="cmpWrapRef" class="cmp-chart">
+        <svg :viewBox="`0 0 ${CMP_W} ${CMP_H}`" @mousemove="onCmpMove" @mouseleave="onCmpLeave">
+          <line
+            v-for="(gy, gi) in cmpChart.grids"
+            :key="`g-${gi}`"
+            :x1="CMP_L"
+            :y1="gy"
+            :x2="CMP_W - CMP_R"
+            :y2="gy"
+            stroke="#e7eaf0"
+            stroke-dasharray="3 4"
+          />
+          <template v-for="xl in cmpChart.xLabels" :key="`x-${xl.i}`">
+            <text
+              v-if="xl.show"
+              :x="xl.x"
+              :y="CMP_H - 14"
+              text-anchor="middle"
+              font-size="10"
+              fill="#9aa3b2"
+            >
+              {{ xl.label }}
+            </text>
+          </template>
+          <template v-for="s in cmpChart.series" :key="s.metric">
+            <path :d="s.path" fill="none" :stroke="s.color" stroke-width="2.2" />
+            <circle
+              v-for="d in s.dots"
+              :key="`${s.metric}-${d.i}`"
+              :cx="d.cx"
+              :cy="d.cy"
+              :r="cmpHover?.i === d.i ? 4 : 2.4"
+              :fill="s.color"
+            />
+          </template>
+          <line
+            v-if="cmpHover && cmpChart.series.length"
+            :x1="cmpChart.xs[cmpHover.i]"
+            :x2="cmpChart.xs[cmpHover.i]"
+            :y1="CMP_T"
+            :y2="CMP_H - CMP_B"
+            stroke="#8a94a6"
+            stroke-dasharray="4 4"
+            opacity="0.5"
+          />
+        </svg>
+        <div
+          v-if="cmpHover && cmpChart.series.length"
+          class="cmp-tip"
+          :style="{
+            left: cmpHover.px + 'px',
+            top: cmpHover.py + 'px',
+            transform: cmpTipFlip ? 'translate(calc(-100% - 12px), -50%)' : 'translate(12px, -50%)',
+          }"
+        >
+          <div class="cmp-tip-date">{{ cmpChart.labels[cmpHover.i] }}</div>
+          <div v-for="s in cmpChart.series" :key="s.metric" class="cmp-tip-line">
+            <i :style="{ background: s.color }" />
+            {{ s.metric }}
+            <b>{{ formatChartValue(s.metric, s.values[cmpHover.i]) }}</b>
+          </div>
+        </div>
+      </div>
+      </template>
+      <div v-else class="cmp-empty">请选择对比指标</div>
+    </div>
+  </div>
+
   <div class="dashboard-lists">
+    <!-- 亏损/缺货合并单卡：tab 切换两表，头副行与批量按钮跟随当前 tab -->
     <div class="list-card">
       <div class="list-head">
         <div>
-          <h3>亏损商品</h3>
-          <div class="sub">仅展示利润异常商品，便于快速排查和处理</div>
+          <div class="dl-tabs">
+            <button type="button" class="dl-tab" :class="listTab === 'loss' ? 'active' : ''" @click="listTab = 'loss'">
+              亏损商品
+            </button>
+            <button type="button" class="dl-tab" :class="listTab === 'stock' ? 'active' : ''" @click="listTab = 'stock'">
+              缺货商品
+            </button>
+          </div>
+          <div class="sub">{{ listTab === 'loss' ? '仅展示利润异常商品，便于快速排查和处理' : '仅展示库存紧张或已缺货商品，便于补货跟进' }}</div>
+        </div>
+        <div class="list-batch">
+          <button v-if="listTab === 'loss'" class="sg-btn" :disabled="lossSel.size === 0" @click="lossBpOpen = true">
+            批量调价{{ lossSel.size ? `（${lossSel.size}）` : '' }}
+          </button>
+          <button v-if="listTab === 'loss'" class="sg-btn" :disabled="lossSel.size === 0" @click="batchOffLoss">
+            批量下架{{ lossSel.size ? `（${lossSel.size}）` : '' }}
+          </button>
+          <button v-else class="sg-btn" :disabled="stockSel.size === 0" @click="stockBpOpen = true">
+            批量调价{{ stockSel.size ? `（${stockSel.size}）` : '' }}
+          </button>
         </div>
       </div>
-      <table class="list-table">
+      <table v-if="listTab === 'loss'" class="list-table">
         <thead>
           <tr>
+            <th :style="{ width: '44px' }"><input type="checkbox" :checked="lossAllChecked" @change="toggleLossAll" /></th>
             <th :style="{ width: '56px' }">序号</th>
             <th>商品信息</th>
             <th>店铺</th>
@@ -585,13 +926,13 @@ const trendKpi = computed(() => (trendMetric.value ? kpiItems.find((k) => k.metr
             <th>销售金额</th>
             <th>新毛六利润</th>
             <th>新毛六利润率</th>
-            <th>核心问题</th>
-            <th>状态</th>
-            <th :style="{ width: '90px' }">操作</th>
+            <th>商品状态</th>
+            <th :style="{ width: '110px' }">操作</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, i) in lossRows" :key="i">
+          <tr v-for="(row, i) in lossList" :key="i">
+            <td><input type="checkbox" :checked="lossSel.has(i)" @change="toggleLossCheck(i)" /></td>
             <td>{{ i + 1 }}</td>
             <td class="item-info">
               <div class="item-title">{{ row.title }}</div>
@@ -610,33 +951,27 @@ const trendKpi = computed(() => (trendMetric.value ? kpiItems.find((k) => k.metr
             <td>
               <span class="badge-red">{{ row.rate }}</span>
             </td>
-            <td>{{ row.problem }}</td>
             <td>
-              <span :class="row.statusCls">{{ row.status }}</span>
+              <div class="sg-status">
+                <span class="sg-dot" :style="{ background: SG_STATUS_META[row.goodsStatus].dot }" />
+                <span :style="{ color: SG_STATUS_META[row.goodsStatus].color }">{{ SG_STATUS_META[row.goodsStatus].label }}</span>
+              </div>
             </td>
             <td>
               <a class="action-link" href="javascript:void(0)">
-                查看
+                详情
               </a>
-              <a class="action-link" href="javascript:void(0)">
-                处理
+              <a class="action-link" href="javascript:void(0)" @click="applyShelf(row)">
+                {{ shelfLabel(row.goodsStatus) }}
               </a>
             </td>
           </tr>
         </tbody>
       </table>
-    </div>
-
-    <div class="list-card">
-      <div class="list-head">
-        <div>
-          <h3>缺货商品</h3>
-          <div class="sub">仅展示库存紧张或已缺货商品，便于补货跟进</div>
-        </div>
-      </div>
-      <table class="list-table">
+      <table v-else class="list-table">
         <thead>
           <tr>
+            <th :style="{ width: '44px' }"><input type="checkbox" :checked="stockAllChecked" @change="toggleStockAll" /></th>
             <th :style="{ width: '56px' }">序号</th>
             <th>商品信息</th>
             <th>店铺</th>
@@ -644,13 +979,13 @@ const trendKpi = computed(() => (trendMetric.value ? kpiItems.find((k) => k.metr
             <th>昨日销量</th>
             <th>近7日销量</th>
             <th>库存数</th>
-            <th>风险说明</th>
-            <th>状态</th>
-            <th :style="{ width: '90px' }">操作</th>
+            <th>商品状态</th>
+            <th :style="{ width: '110px' }">操作</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, i) in stockRows" :key="i">
+          <tr v-for="(row, i) in stockList" :key="i">
+            <td><input type="checkbox" :checked="stockSel.has(i)" @change="toggleStockCheck(i)" /></td>
             <td>{{ i + 1 }}</td>
             <td class="item-info">
               <div class="item-title">{{ row.title }}</div>
@@ -667,22 +1002,41 @@ const trendKpi = computed(() => (trendMetric.value ? kpiItems.find((k) => k.metr
             <td>
               <span :class="row.stockCls">{{ row.stock }}</span>
             </td>
-            <td>{{ row.risk }}</td>
             <td>
-              <span :class="row.statusCls">{{ row.status }}</span>
+              <div class="sg-status">
+                <span class="sg-dot" :style="{ background: SG_STATUS_META[row.goodsStatus].dot }" />
+                <span :style="{ color: SG_STATUS_META[row.goodsStatus].color }">{{ SG_STATUS_META[row.goodsStatus].label }}</span>
+              </div>
             </td>
             <td>
               <a class="action-link" href="javascript:void(0)">
-                查看
+                详情
               </a>
-              <a class="action-link" href="javascript:void(0)">
-                补货
+              <a class="action-link" href="javascript:void(0)" @click="applyShelf(row)">
+                {{ shelfLabel(row.goodsStatus) }}
               </a>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
+  </div>
+
+  <!-- 缺货商品批量调价：复用店铺商品批量调价弹窗宿主 -->
+  <div class="pm-page pm-host">
+    <SgBatchPriceModal
+      v-if="stockBpOpen && stockSel.size > 0"
+      :count="stockSel.size"
+      @close="stockBpOpen = false"
+      @ok="onStockBpOk"
+    />
+    <!-- 亏损商品批量调价：同源复用 -->
+    <SgBatchPriceModal
+      v-if="lossBpOpen && lossSel.size > 0"
+      :count="lossSel.size"
+      @close="lossBpOpen = false"
+      @ok="onLossBpOk"
+    />
   </div>
 
   <TrendModal

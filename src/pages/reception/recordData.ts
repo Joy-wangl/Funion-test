@@ -1,6 +1,6 @@
 /* =========================================================
    接待记录弹窗 · 数据层：会话与聊天消息（公司/分组/客服三维度 + 回复状态）
-   回复状态三档：已回复（3 分钟内）/ 3分钟未回复（超 3 分钟才回复）/ 超时未回复（至今未回复）
+   回复状态三档：已回复（3 分钟内）/ 3分钟未回复（超 3 分钟才回复）/ 未回复（至今未回复）
    派生值按客服 ID 种子确定生成，刷新不变
    ========================================================= */
 import type { RcAgent } from './data';
@@ -13,14 +13,14 @@ export const RC_REPLY_TABS: { key: RcReplyState | 'all'; label: string }[] = [
   { key: 'all', label: '全部' },
   { key: 'replied', label: '已回复' },
   { key: 'min3', label: '3分钟未回复' },
-  { key: 'timeout', label: '超时未回复' },
+  { key: 'timeout', label: '未回复' },
 ];
 
 /** 状态标签文案与色档（绿/橙/红） */
 export const RC_REPLY_META: Record<RcReplyState, { label: string; cls: string }> = {
   replied: { label: '已回复', cls: 'ok' },
   min3: { label: '3分钟未回复', cls: 'warn' },
-  timeout: { label: '超时未回复', cls: 'bad' },
+  timeout: { label: '未回复', cls: 'bad' },
 };
 
 export interface RcOrderInfo { no: string; emoji: string; title: string; price: string }
@@ -156,7 +156,7 @@ const buildSession = (a: RcAgent, si: number, r: () => number): RcSession => {
     });
   }
 
-  /* 超时未回复：截到最后一条买家消息为止（人工始终未应答） */
+  /* 未回复：截到最后一条买家消息为止（人工始终未应答） */
   let list = msgs;
   if (reply === 'timeout') {
     for (let i = msgs.length - 1; i >= 0; i -= 1) {

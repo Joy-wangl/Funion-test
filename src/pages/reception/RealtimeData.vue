@@ -5,11 +5,14 @@
    列表卡：实时统计 chip + 最近更新时间 / 列表 / 总数分页
    四项指标（均响/未回复数/3分钟回复率/30秒响应率）按团队均值评判：
    绿=优于均值或达标 / 黄=劣于均值 20% 以内 / 红=劣于均值 20% 以上
-   （均响、未回复数越低越好，反向判断）；字体统一黑 + 更浅档浅底区分，
-   列头漏斗按评判等级筛选（与子表接待状态列头筛选同一交互）
+   （均响、未回复数越低越好，反向判断）；指标值统一黑、不整格铺浅底，
+   排名标签统一灰色（.tag 中性），评判等级口径仅保留在列头漏斗筛选；
+   每个指标值前置当前排名标签（第N名，当前查询结果内同值同名次），
+   列头 = SortTh 排序（降→升→取消）+ 漏斗等级筛选；ID 列置首
    ========================================================= */
 import { computed, ref } from 'vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
+import SortTh from '../../components/SortTh.vue';
 import { RC_COMPANIES, RC_COMPANY_GROUPS, RC_ALL_GROUPS, type RcAgent } from './data';
 
 const props = defineProps<{
@@ -96,6 +99,29 @@ const list = computed(() => base.value.filter((a) => {
   });
 }));
 
+/* ---------- 指标列排序（SortTh：降序 → 升序 → 取消） ---------- */
+const sortKey = ref<MetricKey | null>(null);
+const sortDir = ref<'asc' | 'desc'>('desc');
+const toggleSort = (k: MetricKey) => {
+  if (sortKey.value !== k) { sortKey.value = k; sortDir.value = 'desc'; }
+  else if (sortDir.value === 'desc') sortDir.value = 'asc';
+  else { sortKey.value = null; sortDir.value = 'desc'; }
+};
+const sortIco = (k: MetricKey): 'none' | 'asc' | 'desc' => (sortKey.value === k ? sortDir.value : 'none');
+const sortedList = computed(() => {
+  const k = sortKey.value;
+  if (!k) return list.value;
+  const dir = sortDir.value === 'desc' ? -1 : 1;
+  return [...list.value].sort((a, b) => dir * (a[k] - b[k]));
+});
+
+/* ---------- 当前排名（当前查询结果内）：越低越好升序、越高越好降序，同值同名次 ---------- */
+const LOWER_BETTER: Record<MetricKey, boolean> = { resp: true, unreplied: true, r3m: false, r30s: false };
+const rankOf = (k: MetricKey, a: RcAgent) => {
+  const sorted = [...list.value].sort((x, y) => (LOWER_BETTER[k] ? x[k] - y[k] : y[k] - x[k]));
+  return sorted.findIndex((x) => x[k] === a[k]) + 1;
+};
+
 /** 实时接待量：仅在线客服持有进行中会话（演示口径） */
 const recvOf = (a: RcAgent) => (a.status === '在线' ? 40 + ((a.id * 7) % 20) : 0);
 
@@ -119,7 +145,7 @@ const doRefresh = () => {
 /* ---------- 分页 ---------- */
 const pages = computed(() => Math.max(1, Math.ceil(list.value.length / pageSize.value)));
 const safePage = computed(() => Math.min(page.value, pages.value));
-const pageRows = computed(() => list.value.slice((safePage.value - 1) * pageSize.value, safePage.value * pageSize.value));
+const pageRows = computed(() => sortedList.value.slice((safePage.value - 1) * pageSize.value, safePage.value * pageSize.value));
 </script>
 
 <template>
@@ -158,7 +184,7 @@ const pageRows = computed(() => list.value.slice((safePage.value - 1) * pageSize
       </div>
     </div>
 
-    <!-- 列表区（独立白卡）：统计 chip + 更新时间 / 列表 / 评判注释 / 总数分页 -->
+    <!-- 列表区（独立白卡）：统计 chip + 更新时间 / 列表 / 总数分页 -->
     <div class="qc-body rc-table-card">
       <div class="rc-rt-bar">
         <div class="rc-rt-chips">
@@ -173,14 +199,19 @@ const pageRows = computed(() => list.value.slice((safePage.value - 1) * pageSize
         <table class="table rc-rt-table">
           <thead>
             <tr>
+              <th>ID</th>
               <th>客服</th>
               <th>分组</th>
-              <th>ID</th>
               <th>接待状态</th>
               <th>接待</th>
-              <th v-for="m in METRICS" :key="m.key">
-                <span class="rc-rt-th">
-                  {{ m.label }}
+              <SortTh
+                v-for="m in METRICS"
+                :key="m.key"
+                :label="m.label"
+                :state="sortIco(m.key)"
+                @sort="toggleSort(m.key)"
+              >
+                <span class="rc-col-anchor" @click.stop>
                   <span
                     class="rc-col-filter"
                     :class="{ on: !!colFilter[m.key] }"
@@ -204,27 +235,24 @@ const pageRows = computed(() => list.value.slice((safePage.value - 1) * pageSize
                     </div>
                   </template>
                 </span>
-              </th>
+              </SortTh>
             </tr>
           </thead>
           <tbody>
             <tr v-for="a in pageRows" :key="a.id">
+              <td class="rc-dim">ID: {{ a.id }}</td>
               <td><b>{{ a.name }}</b></td>
               <td><span class="tag blue">{{ a.group }}</span></td>
-              <td class="rc-dim">ID: {{ a.id }}</td>
               <td><span :class="STATUS_CLS[a.status]">{{ a.status }}</span></td>
               <td>{{ recvOf(a) }}</td>
-              <td :class="`rc-lv-${levelsOf(a).resp}`">{{ a.resp }}s</td>
-              <td :class="`rc-lv-${levelsOf(a).unreplied}`">{{ a.unreplied }}条</td>
-              <td :class="`rc-lv-${levelsOf(a).r3m}`">{{ a.r3m }}%</td>
-              <td :class="`rc-lv-${levelsOf(a).r30s}`">{{ a.r30s }}%</td>
+              <td class="rc-rt-val"><span class="tag rc-rt-rank">第{{ rankOf('resp', a) }}名</span>{{ a.resp }}s</td>
+              <td class="rc-rt-val"><span class="tag rc-rt-rank">第{{ rankOf('unreplied', a) }}名</span>{{ a.unreplied }}条</td>
+              <td class="rc-rt-val"><span class="tag rc-rt-rank">第{{ rankOf('r3m', a) }}名</span>{{ a.r3m }}%</td>
+              <td class="rc-rt-val"><span class="tag rc-rt-rank">第{{ rankOf('r30s', a) }}名</span>{{ a.r30s }}%</td>
             </tr>
             <tr v-if="pageRows.length === 0"><td colspan="9" class="rc-sub-empty">暂无数据</td></tr>
           </tbody>
         </table>
-      </div>
-      <div class="rc-rt-note">
-        评判标准：<i class="rc-rt-dot g" /> 优异，高于团队均值或达标；<i class="rc-rt-dot y" /> 仍需努力，低于团队均值 20% 以内；<i class="rc-rt-dot r" /> 未达标，低于团队均值 20% 以上（均响、未回复数为越低越好，反向判断）；单元格以浅底区分（字体统一黑），列头漏斗可按评判等级筛选对应指标。
       </div>
       <div class="rc-table-foot rc-rt-foot">
         <span class="rc-rt-total">总数: {{ list.length }}</span>

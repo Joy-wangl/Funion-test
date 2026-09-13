@@ -21,6 +21,32 @@ const copy = (text: string) => {
 /** 列表行操作：与运营管理操作列共用 sgRowActions，保持同步 */
 const rowActions = (p: SgProduct) => sgRowActions(p.status);
 
+/* 删除：危险操作，强提醒二次确认后才允许删除，避免误删 */
+const delTarget = ref<SgProduct | null>(null);
+const removedIds = ref<Set<string>>(new Set());
+const confirmDel = () => {
+  const p = delTarget.value;
+  if (!p) return;
+  const n = new Set(removedIds.value);
+  n.add(p.id);
+  removedIds.value = n;
+  const c = new Set(checked.value);
+  c.delete(p.id);
+  checked.value = c;
+  pushToast(`已删除：商品「${p.title}」已从店铺商品列表移除`);
+  delTarget.value = null;
+};
+/** 操作列：≤3 平铺、超出收「更多」；删除为危险动作固定第 3 位平铺，关联商品溢出时收「更多」 */
+type SgOp = { label: string; danger?: boolean; run: () => void };
+const sgOps = (p: SgProduct): SgOp[] => {
+  const ops: SgOp[] = rowActions(p).map((a) => ({ label: a, run: () => { if (a === '商品详情') detail.value = p; } }));
+  ops.push({ label: '删除', danger: true, run: () => { delTarget.value = p; } });
+  if (sgWarnType(p)) ops.push({ label: '关联商品', run: () => { relTarget.value = p; } });
+  return ops;
+};
+const flatOps = (p: SgProduct) => sgOps(p).slice(0, 3);
+const moreOps = (p: SgProduct) => sgOps(p).slice(3).map((o) => ({ label: o.label, onClick: o.run }));
+
 const tab = ref<SgTab>('视频号');
 const chip = ref('all');
 /* 已下架 tab 下的下架类型筛选 */
@@ -143,6 +169,7 @@ const rows = computed(() => {
   }
   const chipDef = SG_CHIPS.find((c) => c.key === chip.value) ?? SG_CHIPS[0];
   const list = sgProducts[tab.value].filter((p) => {
+    if (removedIds.value.has(p.id)) return false;
     if (!chipDef.match(p.status)) return false;
     if (chip.value === 'off' && offType.value !== '全部' && (!p.offType || SG_OFF_GROUP[p.offType] !== offType.value)) return false;
     if (applied.value.store && !p.store.includes(applied.value.store)) return false;
@@ -202,14 +229,14 @@ const hideOffPop = () => { offPop.show = false; };
 const countOf = (key: string) => {
   const jm = tab.value === '京麦';
   const def = (jm ? JM_CHIPS : SG_CHIPS).find((c) => c.key === key)!;
-  return (jm ? jmList.value : sgProducts[tab.value]).filter((p) => def.match(p.status)).length;
+  return (jm ? jmList.value : sgProducts[tab.value]).filter((p) => def.match(p.status) && (jm || !removedIds.value.has(p.id))).length;
 };
 /* 状态页签：京麦用商品列表子菜单口径，其余平台用通用口径 */
 const chipsDef = computed(() => (tab.value === '京麦' ? JM_CHIPS : SG_CHIPS));
 
 /* 批量调价除淘宝外各 TAB 提供，且仅「销售中」状态商品可勾选调价；京麦走自己的批量改价/改库存 */
 const canPrice = computed(() => tab.value !== '淘宝' && tab.value !== '京麦');
-const sellingSel = computed(() => sgProducts[tab.value].filter((p) => checked.value.has(p.id) && p.status === 'selling').length);
+const sellingSel = computed(() => sgProducts[tab.value].filter((p) => checked.value.has(p.id) && p.status === 'selling' && !removedIds.value.has(p.id)).length);
 const sellRows = computed(() => rows.value.filter((p) => p.status === 'selling'));
 const allChecked = computed(() => sellRows.value.length > 0 && sellRows.value.every((p) => checked.value.has(p.id)));
 const toggleCheck = (id: string) => {
@@ -461,20 +488,16 @@ const onTab = (t: SgTab) => {
               <td>
                 <div class="sg-acts">
                   <a
-                    v-for="a in rowActions(p)"
-                    :key="a"
+                    v-for="o in flatOps(p)"
+                    :key="o.label"
                     class="sg-link"
+                    :class="{ danger: o.danger }"
                     href="javascript:void(0)"
-                    @click.prevent="a === '商品详情' ? (detail = p) : null"
+                    @click.prevent="o.run()"
                   >
-                    {{ a }}
+                    {{ o.label }}
                   </a>
-                  <a
-                    v-if="sgWarnType(p)"
-                    class="sg-link"
-                    href="javascript:void(0)"
-                    @click.prevent="relTarget = p"
-                  >关联商品</a>
+                  <MoreActions v-if="moreOps(p).length" :items="moreOps(p)" />
                 </div>
               </td>
             </tr>
@@ -600,6 +623,27 @@ const onTab = (t: SgTab) => {
         <template #foot>
           <button class="btn" @click="jmDelTarget = null">取消</button>
           <button class="btn primary" @click="confirmJmDelete">确认删除</button>
+        </template>
+      </Modal>
+      <!-- 店铺商品删除：强提醒二次确认，删除后不可恢复 -->
+      <Modal v-if="delTarget" title="删除商品" sub="删除后不可恢复，请谨慎确认" @close="delTarget = null">
+        <div class="bp-rows">
+          <div class="bp-row">
+            <span class="bp-label">商品</span>
+            <span>{{ delTarget.title }}（{{ delTarget.id }}）</span>
+          </div>
+          <div class="bp-row">
+            <span class="bp-label">当前状态</span>
+            <span>{{ SG_STATUS_META[delTarget.status].label }}</span>
+          </div>
+          <div class="bp-row">
+            <span class="bp-label">影响</span>
+            <span>该商品将从店铺商品列表移除，销量统计与预警同步清除，且无法恢复</span>
+          </div>
+        </div>
+        <template #foot>
+          <button class="btn" @click="delTarget = null">取消</button>
+          <button class="btn danger" @click="confirmDel">确认删除</button>
         </template>
       </Modal>
     </div>

@@ -201,6 +201,21 @@
 /* 消息流：灰底 + 白色卡片，疏朗间距 */
 .gmsg-list { max-height: 640px; overflow: auto; background: #f5f6f8; padding: 16px 20px; }
 
+/* 掉店提醒操作行：前往按钮右置（直达店铺管理-管理账号抽屉） */
+.gmsg-acts { display: flex; justify-content: flex-end; margin-top: 10px; }
+
+.gmsg-go {
+  padding: 4px 16px;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  background: #fff;
+  color: var(--color-primary);
+  font-size: var(--fs-aux);
+  cursor: pointer;
+}
+
+.gmsg-go:hover { background: var(--color-primary-light); }
+
 .gmsg-item {
   background: #fff;
   border-radius: var(--radius-xl);
@@ -238,3 +253,46 @@
 .gmsg-kv .v { min-width: 0; color: var(--color-text); }
 
 .gmsg-empty { padding: 48px 0; text-align: center; font-size: var(--fs-base); color: var(--color-text-3); }
+
+/* 离开蜜蜂插件（脏态）二次确认：全局最高层级，盖住插件弹窗与悬浮球 */
+.app-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 26, 40, 0.45);
+}
+
+.app-confirm-card {
+  width: 360px;
+  max-width: 92vw;
+  padding: 18px 22px 20px;
+  background: #fff;
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+
+.app-confirm-card b { display: block; font-size: var(--fs-title); color: var(--color-text); }
+
+.app-confirm-card p { margin: 8px 0 16px; font-size: var(--fs-base); line-height: 1.6; color: var(--color-text-2); }
+
+.app-confirm-foot { display: flex; justify-content: flex-end; gap: 10px; }
+
+.app-confirm-foot button {
+  padding: 7px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #fff;
+  font-size: var(--fs-base);
+  color: var(--color-text-2);
+  cursor: pointer;
+}
+
+.app-confirm-foot button:hover { color: var(--color-text); border-color: var(--color-text-3); }
+
+.app-confirm-foot button.danger { background: var(--color-danger-light); border-color: transparent; color: var(--color-danger); }
+
+.app-confirm-foot button.danger:hover { background: var(--color-danger); color: #fff; }

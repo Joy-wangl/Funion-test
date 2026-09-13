@@ -14,13 +14,10 @@
   /* ── 状态色（仅用于语义状态，不得自增色值） ── */
   --color-success: #00b42a;
   --color-success-light: #e8ffea;
-  --color-success-light-2: #f4fff5; /* 评判单元格浅底（比 -light 更浅一档，不扎眼） */
   --color-warning: #ff7d00;
   --color-warning-light: #fff7e8;
-  --color-warning-light-2: #fffcf5;
   --color-danger: #f53f3f;
   --color-danger-light: #ffece8;
-  --color-danger-light-2: #fff7f5;
 
   /* ── 文本层级：标题 / 正文 / 辅助 / 占位 ── */
   --color-text: #202532;
