@@ -380,6 +380,8 @@ export function platformOfStore(store: string): string {
 }
 
 /** 平台 LOGO（店铺前圆角正方形展示） */
+/* 视频号平台无 logo 资源：橙底「视」字 SVG 占位（data-uri） */
+const wxLogo = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#fa9a3e"/><text x="16" y="22" font-size="15" fill="#fff" text-anchor="middle" font-family="sans-serif">视</text></svg>');
 export const PLATFORM_LOGO: Record<string, string> = {
   淘宝: '/logos/taobao.png',
   天猫: '/logos/tmall.png',
@@ -388,6 +390,7 @@ export const PLATFORM_LOGO: Record<string, string> = {
   快手: '/logos/kuaishou.png',
   京麦: '/logos/jd.png',
   京东: '/logos/jd.png',
+  视频号: wxLogo,
 };
 
 /* ---------- 商品创建（淘宝） ---------- */

@@ -6,6 +6,8 @@ import { BEE_PLATFORM_LOGO, PUB_STATUS_META, beePubTasks, pubTaskMeta, retryFail
 import type { BeePubSub, BeePubTask } from './data';
 
 const emit = defineEmits<{ (e: 'close'): void }>();
+/* tone=fs：Funion s 复用任务管理（品牌标题/渐变 logo） */
+withDefaults(defineProps<{ tone?: 'bee' | 'fs' }>(), { tone: 'bee' });
 
 /* 筛选：商品名称搜索 + 任务状态分段，直接生效 */
 const kw = ref('');
@@ -41,8 +43,8 @@ const onRetryTask = (t: BeePubTask) => {
   <div class="bp-page">
     <!-- 顶栏 -->
     <div class="bp-head">
-      <span class="bee-logo">🐝</span>
-      <span class="bp-title">蜜蜂搬家 · 任务管理</span>
+      <span class="bee-logo" :class="{ fs: tone === 'fs' }">{{ tone === 'fs' ? 'S' : '🐝' }}</span>
+      <span class="bp-title">{{ tone === 'fs' ? 'Funion s' : '蜜蜂搬家' }} · 任务管理</span>
       <div class="bp-head-r">
         <button class="bp-close" title="关闭" @click="emit('close')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>

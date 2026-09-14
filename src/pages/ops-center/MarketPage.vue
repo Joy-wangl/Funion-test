@@ -71,6 +71,17 @@ const openAddTip = (e: MouseEvent) => {
   addTip.value = { x: e.clientX + 4, y: e.clientY + 4 };
 };
 
+/* 创建任务弹窗 */
+const createModal = ref(false);
+const createForm = ref({ name: '', topic: '', count: '30' });
+const openCreate = () => { createForm.value = { name: '', topic: '', count: '30' }; createModal.value = true; };
+const confirmCreate = () => {
+  if (!createForm.value.name.trim()) { pushToast('请输入任务名称', 'error'); return; }
+  if (!createForm.value.topic.trim()) { pushToast('请输入搜索主题', 'error'); return; }
+  createModal.value = false;
+  pushToast('任务创建成功');
+};
+
 /* 全网搜索：跳转商机中心-全网搜索页 */
 const opsGo = inject<(target: 'search') => void>('opsGo');
 /* 前往顺买商机应用：跨应用切换顶层 tab（App 层 provide） */
@@ -84,6 +95,7 @@ const goApp = inject<(key: string) => void>('goApp');
         <div v-for="t in TABS" :key="t.key" class="mk2-tab" :class="{ active: tab === t.key }" @click="switchTab(t.key)">{{ t.label }}</div>
       </div>
       <div class="mk2-top-acts">
+        <button class="sg-btn primary" @click="openCreate">创建任务</button>
         <button class="sg-btn" @click="goApp?.('shunmai')">前往顺买商机应用</button>
         <button class="sg-btn primary" @click="pushToast('列表已刷新')">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" /></svg>
@@ -195,6 +207,33 @@ const goApp = inject<(key: string) => void>('goApp');
         </div>
       </div>
     </div>
+
+    <!-- 创建任务弹窗 -->
+    <Teleport to="body">
+      <div v-if="createModal" class="mk-create-mask" @click.self="createModal = false">
+        <div class="mk-create-modal">
+          <div class="mk-create-head">新建抓取任务</div>
+          <div class="mk-create-body">
+            <div class="sg-field">
+              <label>任务名称</label>
+              <input class="sg-input" placeholder="请输入任务名称" :value="createForm.name" @input="createForm = { ...createForm, name: ($event.target as HTMLInputElement).value }" />
+            </div>
+            <div class="sg-field">
+              <label>搜索主题</label>
+              <input class="sg-input" placeholder="请输入搜索主题" :value="createForm.topic" @input="createForm = { ...createForm, topic: ($event.target as HTMLInputElement).value }" />
+            </div>
+            <div class="sg-field">
+              <label>抓取条数</label>
+              <input class="sg-input" :value="createForm.count" @input="createForm = { ...createForm, count: ($event.target as HTMLInputElement).value }" />
+            </div>
+          </div>
+          <div class="mk-create-foot">
+            <button class="sg-btn" @click="createModal = false">取消</button>
+            <button class="sg-btn primary" @click="confirmCreate">创建</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <Teleport to="body">
       <div

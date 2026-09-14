@@ -7,8 +7,9 @@ import { pushToast } from '../../components/toast';
 import { BEE_PLATFORMS, BEE_PLATFORM_LOGO, beePlatEnabled, beeProducts, beeShops, beeStrategies, createPubTasks, shipTimeLabel } from './data';
 import type { BeeProduct, BeeShop, BeeStrategy } from './data';
 
-const props = defineProps<{ userName: string }>();
-const emit = defineEmits<{ (e: 'close'): void }>();
+/* tone=fs：Funion s 复用选品库（品牌标题/渐变 logo，行内多一个 AI美化 直达出口） */
+const props = withDefaults(defineProps<{ userName: string; tone?: 'bee' | 'fs' }>(), { tone: 'bee' });
+const emit = defineEmits<{ (e: 'close'): void; (e: 'beautify', p: BeeProduct): void }>();
 
 const rows = ref<BeeProduct[]>([...beeProducts]);
 
@@ -209,8 +210,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
   <div class="bp-page">
     <!-- 顶栏 -->
     <div class="bp-head">
-      <span class="bee-logo">🐝</span>
-      <span class="bp-title">蜜蜂搬家 · 选品库</span>
+      <span class="bee-logo" :class="{ fs: tone === 'fs' }">{{ tone === 'fs' ? 'S' : '🐝' }}</span>
+      <span class="bp-title">{{ tone === 'fs' ? 'Funion s' : '蜜蜂搬家' }} · 选品库</span>
       <div class="bp-head-r">
         <span class="bp-user">{{ userName }}</span>
         <button class="bp-close" title="关闭" @click="emit('close')">
@@ -294,6 +295,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
               <td>
                 <div class="bp-acts">
                   <a href="javascript:void(0)" @click.prevent="detailTarget = p">详情</a>
+                  <a v-if="tone === 'fs'" href="javascript:void(0)" @click.prevent="emit('beautify', p)">AI美化</a>
                   <!-- 待完善＝资料未维护，不展示发布；资料维护入口在商品名称点击 -->
                   <a v-if="p.complete" href="javascript:void(0)" @click.prevent="openPub([p])">发布</a>
                   <a class="del" href="javascript:void(0)" @click.prevent="delConfirm = { batch: false, target: p }">删除</a>
@@ -333,6 +335,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
       <BeeDetail
         ref="detailRef"
         :product="detailTarget"
+        :tone="tone"
         @close="requestCloseDetail"
         @pub="(p) => { detailTarget = null; openPub([p]); }"
       />

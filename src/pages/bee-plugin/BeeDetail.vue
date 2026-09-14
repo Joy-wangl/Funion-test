@@ -5,7 +5,7 @@ import { BEE_PLATFORM_LOGO } from './data';
 import type { BeeProduct } from './data';
 import { sgDetail } from '../ops-center/shopGoodsData';
 
-const props = defineProps<{ product: BeeProduct }>();
+const props = withDefaults(defineProps<{ product: BeeProduct; tone?: 'bee' | 'fs' }>(), { tone: 'bee' });
 const emit = defineEmits<{ (e: 'close'): void; (e: 'pub', p: BeeProduct): void }>();
 
 /* 内容与智能运营中心商品详情同源，布局对齐千牛发布页：左标签右内容、紧凑表单行、方格图位、SKU 价格/库存列 */
@@ -66,8 +66,8 @@ defineExpose({ leaveHint });
   <div class="bee-dialog wide qd-page">
     <!-- 顶栏 -->
     <div class="bp-head">
-      <span class="bee-logo">🐝</span>
-      <span class="bp-title">蜜蜂搬家 · 商品详情</span>
+      <span class="bee-logo" :class="{ fs: tone === 'fs' }">{{ tone === 'fs' ? 'S' : '🐝' }}</span>
+      <span class="bp-title">{{ tone === 'fs' ? 'Funion s' : '蜜蜂搬家' }} · 商品详情</span>
       <div class="bp-head-r">
         <button v-if="!editing" class="bp-btn" @click="startEdit">编辑</button>
         <button class="bp-btn ai" :disabled="aiBusy" @click="aiBeautify">

@@ -138,7 +138,7 @@ const railMenus: Record<string, { title: string; subs: RailSub[] }> = {
   taskCenter: { title: '任务中心', subs: [{ name: '任务中心', target: 'taskCenter' }] },
   strategy: { title: '商品策略', subs: [{ name: '商品策略', target: 'strategy' }] },
   aiAssistant: { title: 'AI助手', subs: [{ name: 'AI助手', target: 'aiAssistant' }] },
-  automation: { title: '自动化中心', subs: [{ name: '视频号全店搬家', target: 'move' }] },
+  automation: { title: '自动化中心', subs: [{ name: '自动化任务', target: 'move' }] },
   permission: { title: '权限设置', subs: permItems.map((p) => ({ name: p.name, target: p.target })) },
 };
 const railPop = ref<{ key: string; x: number; y: number } | null>(null);
@@ -270,7 +270,7 @@ const onMsgJump = (id: string) => {
           </div>
           <div class="subnav-wrap" :class="automationOpen ? 'show' : ''">
             <div class="subnav" :class="active === 'move' ? 'active' : ''" @click.stop="onSubnav('move', 'move')">
-              视频号全店搬家
+              自动化任务
             </div>
           </div>
           <div class="nav nav-parent" :class="permissionOpen ? 'open' : ''" @click.stop="toggleGroup('permission')" @mouseenter="railEnter('permission', $event)" @mouseleave="railLeave()">

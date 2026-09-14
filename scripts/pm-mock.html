@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>项目管理(IT部) 出图 mock</title>
+<style>
+body { margin: 0; padding: 48px 0; background: #fff; font-family: Arial, "Microsoft YaHei", sans-serif; color: #202532; }
+.shot { width: 1600px; margin: 0 auto 56px; }
+.shot-logo { width: 1024px; height: 1024px; margin: 0 auto 56px; }
+.shot-logo svg { width: 100%; height: 100%; display: block; }
+
+/* ── 外壳（同 Funion 模块范式） ── */
+.pm-center { display: flex; background: #f5f7fb; color: #202532; }
+.shot.pm-center { min-height: 0; }
+.pm-center .pm-side { width: 220px; flex: none; background: #fff; border-right: 1px solid #eceff4; padding: 16px 12px; }
+.pm-center .pm-brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px 14px; border-bottom: 1px solid #f0f2f6; margin-bottom: 8px; }
+.pm-center .pm-brand-logo { width: 34px; height: 34px; border-radius: 9px; display: block; }
+.pm-center .pm-brand-name { font-size: 15px; font-weight: 700; color: #232b3a; }
+.pm-center .pm-brand-dept { margin-left: auto; font-size: 11px; font-style: normal; color: #4f7cff; background: #eef3ff; border-radius: 6px; padding: 2px 8px; }
+.pm-center .pm-nav { display: flex; flex-direction: column; gap: 4px; }
+.pm-center .pm-nav-item { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: none; background: transparent; border-radius: 10px; font-size: 13px; color: #4f5665; text-align: left; }
+.pm-center .pm-nav-item.active { background: #eef3ff; color: #4f7cff; font-weight: 600; }
+.pm-center .pm-nav-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .55; flex: none; }
+.pm-center .pm-main { flex: 1; min-width: 0; padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+
+/* ── 卡片通用 ── */
+.pm-center .pm-card { background: #fff; border: 1px solid #eef0f4; border-radius: 12px; }
+.pm-center .pm-card-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid #f0f2f6; }
+.pm-center .pm-sec-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #232b3a; }
+.pm-center .pm-sec-title::before { content: ''; width: 3px; height: 14px; border-radius: 2px; background: #4f7cff; }
+.pm-center .pm-card-body { padding: 16px 18px; }
+
+/* ── 头部信息卡 ── */
+.pm-center .pm-head { display: flex; gap: 16px; padding: 18px; }
+.pm-center .pm-head-ava { flex: none; width: 52px; height: 52px; border-radius: 12px; background: #eef3ff; color: #4f7cff; font-size: 20px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.pm-center .pm-head-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.pm-center .pm-head-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pm-center .pm-head-name { font-size: 17px; font-weight: 700; color: #232b3a; }
+.pm-center .pm-head-actions { display: flex; gap: 8px; flex: none; }
+.pm-center .pm-tag { font-size: 12px; border-radius: 6px; padding: 2px 8px; }
+.pm-center .pm-tag.blue { background: #eef3ff; color: #4f7cff; }
+.pm-center .pm-tag.green { background: #e8ffea; color: #00b42a; }
+.pm-center .pm-tag.orange { background: #fff7e8; color: #ff7d00; }
+.pm-center .pm-tag.red { background: #ffece8; color: #f53f3f; }
+.pm-center .pm-tag.gray { background: #f2f3f5; color: #8b92a1; }
+.pm-center .pm-kv { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 24px; margin: 0; }
+.pm-center .pm-kv.col1 { grid-template-columns: 1fr; }
+.pm-center .pm-kv > div { display: flex; gap: 8px; font-size: 12px; min-width: 0; }
+.pm-center .pm-kv dt { color: #8b92a1; flex: none; }
+.pm-center .pm-kv dd { margin: 0; color: #445066; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pm-center .pm-prog { display: flex; align-items: center; gap: 10px; }
+.pm-center .pm-prog-bar { flex: 1; height: 6px; border-radius: 3px; background: #eef0f4; overflow: hidden; }
+.pm-center .pm-prog-bar > i { display: block; height: 100%; border-radius: 3px; background: #4f7cff; }
+.pm-center .pm-prog-num { font-size: 12px; color: #4f7cff; font-weight: 600; flex: none; }
+.pm-center .pm-btn { height: 32px; padding: 0 14px; border-radius: 8px; border: 1px solid #dcdfe6; background: #fff; color: #445066; font-size: 13px; }
+.pm-center .pm-btn.primary { background: #4f7cff; border-color: #4f7cff; color: #fff; }
+
+/* ── 统计卡 ── */
+.pm-center .pm-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.pm-center .pm-stat { background: #fff; border: 1px solid #eef0f4; border-radius: 12px; padding: 14px 18px; display: flex; flex-direction: column; gap: 6px; }
+.pm-center .pm-stat b { font-size: 22px; color: #232b3a; }
+.pm-center .pm-stat span { font-size: 12px; color: #8b92a1; }
+.pm-center .pm-stat.green b { color: #00b42a; }
+.pm-center .pm-stat.blue b { color: #4f7cff; }
+.pm-center .pm-stat.red b { color: #f53f3f; }
+
+/* ── 双栏 ── */
+.pm-center .pm-cols { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px; align-items: start; }
+.pm-center .pm-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+/* ── 里程碑 ── */
+.pm-center .pm-ms { list-style: none; margin: 0; padding: 2px 0 0; }
+.pm-center .pm-ms li { position: relative; padding: 0 0 18px 22px; }
+.pm-center .pm-ms li:last-child { padding-bottom: 4px; }
+.pm-center .pm-ms li::before { content: ''; position: absolute; left: 4px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: #d8dce3; }
+.pm-center .pm-ms li::after { content: ''; position: absolute; left: 8px; top: 16px; bottom: 0; width: 2px; background: #eef0f4; }
+.pm-center .pm-ms li:last-child::after { display: none; }
+.pm-center .pm-ms li.done::before { background: #00b42a; }
+.pm-center .pm-ms li.doing::before { background: #4f7cff; box-shadow: 0 0 0 3px #eef3ff; }
+.pm-center .pm-ms-name { font-size: 13px; color: #232b3a; font-weight: 600; }
+.pm-center .pm-ms-date { font-size: 12px; color: #8b92a1; margin-top: 2px; }
+
+/* ── 表格 ── */
+.pm-center .pm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.pm-center .pm-table th { text-align: left; color: #8b92a1; font-weight: 600; padding: 10px 12px; background: #fafbfc; border-bottom: 1px solid #f0f2f6; }
+.pm-center .pm-table td { padding: 10px 12px; border-bottom: 1px solid #f4f5f8; color: #445066; }
+.pm-center .pm-table tbody tr:last-child td { border-bottom: none; }
+.pm-center .pm-link { color: #4f7cff; font-size: 13px; }
+
+/* ── 成员 ── */
+.pm-center .pm-member { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+.pm-center .pm-ava { flex: none; width: 30px; height: 30px; border-radius: 50%; color: #fff; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.pm-center .pm-member-name { font-size: 13px; color: #232b3a; }
+.pm-center .pm-member-role { margin-left: auto; font-size: 12px; color: #8b92a1; }
+
+/* ── 状态流 ── */
+.pm-center .pm-steps { display: flex; align-items: center; padding: 18px; }
+.pm-center .pm-step { display: flex; align-items: center; gap: 8px; flex: none; }
+.pm-center .pm-step i { width: 22px; height: 22px; border-radius: 50%; background: #f2f3f5; color: #8b92a1; font-size: 12px; font-style: normal; display: flex; align-items: center; justify-content: center; }
+.pm-center .pm-step span { font-size: 13px; color: #8b92a1; }
+.pm-center .pm-step.done i { background: #e8ffea; color: #00b42a; }
+.pm-center .pm-step.done span { color: #00b42a; }
+.pm-center .pm-step.cur i { background: #4f7cff; color: #fff; }
+.pm-center .pm-step.cur span { color: #4f7cff; font-weight: 600; }
+.pm-center .pm-step-line { flex: 1; height: 2px; background: #eef0f4; margin: 0 10px; }
+.pm-center .pm-step-line.done { background: #bfe8c6; }
+
+/* ── 描述/子任务/评论 ── */
+.pm-center .pm-desc { font-size: 13px; color: #445066; line-height: 1.8; margin: 0; }
+.pm-center .pm-sub { display: flex; flex-direction: column; gap: 8px; }
+.pm-center .pm-sub label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #445066; }
+.pm-center .pm-sub .box { width: 14px; height: 14px; border-radius: 4px; border: 1px solid #dcdfe6; flex: none; }
+.pm-center .pm-sub .box.on { background: #4f7cff; border-color: #4f7cff; position: relative; }
+.pm-center .pm-sub .box.on::after { content: '✓'; color: #fff; font-size: 10px; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.pm-center .pm-sub label.done span { color: #8b92a1; text-decoration: line-through; }
+.pm-center .pm-sub-prog { margin-left: auto; font-size: 12px; color: #8b92a1; }
+.pm-center .pm-cmts { display: flex; flex-direction: column; gap: 12px; }
+.pm-center .pm-cmt { display: flex; gap: 10px; }
+.pm-center .pm-cmt-body { flex: 1; min-width: 0; background: #f7f8fa; border-radius: 10px; padding: 10px 12px; }
+.pm-center .pm-cmt-head { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #8b92a1; }
+.pm-center .pm-cmt-user { color: #232b3a; font-weight: 600; }
+.pm-center .pm-cmt-text { font-size: 13px; color: #445066; margin-top: 4px; line-height: 1.7; }
+.pm-center .pm-cmt-form { display: flex; gap: 8px; align-items: flex-start; margin-top: 4px; }
+.pm-center .pm-cmt-form .ta { flex: 1; min-height: 56px; border: 1px solid #dcdfe6; border-radius: 8px; padding: 8px 10px; font-size: 13px; color: #c9cdd4; }
+
+/* ── 迭代看板 ── */
+.pm-center .pm-board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 16px 18px; }
+.pm-center .pm-bcol { background: #f7f8fa; border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+.pm-center .pm-bcol-head { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #445066; font-weight: 600; padding: 2px 4px; }
+.pm-center .pm-bcol-head i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.pm-center .pm-bcol-head em { margin-left: auto; font-style: normal; color: #8b92a1; font-weight: 400; }
+.pm-center .pm-kcard { background: #fff; border: 1px solid #eef0f4; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.pm-center .pm-kcard-top { display: flex; align-items: center; gap: 6px; }
+.pm-center .pm-kcard b { font-size: 13px; color: #232b3a; font-weight: 600; line-height: 1.5; }
+.pm-center .pm-kcard-foot { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #8b92a1; }
+.pm-center .pm-kcard-foot .pm-ava { width: 20px; height: 20px; font-size: 10px; }
+.pm-center .pm-kcard-foot em { margin-left: auto; font-style: normal; }
+.pm-center .pm-kcard-foot em.over { color: #f53f3f; }
+.pm-center .pm-risk { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #445066; }
+</style>
+</head>
+<body>
+
+<!-- ① LOGO 1:1 -->
+<div id="pm-logo" class="shot-logo">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+    <rect width="64" height="64" rx="14" fill="#4f7cff"/>
+    <rect x="13" y="16" width="26" height="8" rx="4" fill="#ffffff"/>
+    <rect x="21" y="28" width="30" height="8" rx="4" fill="#ffffff" opacity=".85"/>
+    <rect x="29" y="40" width="22" height="8" rx="4" fill="#ffffff" opacity=".7"/>
+  </svg>
+</div>
+
+<!-- ② 详情图一：项目详情 -->
+<div id="page-project" class="shot pm-center">
+  <aside class="pm-side">
+    <div class="pm-brand">
+      <svg class="pm-brand-logo" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#4f7cff"/><rect x="13" y="16" width="26" height="8" rx="4" fill="#fff"/><rect x="21" y="28" width="30" height="8" rx="4" fill="#fff" opacity=".85"/><rect x="29" y="40" width="22" height="8" rx="4" fill="#fff" opacity=".7"/></svg>
+      <span class="pm-brand-name">项目管理</span>
+      <em class="pm-brand-dept">IT部</em>
+    </div>
+    <nav class="pm-nav">
+      <span class="pm-nav-item active"><i class="pm-nav-dot"></i>项目详情</span>
+      <span class="pm-nav-item"><i class="pm-nav-dot"></i>任务详情</span>
+      <span class="pm-nav-item"><i class="pm-nav-dot"></i>迭代详情</span>
+    </nav>
+  </aside>
+  <main class="pm-main">
+    <div class="pm-card">
+      <div class="pm-head">
+        <div class="pm-head-ava">会</div>
+        <div class="pm-head-main">
+          <div class="pm-head-title">
+            <span class="pm-head-name">会员积分中台重构</span>
+            <span class="pm-tag blue">进行中</span>
+            <span class="pm-tag red">P1</span>
+          </div>
+          <dl class="pm-kv">
+            <div><dt>项目编号</dt><dd>PM-2026-018</dd></div>
+            <div><dt>所属部门</dt><dd>IT部-项目组</dd></div>
+            <div><dt>项目经理</dt><dd>王龙</dd></div>
+            <div><dt>当前阶段</dt><dd>开发迭代</dd></div>
+            <div><dt>开始日期</dt><dd>2026-07-01</dd></div>
+            <div><dt>结束日期</dt><dd>2026-10-31</dd></div>
+            <div><dt>预算工时</dt><dd>480 工时</dd></div>
+            <div><dt>关联系统</dt><dd>积分中台 / 会员中心 / 数据仓库</dd></div>
+          </dl>
+          <div class="pm-prog">
+            <span class="pm-prog-num">整体进度</span>
+            <div class="pm-prog-bar"><i style="width: 62%"></i></div>
+            <span class="pm-prog-num">62%</span>
+          </div>
+        </div>
+        <div class="pm-head-actions">
+          <button class="pm-btn">导出报告</button>
+          <button class="pm-btn primary">编辑项目</button>
+        </div>
+      </div>
+    </div>
+    <div class="pm-stats">
+      <div class="pm-stat"><b>48</b><span>任务总数</span></div>
+      <div class="pm-stat green"><b>26</b><span>已完成</span></div>
+      <div class="pm-stat blue"><b>14</b><span>进行中</span></div>
+      <div class="pm-stat red"><b>3</b><span>已逾期</span></div>
+    </div>
+    <div class="pm-cols">
+      <div class="pm-col">
+        <div class="pm-card">
+          <div class="pm-card-head"><span class="pm-sec-title">里程碑</span></div>
+          <div class="pm-card-body">
+            <ul class="pm-ms">
+              <li class="done"><div class="pm-ms-name">需求评审</div><div class="pm-ms-date">2026-07-10 已完成</div></li>
+              <li class="done"><div class="pm-ms-name">系统设计</div><div class="pm-ms-date">2026-07-31 已完成</div></li>
+              <li class="doing"><div class="pm-ms-name">开发迭代</div><div class="pm-ms-date">2026-09-15 进行中</div></li>
+              <li><div class="pm-ms-name">集成测试</div><div class="pm-ms-date">2026-10-10 待启动</div></li>
+              <li><div class="pm-ms-name">灰度上线</div><div class="pm-ms-date">2026-10-31 待启动</div></li>
+            </ul>
+          </div>
+        </div>
+        <div class="pm-card">
+          <div class="pm-card-head"><span class="pm-sec-title">关联任务</span></div>
+          <table class="pm-table">
+            <thead><tr><th>任务编号</th><th>任务名称</th><th>负责人</th><th>状态</th><th>优先级</th><th>截止日期</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr><td>TASK-018-07</td><td>积分规则引擎开发</td><td>李强</td><td><span class="pm-tag blue">进行中</span></td><td><span class="pm-tag red">高</span></td><td>2026-09-20</td><td><span class="pm-link">详情</span></td></tr>
+              <tr><td>TASK-018-08</td><td>积分账户迁移脚本</td><td>徐佳华</td><td><span class="pm-tag orange">测试中</span></td><td><span class="pm-tag red">高</span></td><td>2026-09-12</td><td><span class="pm-link">详情</span></td></tr>
+              <tr><td>TASK-018-09</td><td>会员中心积分页改版</td><td>陈晓</td><td><span class="pm-tag blue">进行中</span></td><td><span class="pm-tag orange">中</span></td><td>2026-09-26</td><td><span class="pm-link">详情</span></td></tr>
+              <tr><td>TASK-018-10</td><td>积分对账报表</td><td>徐佳华</td><td><span class="pm-tag gray">待处理</span></td><td><span class="pm-tag orange">中</span></td><td>2026-10-09</td><td><span class="pm-link">详情</span></td></tr>
+              <tr><td>TASK-018-11</td><td>灰度发布演练</td><td>杨帆</td><td><span class="pm-tag red">已逾期</span></td><td><span class="pm-tag red">高</span></td><td>2026-08-28</td><td><span class="pm-link">详情</span></td></tr>
+              <tr><td>TASK-018-12</td><td>规则配置后台权限</td><td>李强</td><td><span class="pm-tag green">已完成</span></td><td><span class="pm-tag gray">低</span></td><td>2026-08-20</td><td><span class="pm-link">详情</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="pm-col">
+        <div class="pm-card">
+          <div class="pm-card-head"><span class="pm-sec-title">项目成员</span></div>
+          <div class="pm-card-body">
+            <div class="pm-member"><span class="pm-ava" style="background:#4f7cff">王</span><span class="pm-member-name">王龙</span><span class="pm-member-role">项目经理</span></div>
+            <div class="pm-member"><span class="pm-ava" style="background:#00b42a">李</span><span class="pm-member-name">李强</span><span class="pm-member-role">后端开发</span></div>
+            <div class="pm-member"><span class="pm-ava" style="background:#ff7d00">陈</span><span class="pm-member-name">陈晓</span><span class="pm-member-role">前端开发</span></div>
+            <div class="pm-member"><span class="pm-ava" style="background:#f53f3f">郑</span><span class="pm-member-name">郑婷</span><span class="pm-member-role">测试</span></div>
+            <div class="pm-member"><span class="pm-ava" style="background:#722ed1">徐</span><span class="pm-member-name">徐佳华</span><span class="pm-member-role">数据开发</span></div>
+            <div class="pm-member"><span class="pm-ava" style="background:#0fc6c2">杨</span><span class="pm-member-name">杨帆</span><span class="pm-member-role">运维</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ③ 详情图二：任务详情 -->
+<div id="page-task" class="shot pm-center">
+  <aside class="pm-side">
+    <div class="pm-brand">
+      <svg class="pm-brand-logo" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#4f7cff"/><rect x="13" y="16" width="26" height="8" rx="4" fill="#fff"/><rect x="21" y="28" width="30" height="8" rx="4" fill="#fff" opacity=".85"/><rect x="29" y="40" width="22" height="8" rx="4" fill="#fff" opacity=".7"/></svg>
+      <span class="pm-brand-name">项目管理</span>
+      <em class="pm-brand-dept">IT部</em>
+    </div>
+    <nav class="pm-nav">
+      <span class="pm-nav-item"><i class="pm-nav-dot"></i>项目详情</span>
+      <span class="pm-nav-item active"><i class="pm-nav-dot"></i>任务详情</span>
+      <span class="pm-nav-item"><i class="pm-nav-dot"></i>迭代详情</span>
+    </nav>
+  </aside>
+  <main class="pm-main">
+    <div class="pm-card">
+      <div class="pm-head">
+        <div class="pm-head-ava">积</div>
+        <div class="pm-head-main">
+          <div class="pm-head-title">
+            <span class="pm-head-name">积分规则引擎开发</span>
+            <span class="pm-tag blue">进行中</span>
+            <span class="pm-tag red">优先级 高</span>
+          </div>
+          <dl class="pm-kv">
+            <div><dt>任务编号</dt><dd>TASK-018-07</dd></div>
+            <div><dt>所属项目</dt><dd>会员积分中台重构</dd></div>
+            <div><dt>负责人</dt><dd>李强</dd></div>
+            <div><dt>创建人</dt><dd>王龙</dd></div>
+            <div><dt>开始日期</dt><dd>2026-07-15</dd></div>
+            <div><dt>截止日期</dt><dd>2026-09-20</dd></div>
+            <div><dt>预估工时</dt><dd>40 工时</dd></div>
+            <div><dt>已耗工时</dt><dd>26 工时</dd></div>
+          </dl>
+        </div>
+        <div class="pm-head-actions">
+          <button class="pm-btn">返回项目</button>
+          <button class="pm-btn primary">编辑任务</button>
+        </div>
+      </div>
+    </div>
+    <div class="pm-card">
+      <div class="pm-steps">
+        <div class="pm-step done"><i>✓</i><span>待处理</span></div>
+        <div class="pm-step-line done"></div>
+        <div class="pm-step cur"><i>2</i><span>进行中</span></div>
+        <div class="pm-step-line"></div>
+        <div class="pm-step"><i>3</i><span>测试中</span></div>
+        <div class="pm-step-line"></div>
+        <div class="pm-step"><i>4</i><span>已完成</span></div>
+      </div>
+    </div>
+    <div class="pm-cols">
+      <div class="pm-col">
+        <div class="pm-card">
+          <div class="pm-card-head"><span class="pm-sec-title">任务描述</span></div>
+          <div class="pm-card-body"><p class="pm-desc">基于统一规则 DSL 重构积分计算引擎，替换各业务线散落的积分脚本；支持规则版本化、灰度生效与实时试算，计算结果写入积分中台账户体系，并保留旧链路对账能力一个迭代。</p></div>
+        </div>
+        <div class="pm-card">
+          <div class="pm-card-head"><span class="pm-sec-title">子任务</span><span class="pm-sub-prog">3/5 已完成</span></div>
+          <div class="pm-card-body">
+            <div class="pm-sub">
+              <label class="done"><i class="box on"></i><span>规则 DSL 设计与评审</span></label>
+              <label class="done"><i class="box on"></i><span>规则解析服务开发</span></label>
+              <label class="done"><i class="box on"></i><span>计算任务调度接入</span></label>
+              <label><i class="box"></i><span>实时试算接口联调</span></label>
+              <label><i class="box"></i><span>旧链路对账脚本</span></label>
+            </div>
+          </div>
+        </div>
+        <div class="pm-card">
+          <div class="pm-card-head"><span class="pm-sec-title">评论</span></div>
+          <div class="pm-card-body">
+            <div class="pm-cmts">
+              <div class="pm-cmt"><span class="pm-ava" style="background:#4f7cff">王</span><div class="pm-cmt-body"><div class="pm-cmt-head"><b class="pm-cmt-user">王龙</b><i>2026-09-02 10:15</i></div><div class="pm-cmt-text">试算接口本周四前给出联调环境，郑婷同步准备用例。</div></div></div>
+              <div class="pm-cmt"><span class="pm-ava" style="background:#00b42a">李</span><div class="pm-cmt-body"><div class="pm-cmt-head"><b class="pm-cmt-user">李强</b><i>2026-09-03 18:12</i></div><div class="pm-cmt-text">规则解析服务已合入主干，调度接入完成 80%，剩余重试策略待评审。</div></div></div>
+              <div class="pm-cmt-form"><div class="ta">输入评论内容…</div><button class="pm-btn primary">发表评论</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pm-col">
+        <div class="pm-card">
+          <div class="pm-card-head"><span class="pm-sec-title">参与人</span></div>
+          <div class="pm-card-body">
+            <div class="pm-member"><span class="pm-ava" style="background:#00b42a">李</span><span class="pm-member-name">李强</span><span class="pm-member-role">负责人</span></div>
+            <div class="pm-member"><span class="pm-ava" style="background:#4f7cff">王</span><span class="pm-member-name">王龙</span><span class="pm-member-role">创建人</span></div>
+            <div class="pm-member"><span class="pm-ava" style="background:#ff7d00">陈</span><span class="pm-member-name">陈晓</span><span class="pm-member-role">协作</span></div>
+            <div class="pm-member"><span class="pm-ava" style="background:#f53f3f">郑</span><span class="pm-member-name">郑婷</span><span class="pm-member-role">协作</span></div>
+          </div>
+        </div>
+        <div class="pm-card">
+          <div class="pm-card-head"><span class="pm-sec-title">时间信息</span></div>
+          <div class="pm-card-body">
+            <dl class="pm-kv col1">
+              <div><dt>创建时间</dt><dd>2026-07-12 09:30</dd></div>
+              <div><dt>开始时间</dt><dd>2026-07-15</dd></div>
+              <div><dt>截止时间</dt><dd>2026-09-20</dd></div>
+              <div><dt>最近更新</dt><dd>2026-09-03 18:12</dd></div>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ④ 详情图三：迭代详情（看板） -->
+<div id="page-sprint" class="shot pm-center">
+  <aside class="pm-side">
+    <div class="pm-brand">
+      <svg class="pm-brand-logo" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#4f7cff"/><rect x="13" y="16" width="26" height="8" rx="4" fill="#fff"/><rect x="21" y="28" width="30" height="8" rx="4" fill="#fff" opacity=".85"/><rect x="29" y="40" width="22" height="8" rx="4" fill="#fff" opacity=".7"/></svg>
+      <span class="pm-brand-name">项目管理</span>
+      <em class="pm-brand-dept">IT部</em>
+    </div>
+    <nav class="pm-nav">
+      <span class="pm-nav-item"><i class="pm-nav-dot"></i>项目详情</span>
+      <span class="pm-nav-item"><i class="pm-nav-dot"></i>任务详情</span>
+      <span class="pm-nav-item active"><i class="pm-nav-dot"></i>迭代详情</span>
+    </nav>
+  </aside>
+  <main class="pm-main">
+    <div class="pm-card">
+      <div class="pm-head">
+        <div class="pm-head-ava">S9</div>
+        <div class="pm-head-main">
+          <div class="pm-head-title">
+            <span class="pm-head-name">Sprint 26-09 · 开发迭代</span>
+            <span class="pm-tag blue">进行中</span>
+            <span class="pm-tag gray">会员积分中台重构</span>
+          </div>
+          <dl class="pm-kv">
+            <div><dt>迭代周期</dt><dd>2026-09-01 ~ 2026-09-30</dd></div>
+            <div><dt>迭代负责人</dt><dd>王龙</dd></div>
+            <div><dt>任务总数</dt><dd>10 个</dd></div>
+            <div><dt>已完成</dt><dd>3 个</dd></div>
+          </dl>
+          <div class="pm-prog">
+            <span class="pm-prog-num">迭代完成率</span>
+            <div class="pm-prog-bar"><i style="width: 30%"></i></div>
+            <span class="pm-prog-num">30%</span>
+          </div>
+        </div>
+        <div class="pm-head-actions">
+          <button class="pm-btn">导出报告</button>
+          <button class="pm-btn primary">编辑迭代</button>
+        </div>
+      </div>
+    </div>
+    <div class="pm-card">
+      <div class="pm-card-head"><span class="pm-sec-title">迭代看板</span></div>
+      <div class="pm-board">
+        <div class="pm-bcol">
+          <div class="pm-bcol-head"><i style="background:#c9cdd4"></i>待处理<em>2</em></div>
+          <div class="pm-kcard"><div class="pm-kcard-top"><span class="pm-tag orange">中</span></div><b>积分对账报表</b><div class="pm-kcard-foot"><span class="pm-ava" style="background:#722ed1">徐</span>徐佳华<em>10-09</em></div></div>
+          <div class="pm-kcard"><div class="pm-kcard-top"><span class="pm-tag orange">中</span></div><b>监控告警接入</b><div class="pm-kcard-foot"><span class="pm-ava" style="background:#0fc6c2">杨</span>杨帆<em>10-15</em></div></div>
+        </div>
+        <div class="pm-bcol">
+          <div class="pm-bcol-head"><i style="background:#4f7cff"></i>进行中<em>3</em></div>
+          <div class="pm-kcard"><div class="pm-kcard-top"><span class="pm-tag red">高</span></div><b>积分规则引擎开发</b><div class="pm-kcard-foot"><span class="pm-ava" style="background:#00b42a">李</span>李强<em>09-20</em></div></div>
+          <div class="pm-kcard"><div class="pm-kcard-top"><span class="pm-tag orange">中</span></div><b>会员中心积分页改版</b><div class="pm-kcard-foot"><span class="pm-ava" style="background:#ff7d00">陈</span>陈晓<em>09-26</em></div></div>
+          <div class="pm-kcard"><div class="pm-kcard-top"><span class="pm-tag red">高</span></div><b>灰度发布演练</b><div class="pm-kcard-foot"><span class="pm-ava" style="background:#0fc6c2">杨</span>杨帆<em class="over">08-28 逾期</em></div></div>
+        </div>
+        <div class="pm-bcol">
+          <div class="pm-bcol-head"><i style="background:#ff7d00"></i>测试中<em>2</em></div>
+          <div class="pm-kcard"><div class="pm-kcard-top"><span class="pm-tag red">高</span></div><b>积分账户迁移脚本</b><div class="pm-kcard-foot"><span class="pm-ava" style="background:#722ed1">徐</span>徐佳华<em>09-12</em></div></div>
+          <div class="pm-kcard"><div class="pm-kcard-top"><span class="pm-tag red">高</span></div><b>实时试算接口联调</b><div class="pm-kcard-foot"><span class="pm-ava" style="background:#f53f3f">郑</span>郑婷<em>09-18</em></div></div>
+        </div>
+        <div class="pm-bcol">
+          <div class="pm-bcol-head"><i style="background:#00b42a"></i>已完成<em>3</em></div>
+          <div class="pm-kcard"><div class="pm-kcard-top"><span class="pm-tag gray">低</span></div><b>规则配置后台权限</b><div class="pm-kcard-foot"><span class="pm-ava" style="background:#00b42a">李</span>李强<em>08-20</em></div></div>
+          <div class="pm-kcard"><div class="pm-kcard-top"><span class="pm-tag red">高</span></div><b>规则 DSL 设计与评审</b><div class="pm-kcard-foot"><span class="pm-ava" style="background:#00b42a">李</span>李强<em>08-05</em></div></div>
+          <div class="pm-kcard"><div class="pm-kcard-top"><span class="pm-tag orange">中</span></div><b>积分账户模型设计</b><div class="pm-kcard-foot"><span class="pm-ava" style="background:#722ed1">徐</span>徐佳华<em>08-12</em></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="pm-card">
+      <div class="pm-card-body">
+        <div class="pm-risk"><span class="pm-tag red">迭代风险</span>灰度发布演练已逾期 8 天，演练环境缺口需本周内补齐，否则影响 10 月灰度上线里程碑。</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

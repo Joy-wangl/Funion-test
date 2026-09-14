@@ -1,26 +1,19 @@
-/* 自动化中心-视频号全店搬家：mv- 前缀；通用筛选/表格/徽章复用 sg-* 与 badge-* */
+/* 自动化中心-自动化任务：mv- 前缀；通用筛选/表格/徽章复用 sg-* 与 badge-* */
 
-/* 入仓库蓝徽章（badge-* 无蓝色，模块内补齐） */
-.ops-center .mv-badge-blue {
-  display: inline-block;
-  background: #eef4ff;
-  color: #3d6df2;
-  border: 1px solid #cfdcff;
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 11px;
-}
+/* 任务状态圆点色档（圆点+文字形态，色值取全局 token）：红=已禁用 / 黄=待执行 / 蓝=执行中 / 灰=已完成 / 绿=启用中 */
+.ops-center .sg-dot.mv-dot-red { background: var(--color-danger); }
+.ops-center .sg-dot.mv-dot-yellow { background: var(--color-warning); }
+.ops-center .sg-dot.mv-dot-blue { background: var(--color-primary); }
+.ops-center .sg-dot.mv-dot-gray { background: var(--color-text-4); }
+.ops-center .sg-dot.mv-dot-green { background: var(--color-success); }
 
 /* 任务/店铺两行信息 */
 .ops-center .mv-name { font-size: 13px; color: #1f2733; font-weight: 600; }
 .ops-center .mv-sub { font-size: 12px; color: #8a94a4; margin-top: 2px; }
-.ops-center .mv-desc { font-size: 12px; color: #8a94a4; margin: -4px 0 10px; }
-.ops-center .mv-shopline { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #4a5468; }
-.ops-center .mv-shopline + .mv-shopline { margin-top: 4px; }
-.ops-center .mv-shopline .store-logo img { width: 16px; height: 16px; border-radius: 4px; }
-.ops-center .mv-shopline i { font-style: normal; color: #b6bfcc; }
+/* 任务类型列：类型纯文字 + 执行方式徽章两行 */
+.ops-center .mv-methodline { margin-top: 2px; }
 
-/* 配置抽屉：右滑 640px */
+/* 配置抽屉：右滑 760px */
 .ops-center .mv-drawer-mask {
   position: fixed;
   inset: 0;
@@ -32,55 +25,33 @@
   top: 0;
   right: 0;
   bottom: 0;
-  width: 640px;
+  width: 760px;
   max-width: 94vw;
   background: #fff;
   display: flex;
   flex-direction: column;
   box-shadow: -8px 0 24px rgba(15, 23, 42, 0.12);
 }
+/* 抽屉引导头：标题 + 右关闭钮 */
 .ops-center .mv-dr-head {
   flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 16px 20px 12px;
   border-bottom: 1px solid #edf0f4;
 }
 .ops-center .mv-dr-title { font-size: 15px; font-weight: 600; color: #1f2733; }
-.ops-center .mv-dr-sub { font-size: 12px; color: #8a94a4; margin-top: 2px; }
-.ops-center .mv-dr-x { cursor: pointer; color: #8a94a4; display: inline-flex; }
-.ops-center .mv-dr-body { flex: 1; overflow: auto; padding: 16px 20px 24px; }
-
-/* 三步向导步骤条：抽屉固定尺寸，步骤切换仅换 body 内容（步内滚动），不改抽屉大小 */
-.ops-center .mv-steps { flex: none; display: flex; align-items: center; padding: 12px 20px; border-bottom: 1px solid #edf0f4; }
-.ops-center .mv-step { display: flex; align-items: center; gap: 6px; font-size: var(--fs-aux); color: #8a94a4; }
-.ops-center .mv-step i {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 1px solid #d4dae3;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-style: normal;
-  font-size: var(--fs-aux);
+.ops-center .mv-dr-x {
+  cursor: pointer;
   color: #8a94a4;
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 8px;
 }
-.ops-center .mv-step + .mv-step { margin-left: 28px; position: relative; }
-.ops-center .mv-step + .mv-step::before { content: ''; position: absolute; left: -20px; top: 50%; width: 12px; height: 1px; background: #d4dae3; }
-.ops-center .mv-step.on { color: var(--color-primary); font-weight: 600; }
-.ops-center .mv-step.on i { border-color: var(--color-primary); background: var(--color-primary); color: #fff; }
-.ops-center .mv-step.done { color: #4a5468; }
-.ops-center .mv-step.done i { border-color: var(--color-primary); color: var(--color-primary); }
-.ops-center .mv-step.done + .mv-step::before { background: var(--color-primary); }
+.ops-center .mv-dr-x:hover { color: #4a5468; background: #f2f4f7; }
+.ops-center .mv-dr-body { flex: 1; overflow: auto; padding: 20px 20px 24px; }
 
-/* 步骤3 配置回看灰底块 */
-.ops-center .mv-recap { background: #f7f8fa; border: 1px solid #edf0f4; border-radius: var(--radius-lg); padding: 10px 12px; }
-.ops-center .mv-recap-row { display: flex; gap: 8px; font-size: var(--fs-aux); line-height: 20px; }
-.ops-center .mv-recap-row + .mv-recap-row { margin-top: 4px; }
-.ops-center .mv-recap-row > span { flex: none; width: 56px; color: #8a94a4; }
-.ops-center .mv-recap-row > b { color: #1f2733; font-weight: 500; }
 .ops-center .mv-dr-foot {
   flex: none;
   display: flex;
@@ -90,30 +61,198 @@
   border-top: 1px solid #edf0f4;
 }
 
-/* 抽屉分区 */
-.ops-center .mv-sec { font-size: 13px; font-weight: 600; color: #1f2733; margin: 18px 0 10px; }
-.ops-center .mv-sec:first-child { margin-top: 0; }
-.ops-center .mv-sec .mv-req { color: #ff6a6f; margin-left: 2px; }
-.ops-center .mv-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
-.ops-center .mv-row > label { flex: none; width: 76px; font-size: 12px; color: #4a5468; }
-.ops-center .mv-row .sg-input { width: 220px; }
-.ops-center .mv-row .sg-select { width: 160px; flex: none; }
-.ops-center .mv-hint { font-size: 12px; color: #8a94a4; }
+/* 抽屉表单件：标签居上 + 全宽控件（配置选择统一下拉形式） */
+.ops-center .mv-drawer .sg-field { margin-bottom: 16px; }
+.ops-center .mv-drawer .sg-field:last-child { margin-bottom: 0; }
+.ops-center .mv-drawer .sg-field > label { font-size: 13px; color: #4a5468; }
+.ops-center .mv-req { color: #ff6a6f; margin-left: 2px; }
+/* 循环配置行：周期 + 动态周几/几号 + 执行时间，宽度按内容定死免拉伸 */
+.ops-center .mv-cycle-grid { display: flex; gap: 12px; }
+.ops-center .mv-cycle-grid .mv-cy-cycle { width: 120px; flex: none; }
+.ops-center .mv-cycle-grid .mv-cy-day { width: 104px; flex: none; }
+.ops-center .mv-cycle-grid .mv-cy-time { width: 140px; flex: none; }
+/* 执行时间触发盒：复用 mv-cond-val 规格 + 时钟图标，点击开时间选择器弹层 */
+.ops-center .mv-time-box { cursor: pointer; padding-right: 6px; }
+.ops-center .mv-time-text.empty { color: #98a0b3; }
 
-/* 任务类型 radio 卡 */
-.ops-center .mv-typecards { display: flex; gap: 8px; flex: 1; }
-.ops-center .mv-typecard {
-  flex: 1;
-  border: 1px solid #e2e7ee;
+/* 条件配置：行式条件组（当/且或 + 指标 + 运算符 + 阈值/单位或日期范围 + 删除，底部添加条件；
+   控件规格同表单件，底色与全局表单件一致） */
+.ops-center .mv-cond-rows { display: flex; flex-direction: column; gap: 8px; }
+.ops-center .mv-cond-row { display: flex; align-items: center; gap: 8px; }
+/* 「当」占位与连接词选择同宽，保证各行后续列严格对齐 */
+.ops-center .mv-cond-when { width: 56px; flex: none; text-align: center; font-size: 13px; color: #4a5468; }
+.ops-center .mv-cond-row .mv-cond-conj { width: 56px; flex: none; }
+/* 指标列收窄（用户口径：可以短一点），余量让给值控件 */
+.ops-center .mv-cond-row .mv-cond-metric { width: 132px; flex: none; }
+.ops-center .mv-cond-row .mv-cond-op { width: 72px; flex: none; }
+/* 上架时间的时间预设选择（自定义时间/今天/本周/昨天/本月） */
+.ops-center .mv-cond-row .mv-cond-preset { width: 112px; flex: none; }
+.ops-center .mv-cond-row .sg-select {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #e4e8ef;
   border-radius: 10px;
-  padding: 8px 10px;
-  cursor: pointer;
-  text-align: left;
-  background: #fff;
+  font-size: 13px;
+  color: #1f2733;
 }
-.ops-center .mv-typecard.on { border-color: var(--color-primary, #3d6df2); background: #f2f6ff; }
-.ops-center .mv-typecard b { display: block; font-size: 13px; color: #1f2733; }
-.ops-center .mv-typecard span { display: block; font-size: 11px; color: #8a94a4; margin-top: 2px; }
+.ops-center .mv-cond-val {
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding-left: 12px;
+  border: 1px solid #e4e8ef;
+  border-radius: 10px;
+  background: #fbfcfe;
+  transition: border-color 0.15s;
+}
+.ops-center .mv-cond-val:focus-within { border-color: #a9bcff; }
+.ops-center .mv-cond-val input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 13px;
+  color: #1f2733;
+}
+.ops-center .mv-cond-val input::placeholder { color: #98a0b3; }
+.ops-center .mv-cond-unit {
+  flex: none;
+  margin-left: 6px;
+  padding: 0 12px;
+  align-self: center;
+  height: 16px;
+  line-height: 16px;
+  border-left: 1px solid #e4e8ef;
+  font-size: 13px;
+  color: #8a94a4;
+}
+/* 日期型值控件：自绘日历弹层触发器（恒为起止范围），点击整盒开弹层；弹性填满值区（最小 216）与数值行行尾对齐 */
+.ops-center .mv-cond-date { min-width: 216px; cursor: pointer; padding-right: 6px; }
+.ops-center .mv-date-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: #1f2733;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.ops-center .mv-date-text.empty { color: #98a0b3; }
+.ops-center .mv-date-text i { font-style: normal; margin: 0 6px; color: #b6bfcc; }
+.ops-center .mv-cond-clock {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: #4a5468;
+}
+
+/* 自绘日历弹层（Teleport 到 body，不加 .ops-center 前缀）：月头+周行+42 格+清除/今天 */
+.mv-dppop {
+  position: fixed;
+  z-index: 4300;
+  width: 268px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #e4e8ef;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgb(31 39 51 / 12%);
+}
+/* 执行时间选择器弹层：与日历弹层同壳，时/分双列滚选（隐藏滚动条） */
+.mv-tpop {
+  position: fixed;
+  z-index: 4300;
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #e4e8ef;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgb(31 39 51 / 12%);
+}
+.mv-tp-col {
+  width: 64px;
+  height: 224px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mv-tp-col::-webkit-scrollbar { display: none; }
+.mv-tp-cell {
+  height: 28px;
+  flex: none;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #4a5468;
+  cursor: pointer;
+}
+.mv-tp-cell:hover { background: #f2f6ff; }
+.mv-tp-cell.on { background: #eef3ff; color: #4f7cff; font-weight: 600; }
+.mv-dp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.mv-dp-title { font-size: 13px; font-weight: 600; color: #1f2733; }
+.mv-dp-nav { display: flex; gap: 4px; }
+.mv-dp-nav button {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: #4a5468;
+  cursor: pointer;
+}
+.mv-dp-nav button:hover { background: #f0f2f5; }
+.mv-dp-week,
+.mv-dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+.mv-dp-week span { height: 24px; line-height: 24px; text-align: center; font-size: 12px; color: #8a94a4; }
+.mv-dp-cell { height: 30px; border: none; border-radius: 6px; background: none; font-size: 12px; color: #1f2733; cursor: pointer; }
+.mv-dp-cell:hover { background: #f0f2f5; }
+.mv-dp-cell.out { color: #c3cad4; }
+.mv-dp-cell.in { background: #eef3ff; color: #4f7cff; border-radius: 0; }
+.mv-dp-cell.on { background: #4f7cff; color: #fff; }
+.mv-dp-cell.on:hover { background: #4f7cff; }
+.mv-dp-cell.today:not(.on) { box-shadow: inset 0 0 0 1px #4f7cff; }
+.mv-dp-foot { display: flex; justify-content: space-between; margin-top: 8px; padding-top: 8px; border-top: 1px solid #edf0f4; }
+.mv-dp-foot button { border: none; background: none; font-size: 12px; color: #4f7cff; cursor: pointer; }
+.ops-center .mv-cond-del {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: #e6455c;
+  cursor: pointer;
+  opacity: 0.75;
+}
+.ops-center .mv-cond-del:hover { opacity: 1; background: rgb(230 69 92 / 8%); }
+.ops-center .mv-cond-add {
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid #e4e8ef;
+  border-radius: 10px;
+  background: #fff;
+  color: #4a5468;
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.ops-center .mv-cond-add:hover { color: var(--color-primary, #3d6df2); border-color: var(--color-primary, #3d6df2); }
 
 /* 店铺复选/单选列表 */
 .ops-center .mv-shoplist { flex: 1; display: flex; flex-direction: column; gap: 6px; }
@@ -130,6 +269,106 @@
 }
 .ops-center .mv-shopitem.on { border-color: var(--color-primary, #3d6df2); background: #f2f6ff; }
 .ops-center .mv-shopitem .store-logo img { width: 16px; height: 16px; border-radius: 4px; }
+/* 全选行：同列表项规格 */
+.ops-center .mv-shopall span:last-child { font-weight: 600; }
+
+/* 被搬店铺芯片行：灰底芯片（logo+名称+×删除）+ 虚线加号瓷砖开弹窗 */
+.ops-center .mv-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ops-center .mv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f2f4f7;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #4a5468;
+}
+.ops-center .mv-chip .store-logo img { width: 16px; height: 16px; border-radius: 4px; }
+.ops-center .mv-chip-x { cursor: pointer; color: #8a94a4; display: inline-flex; padding: 2px; border-radius: 4px; }
+.ops-center .mv-chip-x:hover { color: #4a5468; background: #e4e8ee; }
+.ops-center .mv-chip-add {
+  width: 34px;
+  height: 34px;
+  border: 1px dashed #cdd4de;
+  border-radius: 8px;
+  background: #fff;
+  color: #8a94a4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.ops-center .mv-chip-add:hover { color: var(--color-primary, #3d6df2); border-color: var(--color-primary, #3d6df2); }
+
+/* 选店弹窗（被搬/目标共用）：居中 480px，搜索+平台 tab+列表内滚 */
+.ops-center .mv-srcmask {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ops-center .mv-srcmodal {
+  width: 480px;
+  max-width: 92vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+}
+.ops-center .mv-src-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2733;
+}
+.ops-center .mv-src-body { flex: 1; overflow: auto; padding: 4px 16px 12px; }
+/* 弹窗内搜索框：灰底圆角 + 右侧放大镜 */
+.ops-center .mv-src-search { position: relative; margin-bottom: 8px; }
+.ops-center .mv-src-search input {
+  width: 100%;
+  height: 36px;
+  border: 1px solid #e2e7ee;
+  border-radius: 8px;
+  background: #f5f7fa;
+  padding: 0 32px 0 12px;
+  font-size: 13px;
+  color: #1f2733;
+  outline: none;
+}
+.ops-center .mv-src-search input:focus { border-color: #4f7cff; background: #fff; }
+.ops-center .mv-src-search svg { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #8a94a4; pointer-events: none; }
+/* 平台 tab：胶囊切换（全部/淘宝/天猫/拼多多/视频号） */
+.ops-center .mv-src-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.ops-center .mv-src-tab {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid #e2e7ee;
+  border-radius: 14px;
+  background: #fff;
+  color: #4a5468;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ops-center .mv-src-tab.on { background: #eef3ff; border-color: #4f7cff; color: #4f7cff; }
+.ops-center .mv-src-empty { padding: 24px 0; text-align: center; font-size: 12px; color: #8a94a4; }
+.ops-center .mv-src-foot {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid #edf0f4;
+}
 
 /* 弹层 foot 按钮：.btn 基类不在 ops 作用域，模块内补齐；确认类 danger 实心红（全局规范） */
 .ops-center .mv-page .btn {
@@ -155,3 +394,7 @@
   line-height: 20px;
 }
 .ops-center .mv-caution div + div { margin-top: 2px; }
+
+/* MoreActions 默认触发器为裸 a：对齐操作列 sg-link 链接样式，防浏览器 visited 紫回退 */
+.ops-center .mv-page .sg-acts > a:not(.sg-link) { color: #4f7cff; font-size: 13px; text-decoration: none; white-space: nowrap; }
+.ops-center .mv-page .sg-acts > a:not(.sg-link):hover { text-decoration: underline; }

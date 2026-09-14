@@ -30,8 +30,9 @@ const readInitialTab = () => {
 const activeTabKey = ref(readInitialTab());
 const sidebarCollapsed = ref(readCollapsed());
 
-/* 蜜蜂插件为弹窗态交互：离开该 tab 前若存在脏态（编辑中/生成中）需二次确认，避免误丢失 */
+/* 蜜蜂插件 / Funion s 均为弹窗态交互：离开该 tab 前若存在脏态（编辑中/生成中）需二次确认，避免误丢失 */
 const beeRef = ref<InstanceType<typeof BeePlugin> | null>(null);
+const fsRef = ref<InstanceType<typeof FunionS> | null>(null);
 const tabPending = ref<{ hint: { title: string; msg: string; ok: string; cancel?: string }; run: () => void } | null>(null);
 const applyTab = (key: string) => { activeTabKey.value = key; };
 const confirmTabLeave = () => { const p = tabPending.value; tabPending.value = null; p?.run(); };
@@ -46,6 +47,10 @@ const handleTabChange = (key: string) => {
   if (!tab) return;
   if (activeTabKey.value === 'bee-plugin' && key !== 'bee-plugin') {
     const hint = beeRef.value?.leaveHint?.() ?? null;
+    if (hint) { tabPending.value = { hint, run: () => applyTab(key) }; return; }
+  }
+  if (activeTabKey.value === 'funion-s' && key !== 'funion-s') {
+    const hint = fsRef.value?.leaveHint?.() ?? null;
     if (hint) { tabPending.value = { hint, run: () => applyTab(key) }; return; }
   }
   applyTab(key);
@@ -118,7 +123,7 @@ defineExpose({ toggleSidebar });
       </template>
       <template v-else-if="activeTabKey === 'funion-s'">
         <main class="app-content">
-          <FunionS />
+          <FunionS ref="fsRef" />
         </main>
       </template>
       <template v-else-if="activeTabKey === 'token-manage'">

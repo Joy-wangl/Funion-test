@@ -1,0 +1,146 @@
+<!doctype html>
+<meta charset="utf-8">
+<!--  mock：选择策略抽屉 · 宝贝ID 改为「条形标签展示框」（只读展示已选，支持删除、不支持编辑）  -->
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #eef0f4;
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    color: #333;
+    padding: 24px;
+  }
+  .drawer {
+    width: 520px;
+    background: #f7f8fa;
+    border-radius: 4px;
+    box-shadow: 0 6px 24px rgba(32, 37, 50, .12);
+    display: flex;
+    flex-direction: column;
+    height: 962px;
+  }
+  .dw-head {
+    background: #fff;
+    padding: 18px 24px;
+    font-size: 15px;
+    font-weight: 700;
+    border-bottom: 1px solid #e8ebf1;
+  }
+  .dw-body { background: #fff; margin: 12px 0; padding: 24px; flex: 1; }
+  .lab { font-size: 14px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; }
+  .lab i { color: #f53f3f; font-style: normal; margin-left: 2px; }
+  .lab-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .lab-row .lab { margin-bottom: 0; }
+  .lab-acts { font-size: 13px; color: #8b92a1; display: flex; gap: 16px; align-items: center; }
+  .lab-acts a { color: #4f7cff; cursor: pointer; }
+
+  /* 宝贝ID 条形标签展示框：只读展示已选，× 删除，不可编辑 */
+  .id-bar-box {
+    border: 1px solid #e8ebf1;
+    border-radius: 8px;
+    background: #fbfcfe;
+    padding: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 76px;
+    align-content: flex-start;
+  }
+  .id-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 30px;
+    padding: 0 6px 0 10px;
+    background: #eef3ff;
+    border: 1px solid #d5e2ff;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #445066;
+  }
+  .id-bar .x {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #8b92a1;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+  }
+  .id-bar .x:hover { background: #ffece8; color: #f53f3f; }
+  .id-tip { margin-top: 8px; font-size: 12px; color: #8b92a1; }
+
+  .field { margin-bottom: 22px; }
+  .sel-bar {
+    height: 40px;
+    background: #f2f3f7;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px;
+    font-size: 14px;
+    color: #333;
+  }
+  .sel-bar .caret { color: #8b92a1; font-size: 12px; }
+  .radios { display: flex; gap: 40px; font-size: 14px; color: #333; }
+  .radios span { display: flex; align-items: center; gap: 8px; }
+  .radios .r {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 1px solid #c9cdd4; background: #fff;
+  }
+  .dw-foot {
+    background: #fff;
+    border-top: 1px solid #e8ebf1;
+    padding: 14px 24px;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .btn-next {
+    height: 36px;
+    padding: 0 22px;
+    border: none;
+    border-radius: 8px;
+    background: #4f7cff;
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+  }
+</style>
+
+<div class="drawer">
+  <div class="dw-head">选择策略</div>
+  <div class="dw-body">
+    <div class="field">
+      <div class="lab-row">
+        <div class="lab">宝贝ID<i>*</i></div>
+        <div class="lab-acts"><span>共 6 个</span><a>清空</a></div>
+      </div>
+      <div class="id-bar-box">
+        <span class="id-bar">1072402417430<span class="x">✕</span></span>
+        <span class="id-bar">1072402417431<span class="x">✕</span></span>
+        <span class="id-bar">1072402417432<span class="x">✕</span></span>
+        <span class="id-bar">1072402418001<span class="x">✕</span></span>
+        <span class="id-bar">1072402418002<span class="x">✕</span></span>
+        <span class="id-bar">1072402418003<span class="x">✕</span></span>
+      </div>
+      <div class="id-tip">宝贝ID 在别处选择后在此展示，点击 ✕ 可移除，不支持直接编辑</div>
+    </div>
+
+    <div class="field">
+      <div class="lab">策略名称<i>*</i></div>
+      <div class="sel-bar"><span>不使用策略发布</span><span class="caret">∨</span></div>
+    </div>
+
+    <div class="field">
+      <div class="lab">发布方式<i>*</i></div>
+      <div class="radios">
+        <span><i class="r"></i>直接上架</span>
+        <span><i class="r"></i>放入仓库</span>
+      </div>
+    </div>
+  </div>
+  <div class="dw-foot"><button class="btn-next">下一步</button></div>
+</div>

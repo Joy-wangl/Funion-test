@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { createDetail } from './data';
 import { pushToast } from '../../components/toast';
 import BubbleSelect from '../../components/BubbleSelect.vue';
@@ -204,28 +204,95 @@ const doImport = () => {
   importErr.value = false;
 };
 
-/* ================= 一键美化：提示词 + 生成控制 + 任务列表（生成中/失败/完成） ================= */
-interface TaskImg { src: string; pos: string }
+/* ========= 一键美化：复刻 AI美化功能（生成模式/商品图片勾选 + 任务四态列表 + 算力提交栏） ========= */
+interface TaskImg { src: string; pos: string; failed?: boolean; retrying?: boolean }
+type BtMode = 'set' | 'beauty';
+type BtStatus = 'running' | 'done' | 'partial' | 'failed';
 interface BeautyTask {
-  id: number; desc: string; kind: 'beauty' | 'swap'; time: string; owner: string;
-  status: 'running' | 'failed' | 'done'; percent: number; imgs: TaskImg[]; open: boolean;
+  id: number; desc: string; mode: BtMode; code: string; time: string; owner: string;
+  status: BtStatus; percent: number; total: number; doneCount: number; outcome: BtStatus; imgs: TaskImg[]; open: boolean;
 }
+const BT_MODES: { key: BtMode; label: string }[] = [
+  { key: 'set', label: '套图生成' },
+  { key: 'beauty', label: '图片美化' },
+];
+const MODE_LABEL: Record<BtMode, string> = { set: '套图生成', beauty: '图片美化' };
 const tImgs = (from: number, n: number): TaskImg[] => Array.from({ length: n }, (_, k) => LIB_IMGS[(from + k) % LIB_IMGS.length]);
+/* 失败占位槽：src 为空 + failed 标记，渲染为可单张重新生成的失败瓦片 */
+const fImgs = (n: number): TaskImg[] => Array.from({ length: n }, () => ({ src: '', pos: '', failed: true }));
+/* 种子任务覆盖四态：生成中（带进度）/ 成功 / 部分完成 3/4 / 失败（全部图片生成失败） */
 const tasks = ref<BeautyTask[]>([
-  { id: 3, desc: '任务描述一 占位', kind: 'beauty', time: '2026/08/27 12:00:00', owner: '王龙', status: 'running', percent: 66, imgs: [], open: false },
-  { id: 1, desc: '生成一张猴子吃香蕉的图片', kind: 'swap', time: '2026/08/26 12:00:00', owner: '王龙', status: 'failed', percent: 70, imgs: [], open: false },
-  { id: 2, desc: '商品更换为浴室场景风格，背景浅蓝色调，光线柔和', kind: 'beauty', time: '2026/08/25 12:00:00', owner: '王龙', status: 'done', percent: 100, imgs: tImgs(0, 6), open: false },
+  { id: 4, desc: '商品整品套图生成 · 韩系珍珠发夹女气质简约发卡边夹刘海夹子头饰', mode: 'set', code: 'q6nkn2', time: '2026-09-13 15:38', owner: '王龙', status: 'running', percent: 55, total: 8, doneCount: 0, outcome: 'done', imgs: [], open: false },
+  { id: 3, desc: '商品主图批量图片美化（4张）', mode: 'beauty', code: '9h8dmu', time: '2026-09-13 15:38', owner: '王龙', status: 'done', percent: 100, total: 4, doneCount: 4, outcome: 'done', imgs: tImgs(0, 4), open: false },
+  { id: 2, desc: '详情图色调统一美化，生成 4 张', mode: 'beauty', code: 'qcx89w', time: '2026-09-13 15:38', owner: '王龙', status: 'partial', percent: 100, total: 4, doneCount: 3, outcome: 'partial', imgs: [...tImgs(1, 3), ...fImgs(1)], open: false },
+  { id: 1, desc: '商品更换为浴室场景风格，背景浅蓝色调，光线柔和', mode: 'set', code: 'ni14on', time: '2026-09-13 15:38', owner: '王龙', status: 'failed', percent: 100, total: 4, doneCount: 0, outcome: 'failed', imgs: fImgs(4), open: false },
 ]);
 
-/* 提示词：空→生成；有→优化（追加调整段） */
-const prompt = ref('');
-const genPrompt = () => {
-  if (!prompt.value.trim()) prompt.value = '将商品更换为清新浴室场景，背景浅蓝色调，光线柔和，保持商品形态与比例不变，与背景色调、风格协调';
-  else prompt.value += '\n\n调整内容如下： 将这个产品颜色改为天蓝色！要求不可更改我的产品形态';
+/* 生成模式：套图生成默认用全部商品图；图片美化支持左栏单选/多选，选中图展示到右侧输入框 */
+const btMode = ref<BtMode>('set');
+const btSel = ref<string[]>([]);
+const btGroups = computed(() => [
+  { label: '主图', items: mainImgs.value.map((src, i) => ({ key: `m${i}`, src })) },
+  { label: 'SKU图', items: d.skus.map((_s, i) => ({ key: `s${i}`, src: d.mainImgs[i % d.mainImgs.length] })) },
+  { label: '详情图', items: detailImgs.value.map((src, i) => ({ key: `d${i}`, src })) },
+]);
+const btAllItems = computed(() => btGroups.value.flatMap((g) => g.items));
+const pickBt = (key: string) => {
+  if (btMode.value === 'set') { pushToast('套图生成默认使用全部商品图，无需勾选'); return; }
+  const k = btSel.value.indexOf(key);
+  if (k >= 0) btSel.value.splice(k, 1); else btSel.value.push(key);
 };
+const unpickBt = (key: string) => {
+  const k = btSel.value.indexOf(key);
+  if (k >= 0) btSel.value.splice(k, 1);
+};
+watch(btMode, () => { btSel.value = []; });
+/** 本次参与生成的图片：套图=三组全部；美化=勾选项 */
+const btSources = computed<TaskImg[]>(() => {
+  const picked = btMode.value === 'set' ? btAllItems.value : btAllItems.value.filter((t) => btSel.value.includes(t.key));
+  return picked.map((t) => ({ src: t.src, pos: 'center center' }));
+});
+/** 美化模式勾选项（带 key，供输入框内缩略图展示与移除） */
+const btPicked = computed(() => btAllItems.value.filter((t) => btSel.value.includes(t.key)));
 
-/* 生成进度模拟：running 任务百分比递增，到 100 转 done 并产出结果图 */
+/* 参考图：弹层多选候选，选中结果展示在按钮下方指定行，可移除 */
+const btRefs = ref<TaskImg[]>([]);
+const btRefOpen = ref(false);
+const refKey = (r: TaskImg) => `${r.src}|${r.pos}`;
+const toggleRef = (r: TaskImg) => {
+  const k = btRefs.value.findIndex((x) => refKey(x) === refKey(r));
+  if (k >= 0) btRefs.value.splice(k, 1); else btRefs.value.push({ src: r.src, pos: r.pos });
+};
+const onDocDownRef = (e: MouseEvent) => {
+  if (!btRefOpen.value) return;
+  const t = e.target as HTMLElement;
+  if (!t.closest?.('.mc-bt-refzone')) btRefOpen.value = false;
+};
+onMounted(() => document.addEventListener('mousedown', onDocDownRef));
+onUnmounted(() => document.removeEventListener('mousedown', onDocDownRef));
+
+/* 算力：每张图 2 算力，提交扣减；模型可选 */
+const btBalance = ref(100);
+const btModel = ref('图片 5.0 Lite');
+const btCost = computed(() => btSources.value.length * 2);
+const prompt = ref('');
+
+/* 生成进度模拟：running 百分比递增，到 100 按预设 outcome 落定（成功/部分完成/失败） */
 let tickTimer: number | null = null;
+const finalize = (t: BeautyTask) => {
+  if (t.outcome === 'failed') { t.status = 'failed'; t.imgs = fImgs(t.total); pushToast('美化任务失败：全部图片生成失败'); return; }
+  if (t.outcome === 'partial') {
+    t.status = 'partial';
+    t.doneCount = Math.max(1, Math.round(t.total * 0.75));
+    /* 成功图 + 失败占位槽并列展示，失败槽支持单张重新生成 */
+    t.imgs = [...tImgs(t.id % LIB_IMGS.length, t.doneCount), ...fImgs(t.total - t.doneCount)];
+    pushToast(`美化任务部分完成 ${t.doneCount}/${t.total}`);
+    return;
+  }
+  t.status = 'done'; t.doneCount = t.total;
+  t.imgs = tImgs(t.id % LIB_IMGS.length, Math.max(1, t.total));
+  pushToast('美化任务完成');
+};
 const ensureTick = () => {
   if (tickTimer != null) return;
   tickTimer = window.setInterval(() => {
@@ -234,7 +301,7 @@ const ensureTick = () => {
       if (t.status !== 'running') return;
       any = true;
       t.percent = Math.min(100, t.percent + 2 + Math.floor(Math.random() * 6));
-      if (t.percent >= 100) { t.status = 'done'; t.imgs = tImgs(t.id % LIB_IMGS.length, 6); pushToast('美化任务完成'); }
+      if (t.percent >= 100) finalize(t);
     });
     if (!any && tickTimer != null) { clearInterval(tickTimer); tickTimer = null; }
   }, 400);
@@ -246,19 +313,53 @@ const nowStr = () => {
   return `${x.getFullYear()}/${p(x.getMonth() + 1)}/${p(x.getDate())} ${p(x.getHours())}:${p(x.getMinutes())}:${p(x.getSeconds())}`;
 };
 let taskId = 10;
-const pushTask = (desc: string) => {
-  tasks.value.unshift({ id: taskId++, desc, kind: 'beauty', time: nowStr(), owner: '七妮妮', status: 'running', percent: 5, imgs: [], open: false });
+const randCode = () => Array.from({ length: 6 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join('');
+const pushTask = (desc: string, mode: BtMode, total: number, outcome: BtStatus) => {
+  tasks.value.unshift({ id: taskId++, desc, mode, code: randCode(), time: nowStr(), owner: '七妮妮', status: 'running', percent: 5, total, doneCount: 0, outcome, imgs: [], open: false });
   ensureTick();
 };
-const startGen = () => {
-  if (!prompt.value.trim()) { pushToast('请先填写美化需求，或点击「生成提示词」'); return; }
-  pushTask(prompt.value.split('\n')[0].slice(0, 24));
-  pushToast('美化任务已提交');
+/* 新任务结果轮转预设：保证三态都能演示到 */
+const BT_OUTCOMES: BtStatus[] = ['done', 'partial', 'failed'];
+const startBt = () => {
+  if (btMode.value === 'beauty' && !btSel.value.length) { pushToast('请先在左侧选择要美化的图片'); return; }
+  const n = btSources.value.length;
+  if (!n) { pushToast('暂无可参与生成的商品图片'); return; }
+  const cost = btCost.value;
+  if (cost > btBalance.value) { pushToast('算力余额不足', 'warning'); return; }
+  btBalance.value -= cost;
+  const desc = prompt.value.trim() ? prompt.value.split('\n')[0].slice(0, 28) : `${MODE_LABEL[btMode.value]} · ${n}张`;
+  pushTask(desc, btMode.value, n, BT_OUTCOMES[taskId % 3]);
+  pushToast(`美化任务已提交，消耗 ${cost} 算力`);
 };
-const regen = (t: BeautyTask) => { t.status = 'running'; t.percent = 5; ensureTick(); };
+const regen = (t: BeautyTask) => { t.status = 'running'; t.percent = 5; t.outcome = 'done'; ensureTick(); };
+/* 单张失败图重新生成：占位槽转重试态，落定后回填图片并按槽位重算任务状态 */
+const recalcTask = (t: BeautyTask) => {
+  const doneN = t.imgs.filter((x) => x.src && !x.retrying).length;
+  const failN = t.imgs.filter((x) => x.failed).length;
+  const busyN = t.imgs.filter((x) => x.retrying).length;
+  t.doneCount = doneN;
+  if (!failN && !busyN) { t.status = 'done'; t.doneCount = t.total; }
+  else if (doneN > 0) t.status = 'partial';
+  else t.status = 'failed';
+};
+const retryImg = (t: BeautyTask, i: number) => {
+  const im = t.imgs[i];
+  if (!im || !im.failed) return;
+  im.failed = false;
+  im.retrying = true;
+  window.setTimeout(() => {
+    const cur = t.imgs[i];
+    if (!cur || !cur.retrying) return;
+    cur.retrying = false;
+    cur.src = LIB_IMGS[(t.id + i) % LIB_IMGS.length].src;
+    cur.pos = 'center center';
+    recalcTask(t);
+    pushToast('失败图片已重新生成');
+  }, 1200);
+};
 
 /* 任务结果图操作：查看/美化/替换/添加/删除 */
-const tBeauty = (t: BeautyTask) => pushTask(`美化：${t.desc.slice(0, 16)}`);
+const tBeauty = (t: BeautyTask) => pushTask(`美化：${t.desc.slice(0, 16)}`, 'beauty', Math.max(1, t.imgs.length), 'done');
 const tReplace = (t: BeautyTask, i: number) => {
   const cur = LIB_IMGS.findIndex((l) => l.src === t.imgs[i].src);
   t.imgs[i] = LIB_IMGS[(cur + 1) % LIB_IMGS.length];
@@ -439,106 +540,151 @@ const tDel = (t: BeautyTask, i: number) => { t.imgs.splice(i, 1); };
         </div>
       </div>
     </div>
-    <!-- 一键美化：左 商品图+生成控制 / 右 美化任务列表 -->
-    <div v-else class="mc-body">
-      <div class="mc-left" ref="leftRef" @scroll="onLeftScroll">
-        <div class="mc-anchor">
-          <button v-for="s in SECS" :key="s.key" :class="{ on: activeSec === s.key }" @click="goSec(s.key)">{{ s.label }}</button>
+    <!-- 一键美化：左 生成控制面板 / 右 任务四态列表 + 底部提交栏 -->
+    <div v-else class="mc-body bt">
+      <div class="mc-bt-left">
+        <!-- 生成模式：套图生成 / 图片美化 -->
+        <div class="mc-bt-sec">
+          <div class="mc-bt-label req">生成模式</div>
+          <div class="mc-bt-radios">
+            <button v-for="m in BT_MODES" :key="m.key" class="mc-bt-radio" :class="{ on: btMode === m.key }" @click="btMode = m.key"><i />{{ m.label }}</button>
+          </div>
         </div>
-        <div class="mc-left-body">
-          <div class="mc-sec-title" data-sec="main">商品主图<span class="mc-count">{{ mainImgs.length }}</span></div>
-          <div class="mc-imgs">
-            <div v-for="(im, i) in mainImgs" :key="`bm${i}`" class="mc-img">
-              <img :src="im" alt="" />
-              <div class="mc-bubble h"><a href="#" @click.prevent.stop="preview = im">查看</a></div>
-            </div>
-          </div>
 
-          <div class="mc-sec-title" data-sec="sku">SKU图片</div>
-          <div class="mc-sku-list">
-            <div v-for="(_s, i) in d.skus" :key="i" class="mc-sku-row" :title="SKU_DESC">
-              <img class="mc-sku-img" :src="d.mainImgs[i % d.mainImgs.length]" alt="" />
-              <div class="mc-sku-name">{{ SKU_DESC }}</div>
-            </div>
-          </div>
-
-          <div class="mc-sec-title" data-sec="detail">详情图<span class="mc-count">{{ detailImgs.length }}</span></div>
-          <div class="mc-imgs two">
-            <div v-for="(im, i) in detailImgs" :key="`bd${i}`" class="mc-img">
-              <img :src="im" alt="" />
-              <div class="mc-bubble h"><a href="#" @click.prevent.stop="preview = im">查看</a></div>
-            </div>
-          </div>
-
-          <div class="mc-sec-title" data-sec="white">通用商品白底图</div>
-          <div class="mc-imgs two">
-            <div class="mc-img">
-              <img :src="d.whiteImg" alt="" />
-              <button class="mc-prompt-chip" @click="genPrompt">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" /><circle cx="12" cy="12" r="3.5" /></svg>
-                {{ prompt.trim() ? '优化提示词' : '生成提示词' }}
-              </button>
-            </div>
-          </div>
-
-          <!-- 生成控制卡：提示词 + 上传参考图/模型/比例 + 仅生成 -->
-          <div class="mc-gen-card">
-            <textarea v-model="prompt" class="mc-gen-input" placeholder="上传你想要的商品场景风格图片，一键更换商品中的场景风格样式" />
-            <div class="mc-gen-bar">
-              <button class="sg-btn" @click="pushToast('上传参考图：演示环境暂不可用')">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 15V4M7.5 8L12 3.5 16.5 8M4 20h16" /></svg>
-                上传参考图
-              </button>
-              <BubbleSelect class-name="mc-gen-select" default-value="doubao" :options="['doubao', '即梦', 'SDXL']" />
-              <BubbleSelect class-name="mc-gen-select" default-value="3:4" :options="['3:4', '1:1', '4:3', '原图比例']" />
-              <span class="mc-gen-spacer" />
-              <button class="sg-btn primary" @click="startGen">
-                仅生成
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6" /></svg>
-              </button>
+        <!-- 商品图片：主图/SKU图/详情图 三组；套图默认全部，美化模式可单选/多选 -->
+        <div class="mc-bt-sec">
+          <div class="mc-bt-label req">商品图片<span class="mc-bt-selnote">{{ btMode === 'set' ? `默认使用全部商品图，共 ${btAllItems.length} 张` : `已选 ${btSel.length} 张` }}</span></div>
+          <div v-for="g in btGroups" :key="g.label" class="mc-bt-group">
+            <div class="mc-bt-ghead">{{ g.label }}<span class="mc-count">{{ g.items.length }}</span></div>
+            <div class="mc-bt-thumbs">
+              <div v-for="it in g.items" :key="it.key" class="mc-bt-th" :class="{ sel: btSel.includes(it.key), pickable: btMode === 'beauty' }" @click="pickBt(it.key)">
+                <img :src="it.src" alt="" />
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 右栏：美化任务列表 -->
-      <div class="mc-right mc-tasks">
-        <div v-for="t in tasks" :key="t.id" class="mc-task">
-          <div class="mc-task-head">
-            <div class="mc-task-title">{{ t.desc }}</div>
-            <div v-if="t.status === 'running'" class="mc-task-pct">{{ t.percent }}%<span>正在生成...</span></div>
-            <button v-else-if="t.status === 'failed'" class="mc-regen" @click="regen(t)">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" /></svg>
-              重新生成
-            </button>
-            <button v-else class="mc-fold" @click="t.open = !t.open">{{ t.open ? '收起 ▴' : '展开 ▾' }}</button>
-          </div>
-          <div class="mc-task-meta">
-            <span class="mc-task-tag" :class="t.kind">{{ t.kind === 'beauty' ? '一键美化' : '选图美化' }}</span>
-            <span>{{ t.time }}</span>
-            <span>{{ t.owner }}</span>
-          </div>
-          <div v-if="t.status === 'running'" class="mc-task-progress">
-            <div class="mc-task-bar"><i :style="{ width: t.percent + '%' }" /></div>
-          </div>
-          <div v-else-if="t.status === 'failed'" class="mc-task-progress fail">
-            <div class="mc-task-bar"><i :style="{ width: t.percent + '%' }" /></div>
-            <span class="mc-fail-txt">失败</span>
-          </div>
-          <div v-else :class="t.open ? 'mc-task-grid' : 'mc-task-strip'">
-            <div v-for="(im, i) in (t.open ? t.imgs : t.imgs.slice(0, 4))" :key="i" class="mc-thwrap">
-              <div class="mc-img">
-                <img :src="im.src" alt="" :style="{ objectPosition: im.pos }" />
-                <span v-if="!t.open && i === 3 && t.imgs.length > 4" class="mc-strip-more">+{{ t.imgs.length - 3 }}</span>
-              </div>
-              <div class="mc-float-bubble">
-                <a href="#" @click.prevent.stop="preview = im.src">查看</a>
-                <a href="#" @click.prevent.stop="tBeauty(t)">美化</a>
-                <a href="#" @click.prevent.stop="tReplace(t, i)">替换</a>
-                <a href="#" @click.prevent.stop="tAdd(t)">添加</a>
-                <a class="del" href="#" @click.prevent.stop="tDel(t, i)">删除</a>
+      <!-- 右栏：任务四态列表（生成中/成功/部分完成/失败）+ 底部提交栏 -->
+      <div class="mc-right mc-tasks bt-right">
+        <div class="mc-bt-tasklist">
+          <div v-for="t in tasks" :key="t.id" class="mc-task">
+            <div class="mc-task-head">
+              <div class="mc-task-title">{{ t.desc }}</div>
+              <div class="mc-task-side">
+                <button v-if="t.status === 'failed'" class="mc-regen" @click="regen(t)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" /></svg>
+                  重新生成
+                </button>
+                <span class="mc-task-state" :class="t.status">{{ t.status === 'running' ? `生成中 ${t.percent}%` : t.status === 'failed' ? '失败' : t.status === 'partial' ? `部分完成 ${t.doneCount}/${t.total}` : '成功' }}</span>
+                <button v-if="t.status === 'done' || t.status === 'partial'" class="mc-task-chev" :class="{ open: t.open }" @click="t.open = !t.open">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6" /></svg>
+                </button>
               </div>
             </div>
+            <div class="mc-task-meta">
+              <span class="mc-task-tag mode">{{ MODE_LABEL[t.mode] }}</span>
+              <span class="mc-task-code">{{ t.code }}</span>
+              <span>{{ t.time }}</span>
+              <span>{{ t.owner }}</span>
+            </div>
+            <div v-if="t.status === 'running'" class="mc-task-progress">
+              <div class="mc-task-bar"><i :style="{ width: t.percent + '%' }" /></div>
+            </div>
+            <div v-else-if="t.status === 'failed'">
+              <div class="mc-task-progress fail">
+                <div class="mc-task-bar"><i style="width: 100%" /></div>
+              </div>
+              <!-- 全失败：失败占位槽全展示，每槽可单张重新生成 -->
+              <div class="mc-task-grid">
+                <div v-for="(im, i) in t.imgs" :key="i" class="mc-thwrap">
+                  <div v-if="im.retrying" class="mc-th-fail retrying"><i class="mc-th-spin" />重新生成中…</div>
+                  <div v-else-if="!im.failed" class="mc-img"><img :src="im.src" alt="" :style="{ objectPosition: im.pos }" /></div>
+                  <div v-else class="mc-th-fail">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /></svg>
+                    <span>生成失败</span>
+                    <button class="mc-th-retry" @click.stop="retryImg(t, i)">重新生成</button>
+                  </div>
+                </div>
+              </div>
+              <div class="mc-fail-note">全部图片生成失败</div>
+            </div>
+            <template v-else>
+              <!-- 收起 6 列小图 +N 蒙层 / 展开大图密铺；失败槽与重试槽穿插展示 -->
+              <div :class="t.open ? 'mc-task-grid' : 'mc-task-strip'">
+                <div v-for="(im, i) in (t.open ? t.imgs : t.imgs.slice(0, 6))" :key="i" class="mc-thwrap">
+                  <div v-if="im.failed" class="mc-th-fail">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /></svg>
+                    <span>生成失败</span>
+                    <button class="mc-th-retry" @click.stop="retryImg(t, i)">重新生成</button>
+                  </div>
+                  <div v-else-if="im.retrying" class="mc-th-fail retrying"><i class="mc-th-spin" />重新生成中…</div>
+                  <template v-else>
+                    <div class="mc-img">
+                      <img :src="im.src" alt="" :style="{ objectPosition: im.pos }" />
+                      <span v-if="!t.open && i === 5 && t.imgs.length > 6" class="mc-strip-more">+{{ t.imgs.length - 5 }}</span>
+                    </div>
+                    <div class="mc-float-bubble">
+                      <a href="#" @click.prevent.stop="preview = im.src">查看</a>
+                      <a href="#" @click.prevent.stop="tBeauty(t)">美化</a>
+                      <a href="#" @click.prevent.stop="tReplace(t, i)">替换</a>
+                      <a href="#" @click.prevent.stop="tAdd(t)">添加</a>
+                      <a class="del" href="#" @click.prevent.stop="tDel(t, i)">删除</a>
+                    </div>
+                  </template>
+                </div>
+              </div>
+              <div v-if="t.status === 'partial'" class="mc-fail-note part">仍有 {{ t.imgs.filter((x) => x.failed).length }} 张图片生成失败</div>
+            </template>
+          </div>
+        </div>
+
+        <!-- 底部提交栏：模式附加区（套图=图片数量+上传参考图 / 美化=已选图片）+ 描述 + 模型 + 算力 -->
+        <div class="mc-bt-composer">
+          <div v-if="btMode === 'set'" class="mc-bt-refzone">
+            <div class="mc-bt-crow">
+              <span class="mc-bt-count">图片数量 {{ btSources.length }}</span>
+              <button class="sg-btn mc-bt-upload" @click="btRefOpen = !btRefOpen">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 15V4M7.5 8L12 3.5 16.5 8M4 20h16" /></svg>
+                上传参考图
+              </button>
+              <!-- 参考图候选弹层：多选，选中结果落到按钮下方指定行 -->
+              <div v-if="btRefOpen" class="mc-bt-refpop">
+                <div v-for="(r, i) in LIB_IMGS" :key="i" class="mc-bt-refopt" :class="{ sel: btRefs.some((x) => x.src === r.src && x.pos === r.pos) }" @click="toggleRef(r)">
+                  <img :src="r.src" alt="" :style="{ objectPosition: r.pos }" />
+                </div>
+              </div>
+            </div>
+            <div v-if="btRefs.length" class="mc-bt-refrow">
+              <div v-for="(r, i) in btRefs" :key="i" class="mc-bt-refth">
+                <img :src="r.src" alt="" :style="{ objectPosition: r.pos }" />
+                <button class="mc-bt-pickx" title="移除参考图" @click="btRefs.splice(i, 1)">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div v-else class="mc-bt-crow pick">
+            <div v-for="it in btPicked" :key="it.key" class="mc-bt-pickth">
+              <img :src="it.src" alt="" />
+              <button class="mc-bt-pickx" title="移除" @click="unpickBt(it.key)">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
+              </button>
+            </div>
+            <span v-if="!btPicked.length" class="mc-bt-pickempty">左侧选择的商品图片将展示在这里，支持单选或多选</span>
+          </div>
+          <textarea v-model="prompt" class="mc-bt-input" rows="2" :placeholder="btMode === 'set' ? '描述你想如何生成套图（可选）' : '描述你想如何美化图片（可选）'" />
+          <div class="mc-bt-cbar">
+            <BubbleSelect class-name="mc-gen-select" :value="btModel" :options="['图片 5.0 Lite', '图片 4.6', '图片 4.0']" @change="(v: string) => { btModel = v; }" />
+            <span class="mc-gen-spacer" />
+            <span class="mc-bt-credit" title="算力余额">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.2 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8L12 2z" /></svg>
+              {{ btBalance }}
+            </span>
+            <button class="sg-btn primary mc-bt-submit" @click="startBt">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4.5 13.5H11L9.5 22 19 9.5h-6.5L13 2z" /></svg>
+              {{ btCost }} 算力
+            </button>
           </div>
         </div>
       </div>

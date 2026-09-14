@@ -6,6 +6,8 @@ import { BEE_PLATFORMS, BEE_PLATFORM_LOGO, beePlatEnabled, beeStrategies, BEE_PU
 import type { BeePubMethod, BeeStrategy, ShipTime } from './data';
 
 const emit = defineEmits<{ (e: 'close'): void }>();
+/* tone=fs：Funion s 复用策略管理（品牌标题/渐变 logo） */
+withDefaults(defineProps<{ tone?: 'bee' | 'fs' }>(), { tone: 'bee' });
 
 /* 仅展示含已支持平台（当前=淘宝）的策略；表单平台候选同步收窄，其它平台隐藏不删数据 */
 const rows = ref<BeeStrategy[]>(beeStrategies.filter((s) => s.platforms.some(beePlatEnabled)));
@@ -126,8 +128,8 @@ defineExpose({ leaveHint });
   <div class="bp-page">
     <!-- 顶栏 -->
     <div class="bp-head">
-      <span class="bee-logo">🐝</span>
-      <span class="bp-title">蜜蜂搬家 · 策略管理</span>
+      <span class="bee-logo" :class="{ fs: tone === 'fs' }">{{ tone === 'fs' ? 'S' : '🐝' }}</span>
+      <span class="bp-title">{{ tone === 'fs' ? 'Funion s' : '蜜蜂搬家' }} · 策略管理</span>
       <div class="bp-head-r">
         <button class="bp-close" title="关闭" @click="emit('close')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>

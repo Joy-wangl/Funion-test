@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /* =========================================================
-   概览页（运营驾驶舱之上）：数据总览（按业务维度拆两张卡：商品维度无时间查询 / 任务维度带时间查询 · 每个指标只出现一次）/
+   概览页（运营驾驶舱之上）：数据总览（按业务概览拆两张卡：商品概览无时间查询 / 任务概览带时间查询 · 每个指标只出现一次）/
    趋势与榜单 / 个人贡献与店铺预警同一白卡大模块（预警仅展示，类目受限行可查看明细弹窗）/ 店铺发布明细
    任务四态计数与任务中心子任务实时同源聚合；受限店铺与发布任务店铺池同源
    ========================================================= */
@@ -14,7 +14,7 @@ import { pushToast } from '../../components/toast';
 /** 平台维度：商品/任务/贡献等卡各一套 chips（全部/视频号/淘宝），各自仅过滤本卡数据 */
 const OV_PLATS = ['全部', '视频号', '淘宝'] as const;
 type OvPlat = (typeof OV_PLATS)[number];
-/* 商品/任务维度拆两张卡后平台口径各自独立：商品卡存量快照、任务卡随时间窗口聚合 */
+/* 商品/任务概览拆两张卡后平台口径各自独立：商品卡存量快照、任务卡随时间窗口聚合 */
 const platGoods = ref<OvPlat>('全部');
 const platTask = ref<OvPlat>('全部');
 /* 贡献+预警大模块统一平台口径：卡头 chips 同时驱动两列 */
@@ -307,11 +307,10 @@ watch(pageCount, (v) => { if (page.value > v) page.value = v; });
 
 <template>
   <div class="ov-page">
-    <!-- 商品维度：独立白卡置顶（存量快照口径，无时间查询），平台 chips 右置卡头 -->
+    <!-- 商品概览：独立白卡置顶（存量快照口径，无时间查询），平台 chips 右置卡头 -->
     <section class="ov-card ov-hero">
       <div class="ov-sec-head">
-        <b>商品维度</b>
-        <span class="ov-sec-sub">在售库存与动销快照 · 存量口径</span>
+        <b>商品概览</b>
         <span class="ov-plat-chips">
           <button
             v-for="p in OV_PLATS"
@@ -347,11 +346,10 @@ watch(pageCount, (v) => { if (page.value > v) page.value = v; });
       </div>
     </section>
 
-    <!-- 任务维度：独立白卡（随时间查询窗口聚合切片），时间 chips + 平台 chips 右置卡头 -->
+    <!-- 任务概览：独立白卡（随时间查询窗口聚合切片），时间 chips + 平台 chips 右置卡头 -->
     <section class="ov-card ov-hero">
       <div class="ov-sec-head">
-        <b>任务维度</b>
-        <span class="ov-sec-sub">发布任务四态与成功率 · 随时间查询统计</span>
+        <b>任务概览</b>
         <!-- 时间查询：与平台 chips 同语言，右置平台 chips 之前；自定义展开日期区间浮层 -->
         <span ref="timeWrapRef" class="ov-time-wrap">
           <button
