@@ -610,9 +610,9 @@ const tDel = (t: BeautyTask, i: number) => { t.imgs.splice(i, 1); };
               <div class="mc-fail-note">全部图片生成失败</div>
             </div>
             <template v-else>
-              <!-- 收起 6 列小图 +N 蒙层 / 展开大图密铺；失败槽与重试槽穿插展示 -->
+              <!-- 收起 5 列大图 +N 蒙层 / 展开大图密铺；失败槽与重试槽穿插展示 -->
               <div :class="t.open ? 'mc-task-grid' : 'mc-task-strip'">
-                <div v-for="(im, i) in (t.open ? t.imgs : t.imgs.slice(0, 6))" :key="i" class="mc-thwrap">
+                <div v-for="(im, i) in (t.open ? t.imgs : t.imgs.slice(0, 5))" :key="i" class="mc-thwrap">
                   <div v-if="im.failed" class="mc-th-fail">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /></svg>
                     <span>生成失败</span>
@@ -622,7 +622,7 @@ const tDel = (t: BeautyTask, i: number) => { t.imgs.splice(i, 1); };
                   <template v-else>
                     <div class="mc-img">
                       <img :src="im.src" alt="" :style="{ objectPosition: im.pos }" />
-                      <span v-if="!t.open && i === 5 && t.imgs.length > 6" class="mc-strip-more">+{{ t.imgs.length - 5 }}</span>
+                      <span v-if="!t.open && i === 4 && t.imgs.length > 5" class="mc-strip-more">+{{ t.imgs.length - 4 }}</span>
                     </div>
                     <div class="mc-float-bubble">
                       <a href="#" @click.prevent.stop="preview = im.src">查看</a>

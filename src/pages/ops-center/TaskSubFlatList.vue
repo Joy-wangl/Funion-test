@@ -8,7 +8,7 @@ import TcStepsCell from './TcStepsCell.vue';
 import { firstStepFailed, createPageOf, type CreatePageKey } from './tcSteps';
 
 const platformOptions = ['全部', '淘宝', '天猫', '拼多多', '抖音', '快手', '京东', '阿里巴巴', '微信视频号小店', '微信小店'];
-const typeOptions = ['快速铺货', '商品铺货', '商品发布', '批量上架', '自动定价', '自动换图'];
+const typeOptions = ['快速铺货', '商品铺货', '商品发布', '批量上架', '自动定价', '自动换图', '商品搬家', '自动下架'];
 const shopOptions = ['全部', ...new Set([...ovShops.map((s) => s.shop), '首力茹愕小店', '真子名品'])];
 /** 失败原因 chips（执行失败 tab）：参照版客户端 v1.0.3 词表 + 风险管控（校验管控商品节点命中） */
 const failChips = ['全部', '发品受限', '价格异常', '母链接同步失败', '风控拦截', '风险管控', '材料缺失', '系列编码异常', '其它'];
@@ -363,10 +363,8 @@ watch(pageCount, (v) => { if (page.value > v) page.value = v; });
             <th>节点状态</th>
             <th>任务状态</th>
             <th>发布店铺</th>
-            <th class="tc-pubinfo">
-              <div>发布平台</div>
-              <div>创建人</div>
-              <div><SortTh as="span" label="创建时间" :state="sortKey === 'create' ? sortDir : 'none'" @sort="onSort('create')" /></div>
+            <th :style="{ width: '140px' }">
+              <SortTh as="span" label="创建信息" :state="sortKey === 'create' ? sortDir : 'none'" @sort="onSort('create')" />
             </th>
             <SortTh label="执行起止时间" :state="sortKey === 'exec' ? sortDir : 'none'" @sort="onSort('exec')" />
             <th>操作</th>
@@ -384,7 +382,17 @@ watch(pageCount, (v) => { if (page.value > v) page.value = v; });
                 <img class="tc-thumb" :src="r.sub.thumb" />
                 <div>
                   <div class="tc-pname">{{ r.sub.name }}</div>
-                  <div class="tc-pmeta">链接商品ID：{{ r.sub.linkId }}</div>
+                  <template v-if="r.parent.type === '商品搬家'">
+                    <div class="tc-pmeta">来源店铺：{{ r.sub.sourceShop || '–' }}</div>
+                    <div class="tc-pmeta">来源商品ID：{{ r.sub.sourceProductId || '–' }}</div>
+                  </template>
+                  <template v-else-if="r.parent.type === '自动下架'">
+                    <div class="tc-pmeta">店铺：{{ r.sub.sourceShop || '–' }}</div>
+                    <div class="tc-pmeta">商品ID：{{ r.sub.sourceProductId || '–' }}</div>
+                  </template>
+                  <template v-else>
+                    <div class="tc-pmeta">链接商品ID：{{ r.sub.linkId }}</div>
+                  </template>
                 </div>
               </div>
             </td>
@@ -401,7 +409,6 @@ watch(pageCount, (v) => { if (page.value > v) page.value = v; });
             <td>{{ r.sub.shops[0]?.shop ?? '–' }}</td>
             <td>
               <div class="tc-cell-lines">
-                <div>{{ r.sub.shops[0]?.platform ?? '–' }}</div>
                 <div>{{ r.parent.creator }}</div>
                 <div>{{ r.parent.createTime }}</div>
               </div>

@@ -34,6 +34,16 @@ export function sgWarnType(p: Pick<SgProduct, 'offType'>): string | null {
   return SG_WARN_TYPES.includes(p.offType) ? p.offType : null;
 }
 
+/** 7日销量：按商品ID确定性生成 7 天序列（末位为今日），量级锚定近30日销量；无动销商品全 0 */
+export function sgSales7(p: Pick<SgProduct, 'id' | 'sold30'>): number[] {
+  const base = parseInt(String(p.sold30).replace(/,/g, ''), 10) || 0;
+  if (!base) return [0, 0, 0, 0, 0, 0, 0];
+  let h = 7;
+  for (const c of p.id) h = (h * 31 + c.charCodeAt(0)) % 997;
+  const weights = [0.7, 1.1, 0.9, 1.3, 0.8, 1.2, 1];
+  return weights.map((w, i) => Math.max(1, Math.round((base / 30) * 7 * w * (0.6 + ((h >> i) % 10) / 12))));
+}
+
 export interface SgProduct {
   id: string;
   title: string;

@@ -15,11 +15,11 @@ const chip = ref<'全部' | MvTaskStatus>('全部');
 const CHIPS: ('全部' | MvTaskStatus)[] = ['全部', ...MV_STATUSES];
 const countOf = (k: (typeof CHIPS)[number]) => (k === '全部' ? props.tasks.length : props.tasks.filter((t) => t.status === k).length);
 
-const emptyFilter = { name: '', kind: '全部', method: '全部', shop: '全部' };
+const emptyFilter = { name: '', kind: '全部', method: '全部', shop: '全部', creator: '', dateFrom: '', dateTo: '' };
 const filter = ref({ ...emptyFilter });
 const applied = ref({ ...emptyFilter });
-const doSearch = () => { applied.value = { ...filter.value }; };
-const doReset = () => { filter.value = { ...emptyFilter }; applied.value = { ...emptyFilter }; };
+const doSearch = () => { applied.value = { ...filter.value } };
+const doReset = () => { filter.value = { ...emptyFilter }; applied.value = { ...emptyFilter } };
 
 const rows = computed(() => props.tasks.filter((t) => {
   if (chip.value !== '全部' && t.status !== chip.value) return false;
@@ -27,6 +27,9 @@ const rows = computed(() => props.tasks.filter((t) => {
   if (applied.value.kind !== '全部' && t.kind !== applied.value.kind) return false;
   if (applied.value.method !== '全部' && t.method !== applied.value.method) return false;
   if (applied.value.shop !== '全部' && ![...t.shopIds, ...(t.targetShopIds ?? [])].some((id) => mvShopOf(id)?.name === applied.value.shop)) return false;
+  if (applied.value.creator && !t.creator.includes(applied.value.creator)) return false;
+  if (applied.value.dateFrom && t.createdAt < applied.value.dateFrom) return false;
+  if (applied.value.dateTo && t.createdAt > applied.value.dateTo + ' 23:59:59') return false;
   return true;
 }));
 
@@ -41,9 +44,9 @@ const runAct = (t: MvTask): { label: string; to: MvTaskStatus; msg: string } | n
       : { label: '启用', to: '启用中', msg: `已启用：任务「${t.name}」恢复条件监听` };
   }
   if (t.method === '循环') {
-    if (t.status === '待执行') return { label: '启动', to: '执行中', msg: `已启动：任务「${t.name}」按循环时间执行` };
-    if (t.status === '执行中') return { label: '禁用', to: '已禁用', msg: `已禁用：任务「${t.name}」停止循环` };
-    return { label: '启用', to: '执行中', msg: `已启用：任务「${t.name}」恢复循环执行` };
+    return t.status === '已启用'
+      ? { label: '禁用', to: '已禁用', msg: `已禁用：任务「${t.name}」停止循环` }
+      : { label: '启用', to: '已启用', msg: `已启用：任务「${t.name}」恢复循环执行` };
   }
   return t.status === '待执行' ? { label: '启动', to: '执行中', msg: `已启动：任务「${t.name}」开始执行` } : null;
 };
@@ -91,6 +94,18 @@ const confirmDel = () => {
         <div class="sg-field">
           <label>店铺</label>
           <BubbleSelect class-name="sg-select" :value="filter.shop" :options="['全部', ...mvShops.map((s) => s.name)]" @change="(v: string) => (filter.shop = v)" />
+        </div>
+        <div class="sg-field">
+          <label>创建人</label>
+          <input class="sg-input" placeholder="请输入创建人" :value="filter.creator" @input="filter.creator = ($event.target as HTMLInputElement).value" />
+        </div>
+        <div class="sg-field">
+          <label>创建时间</label>
+          <div class="sg-range">
+            <input class="sg-input" type="date" :value="filter.dateFrom" @input="filter.dateFrom = ($event.target as HTMLInputElement).value" />
+            <span>至</span>
+            <input class="sg-input" type="date" :value="filter.dateTo" @input="filter.dateTo = ($event.target as HTMLInputElement).value" />
+          </div>
         </div>
         <div class="sg-actions">
           <button class="sg-btn primary" @click="emit('create')">新建任务</button>

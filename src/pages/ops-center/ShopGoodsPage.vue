@@ -7,7 +7,7 @@ import MoreActions from '../../components/MoreActions.vue';
 import Modal from '../../components/Modal.vue';
 import { pushToast } from '../../components/toast';
 import { PLATFORM_LOGO } from './data';
-import { sgProducts, SG_CHIPS, JM_CHIPS, SG_STATUS_META, sgRowActions, SG_OFF_FAIL_TYPES, SG_OFF_GROUP, SG_OFF_GROUPS, sgWarnType } from './shopGoodsData';
+import { sgProducts, SG_CHIPS, JM_CHIPS, SG_STATUS_META, sgRowActions, SG_OFF_FAIL_TYPES, SG_OFF_GROUP, SG_OFF_GROUPS, sgWarnType, sgSales7 } from './shopGoodsData';
 import type { SgProduct, SgTab } from './shopGoodsData';
 import SgDetailPage from './SgDetailPage.vue';
 import JmCreateDetailPage from './JmCreateDetailPage.vue';
@@ -213,6 +213,15 @@ const sortIco = (k: SgSortKey): 'none' | 'asc' | 'desc' => (sortKey.value === k 
 const numOf = (s: string) => Number(s.replace(/,/g, '')) || 0;
 /* 销量数据块：无数据展示 0（对齐微信小店经营概览） */
 const zero = (v: string) => (v === '-' ? '0' : v);
+/* 7日销量柱状图：柱高按近7日峰值缩放；悬浮气泡展示日期+具体值，末柱微标签「今日」 */
+const s7Max = (p: SgProduct) => Math.max(1, ...sgSales7(p));
+const s7H = (p: SgProduct, v: number) => (v > 0 ? Math.max(6, Math.round((v / s7Max(p)) * 36)) : 2);
+const s7Label = (i: number) => {
+  if (i === 6) return '今日';
+  const d = new Date();
+  d.setDate(d.getDate() - (6 - i));
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+};
 
 /* 下架原因悬浮气泡：fixed 定位挂在页面层，不被表格容器裁剪、悬浮不抖动 */
 const offPop = reactive({ show: false, x: 0, y: 0, text: '' });
@@ -419,6 +428,7 @@ const onTab = (t: SgTab) => {
               <th v-if="canPrice" :style="{ width: '44px' }"><input type="checkbox" :checked="allChecked" @change="toggleAll" /></th>
               <th :style="{ width: '380px' }">商品信息</th>
               <SortTh label="近20日销量概览" width="140px" :state="sortIco('sold')" @sort="toggleSort('sold')" />
+              <th :style="{ width: '150px' }">7日销量</th>
               <th :style="{ width: '150px' }">商品状态</th>
               <th :style="{ width: '120px' }">商品策略</th>
               <th :style="{ width: '150px' }">预警</th>
@@ -451,6 +461,15 @@ const onTab = (t: SgTab) => {
                 <div class="sg-biz sg-biz-1col">
                   <div><span>销量</span><b>{{ zero(p.sold30) }}</b></div>
                   <div><span>总销量</span><b>{{ zero(p.sales) }}</b></div>
+                </div>
+              </td>
+              <td>
+                <div class="sg-s7">
+                  <div v-for="(v, i) in sgSales7(p)" :key="i" class="sg-s7-col">
+                    <span class="sg-s7-tip">{{ s7Label(i) }}销量 {{ v }}</span>
+                    <i class="sg-s7-bar" :class="{ zero: v === 0 }" :style="{ height: s7H(p, v) + 'px' }" />
+                    <b v-if="i === 6" class="sg-s7-now">今日</b>
+                  </div>
                 </div>
               </td>
               <td>

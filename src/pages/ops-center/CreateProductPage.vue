@@ -50,7 +50,7 @@ const newPubSel = (name: string): PubSel => ({
   way: '蜂联发布',
   shopQ: '',
   platform: PUB_SHOP_PLATFORMS[0],
-  groupOpen: true,
+  groupOpen: false,
   shops: [],
 });
 const openPubTo = (products: CreateRow[]) => {
@@ -622,9 +622,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
             <div class="cp-pub-shopbar">
               <div class="cp-pub-search">
                 <input v-model="g.shopQ" class="ib-input" placeholder="店铺名称/分组名称" />
-                <svg class="cp-pub-search-ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M11 4a7 7 0 110 14 7 7 0 010-14zm9 16l-4.35-4.35" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                </svg>
+                <!-- 清除钮：框内右侧实心灰圆× 有值才显，与全局查询条件清除规范一致 -->
+                <button v-if="g.shopQ" type="button" class="cp-pub-clear" title="清除" @click="g.shopQ = ''">
+                  <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+                </button>
               </div>
               <BubbleSelect
                 class-name="ib-select cp-pub-plat"
@@ -660,8 +661,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
                   @change="toggleGroupShop(g, s.id, ($event.target as HTMLInputElement).checked)"
                 />
                 <img :src="pubLogo(s.platform)" alt="" />
-                <span class="plat">{{ s.platform }}</span>
-                <span class="name">{{ s.name }}</span>
+                <span class="cp-pub-shop-txt">
+                  <span class="plat">{{ s.platform }}</span>
+                  <span class="name">{{ s.name }}</span>
+                </span>
                 <span v-if="shopTakenBy.has(s.id) && shopTakenBy.get(s.id) !== g.name" class="cp-pub-taken">已被 {{ shopTakenBy.get(s.id) }} 选择</span>
               </label>
               <div v-if="groupShopsVisible(g).length === 0" class="cp-pub-empty">暂无店铺</div>

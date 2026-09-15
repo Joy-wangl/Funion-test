@@ -5,7 +5,7 @@ export type MvKind = '自动搬家' | '自动下架';
 /** 执行方式：循环=指定时间循环；条件触发=满足条件即时触发（长期）；一次性=配置条件只执行一次 */
 export type MvMethod = '循环' | '条件触发' | '一次性';
 /** 任务状态：按执行方式差异化枚举（循环 3 态 / 一次性 3 态 / 条件 2 态） */
-export type MvTaskStatus = '待执行' | '执行中' | '已禁用' | '已完成' | '启用中';
+export type MvTaskStatus = '待执行' | '执行中' | '已启用' | '已禁用' | '已完成' | '启用中';
 /** 条件配置：行式条件组（当/且或 + 条件指标 + 运算符 + 阈值）；日期型指标取 v1/v2 为区间起止 */
 export type MvCondMetric = '销量' | '利润率' | '库存' | '上架天数' | '上架时间';
 /** 上架时间的时间预设：非自定义时不展示日期输入件（相对窗口即近期语义） */
@@ -66,6 +66,12 @@ export interface MvTask {
   cycle?: '每天' | '每周' | '每月';
   cycleDay?: string;
   cycleTime?: string;
+  /** 一次性任务的执行方式：immediate=立即执行，scheduled=定时执行 */
+  execMode?: 'immediate' | 'scheduled';
+  /** 一次性任务定时执行的日期（YYYY-MM-DD） */
+  execDate?: string;
+  /** 一次性任务定时执行的时间（HH:MM） */
+  execTime?: string;
   /** 条件配置行组（全任务必填：圈定命中商品；循环方式对命中品按周期执行） */
   cond: MvCondition;
   /** 自动搬家=被搬店铺（多选）；自动下架=任务关联店铺（多选） */
@@ -82,16 +88,16 @@ export interface MvTask {
 export const MV_KINDS: MvKind[] = ['自动搬家', '自动下架'];
 export const MV_METHODS: MvMethod[] = ['循环', '条件触发', '一次性'];
 
-/** 各执行方式的状态枚举：循环=待执行/执行中/已禁用；一次性=待执行/执行中/已完成；条件=启用中/已禁用 */
+/** 各执行方式的状态枚举：循环=已启用/已禁用；一次性=待执行/执行中/已完成；条件=启用中/已禁用 */
 export const MV_METHOD_STATUS: Record<MvMethod, MvTaskStatus[]> = {
-  循环: ['待执行', '执行中', '已禁用'],
+  循环: ['已启用', '已禁用'],
   一次性: ['待执行', '执行中', '已完成'],
   条件触发: ['启用中', '已禁用'],
 };
-export const MV_STATUSES: MvTaskStatus[] = ['待执行', '执行中', '启用中', '已禁用', '已完成'];
-/** 新建任务初始状态：条件方式创建即生效，其余待执行 */
-export const mvInitStatus = (m: MvMethod): MvTaskStatus => (m === '条件触发' ? '启用中' : '待执行');
-/** 状态圆点色档（圆点+文字形态）：已禁用红 / 待执行黄 / 执行中蓝 / 已完成灰 / 启用中绿 */
+export const MV_STATUSES: MvTaskStatus[] = ['待执行', '执行中', '已启用', '启用中', '已禁用', '已完成'];
+/** 新建任务初始状态：循环/条件方式创建即生效，一次性待执行 */
+export const mvInitStatus = (m: MvMethod): MvTaskStatus => (m === '一次性' ? '待执行' : m === '循环' ? '已启用' : '启用中');
+/** 状态圆点色档（圆点+文字形态）：已禁用红 / 待执行黄 / 执行中蓝 / 已完成灰 / 已启用·启用中绿 */
 export const mvStatusDot = (s: MvTaskStatus) => s === '已禁用' ? 'mv-dot-red' : s === '待执行' ? 'mv-dot-yellow' : s === '执行中' ? 'mv-dot-blue' : s === '已完成' ? 'mv-dot-gray' : 'mv-dot-green';
 
 /** 执行配置摘要（列表列直展，与抽屉配置同源） */
@@ -126,7 +132,7 @@ export const mvTasks: MvTask[] = [
     id: 'at-01', name: '自动搬家-淘宝心选店全店循环', kind: '自动搬家', method: '循环',
     cycle: '每天', cycleTime: '02:00', shopIds: ['s1'], targetShopIds: ['v1'], strategy: '13245',
     cond: [{ key: 'c1', conj: '且', metric: '上架天数', op: '≥', v1: '7', v2: '' }],
-    creator: '七妮妮', status: '执行中', createdAt: '2026-08-02 10:24',
+    creator: '七妮妮', status: '已启用', createdAt: '2026-08-02 10:24',
   },
   {
     id: 'at-02', name: '自动搬家-天猫旗舰店动销款至视频号', kind: '自动搬家', method: '一次性',

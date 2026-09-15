@@ -22,8 +22,6 @@ const name = ref(m?.name ?? '');
 const kind = ref<MvKind>(m?.kind ?? '自动搬家');
 const method = ref<MvMethod>(m?.method ?? '循环');
 const setMethod = (v: string) => { method.value = MV_METHODS.find((md) => METHOD_LABEL[md] === v) ?? '循环'; };
-
-/* 步骤1 内嵌：循环=指定时间循环；条件配置全方式必填（圈定命中商品），行式条件组可增删行 */
 /* 循环配置动态结构：每天=几点；每周=周几+几点；每月=几号+几点 */
 const MV_CYCLES = ['每天', '每周', '每月'];
 const cycle = ref<'每天' | '每周' | '每月'>(m?.cycle ?? '每天');
@@ -34,14 +32,34 @@ const setCycle = (v: string) => {
   if (v === '每周' && !MV_WEEK_DAYS.includes(cycleDay.value)) cycleDay.value = '周一';
   if (v === '每月' && !MV_MONTH_DAYS.includes(cycleDay.value)) cycleDay.value = '1号';
 };
+/* 一次性任务执行时间：立即执行 / 定时执行（日期+时分） */
+const execMode = ref<'immediate' | 'scheduled'>('immediate');
+const execDate = ref('');
+const execTimeOne = ref('');
+const openExecDp = (e: Event) => {
+  const rect = (e.currentTarget as HTMLElement).closest('.mv-cond-date')?.getBoundingClientRect();
+  dpPos.value = { x: rect?.left ?? 0, y: (rect?.bottom ?? 0) + 4 };
+  const base = execDate.value ? new Date(`${execDate.value}T00:00:00`) : new Date();
+  dpView.value = { y: base.getFullYear(), m: base.getMonth() + 1 };
+  dpAnchor.value = '';
+  dpOpen.value = '__exec__';
+};
+const execDpRow = computed(() => ({ key: '__exec__', v1: execDate.value, v2: '', preset: undefined, metric: '上架时间' as MvCondMetric, op: '=', conj: '且' as const }));
+const dpRowC = computed(() => dpOpen.value === '__exec__' ? execDpRow.value : condRows.value.find((x) => x.key === dpOpen.value));
+const dpPickExec = (isoV: string) => { execDate.value = isoV; dpOpen.value = ''; };
+/* 执行时间校验：定时执行时必填日期和时间 */
+const execTimeValid = computed(() => execMode.value === 'immediate' || (execDate.value !== '' && execTimeOne.value !== ''));
 /* 执行时间：自绘时间选择器弹层（时/分双列滚选，与日历弹层同壳），替代裸文本输入 */
 const TP_HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const TP_MINS = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
 const tpOpen = ref(false);
 const tpPos = ref({ x: 0, y: 0 });
-const tpH = computed(() => cycleTime.value.split(':')[0] ?? '');
-const tpM = computed(() => cycleTime.value.split(':')[1] ?? '');
+/** 时间选择器目标：'cycle'=循环执行时间，'exec'=一次性定时执行时间 */
+const tpTarget = ref<'cycle' | 'exec'>('cycle');
+const tpH = computed(() => (tpTarget.value === 'cycle' ? cycleTime.value : execTimeOne.value).split(':')[0] ?? '');
+const tpM = computed(() => (tpTarget.value === 'cycle' ? cycleTime.value : execTimeOne.value).split(':')[1] ?? '');
 const openTp = (e: Event) => {
+  tpTarget.value = 'cycle';
   const rect = (e.currentTarget as HTMLElement).closest('.mv-time-box')?.getBoundingClientRect();
   tpPos.value = { x: rect?.left ?? 0, y: (rect?.bottom ?? 0) + 4 };
   tpOpen.value = true;
@@ -53,7 +71,22 @@ const openTp = (e: Event) => {
     });
   });
 };
-const tpPick = (h: string, mi: string) => { cycleTime.value = `${h}:${mi}`; };
+const openExecTp = (e: Event) => {
+  tpTarget.value = 'exec';
+  const rect = (e.currentTarget as HTMLElement).closest('.mv-time-box')?.getBoundingClientRect();
+  tpPos.value = { x: rect?.left ?? 0, y: (rect?.bottom ?? 0) + 4 };
+  tpOpen.value = true;
+  nextTick(() => {
+    document.querySelectorAll('.mv-tpop .mv-tp-col').forEach((col) => {
+      const el = col.querySelector('.mv-tp-cell.on') as HTMLElement | null;
+      if (el) (col as HTMLElement).scrollTo(0, el.offsetTop - col.clientHeight / 2 + el.offsetHeight / 2);
+    });
+  });
+};
+const tpPick = (h: string, mi: string) => {
+  if (tpTarget.value === 'cycle') cycleTime.value = `${h}:${mi}`;
+  else execTimeOne.value = `${h}:${mi}`;
+};
 const condRows = ref<MvCondRow[]>(m?.cond
   ? m.cond.map((r) => ({ ...r }))
   : [{ key: 'c0', conj: '且', metric: '销量', op: '>', v1: '', v2: '' }]);
@@ -79,12 +112,14 @@ const setRowPreset = (r: MvCondRow, v: string) => {
 /* 运算符切换：数值型清区间端点；日期型恒为范围不受运算符影响 */
 const setRowOp = (r: MvCondRow, v: string) => {
   r.op = v;
-  if (v !== '介于' && mvMetricMeta(r.metric).kind !== 'date') r.v2 = '';
+  if (v === '介于') { r.preset = undefined; } /* 介于恒用自定义范围，清除预设 */
+  else if (mvMetricMeta(r.metric).kind !== 'date') { r.v2 = ''; }
   dpOpen.value = '';
 };
 /* 行完整性：数值型阈值 ≥ 0；上架时间预设非自定义即完整，自定义必填起止范围且起 ≤ 止 */
 const rowValid = (r: MvCondRow) => {
   if (mvMetricMeta(r.metric).kind === 'date') {
+    if (r.op === '介于') return r.v1 !== '' && r.v2 !== '' && r.v1 <= r.v2; /* 介于恒为范围，必填起止 */
     if ((r.preset ?? '自定义时间') !== '自定义时间') return true;
     return r.v1 !== '' && r.v2 !== '' && r.v1 <= r.v2;
   }
@@ -98,7 +133,6 @@ const dpView = ref({ y: 2026, m: 9 });
 const dpAnchor = ref('');
 const dpIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const dpToday = dpIso(new Date());
-const dpRowC = computed(() => condRows.value.find((x) => x.key === dpOpen.value));
 const openDp = (e: Event, r: MvCondRow) => {
   const rect = (e.currentTarget as HTMLElement).closest('.mv-cond-date')?.getBoundingClientRect();
   dpPos.value = { x: rect?.left ?? 0, y: (rect?.bottom ?? 0) + 4 };
@@ -128,6 +162,11 @@ const dpCellClass = (c: { iso: string; inMonth: boolean }) => {
   const r = dpRowC.value;
   const cls: Record<string, boolean> = { out: !c.inMonth, today: c.iso === dpToday };
   if (!r) return cls;
+  /* 执行日期：单选模式，高亮选中日期 */
+  if (dpOpen.value === '__exec__') {
+    cls.on = c.iso === execDate.value;
+    return cls;
+  }
   cls.on = c.iso === r.v1 || c.iso === r.v2 || (!r.v2 && c.iso === dpAnchor.value);
   cls.in = !!r.v1 && !!r.v2 && c.iso > r.v1 && c.iso < r.v2;
   return cls;
@@ -163,20 +202,19 @@ const MV_STRATEGY_OPTIONS = PUB_STRATEGIES.map((s) => s.name);
 const strategy = ref(m?.strategy ?? MV_STRATEGY_OPTIONS[0]);
 const targetIds = ref<string[]>(m?.targetShopIds ? [...m.targetShopIds] : []);
 const removeTarget = (id: string) => { targetIds.value = targetIds.value.filter((x) => x !== id); };
-/* 选店弹窗（被搬/目标共用）：多选暂存 + 搜索 + 平台 tab 切换，确认后落回芯片行 */
+/* 选店弹窗（被搬/目标共用）：多选暂存 + 搜索，确认后落回芯片行；第一版仅视频号 */
 const pickModal = ref(false);
 const modalMode = ref<'source' | 'target'>('source');
 const srcPick = ref<string[]>([]);
 const tgtPick = ref<string[]>([]);
 const pickQuery = ref('');
-const pickTab = ref('全部');
-const MV_SHOP_TABS = ['全部', ...Array.from(new Set(mvShops.map((s) => s.platform)))];
-const pickShops = computed(() => mvShops.filter((s) =>
-  (pickTab.value === '全部' || s.platform === pickTab.value)
-  && (!pickQuery.value.trim() || s.name.includes(pickQuery.value.trim()))));
+/* 第一版仅视频号店铺 */
+const VIDEO_SHOPS = mvShops.filter((s) => s.platform === '视频号');
+const pickShops = computed(() => VIDEO_SHOPS.filter((s) =>
+  !pickQuery.value.trim() || s.name.includes(pickQuery.value.trim())));
 const pickRef = () => (modalMode.value === 'source' ? srcPick : tgtPick);
 const curPick = computed(() => pickRef().value);
-/* 全选行：按当前过滤视图（平台 tab + 搜索）批量勾选/取消，与自动下架内联列表全选同约定 */
+/* 全选行：按当前搜索过滤批量勾选/取消 */
 const pickAllOn = computed(() => pickShops.value.length > 0 && pickShops.value.every((s) => curPick.value.includes(s.id)));
 const togglePickAll = () => {
   const r = pickRef();
@@ -188,7 +226,6 @@ const openPick = (mode: 'source' | 'target') => {
   modalMode.value = mode;
   (mode === 'source' ? srcPick : tgtPick).value = [...(mode === 'source' ? shopIds : targetIds).value];
   pickQuery.value = '';
-  pickTab.value = '全部';
   pickModal.value = true;
 };
 const togglePick = (id: string) => {
@@ -205,10 +242,11 @@ const confirmPick = () => {
   pickModal.value = false;
 };
 
-/* 配置页校验：名称 + 循环时间（仅循环）+ 条件配置（全方式）+ 被搬/关联店铺 */
+/* 配置页校验：名称 + 循环时间（仅循环）+ 一次性执行时间（仅一次性）+ 条件配置（全方式）+ 被搬/关联店铺 */
 const validConfig = (needShops: boolean) => {
   if (!name.value.trim()) { pushToast('请输入任务名称', 'error'); return false; }
   if (method.value === '循环' && !cycleTime.value.trim()) { pushToast('请填写循环执行时间', 'error'); return false; }
+  if (method.value === '一次性' && !execTimeValid.value) { pushToast('请选择执行时间', 'error'); return false; }
   if (!condValid.value) { pushToast('请完整填写条件配置（阈值与日期范围均需填写）', 'error'); return false; }
   if (needShops && shopIds.value.length === 0) { pushToast(kind.value === '自动搬家' ? '请至少选择一个被搬店铺' : '请至少选择一个关联店铺', 'error'); return false; }
   return true;
@@ -216,8 +254,15 @@ const validConfig = (needShops: boolean) => {
 /* 自动搬家：条件配置完成后下一步进入目标店铺选择 */
 const step = ref(1);
 const nextStep = () => { if (validConfig(true)) step.value = 2; };
+/* 确认立即执行二次弹窗 */
+const confirmImmediate = ref(false);
 
 const save = () => {
+  if (method.value === '一次性' && execMode.value === 'immediate' && step.value === 2) {
+    /* 一次性+立即执行：先弹二次确认 */
+    confirmImmediate.value = true;
+    return;
+  }
   if (!validConfig(true)) return;
   if (kind.value === '自动搬家' && targetIds.value.length === 0) { pushToast('请至少选择一个发布店铺', 'error'); return; }
   const base: MvTask = m ? { ...m } : {
@@ -243,6 +288,9 @@ const save = () => {
     cycle: method.value === '循环' ? cycle.value : undefined,
     cycleDay: method.value === '循环' && cycle.value !== '每天' ? cycleDay.value : undefined,
     cycleTime: method.value === '循环' ? cycleTime.value.trim() : undefined,
+    execMode: method.value === '一次性' ? execMode.value : undefined,
+    execDate: method.value === '一次性' && execMode.value === 'scheduled' ? execDate.value : undefined,
+    execTime: method.value === '一次性' && execMode.value === 'scheduled' ? execTimeOne.value : undefined,
     cond: condRows.value.map((r) => ({ ...r })),
     shopIds: [...shopIds.value],
     targetShopIds: kind.value === '自动搬家' ? [...targetIds.value] : undefined,
@@ -315,6 +363,39 @@ const save = () => {
               </div>
             </div>
           </template>
+          <template v-if="method === '一次性'">
+            <div class="sg-field">
+              <label>执行时间<span class="mv-req">*</span></label>
+              <div class="mv-exec-mode">
+                <label class="mv-exec-radio" :class="execMode === 'immediate' ? 'on' : ''">
+                  <input type="radio" v-model="execMode" value="immediate" />立即执行
+                </label>
+                <label class="mv-exec-radio" :class="execMode === 'scheduled' ? 'on' : ''">
+                  <input type="radio" v-model="execMode" value="scheduled" />定时执行
+                </label>
+              </div>
+            </div>
+            <template v-if="execMode === 'scheduled'">
+              <div class="sg-field">
+                <label>执行日期<span class="mv-req">*</span></label>
+                <div class="mv-cond-val mv-cond-date" @click="openExecDp($event)">
+                  <span class="mv-date-text" :class="execDate ? '' : 'empty'">{{ execDate || '选择日期' }}</span>
+                  <span class="mv-cond-clock">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                  </span>
+                </div>
+              </div>
+              <div class="sg-field">
+                <label>执行时间<span class="mv-req">*</span></label>
+                <div class="mv-cond-val mv-time-box" @click="openExecTp($event)">
+                  <span class="mv-time-text" :class="execTimeOne ? '' : 'empty'">{{ execTimeOne || '选择时间' }}</span>
+                  <span class="mv-cond-clock">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                  </span>
+                </div>
+              </div>
+            </template>
+          </template>
           <div class="sg-field">
             <label>条件配置<span class="mv-req">*</span></label>
             <div class="mv-cond-rows">
@@ -324,9 +405,9 @@ const save = () => {
                 <BubbleSelect class-name="sg-select" :options="MV_COND_METRIC_NAMES" :value="r.metric" class="mv-cond-metric" @change="(v: string) => setRowMetric(r, v)" />
                 <BubbleSelect class-name="sg-select" :options="mvMetricMeta(r.metric).ops" :value="r.op" class="mv-cond-op" @change="(v: string) => setRowOp(r, v)" />
                 <template v-if="mvMetricMeta(r.metric).kind === 'date'">
-                  <BubbleSelect class-name="sg-select" :options="MV_DATE_PRESETS" :value="r.preset ?? '自定义时间'" class="mv-cond-preset" @change="(v: string) => setRowPreset(r, v)" />
+                  <BubbleSelect v-if="r.op !== '介于'" class-name="sg-select" :options="MV_DATE_PRESETS" :value="r.preset ?? '自定义时间'" class="mv-cond-preset" @change="(v: string) => setRowPreset(r, v)" />
                   <div
-                    v-if="(r.preset ?? '自定义时间') === '自定义时间'"
+                    v-if="r.op === '介于' || (r.preset ?? '自定义时间') === '自定义时间'"
                     class="mv-cond-val mv-cond-date"
                     @click="openDp($event, r)"
                   >
@@ -376,9 +457,14 @@ const save = () => {
       <div class="mv-dr-foot">
         <button class="sg-btn" @click="emit('close')">取消</button>
         <button v-if="kind === '自动搬家' && step === 1" class="sg-btn primary" @click="nextStep">下一步</button>
+        <template v-else-if="step === 1">
+          <button v-if="method === '一次性' && execMode === 'immediate'" class="sg-btn primary" @click="save">立即执行</button>
+          <button v-else class="sg-btn primary" @click="save">保存任务</button>
+        </template>
         <template v-else>
-          <button v-if="step === 2" class="sg-btn" @click="step = 1">上一步</button>
-          <button class="sg-btn primary" @click="save">保存任务</button>
+          <button class="sg-btn" @click="step = 1">上一步</button>
+          <button v-if="method === '一次性' && execMode === 'immediate'" class="sg-btn primary" @click="save">立即执行</button>
+          <button v-else class="sg-btn primary" @click="save">保存任务</button>
         </template>
       </div>
     </div>
@@ -399,11 +485,11 @@ const save = () => {
         </div>
         <div class="mv-dp-week"><span v-for="w in ['一', '二', '三', '四', '五', '六', '日']" :key="w">{{ w }}</span></div>
         <div class="mv-dp-grid">
-          <button v-for="c in dpCells" :key="c.iso" type="button" class="mv-dp-cell" :class="dpCellClass(c)" @click="dpPick(c.iso)">{{ c.day }}</button>
+          <button v-for="c in dpCells" :key="c.iso" type="button" class="mv-dp-cell" :class="dpCellClass(c)" @click="dpOpen === '__exec__' ? dpPickExec(c.iso) : dpPick(c.iso)">{{ c.day }}</button>
         </div>
         <div class="mv-dp-foot">
-          <button type="button" @click="dpClear">清除</button>
-          <button type="button" @click="dpPick(dpToday)">今天</button>
+          <button v-if="dpOpen !== '__exec__'" type="button" @click="dpClear">清除</button>
+          <button type="button" @click="dpOpen === '__exec__' ? dpPickExec(dpToday) : dpPick(dpToday)">今天</button>
         </div>
       </div>
     </Teleport>
@@ -420,7 +506,22 @@ const save = () => {
       </div>
     </Teleport>
 
-    <!-- 选店弹窗（被搬/目标共用）：搜索 + 平台 tab 切换 + 多选列表，确认后落回芯片行 -->
+    <!-- 立即执行二次确认弹窗 -->
+    <div v-if="confirmImmediate" class="mv-confirm-mask" @click.self="confirmImmediate = false">
+      <div class="mv-confirm-box">
+        <div class="mv-confirm-title">确认立即执行？</div>
+        <div class="mv-confirm-msg">
+          任务「{{ name.trim() }}」将立即开始执行，执行后状态将变为「执行中」。
+          <br />请确认被搬店铺、条件配置等信息已填写正确。
+        </div>
+        <div class="mv-confirm-foot">
+          <button class="sg-btn" @click="confirmImmediate = false">取消</button>
+          <button class="sg-btn primary" @click="confirmImmediate = false; save()">确认执行</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 选店弹窗（被搬/目标共用）：搜索 + 多选列表，确认后落回芯片行（第一版仅视频号） -->
     <div v-if="pickModal" class="mv-srcmask" @click.self="pickModal = false">
       <div class="mv-srcmodal">
         <div class="mv-src-head">
@@ -433,9 +534,6 @@ const save = () => {
           <div class="mv-src-search">
             <input v-model="pickQuery" placeholder="搜索店铺名称" />
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
-          </div>
-          <div class="mv-src-tabs">
-            <button v-for="p in MV_SHOP_TABS" :key="p" type="button" class="mv-src-tab" :class="pickTab === p ? 'on' : ''" @click="pickTab = p">{{ p }}</button>
           </div>
           <div class="mv-shoplist">
             <div v-if="pickShops.length > 0" class="mv-shopitem mv-shopall" :class="pickAllOn ? 'on' : ''" @click="togglePickAll">

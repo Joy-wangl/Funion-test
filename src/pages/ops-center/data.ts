@@ -558,6 +558,10 @@ export interface SubTask {
   name: string;
   thumb: string;
   linkId: string;
+  /** 来源店铺名称（商品搬家类型） */
+  sourceShop?: string;
+  /** 来源商品ID（商品搬家类型） */
+  sourceProductId?: string;
   /** 发布人（商品创建-关联发布任务抽屉「发布信息」列） */
   publisher?: string;
   /** 任务状态（聚合：统一节点失败 > 店铺结果集） */
@@ -789,6 +793,112 @@ export const parentTasks = reactive<ParentTask[]>([
     for (let k = 0; k < n; k++) parentTasks.push(buildParent(nextId++, st));
   }
   createTaobaoRows.forEach((row, ri) => parentTasks.push(buildPubBatch(row, ri + 1)));
+}
+
+/* ---- 商品搬家类型任务种子 ---- */
+const moveProducts = [
+  { name: '盒装100根数数棒数学小学一年级计算棒算术教具', thumb: taskThumb('#e8f4e6', '数'), linkId: '3840586443', sourceShop: '淘宝心选店', sourceProductId: 'TB-88887777' },
+  { name: '不锈钢保温杯大容量便携水杯定制logo', thumb: taskThumb('#eef0f6', '杯'), linkId: '3840112266', sourceShop: '天猫旗舰店', sourceProductId: 'TM-66665555' },
+  { name: '家用高压水枪喷头卫浴手持花洒套装', thumb: taskThumb('#e6f0f6', '水'), linkId: '2696088794', sourceShop: '拼多多优品店', sourceProductId: 'PDD-44443333' },
+];
+const moveMakers = ['七妮妮', '李珊珊', '王越'];
+for (let i = 0; i < moveProducts.length; i++) {
+  const p = moveProducts[i];
+  const st: ParentStatus = i === 0 ? 'running' : i === 1 ? 'done' : 'running';
+  const subStatus: SubStatus = i === 0 ? 'running' : i === 1 ? 'success' : 'failed';
+  const shop: ShopResult = {
+    shop: '微信小店',
+    platform: '微信小店',
+    status: subStatus,
+    startTime: `${TC_TODAY} 09:30:41`,
+    endTime: subStatus === 'success' ? `${TC_TODAY} 09:39:43` : subStatus === 'failed' ? `${TC_TODAY} 09:35:00` : '',
+    reason: subStatus === 'failed' ? '商品发布店铺：失败' : '',
+    retried: false,
+  };
+  const sub: SubTask = {
+    id: 9000 + i,
+    taskId: String(224460576923043006 + i),
+    templateNo: `MV-${String(i + 1).padStart(3, '0')}`,
+    name: p.name,
+    thumb: p.thumb,
+    linkId: p.linkId,
+    sourceShop: p.sourceShop,
+    sourceProductId: p.sourceProductId,
+    status: subStatus,
+    failStep: subStatus === 'failed' ? 2 : undefined,
+    shops: [shop],
+    startTime: `${TC_TODAY} 09:30:41`,
+    endTime: subStatus === 'success' ? `${TC_TODAY} 09:39:43` : subStatus === 'failed' ? `${TC_TODAY} 09:35:00` : '',
+  };
+  parentTasks.push({
+    id: 9000 + i,
+    creator: moveMakers[i],
+    createTime: `${TC_TODAY} 09:30:41`,
+    type: '商品搬家',
+    status: st,
+    channel: '智能',
+    pubWay: '蜂联发布',
+    shops: 1,
+    links: 1,
+    success: st === 'done' ? 1 : 0,
+    failed: i === 2 ? 1 : 0,
+    running: st === 'running' && i !== 2 ? 1 : 0,
+    startTime: `${TC_TODAY} 09:30:41`,
+    endTime: st === 'done' ? `${TC_TODAY} 09:39:43` : '',
+    subs: [sub],
+  });
+}
+
+/* ---- 自动下架类型任务种子：节点=获取链接信息/店铺商品删除，商品信息展店铺+商品ID ---- */
+const delistProducts = [
+  { name: '过季清仓连衣裙女夏碎花雪纺长裙', thumb: taskThumb('#f6e7dc', '裙'), linkId: '3841226677', sourceShop: '淘宝心选店', sourceProductId: 'TB-33332222' },
+  { name: '老款透明手机壳防摔软壳库存清理', thumb: taskThumb('#eef0f6', '壳'), linkId: '2697335588', sourceShop: '天猫旗舰店', sourceProductId: 'TM-11119999' },
+];
+const delistMakers = ['李珊珊', '王越'];
+for (let i = 0; i < delistProducts.length; i++) {
+  const p = delistProducts[i];
+  const st: ParentStatus = i === 0 ? 'done' : 'running';
+  const subStatus: SubStatus = i === 0 ? 'success' : 'running';
+  const shop: ShopResult = {
+    shop: p.sourceShop,
+    platform: p.sourceShop === '淘宝心选店' ? '淘宝' : '天猫',
+    status: subStatus,
+    startTime: `${TC_TODAY} 10:12:08`,
+    endTime: subStatus === 'success' ? `${TC_TODAY} 10:15:32` : '',
+    reason: '',
+    retried: false,
+  };
+  const sub: SubTask = {
+    id: 9100 + i,
+    taskId: String(224460576923043106 + i),
+    templateNo: `DL-${String(i + 1).padStart(3, '0')}`,
+    name: p.name,
+    thumb: p.thumb,
+    linkId: p.linkId,
+    sourceShop: p.sourceShop,
+    sourceProductId: p.sourceProductId,
+    status: subStatus,
+    shops: [shop],
+    startTime: `${TC_TODAY} 10:12:08`,
+    endTime: subStatus === 'success' ? `${TC_TODAY} 10:15:32` : '',
+  };
+  parentTasks.push({
+    id: 9100 + i,
+    creator: delistMakers[i],
+    createTime: `${TC_TODAY} 10:12:08`,
+    type: '自动下架',
+    status: st,
+    channel: '智能',
+    pubWay: '蜂联发布',
+    shops: 1,
+    links: 1,
+    success: st === 'done' ? 1 : 0,
+    failed: 0,
+    running: st === 'running' ? 1 : 0,
+    startTime: `${TC_TODAY} 10:12:08`,
+    endTime: st === 'done' ? `${TC_TODAY} 10:15:32` : '',
+    subs: [sub],
+  });
 }
 
 /* ---- 参照版（客户端 v1.0.3）任务详情种子：微信小店今日商品发布批次（执行失败 98 条，前 4 行对齐参照截图） ---- */

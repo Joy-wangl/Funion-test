@@ -17,11 +17,13 @@ const cancelledV: StepView = { dot: 'wait', v: '已取消', cls: 'wait' };
 
 /** 发布/铺货类任务：获取链接信息下增加「校验管控商品」节点 */
 const PUB_TYPES = ['商品发布', '商品铺货', '快速铺货'];
-/** 节点标签集：发布/铺货类四节点（含校验管控商品），其余三节点 */
-export const stepLabelsOf = (type: string): string[] =>
-  PUB_TYPES.includes(type)
-    ? ['获取链接信息', '校验管控商品', '定价策略计算', '商品发布店铺']
-    : ['获取链接信息', '定价策略计算', '商品发布店铺'];
+/** 节点标签集：自动下架两节点（获取链接信息→店铺商品删除）；商品搬家首节点为获取商品信息；发布/铺货类四节点（含校验管控商品）；其余三节点 */
+export const stepLabelsOf = (type: string): string[] => {
+  if (type === '自动下架') return ['获取链接信息', '店铺商品删除'];
+  if (PUB_TYPES.includes(type)) return ['获取链接信息', '校验管控商品', '定价策略计算', '商品发布店铺'];
+  if (type === '商品搬家') return ['获取商品信息', '定价策略计算', '商品发布店铺'];
+  return ['获取链接信息', '定价策略计算', '商品发布店铺'];
+};
 const isPub = (type: string) => PUB_TYPES.includes(type);
 
 /** 校验管控商品节点结果：x/y 通过；失败/待确认时追加计数 */
