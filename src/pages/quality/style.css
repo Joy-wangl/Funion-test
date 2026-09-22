@@ -3,11 +3,6 @@
    视觉语言沿用智能运营中心：#4f7cff 主色 / 16px 圆角白卡 / 13px 表格字号
    ========================================================= */
 
-.qc-page {
-  /* 主色等变量已由同层 .pm-page 统一引用全局 token，此处不再重复声明 */
-  font-family: Arial, "Microsoft YaHei", sans-serif;
-}
-
 /* ---------- 独立外壳：左侧边栏 + 右侧内容区（对齐运营中心），背景铺满屏幕 ---------- */
 .qc-page {
   min-height: 100%;
@@ -68,7 +63,7 @@
   line-height: 20px;
   border-radius: 10px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   text-align: center;
   background: #ffece8;
   color: #f53f3f;
@@ -86,12 +81,12 @@
 
 .qc-page .qc-head { padding: 0 0 14px; }
 .qc-page .qc-title { font-size: 26px; font-weight: 800; color: #202532; display: flex; align-items: baseline; }
-.qc-page .qc-title .qc-desc { font-size: 13px; color: #8b92a1; font-weight: 400; margin-left: 12px; }
+.qc-page .qc-title .qc-desc { font-size: var(--fs-base); color: #8b92a1; font-weight: 400; margin-left: 12px; }
 
 .qc-page .qc-filters { display: flex; align-items: center; gap: 14px; margin: 12px 0; flex-wrap: wrap; }
 .qc-page .qc-body .qc-filters { margin: 0 0 12px; }
 .qc-page .qc-filters .input-icon { flex: none; }
-.qc-page .qc-junk { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; font-size: 13px; color: #5b6475; }
+.qc-page .qc-junk { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; font-size: var(--fs-base); color: #5b6475; }
 .qc-page .qc-count { margin-left: auto; font-size: 12px; color: #8b92a1; }
 
 /* 筛选输入：对齐运营中心输入件 */
@@ -158,13 +153,13 @@
   background: #fbfcfe;
   border-bottom: 1px solid #edf0f5;
   color: #5d6678;
-  font-weight: 700;
-  font-size: 13px;
+  font-weight: 500;
+  font-size: var(--fs-base);
 }
 .qc-page .table tbody td {
   border-bottom: 1px solid #f0f3f7;
   color: #445066;
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 .qc-page .table tbody tr:hover { background: #fcfdff; }
 
@@ -322,7 +317,7 @@
   padding: 8px 6px;
   border-bottom: 1px solid #f0f3f7;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 .qc-page .top-row:last-child { border-bottom: none; }
 .qc-page .top-row:hover { background: #fcfdff; }
@@ -333,7 +328,7 @@
   background: var(--fill-1);
   color: #5b6475;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -477,7 +472,7 @@
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 .chat-modal-head .d-title {
   font-weight: 600;
@@ -514,7 +509,7 @@
 .qc-page .s-head .s-meta > i { font-style: normal; color: var(--text-4); }
 .qc-page .chat-modal-head .s-meta > i::after,
 .qc-page .s-head .s-meta > i::after { content: '：'; }
-.qc-page .chat-modal-head .s-id { font-size: 13px; }
+.qc-page .chat-modal-head .s-id { font-size: var(--fs-base); }
 .qc-page .chat-modal-head .x { margin-left: auto; }
 /* 底部操作栏：上一个/下一个会话切换按钮 */
 .qc-page .chat-modal-foot {
@@ -603,7 +598,7 @@
   border: 1px solid var(--border-2);
   border-radius: 8px;
   padding: 8px 14px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   cursor: pointer;
   color: var(--text-2);
 }
@@ -647,7 +642,7 @@
   background: var(--white);
 }
 .qc-page .prob-head { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-.qc-page .prob-type { font-weight: 600; font-size: 13px; }
+.qc-page .prob-type { font-weight: 600; font-size: var(--fs-base); }
 .qc-page .prob-cnt { color: var(--text-3); }
 
 .qc-page .sugg-chip {
@@ -697,7 +692,7 @@
 }
 .qc-page .th-input { display: flex; align-items: center; gap: 8px; margin: 10px 0 8px; }
 .qc-page .th-input .input { width: 140px; }
-.qc-page .th-input .unit { color: #8b92a1; font-size: 13px; }
+.qc-page .th-input .unit { color: #8b92a1; font-size: var(--fs-base); }
 .qc-page .th-hit { font-size: 12px; color: #8b92a1; line-height: 1.7; }
 .qc-page .th-hit b { color: #f53f3f; font-size: 14px; }
 .qc-page .th-actions { display: flex; align-items: center; gap: 10px; }

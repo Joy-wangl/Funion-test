@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { PermMenuItem } from './data';
 import { IconCheck } from './permIcons';
+import { scopeOf, scopeSummary } from './permScope';
 
 /* ---------- 权限矩阵单元格（查看/管理/功能三列） ---------- */
-defineProps<{ cfg: PermMenuItem; keyPrefix: string }>();
-const emit = defineEmits<{ (e: 'pick'): void }>();
+defineProps<{ cfg: PermMenuItem; keyPrefix: string; scopeKey?: string }>();
+const emit = defineEmits<{ (e: 'pick'): void; (e: 'pickScope', key: string, kind: 'view' | 'manage'): void }>();
 </script>
 
 <template>
@@ -17,6 +18,10 @@ const emit = defineEmits<{ (e: 'pick'): void }>();
         {{ opt }}
         <span v-if="i === cfg.view.sel && cfg.view.link" class="link" @click="emit('pick')">{{ cfg.view.link }}</span>
       </label>
+      <div v-if="cfg.scope && scopeKey" class="perm-scope">
+        <span class="ps-label">可见平台/店铺</span>
+        <span class="link" @click="emit('pickScope', scopeKey, 'view')">{{ scopeSummary(scopeOf(scopeKey).view.shops) }}</span>
+      </div>
     </div>
   </td>
   <td>
@@ -28,6 +33,10 @@ const emit = defineEmits<{ (e: 'pick'): void }>();
         {{ opt }}
         <span v-if="i === cfg.manage.sel && cfg.manage.link" class="link" @click="emit('pick')">{{ cfg.manage.link }}</span>
       </label>
+      <div v-if="cfg.scope && scopeKey" class="perm-scope">
+        <span class="ps-label">可管理平台/店铺</span>
+        <span class="link" @click="emit('pickScope', scopeKey, 'manage')">{{ scopeSummary(scopeOf(scopeKey).manage.shops) }}</span>
+      </div>
     </div>
   </td>
   <td>

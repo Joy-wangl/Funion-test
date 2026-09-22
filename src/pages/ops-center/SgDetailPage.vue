@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import Modal from '../../components/Modal.vue';
 import { PLATFORM_LOGO } from './data';
-import { sgDetail } from './shopGoodsData';
+import { sgDetail, sgOpsLogCls, sgOpsLogOf, sgOpsSalesOf } from './shopGoodsData';
 import type { SgProduct } from './shopGoodsData';
 
 const props = defineProps<{
@@ -10,6 +11,8 @@ const props = defineProps<{
   foot?: { text: string; cls: string }[];
   /** 隐藏右上「编辑」按钮（商机等不可编辑场景） */
   hideEdit?: boolean;
+  /** 右上「操作日志」入口（运营管理 / 店铺商品详情） */
+  showLog?: boolean;
 }>();
 const emit = defineEmits<{ (e: 'back'): void }>();
 
@@ -49,6 +52,12 @@ const statusTag = computed(() =>
   : { text: '已下架', cls: 'gray' });
 
 const thumbs = computed(() => [p.value.img, ...sgDetail.mainImgs.slice(0, 4)]);
+
+/* 操作日志：全流程（创建/上下架/改标题/改价/改SKU）倒序弹层；双 tab：操作明细（日志表）/ 销量变化（节点增量＋累计） */
+const logOpen = ref(false);
+const logTab = ref<'detail' | 'sales'>('detail');
+const logs = computed(() => sgOpsLogOf(p.value));
+const salesNodes = computed(() => sgOpsSalesOf(p.value));
 </script>
 
 <template>
@@ -59,7 +68,10 @@ const thumbs = computed(() => [p.value.img, ...sgDetail.mainImgs.slice(0, 4)]);
           <button class="sgd-back" title="返回" @click="emit('back')">←</button>
           <span class="sgd-top-title">商品详情</span>
         </div>
-        <button v-if="!hideEdit" class="sg-btn">编辑</button>
+        <div class="sgd-top-acts">
+          <button v-if="showLog" class="sg-btn" @click="logOpen = true">操作日志</button>
+          <button v-if="!hideEdit" class="sg-btn">编辑</button>
+        </div>
       </div>
 
       <div v-if="p.offType" class="sgd-offnotice">
@@ -207,6 +219,55 @@ const thumbs = computed(() => [p.value.img, ...sgDetail.mainImgs.slice(0, 4)]);
 
     <div class="sgd-foot">
       <button v-for="f in foot" :key="f.text" class="sgd-foot-btn" :class="f.cls">{{ f.text }}</button>
+    </div>
+
+    <!-- 操作日志弹层：当前商品全流程操作（时间/操作人/类型/明细）；Modal 样式挂 .pm-page 作用域需 pm-host 容器 -->
+    <div v-if="logOpen" class="pm-page pm-host">
+      <Modal title="操作日志" :sub="p.title" size="xl" @close="logOpen = false">
+        <div class="sg-tabs sgd-log-tabs">
+          <button type="button" class="sg-tab" :class="logTab === 'detail' ? 'active' : ''" @click="logTab = 'detail'">操作明细</button>
+          <button type="button" class="sg-tab" :class="logTab === 'sales' ? 'active' : ''" @click="logTab = 'sales'">销量变化</button>
+        </div>
+        <table v-if="logTab === 'detail'" class="sg-table sgd-log-table">
+          <thead>
+            <tr>
+              <th :style="{ width: '170px' }">操作时间</th>
+              <th :style="{ width: '90px' }">操作人</th>
+              <th :style="{ width: '110px' }">操作类型</th>
+              <th>操作明细</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(l, i) in logs" :key="i">
+              <td>{{ l.time }}</td>
+              <td>{{ l.person }}</td>
+              <td><span :class="sgOpsLogCls(l.type)">{{ l.type }}</span></td>
+              <td>{{ l.detail }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <!-- 销量变化：按操作节点正序展示增量与累计（下架后停增） -->
+        <table v-else class="sg-table sgd-log-table">
+          <thead>
+            <tr>
+              <th :style="{ width: '170px' }">操作时间</th>
+              <th :style="{ width: '90px' }">操作人</th>
+              <th :style="{ width: '110px' }">操作类型</th>
+              <th :style="{ width: '110px' }">销量变化</th>
+              <th>累计销量</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(n, i) in salesNodes" :key="i">
+              <td>{{ n.time }}</td>
+              <td>{{ n.person }}</td>
+              <td><span :class="sgOpsLogCls(n.type)">{{ n.type }}</span></td>
+              <td><span :class="n.delta > 0 ? 'sgd-delta-up' : 'sgd-delta-flat'">{{ n.delta > 0 ? `+${n.delta}` : '0' }}</span></td>
+              <td>{{ n.total }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </Modal>
     </div>
   </div>
 </template>

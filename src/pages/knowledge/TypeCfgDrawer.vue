@@ -1,12 +1,12 @@
 <script setup lang="ts">
 /* 场景类型配置抽屉（V1/V2 共享）：命中链路的类型级配置流——类型名称 → ①条件定义
- * （场景阶段 + 订单状态组三态勾选/逐组展开叶子，类型级粗闸门，空=不限）
+ * （场景阶段单块：三行阶段，每行=阶段三态勾选+该段订单状态叶子直选，类型级粗闸门，空=不限）
  * → ②用户问法（类型级代表问法，编辑器口径与配置抽屉提示语一致）→ ③场景定义（语义定义：告知 AI 符合何等语义时命中本类型）
  * 保存直接落 sceneConfigData 种子（与列表同源）；校验=名称必填去重 + 场景定义必填；Esc/暗幕关闭 emit close */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { pushToast } from '../../components/toast';
 import {
-  SC_STAGES, SC_STAGE_STATES, SC_SCENE_STAGES, CUR_USER, todayStr, fbScenes, type FbScene,
+  SC_SCENE_STAGES, SC_SCENE_STAGE_STATES, CUR_USER, todayStr, fbScenes, type FbScene,
 } from './sceneConfigData';
 import './KbForm.css';
 import './SceneCfgDrawer.css';
@@ -21,38 +21,29 @@ const dStates = ref<string[]>([]);
 const dQs = ref<string[]>([]);
 const dSem = ref('');
 
-/* 勾选开关（场景阶段） */
-const toggle = (list: string[], v: string) => {
-  const i = list.indexOf(v);
-  if (i > -1) list.splice(i, 1);
-  else list.push(v);
+/* 场景阶段单块（用户 2026-09-19 合并，与配置抽屉同构）：一段一行=阶段三态勾选+该段订单状态叶子常显直选；
+ * 多选值只存叶子（dStates），dStages 由叶子派生（syncStages），空=不限 */
+const stageLeaves = (st: string) => SC_SCENE_STAGE_STATES[st] ?? [];
+const stageSelCount = (st: string) => stageLeaves(st).filter((c) => dStates.value.includes(c)).length;
+const stageCls = (st: string) => {
+  const n = stageSelCount(st);
+  const all = stageLeaves(st).length;
+  return { on: all > 0 && n === all, mid: n > 0 && n < all };
 };
-/* 订单状态细分：大类 ⊃ 叶子（多选值只存叶子，空=不限；大类勾选=整组叶子全选/全清，部分选中=半选态） */
-const stageGroups = computed(() => SC_STAGES.map((st) => ({ name: st, children: [...(SC_STAGE_STATES[st] ?? [])] })));
-const groupSelCount = (g: { name: string; children: string[] }) => g.children.filter((c) => dStates.value.includes(c)).length;
-const groupCls = (g: { name: string; children: string[] }) => {
-  const n = groupSelCount(g);
-  return { on: g.children.length > 0 && n === g.children.length, mid: n > 0 && n < g.children.length };
-};
-const toggleGroup = (g: { name: string; children: string[] }) => {
-  if (groupSelCount(g) === g.children.length) dStates.value = dStates.value.filter((v) => !g.children.includes(v));
-  else dStates.value = [...new Set([...dStates.value, ...g.children])];
+const syncStages = () => { dStages.value = SC_SCENE_STAGES.filter((st) => stageSelCount(st) > 0); };
+const toggleStage = (st: string) => {
+  const ls = stageLeaves(st);
+  dStates.value = stageSelCount(st) === ls.length
+    ? dStates.value.filter((v) => !ls.includes(v))
+    : [...new Set([...dStates.value, ...ls])];
+  syncStages();
 };
 const toggleLeaf = (lv: string) => {
   const i = dStates.value.indexOf(lv);
   if (i > -1) dStates.value.splice(i, 1);
   else dStates.value.push(lv);
+  syncStages();
 };
-/* 订单状态叶子：逐组独立展开（点组旁 caret 展开该组叶子行）；半选组打开抽屉时自动展开回显已选叶子（与配置抽屉一致） */
-const openGroups = ref<string[]>([]);
-const toggleGroupOpen = (name: string) => {
-  const i = openGroups.value.indexOf(name);
-  if (i > -1) openGroups.value.splice(i, 1);
-  else openGroups.value.push(name);
-};
-const openGroupsBySel = () => stageGroups.value
-  .filter((g) => { const n = groupSelCount(g); return n > 0 && n < g.children.length; })
-  .map((g) => g.name);
 /* 用户问法编辑器（与配置抽屉提示语一致）：回车添加、Shift+回车换行、铅笔行内编辑、✕移除 */
 const qDraft = ref('');
 const qAdding = ref(false);
@@ -87,7 +78,9 @@ watch(() => props.open, (v) => {
   dQs.value = [...(t?.questions ?? [])];
   dSem.value = t?.semDef ?? '';
   qDraft.value = ''; qAdding.value = false; qEditKey.value = '';
-  openGroups.value = openGroupsBySel();
+  /* 旧数据物化：仅勾阶段无叶子=整段生效→补全该段叶子；阶段统一由叶子派生 */
+  for (const st of [...dStages.value]) if (stageSelCount(st) === 0) dStates.value.push(...stageLeaves(st));
+  syncStages();
 });
 
 const submitType = () => {
@@ -129,52 +122,22 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
           <input v-model="dName" class="kb-input" placeholder="如：物流信息咨询">
         </div>
 
-        <!-- ① 先配条件定义：场景阶段 + 订单状态组三态勾选/逐组展开叶子行（类型级粗闸门，空=不限） -->
+        <!-- ① 先配条件定义：场景阶段单块（一段一行=阶段勾选+该段订单状态叶子直选，类型级粗闸门，空=不限） -->
         <div class="sc-block">
           <div class="sc-block-head"><i>1</i><b>条件定义</b></div>
           <div class="sc-cfg-conds">
-            <div class="sc-ck-line">
-              <b>场景阶段</b>
+            <div v-for="st in SC_SCENE_STAGES" :key="st" class="sc-ck-line">
+              <label
+                class="sc-ck" :class="stageCls(st)"
+                :title="`勾选=整个${st}阶段（含其全部订单状态）`"
+                @click.prevent="toggleStage(st)"
+              ><i></i><span>{{ st }}</span></label>
               <div class="sc-ck-row">
                 <label
-                  v-for="st in SC_SCENE_STAGES" :key="st"
-                  class="sc-ck" :class="{ on: dStages.includes(st) }"
-                  @click.prevent="toggle(dStages, st)"
-                ><i></i><span>{{ st }}</span></label>
-              </div>
-            </div>
-            <div class="sc-cg">
-              <div class="sc-ck-line">
-                <b>订单状态</b>
-                <div class="sc-ck-row">
-                  <span v-for="g in stageGroups" :key="g.name" class="sc-grp-unit">
-                    <label
-                      class="sc-ck" :class="groupCls(g)"
-                      :title="`勾选=整个${g.name}，点 caret 展开选具体状态`"
-                      @click.prevent="toggleGroup(g)"
-                    ><i></i><span>{{ g.name }}</span></label>
-                    <button
-                      class="sc-grp-caret" type="button" :class="{ open: openGroups.includes(g.name) }"
-                      :title="openGroups.includes(g.name) ? `收起${g.name}具体状态` : `展开${g.name}具体状态`"
-                      @click="toggleGroupOpen(g.name)"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-                    </button>
-                  </span>
-                </div>
-              </div>
-              <!-- 展开组叶子行：单组独占一行（组名标签+叶子勾选同排），缩进一级表层级 -->
-              <div v-if="openGroups.length" class="sc-grp-leaves-wrap">
-                <div v-for="g in stageGroups.filter((x) => openGroups.includes(x.name))" :key="g.name" class="sc-ck-line">
-                  <b>{{ g.name }}</b>
-                  <div class="sc-ck-row">
-                    <label
-                      v-for="lv in g.children" :key="lv"
-                      class="sc-ck sm" :class="{ on: dStates.includes(lv) }"
-                      @click.prevent="toggleLeaf(lv)"
-                    ><i></i><span :title="lv">{{ lv }}</span></label>
-                  </div>
-                </div>
+                  v-for="lv in stageLeaves(st)" :key="lv"
+                  class="sc-ck sm" :class="{ on: dStates.includes(lv) }"
+                  @click.prevent="toggleLeaf(lv)"
+                ><i></i><span :title="lv">{{ lv }}</span></label>
               </div>
             </div>
           </div>

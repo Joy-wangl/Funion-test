@@ -22,7 +22,7 @@
   background: var(--color-primary); color: #fff; font-size: var(--fs-aux); font-style: normal; font-weight: 700; line-height: 1;
 }
 .sc-block-head > b { font-size: var(--fs-lg); font-weight: 600; color: var(--color-text); }
-/* ① 条件盒：单排一个条件字段（场景阶段 / 订单状态），订单状态叶子面板需通栏宽度 */
+/* ① 条件盒：场景阶段单块——一段一行（阶段三态勾选+该段订单状态叶子常显直选） */
 .sc-cfg-conds {
   display: flex; flex-direction: column; gap: 16px; padding: 16px;
   border: 1px solid var(--color-border-2); border-radius: var(--radius-lg); background: var(--color-fill);
@@ -30,10 +30,10 @@
 /* 条件字段：标签在上、勾选行/控件在下 */
 .sc-cg { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .sc-cg > b { font-size: var(--fs-base); font-weight: 600; color: var(--color-text-2); }
-/* 条件行：单个条件独占一行（用户 2026-09-12「单行单内容」）——标签与其勾选项同排，行内不放其它内容 */
-.sc-ck-line { display: flex; align-items: center; gap: 16px; }
-.sc-ck-line > b { flex: none; width: 64px; font-size: var(--fs-base); font-weight: 600; color: var(--color-text-2); }
-.sc-ck-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; }
+/* 条件行：一段一行——阶段勾选与叶子列同排顶对齐，阶段勾选固定宽与叶子列对齐 */
+.sc-ck-line { display: flex; align-items: flex-start; gap: 16px; }
+.sc-cfg-conds .sc-ck-line > .sc-ck { flex: none; width: 64px; }
+.sc-ck-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; min-width: 0; }
 .sc-ck { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: var(--fs-base); color: var(--color-text-2); }
 .sc-ck > i { position: relative; flex: none; width: 16px; height: 16px; border: 1px solid var(--color-border-2); border-radius: 4px; background: #fff; transition: 0.15s; }
 .sc-ck.on > i { background: var(--color-primary); border-color: var(--color-primary); }
@@ -47,19 +47,6 @@
 .sc-ck.sm > i { width: 14px; height: 14px; border-radius: 3px; }
 .sc-ck.sm.on > i::after { left: 4px; top: 0; width: 4px; height: 8px; }
 .sc-ck > span { min-width: 0; }
-/* 订单状态组单元：三态勾选 + 展开 caret（勾选=整组，caret 展开该组叶子行） */
-.sc-grp-unit { display: inline-flex; align-items: center; gap: 2px; }
-.sc-grp-caret {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 20px; height: 20px; border: 0; border-radius: var(--radius-sm);
-  background: none; color: var(--color-text-4); cursor: pointer; line-height: 0; transition: 0.15s;
-}
-.sc-grp-caret:hover { background: var(--color-fill-2); color: var(--color-primary); }
-.sc-grp-caret svg { transition: transform 0.15s; }
-.sc-grp-caret.open svg { transform: rotate(180deg); }
-/* 展开组叶子行：缩进一级表层级；组名标签降字重色档表从属 */
-.sc-grp-leaves-wrap { display: flex; flex-direction: column; gap: 8px; padding-left: 24px; }
-.sc-grp-leaves-wrap .sc-ck-line > b { font-weight: 500; color: var(--color-text-3); }
 /* ② 问法区：提示语与关键词每行一个，关键词置于问法下方（用户 2026-09-13「每行只展示一个内容」） */
 .sc-qa-grid { display: flex; flex-direction: column; gap: 16px; }
 .sc-sec-head { display: flex; align-items: baseline; gap: 8px; font-size: var(--fs-base); font-weight: 600; color: var(--color-text); }

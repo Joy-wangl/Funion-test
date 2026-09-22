@@ -3,6 +3,7 @@ import { computed, inject, ref, watch } from 'vue';
 import { parentTasks, retrySub, cancelSub, confirmSub, rejectSub, ovShops, TC_TODAY, type ParentTask, type SubTask } from './data';
 import { pushToast } from '../../components/toast';
 import BubbleSelect from '../../components/BubbleSelect.vue';
+import DateRangePicker from '../../components/DateRangePicker.vue';
 import SortTh from '../../components/SortTh.vue';
 import TcStepsCell from './TcStepsCell.vue';
 import { firstStepFailed, createPageOf, type CreatePageKey } from './tcSteps';
@@ -79,6 +80,11 @@ const compete = ref('');
 const retrying = ref('');
 const rangeStart = ref(`${TC_TODAY} 00:00:00`);
 const rangeEnd = ref(`${TC_TODAY} 23:59:59`);
+// DateRangePicker 用纯日期，拼接时间部分
+const rangeDateFrom = ref(TC_TODAY);
+const rangeDateTo = ref(TC_TODAY);
+const onRangeDateFrom = (v: string) => { rangeDateFrom.value = v; rangeStart.value = v ? `${v} 00:00:00` : ''; };
+const onRangeDateTo = (v: string) => { rangeDateTo.value = v; rangeEnd.value = v ? `${v} 23:59:59` : ''; };
 const applied = ref<FlatFilter>(defaultFlatFilter());
 
 /* 参照版 tabs：无计数下划线式（全部/队列中/执行中/已完成/执行失败） */
@@ -279,11 +285,7 @@ watch(pageCount, (v) => { if (page.value > v) page.value = v; });
     <div class="sg-grid">
       <div class="sg-field">
         <label>创建时间</label>
-        <div class="sg-range">
-          <input v-model="rangeStart" class="sg-input" placeholder="开始时间" />
-          <span>→</span>
-          <input v-model="rangeEnd" class="sg-input" placeholder="结束时间" />
-        </div>
+        <DateRangePicker :from="rangeDateFrom" :to="rangeDateTo" @update:from="onRangeDateFrom" @update:to="onRangeDateTo" placeholder="请选择日期范围" />
       </div>
       <div class="sg-field">
         <label>任务类型</label>
@@ -357,16 +359,13 @@ watch(pageCount, (v) => { if (page.value > v) page.value = v; });
               <input type="checkbox" :checked="allChecked" @change="toggleAll" />
             </th>
             <th :style="{ width: '64px' }">序号</th>
-            <th :style="{ width: '96px' }">任务ID</th>
             <th>商品信息</th>
-            <th>任务类型</th>
+            <th>任务类型/状态</th>
             <th>节点状态</th>
-            <th>任务状态</th>
-            <th>发布店铺</th>
             <th :style="{ width: '140px' }">
               <SortTh as="span" label="创建信息" :state="sortKey === 'create' ? sortDir : 'none'" @sort="onSort('create')" />
             </th>
-            <SortTh label="执行起止时间" :state="sortKey === 'exec' ? sortDir : 'none'" @sort="onSort('exec')" />
+            <SortTh label="发布店铺/执行起止时间" :state="sortKey === 'exec' ? sortDir : 'none'" @sort="onSort('exec')" />
             <th>操作</th>
           </tr>
         </thead>
@@ -376,7 +375,6 @@ watch(pageCount, (v) => { if (page.value > v) page.value = v; });
               <input type="checkbox" :disabled="r.sub.status !== 'failed'" :checked="checked.includes(r.sub.taskId)" @change="toggleCheck(r.sub)" />
             </td>
             <td>{{ pageNo + i + 1 }}</td>
-            <td>{{ String(r.sub.taskId).padStart(6, '0') }}</td>
             <td>
               <div class="tc-product">
                 <img class="tc-thumb" :src="r.sub.thumb" />
@@ -393,20 +391,24 @@ watch(pageCount, (v) => { if (page.value > v) page.value = v; });
                   <template v-else>
                     <div class="tc-pmeta">链接商品ID：{{ r.sub.linkId }}</div>
                   </template>
+                  <div class="tc-pmeta">任务ID：{{ String(r.sub.taskId).padStart(6, '0') }}</div>
                 </div>
               </div>
             </td>
-            <td>{{ r.parent.type }}</td>
+            <td>
+              <div class="tc-cell-lines">
+                <div>{{ r.parent.type }}</div>
+                <div>
+                  <span class="tc-st" :class="subStatusCls[r.sub.status]">
+                    <i />
+                    {{ subStatusText[r.sub.status] }}
+                  </span>
+                </div>
+              </div>
+            </td>
             <td>
               <TcStepsCell :sub="r.sub" :type="r.parent.type" />
             </td>
-            <td>
-              <span class="tc-st" :class="subStatusCls[r.sub.status]">
-                <i />
-                {{ subStatusText[r.sub.status] }}
-              </span>
-            </td>
-            <td>{{ r.sub.shops[0]?.shop ?? '–' }}</td>
             <td>
               <div class="tc-cell-lines">
                 <div>{{ r.parent.creator }}</div>
@@ -415,6 +417,7 @@ watch(pageCount, (v) => { if (page.value > v) page.value = v; });
             </td>
             <td>
               <div class="tc-cell-lines">
+                <div>{{ r.sub.shops[0]?.shop ?? '–' }}</div>
                 <div>{{ r.sub.startTime ? `${r.sub.startTime} 至` : '–' }}</div>
                 <div>{{ r.sub.endTime || '–' }}</div>
               </div>

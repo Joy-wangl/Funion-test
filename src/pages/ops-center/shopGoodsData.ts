@@ -1,4 +1,5 @@
 /** 店铺商品模块数据：列表行 + 状态元信息 + 详情素材 */
+import { ecMain } from './data';
 
 export type SgStatus = 'selling' | 'auditing' | 'auditFail' | 'offSystem' | 'offManual' | 'offDeposit' | 'offBrand' | 'offBan' | 'draft' | 'jmOnsale' | 'jmPending' | 'jmAudit' | 'jmReject' | 'jmRecycle';
 
@@ -42,6 +43,17 @@ export function sgSales7(p: Pick<SgProduct, 'id' | 'sold30'>): number[] {
   for (const c of p.id) h = (h * 31 + c.charCodeAt(0)) % 997;
   const weights = [0.7, 1.1, 0.9, 1.3, 0.8, 1.2, 1];
   return weights.map((w, i) => Math.max(1, Math.round((base / 30) * 7 * w * (0.6 + ((h >> i) % 10) / 12))));
+}
+
+/** 前7日日均销量：今日之前 7 天（d-7~d-1）确定性序列取均值，与 sgSales7 同源口径；作时刻销量对比基准 */
+export function sgPrev7Avg(p: Pick<SgProduct, 'id' | 'sold30'>): number {
+  const base = parseInt(String(p.sold30).replace(/,/g, ''), 10) || 0;
+  if (!base) return 0;
+  let h = 7;
+  for (const c of p.id) h = (h * 31 + c.charCodeAt(0)) % 997;
+  const weights = [1.2, 0.8, 1.1, 0.7, 1.3, 0.9, 1.1];
+  const vals = weights.map((w, i) => Math.max(1, Math.round((base / 30) * 7 * w * (0.6 + ((h >> (i + 7)) % 10) / 12))));
+  return vals.reduce((a, b) => a + b, 0) / 7;
 }
 
 export interface SgProduct {
@@ -179,21 +191,21 @@ const addSeriesCode = (rows: Omit<SgProduct, 'seriesCode'>[]) => rows.map((r) =>
 const sgProductBase: Record<'视频号' | '淘宝', Omit<SgProduct, 'seriesCode'>[]> = {
   视频号: [
     {
-      id: '8888777776666', title: T_SERUM, img: '/products/serum.png', linkId: '8888777776666',
+      id: '8888777776666', title: T_SERUM, img: ecMain(0), linkId: '8888777776666',
       status: 'selling', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
       publisher: '自己', store: 'AAA小店', storePlatform: '淘宝', source: '链接商品库',
       version: '7887998736834', operator: '张三', category: ['美妆个护', '面部护理', '精华液'], publishMode: '店铺发布',
       publishTime: '2026-04-12 12:00:00', shelfTime: '2026-04-12 12:00:00',
     },
     {
-      id: '8888777776667', title: T_SERUM, img: '/products/serum.png', linkId: '8888777776667',
+      id: '8888777776667', title: T_SERUM, img: ecMain(1), linkId: '8888777776667',
       status: 'auditing', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
       publisher: '自己', store: 'AAA小店', storePlatform: '淘宝', source: '链接商品库',
       version: '7887998736835', operator: '张三', category: ['美妆个护', '面部护理', '精华液'], publishMode: '店铺发布',
       publishTime: '2026-08-14 09:30:00', submitTime: '2026-08-14 09:30:00',
     },
     {
-      id: '8888777776668', title: T_SERUM, img: '/products/serum.png', linkId: '8888777776668',
+      id: '8888777776668', title: T_SERUM, img: ecMain(2), linkId: '8888777776668',
       status: 'auditFail', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
       publisher: '自己', store: 'AAA小店', storePlatform: '淘宝', source: '链接商品库',
       version: '7887998736836', operator: '张三', category: ['美妆个护', '面部护理', '精华液'], publishMode: '蜂联',
@@ -201,7 +213,7 @@ const sgProductBase: Record<'视频号' | '淘宝', Omit<SgProduct, 'seriesCode'
       rejectReason: '商品主图不符合规范：存在营销文案牛皮癣，请更换纯商品图后重新提交',
     },
     {
-      id: '8888777776669', title: T_SERUM, img: '/products/serum.png', linkId: '8888777776669',
+      id: '8888777776669', title: T_SERUM, img: ecMain(3), linkId: '8888777776669',
       status: 'offSystem', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
       publisher: '李四', store: 'AAA小店', storePlatform: '淘宝', source: '链接商品库',
       version: '7887998736837', operator: '李四', category: ['美妆个护', '面部护理', '精华液'], publishMode: '蜂联',
@@ -209,7 +221,7 @@ const sgProductBase: Record<'视频号' | '淘宝', Omit<SgProduct, 'seriesCode'
       offType: '平台下架', offReason: '平台质检不合格，平台自动下架',
     },
     {
-      id: '8888777776670', title: T_SERUM, img: '/products/serum.png', linkId: '8888777776670',
+      id: '8888777776670', title: T_SERUM, img: ecMain(4), linkId: '8888777776670',
       status: 'offManual', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
       publisher: '李四', store: 'AAA小店', storePlatform: '淘宝', source: '链接商品库',
       version: '7887998736838', operator: '李四', category: ['美妆个护', '面部护理', '精华液'], publishMode: '店铺发布',
@@ -217,7 +229,7 @@ const sgProductBase: Record<'视频号' | '淘宝', Omit<SgProduct, 'seriesCode'
       offType: '自主下架', offReason: '库存不足，人工手动下架',
     },
     {
-      id: '8888777776674', title: T_SERUM, img: '/products/serum.png', linkId: '8888777776674',
+      id: '8888777776674', title: T_SERUM, img: ecMain(5), linkId: '8888777776674',
       status: 'offDeposit', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
       publisher: '李四', store: 'AAA小店', storePlatform: '淘宝', source: '链接商品库',
       version: '7887998736842', operator: '李四', category: ['美妆个护', '面部护理', '精华液'], publishMode: '蜂联',
@@ -225,7 +237,7 @@ const sgProductBase: Record<'视频号' | '淘宝', Omit<SgProduct, 'seriesCode'
       offType: '保证金违规下架', offReason: '保证金余额不足且存在违规记录，平台强制下架',
     },
     {
-      id: '8888777776675', title: T_MAIN, img: '/products/main.png', linkId: '8888777776675',
+      id: '8888777776675', title: T_MAIN, img: ecMain(6), linkId: '8888777776675',
       status: 'offBrand', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
       publisher: '自己', store: '天猫Funion旗舰店', storePlatform: '天猫', source: '链接商品库',
       version: '7887998736843', operator: '张三', category: ['厨房电器', '料理机', '多功能料理机'], publishMode: '蜂联',
@@ -233,7 +245,7 @@ const sgProductBase: Record<'视频号' | '淘宝', Omit<SgProduct, 'seriesCode'
       offType: '品牌到期下架', offReason: '品牌授权到期，商品自动下架',
     },
     {
-      id: '8888777776676', title: T_SERUM, img: '/products/serum.png', linkId: '8888777776676',
+      id: '8888777776676', title: T_SERUM, img: ecMain(7), linkId: '8888777776676',
       status: 'offBan', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
       publisher: '李四', store: 'AAA小店', storePlatform: '淘宝', source: '链接商品库',
       version: '7887998736844', operator: '李四', category: ['美妆个护', '面部护理', '精华液'], publishMode: '店铺发布',
@@ -241,7 +253,7 @@ const sgProductBase: Record<'视频号' | '淘宝', Omit<SgProduct, 'seriesCode'
       offType: '封禁下架', offReason: '店铺涉嫌售假被平台封禁，商品强制下架',
     },
     {
-      id: '8888777776677', title: T_SERUM, img: '/products/serum.png', linkId: '8888777776677',
+      id: '8888777776677', title: T_SERUM, img: ecMain(8), linkId: '8888777776677',
       status: 'offSystem', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
       publisher: '李四', store: 'AAA小店', storePlatform: '淘宝', source: '链接商品库',
       version: '7887998736845', operator: '李四', category: ['美妆个护', '面部护理', '精华液'], publishMode: '蜂联',
@@ -249,7 +261,7 @@ const sgProductBase: Record<'视频号' | '淘宝', Omit<SgProduct, 'seriesCode'
       offType: '库存不足自动下架', offReason: '系列编码可用库存为 0，已自动下架',
     },
     {
-      id: '8888777776678', title: T_MAIN, img: '/products/main.png', linkId: '8888777776678',
+      id: '8888777776678', title: T_MAIN, img: ecMain(9), linkId: '8888777776678',
       status: 'offSystem', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
       publisher: '自己', store: '天猫Funion旗舰店', storePlatform: '天猫', source: '内部商机',
       version: '7887998736846', operator: '张三', category: ['厨房电器', '料理机', '多功能料理机'], publishMode: '蜂联',
@@ -257,21 +269,21 @@ const sgProductBase: Record<'视频号' | '淘宝', Omit<SgProduct, 'seriesCode'
       offType: '长期无动销下架', offReason: '商品20天内无动销，已自动下架',
     },
     {
-      id: '8888777776671', title: T_MAIN, img: '/products/main.png', linkId: '8888777776671',
+      id: '8888777776671', title: T_MAIN, img: ecMain(10), linkId: '8888777776671',
       status: 'selling', strategy: '默认发布策略', sales: '1,286', reviews: '342', sold30: '126', exposure: '5,602',
       publisher: '自己', store: '天猫Funion旗舰店', storePlatform: '天猫', source: '内部商机',
       version: '7887998736839', operator: '张三', category: ['厨房电器', '料理机', '多功能料理机'], publishMode: '蜂联',
       publishTime: '2026-03-02 10:00:00', shelfTime: '2026-03-02 10:00:00',
     },
     {
-      id: '8888777776672', title: T_MAIN, img: '/products/main.png', linkId: '8888777776672',
+      id: '8888777776672', title: T_MAIN, img: ecMain(11), linkId: '8888777776672',
       status: 'draft', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
       publisher: '自己', store: '天猫Funion旗舰店', storePlatform: '天猫', source: '链接商品库',
       version: '7887998736840', operator: '张三', category: ['厨房电器', '料理机', '多功能料理机'], publishMode: '店铺发布',
       publishTime: '-', createTime: '2026-08-10 15:20:00',
     },
     {
-      id: '8888777776673', title: T_SERUM, img: '/products/serum.png', linkId: '8888777776673',
+      id: '8888777776673', title: T_SERUM, img: ecMain(12), linkId: '8888777776673',
       status: 'selling', strategy: '高利润策略', sales: '866', reviews: '120', sold30: '98', exposure: '3,208',
       publisher: '李四', store: '拼多多优品店', storePlatform: '拼多多', source: '市场商机',
       version: '7887998736841', operator: '李四', category: ['美妆个护', '面部护理', '精华液'], publishMode: '蜂联',
@@ -280,14 +292,14 @@ const sgProductBase: Record<'视频号' | '淘宝', Omit<SgProduct, 'seriesCode'
   ],
   淘宝: [
     {
-      id: '9911223344551', title: T_MAIN, img: '/products/main.png', linkId: '9911223344551',
+      id: '9911223344551', title: T_MAIN, img: ecMain(13), linkId: '9911223344551',
       status: 'selling', strategy: '默认发布策略', sales: '2,050', reviews: '518', sold30: '210', exposure: '8,431',
       publisher: '自己', store: '淘宝心选店', storePlatform: '淘宝', source: '内部商机',
       version: '7887998736851', operator: '张三', category: ['厨房电器', '料理机', '多功能料理机'],
       publishTime: '2026-02-11 09:00:00', shelfTime: '2026-02-11 09:00:00',
     },
     {
-      id: '9911223344552', title: T_SERUM, img: '/products/serum.png', linkId: '9911223344552',
+      id: '9911223344552', title: T_SERUM, img: ecMain(14), linkId: '9911223344552',
       status: 'auditing', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
       publisher: '李四', store: '天猫Funion旗舰店', storePlatform: '天猫', source: '链接商品库',
       version: '7887998736852', operator: '李四', category: ['美妆个护', '面部护理', '精华液'],
@@ -431,10 +443,10 @@ export const sgJmDetail = {
     { name: '规格', values: ['标准款', '升级款'] },
   ],
   skus: [
-    { name: '黑色 标准款', attrs: '颜色:黑色 规格:标准款', jdPrice: '39.90', marketPrice: '59.90', stock: '120', outerId: 'JM-2201-B', upc: '6901234567890', status: '上架' },
-    { name: '黑色 升级款', attrs: '颜色:黑色 规格:升级款', jdPrice: '49.90', marketPrice: '69.90', stock: '86', outerId: 'JM-2201-S', upc: '6901234567891', status: '上架' },
-    { name: '白色 标准款', attrs: '颜色:白色 规格:标准款', jdPrice: '39.90', marketPrice: '59.90', stock: '0', outerId: 'JM-2202-B', upc: '6901234567892', status: '下架' },
-    { name: '白色 升级款', attrs: '颜色:白色 规格:升级款', jdPrice: '49.90', marketPrice: '69.90', stock: '64', outerId: 'JM-2202-S', upc: '6901234567893', status: '上架' },
+    { name: '黑色 标准款', attrs: '颜色:黑色 规格:标准款', jdPrice: '39.90', marketPrice: '59.90', stock: '120', outerId: 'JM-2201-B', series: '编码A', cost: '25.00', upc: '6901234567890', status: '上架' },
+    { name: '黑色 升级款', attrs: '颜色:黑色 规格:升级款', jdPrice: '49.90', marketPrice: '69.90', stock: '86', outerId: 'JM-2201-S', series: '编码B', cost: '32.00', upc: '6901234567891', status: '上架' },
+    { name: '白色 标准款', attrs: '颜色:白色 规格:标准款', jdPrice: '39.90', marketPrice: '59.90', stock: '0', outerId: 'JM-2202-B', series: '编码C', cost: '25.00', upc: '6901234567892', status: '下架' },
+    { name: '白色 升级款', attrs: '颜色:白色 规格:升级款', jdPrice: '49.90', marketPrice: '69.90', stock: '64', outerId: 'JM-2202-S', series: '编码D', cost: '32.00', upc: '6901234567893', status: '上架' },
   ],
   mainImgs: ['/products/main.png', '/products/serum.png', '/products/main.png', '/products/serum.png'],
   rectImgs: ['/products/serum.png'],
@@ -451,3 +463,65 @@ export const sgJmDetail = {
   weight: '0.85',
   dims: '120 × 90 × 60',
 };
+
+/* ================= 商品操作日志（全流程） =================
+   入口：商品详情右上「操作日志」（运营管理 / 店铺商品）；
+   数据结合已开发功能聚合：商品创建发布 / 上下架操作 / 批量调价 / 标题与 SKU 修改，
+   时间基于商品自身创建/上架/下架字段推导，倒序展示 */
+export interface SgOpsLog {
+  time: string;
+  person: string;
+  type: '商品创建' | '上架' | '下架' | '修改标题' | '修改价格' | '修改SKU';
+  detail: string;
+}
+const logDay = (base: string, add: number, hm: string) => {
+  const d = new Date(base.replace(' ', 'T'));
+  d.setDate(d.getDate() + add);
+  const p2 = (n: number) => `${n}`.padStart(2, '0');
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${hm}`;
+};
+export function sgOpsLogOf(p: SgProduct): SgOpsLog[] {
+  const create = p.createTime ?? p.publishTime ?? '2026-07-10 17:39';
+  const owner = p.operator && p.operator !== '-' ? p.operator : (p.publisher || '张三');
+  const logs: SgOpsLog[] = [
+    { time: create, person: owner, type: '商品创建', detail: `商品创建新建并发布（${p.publishMode ?? '蜂联'}），商品ID：${p.id}` },
+    { time: logDay(create, 2, '09:24'), person: '李四', type: '修改标题', detail: `标题修改为「${p.title}」` },
+    { time: logDay(create, 3, '14:05'), person: '李四', type: '修改价格', detail: '批量调价（运营管理-批量操作），4 个 SKU 一口价同步调整' },
+    { time: logDay(create, 5, '10:42'), person: '赵六', type: '修改SKU', detail: '修改 SKU「黑色 a款」（JSZJDAO-001）商品编码与库存' },
+  ];
+  if (p.shelfTime) logs.push({ time: p.shelfTime, person: owner, type: '上架', detail: `发布上架，上架店铺：${p.store}` });
+  if (p.offTime) {
+    logs.push({ time: p.offTime, person: p.status === 'offSystem' ? '系统' : owner, type: '下架', detail: p.offReason ?? '手动下架' });
+  }
+  return logs.sort((a, b) => (a.time < b.time ? 1 : -1));
+}
+/** 日志类型徽章色：创建/修改类橙、上架绿、下架灰 */
+export const sgOpsLogCls = (t: SgOpsLog['type']) => (t === '上架' ? 'badge-green' : t === '下架' ? 'badge-gray' : 'badge-orange');
+
+/** 销量变化节点：每个操作节点触发的销量增量与节点后累计销量（按时间正序，与日志倒序互补） */
+export interface SgOpsSalesNode {
+  time: string;
+  person: string;
+  type: SgOpsLog['type'];
+  /** 本节点期间销量增量（下架后销量停增为 0） */
+  delta: number;
+  /** 节点后累计销量 */
+  total: number;
+}
+const SALES_DELTA: Record<SgOpsLog['type'], number> = {
+  商品创建: 0,
+  上架: 86,
+  修改标题: 214,
+  修改价格: 452,
+  修改SKU: 128,
+  下架: 0,
+};
+export function sgOpsSalesOf(p: SgProduct): SgOpsSalesNode[] {
+  const asc = [...sgOpsLogOf(p)].reverse();
+  let total = 0;
+  return asc.map((l) => {
+    const delta = SALES_DELTA[l.type];
+    total += delta;
+    return { time: l.time, person: l.person, type: l.type, delta, total };
+  });
+}

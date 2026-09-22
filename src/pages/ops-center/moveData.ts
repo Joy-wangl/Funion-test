@@ -1,16 +1,22 @@
-/** 自动化中心-自动化任务：店铺 / 任务 静态数据（自动搬家为任务类型之一，另有自动下架） */
+/** 自动化中心-视频号自动化：店铺 / 任务 静态数据（自动搬家为任务类型之一，另有自动下架） */
 
-/** 任务类型：自动搬家=跨店搬运发布；自动下架=命中规则商品自动下架 */
-export type MvKind = '自动搬家' | '自动下架';
+/** 任务类型：自动搬家=跨店搬运发布；自动下架=命中规则商品自动下架；自动发品=自动发布商品（无被搬店铺） */
+export type MvKind = '自动搬家' | '自动下架' | '自动发品';
+/** 商品来源（仅自动发品展示）：内部商机/店铺商品 */
+export type MvSource = '内部商机' | '店铺商品';
+export const MV_SOURCES: MvSource[] = ['内部商机', '店铺商品'];
 /** 执行方式：循环=指定时间循环；条件触发=满足条件即时触发（长期）；一次性=配置条件只执行一次 */
 export type MvMethod = '循环' | '条件触发' | '一次性';
 /** 任务状态：按执行方式差异化枚举（循环 3 态 / 一次性 3 态 / 条件 2 态） */
 export type MvTaskStatus = '待执行' | '执行中' | '已启用' | '已禁用' | '已完成' | '启用中';
 /** 条件配置：行式条件组（当/且或 + 条件指标 + 运算符 + 阈值）；日期型指标取 v1/v2 为区间起止 */
-export type MvCondMetric = '销量' | '利润率' | '库存' | '上架天数' | '上架时间';
+export type MvCondMetric = '销量' | '销量较昨日' | '销量排行' | '利润率' | '库存' | '上架天数' | '上架时间' | '近X日内';
 /** 上架时间的时间预设：非自定义时不展示日期输入件（相对窗口即近期语义） */
 export type MvDatePreset = '自定义时间' | '今天' | '本周' | '昨天' | '本月';
 export const MV_DATE_PRESETS: MvDatePreset[] = ['自定义时间', '今天', '本周', '昨天', '本月'];
+/** 销量排行的统计时间范围：昨天或指定起止（v1/v2） */
+export type MvRankRange = '昨天' | '指定时间范围';
+export const MV_RANK_RANGES: MvRankRange[] = ['昨天', '指定时间范围'];
 /** 循环周期的周几/几号候选（每周=周几、每月=几号） */
 export const MV_WEEK_DAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 export const MV_MONTH_DAYS = Array.from({ length: 31 }, (_, i) => `${i + 1}号`);
@@ -25,26 +31,40 @@ export interface MvCondRow {
   v2: string;
   /** 上架时间的时间预设（默认自定义时间） */
   preset?: MvDatePreset;
+  /** 销量较昨日的阈值单位（件/%，未设取指标默认单位） */
+  unit?: '件' | '%';
+  /** 销量排行的统计时间范围（默认昨天） */
+  rankRange?: MvRankRange;
+  /** 销量排行前 N 名 */
+  topN?: string;
 }
 export type MvCondition = MvCondRow[];
 
-/** 条件指标元数据：数值型配阈值+单位、日期型配日期（区间）——选定条件后带出对应约束控件 */
-export const MV_COND_METRICS: { name: MvCondMetric; kind: 'num' | 'date'; unit: string; ops: string[] }[] = [
+/** 条件指标元数据：数值型配阈值+单位、日期型配日期（区间）、排行型配时间范围+前N——选定条件后带出对应约束控件 */
+export const MV_COND_METRICS: { name: MvCondMetric; kind: 'num' | 'date' | 'rank'; unit: string; ops: string[]; units?: string[] }[] = [
   { name: '销量', kind: 'num', unit: '件', ops: ['>', '≥', '=', '≤', '<'] },
+  { name: '销量较昨日', kind: 'num', unit: '件', units: ['件', '%'], ops: ['上升', '下降'] },
+  { name: '销量排行', kind: 'rank', unit: '名', ops: ['前'] },
   { name: '利润率', kind: 'num', unit: '%', ops: ['≥', '>', '≤', '<'] },
   { name: '库存', kind: 'num', unit: '件', ops: ['≤', '<', '≥', '>'] },
   { name: '上架天数', kind: 'num', unit: '天', ops: ['>', '≥', '≤', '<'] },
   { name: '上架时间', kind: 'date', unit: '', ops: ['=', '介于'] },
+  { name: '近X日内', kind: 'num', unit: '日', ops: ['近'] },
 ];
 export const MV_COND_METRIC_NAMES = MV_COND_METRICS.map((x) => x.name);
 export const mvMetricMeta = (m: MvCondMetric) => MV_COND_METRICS.find((x) => x.name === m) ?? MV_COND_METRICS[0];
 export const mvCondRowText = (r: MvCondRow) => {
   const meta = mvMetricMeta(r.metric);
+  if (r.metric === '近X日内') return `近${r.v1}日内`;
+  if (meta.kind === 'rank') {
+    const range = (r.rankRange ?? '昨天') === '昨天' ? '昨天' : `${r.v1}~${r.v2}`;
+    return `${r.metric}${range}前${r.topN}名`;
+  }
   if (meta.kind === 'date') {
     if ((r.preset ?? '自定义时间') !== '自定义时间') return `${r.metric}${r.op}${r.preset}`;
     return `${r.metric}${r.op}${r.v1}~${r.v2}`;
   }
-  return `${r.metric}${r.op}${r.v1}${meta.unit}`;
+  return `${r.metric}${r.op}${r.v1}${r.unit ?? meta.unit}`;
 };
 export const mvCondSummary = (rows: MvCondition) =>
   rows.map((r, i) => `${i === 0 ? '' : ` ${r.conj} `}${mvCondRowText(r)}`).join('') || '未配置条件';
@@ -80,12 +100,14 @@ export interface MvTask {
   targetShopIds?: string[];
   /** 发布策略（自动搬家必填，复用商品策略枚举 PUB_STRATEGIES 名称） */
   strategy?: string;
+  /** 商品来源（仅自动发品：内部商机/店铺商品） */
+  source?: MvSource;
   creator: string;
   status: MvTaskStatus;
   createdAt: string;
 }
 
-export const MV_KINDS: MvKind[] = ['自动搬家', '自动下架'];
+export const MV_KINDS: MvKind[] = ['自动搬家', '自动下架', '自动发品'];
 export const MV_METHODS: MvMethod[] = ['循环', '条件触发', '一次性'];
 
 /** 各执行方式的状态枚举：循环=已启用/已禁用；一次性=待执行/执行中/已完成；条件=启用中/已禁用 */
@@ -189,5 +211,16 @@ export const mvTasks: MvTask[] = [
     ],
     shopIds: ['s7'], targetShopIds: ['v3'], strategy: '13245',
     creator: '李珊珊', status: '启用中', createdAt: '2026-07-30 14:55',
+  },
+  {
+    id: 'at-09', name: '自动发品-视频号新品上架', kind: '自动发品', method: '循环',
+    cycle: '每天', cycleTime: '08:00',
+    cond: [
+      { key: 'c1', conj: '且', metric: '近X日内', op: '近', v1: '7', v2: '' },
+      { key: 'c2', conj: '且', metric: '销量', op: '>', v1: '10', v2: '' },
+    ],
+    shopIds: [],
+    source: '内部商机',
+    creator: '七妮妮', status: '已启用', createdAt: '2026-09-10 09:00',
   },
 ];

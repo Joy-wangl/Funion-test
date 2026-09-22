@@ -1,8 +1,9 @@
 /**
  * 蜜蜂插件 · 电商搬家：mock 数据与工具
- * 平台 logo 复用 public/logos；商品主图复用 public/products + SVG 占位图
+ * 平台 logo 复用 public/logos；商品主图复用 ops-center 电商主图池（public/materials/ec-*.webp）
  */
 import { ref } from 'vue';
+import { ecMain } from '../ops-center/data';
 
 export interface BeeProduct {
   id: string;
@@ -49,24 +50,16 @@ export const BEE_PLATFORM_LOGO: Record<string, string> = {
   快手: '/logos/kuaishou.png',
 };
 
-/* SVG 占位主图（与 ops-center 同款生成方式） */
-export const thumb = (bg: string, text: string) =>
-  "data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2796%27%20height%3D%2796%27%20viewBox%3D%270%200%2096%2096%27%3E%3Crect%20width%3D%2796%27%20height%3D%2796%27%20rx%3D%2712%27%20fill%3D%27" +
-  encodeURIComponent(bg).replace(/'/g, '%27') +
-  '%27/%3E%3Ctext%20x%3D%2748%27%20y%3D%2754%27%20text-anchor%3D%27middle%27%20font-size%3D%2720%27%20font-family%3D%27Arial%27%20fill%3D%27white%27%20fill-opacity%3D%270.92%27%3E' +
-  encodeURIComponent(text).replace(/'/g, '%27') +
-  '%3C/text%3E%3C/svg%3E';
-
 export const beeProducts: BeeProduct[] = [
-  { id: 'p-1', title: '韩版珍珠发夹女气质简约发卡边夹刘海夹子头饰', img: '/products/hairpin.png', link: 'https://item.taobao.com/item.htm?id=72910031', platform: '淘宝', importTime: '2026-08-26 14:32', complete: true },
-  { id: 'p-2', title: '烟酰胺焕亮精华液 30ml 补水保湿淡斑提亮肤色', img: '/products/serum.png', link: 'https://detail.tmall.com/item.htm?id=66120984', platform: '天猫', importTime: '2026-08-26 10:05', complete: true },
-  { id: 'p-3', title: 'ins 风简约陶瓷马克杯带盖勺办公室情侣水杯', img: thumb('#7b8cff', '杯'), link: 'https://mobile.yangkeduo.com/goods.html?goods_id=391020', platform: '拼多多', importTime: '2026-08-25 18:47', complete: false },
-  { id: 'p-4', title: '高腰垂感阔腿裤女秋季显瘦休闲直筒拖地长裤', img: thumb('#38b2ff', '裤'), link: 'https://haohuo.jinritemai.com/ecommerce/trade/detail/index.html?id=361102', platform: '抖音', importTime: '2026-08-25 09:21', complete: true },
-  { id: 'p-5', title: '儿童积木玩具男女孩拼装益智力 1000 颗粒套装', img: thumb('#ffb443', '积'), link: 'https://k.kwaixiaodian.com/item/520031', platform: '快手', importTime: '2026-08-24 20:13', complete: false },
-  { id: 'p-6', title: '防晒衣女夏季薄款防紫外线户外透气防晒服外套', img: thumb('#4fd0c0', '防'), link: 'https://item.taobao.com/item.htm?id=72910032', platform: '淘宝', importTime: '2026-08-24 15:40', complete: true },
-  { id: 'p-7', title: '北欧简约台灯卧室床头灯温馨浪漫遥控小夜灯', img: thumb('#f7709b', '灯'), link: 'https://mobile.yangkeduo.com/goods.html?goods_id=391021', platform: '拼多多', importTime: '2026-08-23 11:26', complete: false },
-  { id: 'p-8', title: '氨基酸洗面奶温和清洁毛孔控油洁面乳男女学生', img: '/products/main.png', link: 'https://detail.tmall.com/item.htm?id=66120985', platform: '天猫', importTime: '2026-08-22 17:58', complete: true },
-  { id: 'p-9', title: '户外折叠椅便携式露营钓鱼凳美术生写生小马扎', img: thumb('#69c77e', '椅'), link: 'https://haohuo.jinritemai.com/ecommerce/trade/detail/index.html?id=361103', platform: '抖音', importTime: '2026-08-21 08:12', complete: false },
+  { id: 'p-1', title: '韩版珍珠发夹女气质简约发卡边夹刘海夹子头饰', img: ecMain(13), link: 'https://item.taobao.com/item.htm?id=72910031', platform: '淘宝', importTime: '2026-08-26 14:32', complete: true },
+  { id: 'p-2', title: '烟酰胺焕亮精华液 30ml 补水保湿淡斑提亮肤色', img: ecMain(14), link: 'https://detail.tmall.com/item.htm?id=66120984', platform: '天猫', importTime: '2026-08-26 10:05', complete: true },
+  { id: 'p-3', title: 'ins 风简约陶瓷马克杯带盖勺办公室情侣水杯', img: ecMain(15), link: 'https://mobile.yangkeduo.com/goods.html?goods_id=391020', platform: '拼多多', importTime: '2026-08-25 18:47', complete: false },
+  { id: 'p-4', title: '高腰垂感阔腿裤女秋季显瘦休闲直筒拖地长裤', img: ecMain(16), link: 'https://haohuo.jinritemai.com/ecommerce/trade/detail/index.html?id=361102', platform: '抖音', importTime: '2026-08-25 09:21', complete: true },
+  { id: 'p-5', title: '儿童积木玩具男女孩拼装益智力 1000 颗粒套装', img: ecMain(17), link: 'https://k.kwaixiaodian.com/item/520031', platform: '快手', importTime: '2026-08-24 20:13', complete: false },
+  { id: 'p-6', title: '防晒衣女夏季薄款防紫外线户外透气防晒服外套', img: ecMain(18), link: 'https://item.taobao.com/item.htm?id=72910032', platform: '淘宝', importTime: '2026-08-24 15:40', complete: true },
+  { id: 'p-7', title: '北欧简约台灯卧室床头灯温馨浪漫遥控小夜灯', img: ecMain(19), link: 'https://mobile.yangkeduo.com/goods.html?goods_id=391021', platform: '拼多多', importTime: '2026-08-23 11:26', complete: false },
+  { id: 'p-8', title: '氨基酸洗面奶温和清洁毛孔控油洁面乳男女学生', img: ecMain(20), link: 'https://detail.tmall.com/item.htm?id=66120985', platform: '天猫', importTime: '2026-08-22 17:58', complete: true },
+  { id: 'p-9', title: '户外折叠椅便携式露营钓鱼凳美术生写生小马扎', img: ecMain(21), link: 'https://haohuo.jinritemai.com/ecommerce/trade/detail/index.html?id=361103', platform: '抖音', importTime: '2026-08-21 08:12', complete: false },
 ];
 
 export const beeShops: BeeShop[] = [

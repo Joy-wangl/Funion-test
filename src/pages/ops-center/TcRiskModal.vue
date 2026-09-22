@@ -82,7 +82,7 @@ const emit = defineEmits<{ (e: 'cancel'): void; (e: 'continue'): void }>();
   gap: 12px;
   padding: 16px;
 }
-.tcr-kv { display: flex; gap: 12px; font-size: 13px; }
+.tcr-kv { display: flex; gap: 12px; font-size: var(--fs-base); }
 .tcr-kv span { flex: none; width: 60px; color: #8a94a6; }
 .tcr-kv b {
   flex: 1;
@@ -103,7 +103,7 @@ const emit = defineEmits<{ (e: 'cancel'): void; (e: 'continue'): void }>();
 .tcr-warn svg { flex: none; margin-top: 1px; }
 .tcr-warn p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-base);
   line-height: 1.6;
   color: #4e5969;
 }
@@ -120,7 +120,7 @@ const emit = defineEmits<{ (e: 'cancel'): void; (e: 'continue'): void }>();
   border: 1px solid #e5e6eb;
   border-radius: 4px;
   background: #fff;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #4e5969;
   cursor: pointer;
 }

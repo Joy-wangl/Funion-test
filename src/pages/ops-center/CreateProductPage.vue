@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { createTaobaoRows, createJmRows, parentTasks, retrySub, PUB_NO_STRATEGY, PUB_STRATEGIES, PUB_SHOPS, PUB_SHOP_PLATFORMS } from './data';
-import type { CreateRow, SubTask } from './data';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { createTaobaoRows, createJmRows, createImgsOf, parentTasks, retrySub, PUB_NO_STRATEGY, PUB_STRATEGIES, PUB_SHOPS, PUB_ROUTE_PLATFORMS, PLATFORM_LOGO, createDetail } from './data';
+import type { CreateRow, SubTask, PubShop } from './data';
+import { sgJmDetail } from './shopGoodsData';
 import BubbleSelect from '../../components/BubbleSelect.vue';
+import DateRangePicker from '../../components/DateRangePicker.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
+import Modal from '../../components/Modal.vue';
 import MoreActions from '../../components/MoreActions.vue';
 import SortTh from '../../components/SortTh.vue';
 import CreateDetailPage from './CreateDetailPage.vue';
@@ -11,13 +14,17 @@ import JmCreateDetailPage from './JmCreateDetailPage.vue';
 import { pushToast } from '../../components/toast';
 import TcStepsCell from './TcStepsCell.vue';
 import { addPublishTask, setPublishResume, setPublishRiskResume } from './publishStore';
-import { pushGMsg } from '../../components/globalMsgData';
+import { pushGMsg, requestShopAcct } from '../../components/globalMsgData';
+import { amOfflineShopNames, amOfflineSellerOfShop } from '../permission/accountData';
 
-/** 商品创建页（jm=京麦平台：列表同源结构，详情走京麦接口字段页） */
-const props = defineProps<{ jm?: boolean }>();
+/** 商品创建页（jm=京麦平台：列表同源结构，详情走京麦接口字段页；video=视频号：详情走微信小店规格×SKU 笛卡尔积交互） */
+const props = defineProps<{ jm?: boolean; video?: boolean }>();
 const rows = ref<CreateRow[]>(props.jm ? createJmRows : createTaobaoRows);
 /* 详情态：复用内部商机/店铺商品详情样式 */
 const detail = ref<CreateRow | null>(null);
+/* 创建时间范围筛选 */
+const createDateFrom = ref('');
+const createDateTo = ref('');
 /* 列表选择列：勾选后「快速铺货」批量发布（支持一件或多件） */
 const selLinks = ref<Set<string>>(new Set());
 const allChecked = computed(() => rows.value.length > 0 && rows.value.every((r) => selLinks.value.has(r.link)));
@@ -29,6 +36,104 @@ const toggleSel = (link: string, on: boolean) => {
 };
 const toggleSelAll = (on: boolean) => {
   selLinks.value = on ? new Set(rows.value.map((r) => r.link)) : new Set();
+};
+/* 图片管理二级页开关：列表页仅保留入口按钮，点击进入二级页批量管理筛选结果下全部商品图片 */
+const imgPage = ref(false);
+/* 图片模式：每商品 3 图；批量操作结果记三个 set（删除/已去水印/已去品牌），对应选择项置灰不可再选 */
+const imgDeleted = ref<Set<string>>(new Set());
+const wmDone = ref<Set<string>>(new Set());
+const brandDone = ref<Set<string>>(new Set());
+/* 图片模式：筛选结果下每商品 3 图全部瀑布流平铺；无收起/叠堆，选择项始终可勾选 */
+const imgs = computed(() => rows.value
+  .flatMap((r, ri) => createImgsOf(r, ri))
+  .filter((im) => !imgDeleted.value.has(im.key))
+  .map((im) => ({ ...im, wmDone: wmDone.value.has(im.key), brandDone: brandDone.value.has(im.key) })));
+/* 标签勾选（图片key::wm / ::brand）：选中后支持批量去水印 / 批量去品牌 / 批量删除 */
+const selTags = ref<Set<string>>(new Set());
+const tagId = (key: string, t: 'wm' | 'brand') => `${key}::${t}`;
+const tagKey = (t: string) => t.slice(0, t.lastIndexOf('::'));
+const toggleTag = (id: string) => {
+  const n = new Set(selTags.value);
+  if (n.has(id)) n.delete(id); else n.add(id);
+  selTags.value = n;
+};
+const clearSel = () => { selTags.value = new Set(); };
+/* 图下文字行与悬浮预览共用的选择操作：每图均支持去水印/去品牌，仅已处理后置灰不可再选 */
+const imgOps = (im: (typeof imgs.value)[number]) => [
+  { t: 'wm' as const, done: im.wmDone, label: im.wmDone ? '已去水印' : '去水印' },
+  { t: 'brand' as const, done: im.brandDone, label: im.brandDone ? '已去品牌' : '去品牌' },
+];
+/* 瀑布流列数：容器宽按固定列宽 150＋间距 12 折算（ResizeObserver 跟随视口），CSS 多列在瓷砖量少时均衡收敛留右侧空白故改 JS 分列 */
+const COL_W = 150;
+const COL_GAP = 12;
+const flatRef = ref<HTMLElement | null>(null);
+const colCount = ref(8);
+let flatRo: ResizeObserver | null = null;
+watch(imgPage, (on) => {
+  if (flatRo) { flatRo.disconnect(); flatRo = null; }
+  if (!on) return;
+  nextTick(() => {
+    const el = flatRef.value;
+    if (!el) return;
+    const upd = () => { colCount.value = Math.max(4, Math.floor((el.clientWidth + COL_GAP) / (COL_W + COL_GAP))); };
+    upd();
+    flatRo = new ResizeObserver(upd);
+    flatRo.observe(el);
+  });
+}, { immediate: true });
+onBeforeUnmount(() => { if (flatRo) flatRo.disconnect(); });
+/* 最短列分布：按图片高宽比＋操作行估算列高，逐张放入当前最矮列，形成真瀑布流 */
+const imgCols = computed(() => {
+  const cols = Array.from({ length: colCount.value }, () => ({ list: [] as typeof imgs.value, h: 0 }));
+  for (const im of imgs.value) {
+    const c = cols.reduce((a, b) => (a.h <= b.h ? a : b));
+    c.list.push(im);
+    c.h += im.rh + 0.15;
+  }
+  return cols.map((c) => c.list);
+});
+/* 悬浮预览翻转：逐瓷砖 hover 实测——滚动视口上方空间不足面板高时翻为向下弹，
+   避免向上弹被屏幕顶裁剪（静态首行翻转在滚动后非首行贴顶时仍会裁，故改动态） */
+const ZOOM_H = 480; /* 面板估算高兜底：放大图 max 420 ＋操作行＋桥接垫 */
+const placeZoom = (e: MouseEvent) => {
+  const thumb = e.currentTarget as HTMLElement;
+  const zoom = thumb.querySelector('.cp-img-zoom') as HTMLElement | null;
+  if (!zoom) return;
+  const sc = thumb.closest('.app-content');
+  const box = sc ? sc.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+  const r = thumb.getBoundingClientRect();
+  const need = zoom.offsetHeight || ZOOM_H;
+  const above = r.top - box.top;
+  const below = box.bottom - r.bottom;
+  const down = above < need && below > above;
+  zoom.classList.toggle('cp-zoom-down', down);
+  /* 定向后仍不足则整面板平移贴齐滚动视口（覆盖瓷砖而非裁切），hover 不断 */
+  const zr = zoom.getBoundingClientRect();
+  let dy = 0;
+  if (!down && zr.top < box.top) dy = box.top - zr.top + 4;
+  if (down && zr.bottom > box.bottom) dy = box.bottom - zr.bottom - 4;
+  zoom.style.transform = dy ? `translate(-50%, ${dy}px)` : '';
+};
+const wmSel = computed(() => [...selTags.value].filter((t) => t.endsWith('::wm')));
+const brandSel = computed(() => [...selTags.value].filter((t) => t.endsWith('::brand')));
+const selImgKeys = computed(() => new Set([...selTags.value].map(tagKey)));
+const batchWm = () => {
+  const keys = wmSel.value.map(tagKey);
+  wmDone.value = new Set([...wmDone.value, ...keys]);
+  selTags.value = new Set([...selTags.value].filter((t) => !t.endsWith('::wm')));
+  pushToast(`批量去水印完成：共处理 ${keys.length} 张图片`);
+};
+const batchBrand = () => {
+  const keys = brandSel.value.map(tagKey);
+  brandDone.value = new Set([...brandDone.value, ...keys]);
+  selTags.value = new Set([...selTags.value].filter((t) => !t.endsWith('::brand')));
+  pushToast(`批量去品牌完成：共处理 ${keys.length} 张图片`);
+};
+const batchDelImgs = () => {
+  const keys = [...selImgKeys.value];
+  imgDeleted.value = new Set([...imgDeleted.value, ...keys]);
+  selTags.value = new Set();
+  pushToast(`已删除 ${keys.length} 张图片`);
 };
 /* 发布到：两步向导——第一步多选策略（含不使用策略发布）/ 第二步按策略选店铺，店铺跨策略互斥不可重复 */
 interface PubSel {
@@ -44,12 +149,16 @@ const pubOpen = ref(false);
 const pubStep = ref<1 | 2>(1);
 const pubProducts = ref<CreateRow[]>([]);
 const pubSel = ref<PubSel[]>([]);
+/* 路由平台：发布到抽屉只展示当前路由（淘宝/视频号/京麦）本平台的策略与店铺 */
+const routeKey = computed<'tb' | 'video' | 'jm'>(() => (props.jm ? 'jm' : props.video ? 'video' : 'tb'));
+const pubPlatforms = computed(() => PUB_ROUTE_PLATFORMS[routeKey.value]);
+const pubStrategies = computed(() => PUB_STRATEGIES.filter((s) => pubPlatforms.value.includes(s.platform)));
 const newPubSel = (name: string): PubSel => ({
   name,
   method: '',
   way: '蜂联发布',
   shopQ: '',
-  platform: PUB_SHOP_PLATFORMS[0],
+  platform: pubPlatforms.value[0],
   groupOpen: false,
   shops: [],
 });
@@ -62,10 +171,192 @@ const openPubTo = (products: CreateRow[]) => {
 const openQuickPub = () => {
   openPubTo(rows.value.filter((r) => selLinks.value.has(r.link)));
 };
+/* 竞品导入抽屉：导入方式双态——链接导入（平台+入口链接）/ 文件导入（xlsx 上传，≤10 MB） */
+const impOpen = ref(false);
+const impMode = ref<'link' | 'file'>('link');
+const IMP_PLATS = ['淘宝', '天猫', '拼多多', '抖音', '快手', '京东'];
+const impPlat = ref(IMP_PLATS[0]);
+const impLink = ref('');
+const impFileRef = ref<HTMLInputElement | null>(null);
+const impFileName = ref('');
+const openImp = () => {
+  impMode.value = 'link';
+  impLink.value = '';
+  impFileName.value = '';
+  if (impFileRef.value) impFileRef.value.value = '';
+  impOpen.value = true;
+};
+const pickImpFile = () => impFileRef.value?.click();
+const onImpFile = () => { impFileName.value = impFileRef.value?.files?.[0]?.name ?? ''; };
+const confirmImpLink = () => {
+  if (!impLink.value.trim()) { pushToast('请输入竞品链接', 'warning'); return; }
+  pushToast(`竞品链接已提交（${impPlat.value}），获取完成后自动入列`);
+  impOpen.value = false;
+};
+const confirmImpFile = () => {
+  const f = impFileRef.value?.files?.[0];
+  if (!f) { pushToast('请先选择 xlsx 文件', 'warning'); return; }
+  if (!/\.(xlsx|xls)$/i.test(f.name)) { pushToast('仅支持 xlsx 文件', 'warning'); return; }
+  if (f.size > 10 * 1024 * 1024) { pushToast('文件不能超过 10 MB', 'warning'); return; }
+  pushToast(`文件「${f.name}」已上传，按文件内容导入商品`);
+  impOpen.value = false;
+};
+
+/* ---------- SKU 快捷编辑（千牛式）：双入口——列表商品信息列「详」字芯片（单件）、勾选后列头上方选条「编辑商品信息」（批量，微信小店式交互）；
+   弹窗保留 SKU 全字段（图片/名称/商品编码/系列编码/成本价/售价/利润/利润率/库存数）＋操作（复制/删除），保存按平台重建种子 SKU 数组回写 ---------- */
+type QuickVal = { name: string; code: string; series: string; cost: string; price: string; stock: string; profit: string; rate: string };
+type QuickDraftRow = { thumb: string; title: string; jm: boolean; src: Record<string, string>; qcode: string; val: QuickVal };
+const quickRow = ref<CreateRow | null>(null);
+const quickBatch = ref(false);
+const quickDraft = ref<QuickDraftRow[]>([]);
+/* 同种子 SKU 在多商品行间共享同一 draft 值对象（淘宝路由各商品共用同一种子）；批量勾选多件同种子商品时按 src 去重只铺一行（不展示商品信息列，重复行无意义） */
+const buildDraft = (list: CreateRow[]): QuickDraftRow[] => {
+  const vals = new Map<Record<string, string>, QuickVal>();
+  const emitted = new Set<Record<string, string>>();
+  const valOf = (s: Record<string, string>, init: () => QuickVal) => {
+    let v = vals.get(s);
+    if (!v) { v = init(); vals.set(s, v); }
+    return v;
+  };
+  const once = (s: Record<string, string>) => {
+    if (emitted.has(s)) return [];
+    emitted.add(s);
+    return [s];
+  };
+  return list.flatMap((row) => (props.jm
+    ? sgJmDetail.skus.flatMap((s) => once(s).map((u): QuickDraftRow => ({ thumb: row.thumb, title: row.title, jm: true, src: u, qcode: u.outerId, val: valOf(u, () => mkVal(u.name, u.outerId, u.series, u.cost, u.jdPrice, u.stock)) })))
+    : createDetail.skus.flatMap((s) => once(s).map((u): QuickDraftRow => ({ thumb: row.thumb, title: row.title, jm: false, src: u, qcode: u.code, val: valOf(u, () => mkVal(u.name, u.code, u.series, u.cost, u.price, u.stock)) })))));
+};
+const openQuickSku = (row: CreateRow) => {
+  quickDraft.value = buildDraft([row]);
+  quickBatch.value = false;
+  quickRow.value = row;
+};
+/* 批量入口：勾选行展开为去重后的 SKU draft，与单件共用弹窗与回写 */
+const batchRows = computed(() => rows.value.filter((r) => selLinks.value.has(r.link)));
+const openBatchSku = () => {
+  quickDraft.value = buildDraft(batchRows.value);
+  quickBatch.value = true;
+  quickRow.value = null;
+};
+const closeQuick = () => {
+  quickRow.value = null;
+  quickBatch.value = false;
+  colEdit.value = null;
+};
+/* 成本价只读不可改；售价/利润/利润率三值联动可编辑：成本恒定，改任一项反推其余两项（利润=售价−成本；利润率=利润÷售价；售价=成本÷(1−利润率)） */
+const numOf = (v: string) => {
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : NaN;
+};
+const syncPriceVal = (v: QuickVal) => {
+  const p = numOf(v.price);
+  const c = numOf(v.cost);
+  if (Number.isFinite(p) && Number.isFinite(c)) {
+    v.profit = (p - c).toFixed(2);
+    v.rate = p > 0 ? (((p - c) / p) * 100).toFixed(1) : '';
+  }
+};
+const syncProfitVal = (v: QuickVal) => {
+  const pr = numOf(v.profit);
+  const c = numOf(v.cost);
+  if (Number.isFinite(pr) && Number.isFinite(c)) {
+    const p = c + pr;
+    v.price = p.toFixed(2);
+    v.rate = p > 0 ? ((pr / p) * 100).toFixed(1) : '';
+  }
+};
+const syncRateVal = (v: QuickVal) => {
+  const rt = numOf(v.rate);
+  const c = numOf(v.cost);
+  if (Number.isFinite(rt) && Number.isFinite(c) && rt < 100) {
+    const p = c / (1 - rt / 100);
+    v.price = p.toFixed(2);
+    v.profit = (p - c).toFixed(2);
+  }
+};
+const mkVal = (name: string, code: string, series: string, cost: string, price: string, stock: string): QuickVal => {
+  /* 商品编码为空时系列编码/成本价默认 0.00，编码查询成功后回填 */
+  const v: QuickVal = { name, code, series: code.trim() ? series : '0.00', cost: code.trim() ? cost : '0.00', price, stock, profit: '', rate: '' };
+  syncPriceVal(v);
+  return v;
+};
+/* 列头批量编辑：售价/利润/利润率/库存数 列头 icon，浮层输入统一值后整列应用（利润/利润率按联动反推） */
+type ColEditKey = 'price' | 'profit' | 'rate' | 'stock';
+const colEdit = ref<{ key: ColEditKey; value: string } | null>(null);
+const openColEdit = (key: ColEditKey) => {
+  colEdit.value = colEdit.value?.key === key ? null : { key, value: '' };
+};
+const applyColumn = () => {
+  const ce = colEdit.value;
+  if (!ce) return;
+  for (const r of quickDraft.value) {
+    if (ce.key === 'stock') r.val.stock = ce.value;
+    else {
+      r.val[ce.key] = ce.value;
+      (ce.key === 'price' ? syncPriceVal : ce.key === 'profit' ? syncProfitVal : syncRateVal)(r.val);
+    }
+  }
+  colEdit.value = null;
+};
+/* 系列编码查询（mock 600ms）：按商品编码回查系列编码与成本价；编码输入失焦（点击空白）时先 toast 提示，查询完成后回填 */
+const mockSeriesQuery = (code: string): Promise<{ series: string; cost: string }> =>
+  new Promise((resolve) => {
+    setTimeout(() => {
+      const hit = createDetail.skus.find((s) => s.code === code) || sgJmDetail.skus.find((s) => s.outerId === code);
+      resolve(hit ? { series: hit.series, cost: hit.cost } : { series: `编码${code.slice(-2) || '00'}`, cost: '25.00' });
+    }, 600);
+  });
+const codeBlur = (r: QuickDraftRow) => {
+  const code = r.val.code.trim();
+  if (!code) {
+    r.qcode = '';
+    r.val.series = '0.00';
+    r.val.cost = '0.00';
+    syncPriceVal(r.val);
+    return;
+  }
+  if (code === r.qcode) return;
+  r.qcode = code;
+  pushToast('正在查询系列编码信息');
+  mockSeriesQuery(code).then((res) => {
+    r.val.series = res.series;
+    r.val.cost = res.cost;
+    syncPriceVal(r.val);
+  });
+};
+/* 操作：复制＝当前行后插入值完全一致的 draft 行（src 独立克隆，保存即新种子 SKU）；删除＝直接从 draft 移除 */
+const copyQuick = (i: number) => {
+  const r = quickDraft.value[i];
+  if (!r) return;
+  quickDraft.value.splice(i + 1, 0, { ...r, src: { ...r.src }, val: { ...r.val } });
+};
+const deleteQuick = (i: number) => {
+  quickDraft.value.splice(i, 1);
+};
+const saveQuickSku = () => {
+  const write = (r: QuickDraftRow) => {
+    Object.assign(r.src, r.jm
+      ? { name: r.val.name, outerId: r.val.code, series: r.val.series, cost: r.val.cost, jdPrice: r.val.price, stock: r.val.stock }
+      : { name: r.val.name, code: r.val.code, series: r.val.series, cost: r.val.cost, price: r.val.price, stock: r.val.stock });
+    return r.src;
+  };
+  if (props.jm) sgJmDetail.skus = quickDraft.value.filter((r) => r.jm).map(write) as typeof sgJmDetail.skus;
+  else createDetail.skus = quickDraft.value.filter((r) => !r.jm).map(write) as typeof createDetail.skus;
+  pushToast(quickBatch.value ? `SKU 信息已保存（${batchRows.value.length} 件商品）` : 'SKU 信息已保存');
+  closeQuick();
+};
 const pubSelOf = (name: string) => pubSel.value.find((s) => s.name === name) ?? null;
 const noStrat = computed(() => pubSelOf(PUB_NO_STRATEGY));
 const togglePubStrat = (name: string, on: boolean) => {
-  pubSel.value = on ? [...pubSel.value, newPubSel(name)] : pubSel.value.filter((s) => s.name !== name);
+  if (name === PUB_NO_STRATEGY) {
+    // 选择「不使用策略发布」时，清空所有已选策略
+    pubSel.value = on ? [newPubSel(PUB_NO_STRATEGY)] : pubSel.value.filter((s) => s.name !== PUB_NO_STRATEGY);
+  } else {
+    // 选择具体策略时，若已选「不使用策略发布」则清空它
+    const filtered = pubSel.value.filter((s) => s.name !== PUB_NO_STRATEGY);
+    pubSel.value = on ? [...filtered, newPubSel(name)] : filtered.filter((s) => s.name !== name);
+  }
 };
 const pubStrategyInfo = (name: string) => PUB_STRATEGIES.find((s) => s.name === name) ?? null;
 /* 店铺互斥：记录每个店铺被哪个策略选中，其他策略内禁用并提示 */
@@ -74,12 +365,21 @@ const shopTakenBy = computed(() => {
   pubSel.value.forEach((g) => g.shops.forEach((id) => m.set(id, g.name)));
   return m;
 });
+/* 店铺离线＝账号管理中该店卖家账号全部离线（RPA 发布依赖在线账号）：禁选＋前往登录引导 */
+const pubOfflineShops = computed(() => new Set(amOfflineShopNames.value));
+const isShopOffline = (s: PubShop) => pubOfflineShops.value.has(s.name);
+/* 前往登录：关闭发布抽屉并桥接设置/账号管理，打开该离线账号的管理抽屉 */
+const goLoginShop = (s: PubShop) => {
+  const acct = amOfflineSellerOfShop(s.name);
+  pubOpen.value = false;
+  if (acct) requestShopAcct(acct.acctId);
+};
 const groupShopsVisible = (g: PubSel) => {
   const q = g.shopQ.trim();
   return PUB_SHOPS.filter((s) => s.platform === g.platform && (!q || s.name.includes(q) || '未分组店铺'.includes(q)));
 };
 const groupSelectable = (g: PubSel) =>
-  groupShopsVisible(g).filter((s) => !shopTakenBy.value.has(s.id) || g.shops.includes(s.id));
+  groupShopsVisible(g).filter((s) => !isShopOffline(s) && (!shopTakenBy.value.has(s.id) || g.shops.includes(s.id)));
 const groupAllChecked = (g: PubSel) => {
   const opts = groupSelectable(g);
   return opts.length > 0 && opts.every((s) => g.shops.includes(s.id));
@@ -201,8 +501,7 @@ const submitPub = () => {
   products.forEach((p) => sels.forEach((g) => startPublishTask(p.title, g.shops)));
   pushToast(`已创建 ${products.length * sels.length} 个发布任务`);
 };
-const PUB_LOGOS: Record<string, string> = { 淘宝: 'taobao', 天猫: 'tmall', 拼多多: 'pinduoduo', 抖音: 'douyin', 快手: 'kuaishou' };
-const pubLogo = (p: string) => `/logos/${PUB_LOGOS[p] ?? 'taobao'}.png`;
+const pubLogo = (p: string) => PLATFORM_LOGO[p] ?? '/logos/taobao.png';
 /* 删除二次确认 */
 const delRow = ref<CreateRow | null>(null);
 /* 关联发布任务：抽屉展示该商品在任务中心的发布批次（同源联动，重试同步任务列表状态） */
@@ -291,7 +590,55 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
 
 <template>
   <JmCreateDetailPage v-if="detail && props.jm" :row="detail" @back="detail = null" @open-pub="openPubFromDetail" />
-  <CreateDetailPage v-else-if="detail" :row="detail" @back="detail = null" @open-pub="openPubFromDetail" />
+  <CreateDetailPage v-else-if="detail" :row="detail" :video="props.video" @back="detail = null" @open-pub="openPubFromDetail" />
+  <!-- 图片管理二级页：花瓣式全幅白底无卡壳（无切割感）；头部（返回＋标题＋批量操作栏）与瀑布流同白底无缝 -->
+  <div v-else-if="imgPage" class="cp-imgpage">
+    <div class="cp-imgpage-hd">
+      <button class="sgd-back" title="返回" @click="imgPage = false">←</button>
+      <span class="cp-imgpage-title">图片管理</span>
+      <div class="cp-img-bar">
+        <span class="cp-img-sel">已选 <b>{{ selTags.size }}</b> 个标签 · <b>{{ selImgKeys.size }}</b> 张图片</span>
+        <button class="lightBtn" :disabled="wmSel.length === 0" @click="batchWm">批量去水印{{ wmSel.length ? `(${wmSel.length})` : '' }}</button>
+        <button class="lightBtn" :disabled="brandSel.length === 0" @click="batchBrand">批量去品牌{{ brandSel.length ? `(${brandSel.length})` : '' }}</button>
+        <button class="lightBtn cp-img-del" :disabled="selImgKeys.size === 0" @click="batchDelImgs">批量删除{{ selImgKeys.size ? `(${selImgKeys.size})` : '' }}</button>
+        <button class="lightBtn" :disabled="selTags.size === 0" @click="clearSel">清除选择</button>
+      </div>
+    </div>
+    <!-- 瀑布流瓷砖：窄列宽＋高度按比例自适应；圆角统一 16px 裁切；图下文字行居中每图均可选去水印/去品牌，仅已处理后置灰 -->
+    <div ref="flatRef" class="cp-img-flat">
+      <div v-for="(col, ci) in imgCols" :key="ci" class="cp-img-col">
+        <div v-for="im in col" :key="im.key" class="cp-img-card">
+          <div class="cp-img-thumb" @mouseenter="placeZoom">
+            <img :src="im.src" alt="">
+            <!-- 悬浮预览：放大图＋同组选择操作；面板为瓷砖子节点，透明下垫桥接 hover 不移出即不收起 -->
+            <div class="cp-img-zoom">
+              <div class="cp-img-zbox">
+                <img :src="im.src" alt="">
+                <div class="cp-img-ops">
+                  <button
+                    v-for="op in imgOps(im)" :key="op.t"
+                    class="cp-img-op" :class="{ off: op.done, on: selTags.has(tagId(im.key, op.t)) }"
+                    :disabled="op.done" @click="toggleTag(tagId(im.key, op.t))"
+                  >
+                    <i class="cp-img-ck" />{{ op.label }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="cp-img-ops">
+            <button
+              v-for="op in imgOps(im)" :key="op.t"
+              class="cp-img-op" :class="{ off: op.done, on: selTags.has(tagId(im.key, op.t)) }"
+              :disabled="op.done" @click="toggleTag(tagId(im.key, op.t))"
+            >
+              <i class="cp-img-ck" />{{ op.label }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div v-else class="create-page">
     <div class="ib-filters create-filter">
       <div class="ib-grid">
@@ -333,16 +680,21 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
         </div>
         <div class="ib-field">
           <label>创建时间</label>
-          <div class="ib-range">
-            <input class="ib-input" value="2026-08-13" />
-            <span>→</span>
-            <input class="ib-input" value="2026-08-13" />
-          </div>
+          <DateRangePicker v-model:from="createDateFrom" v-model:to="createDateTo" placeholder="请选择日期范围" />
         </div>
         <div class="create-actions-inline">
+          <!-- 图片管理入口：点击进入二级页批量管理勾选商品图片；未勾选行时禁用（与快速铺货同口径） -->
+          <button class="lightBtn cp-img-entry" :disabled="selLinks.size === 0" @click="imgPage = true">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" />
+              <circle cx="5.5" cy="6.5" r="1.5" fill="currentColor" />
+              <path d="M2.5 11.5l3.5-3 3 2.5 2.5-2 2 1.8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            图片管理
+          </button>
           <div class="create-act-left">
             <button class="primaryBtn" :disabled="selLinks.size === 0" @click="openQuickPub">快速铺货</button>
-            <button class="primaryBtn">竞品导入</button>
+            <button class="primaryBtn" @click="openImp">竞品导入</button>
           </div>
           <div class="create-act-right">
             <button class="lightBtn">重置</button>
@@ -353,11 +705,16 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
     </div>
 
     <div class="ib-table-card">
+      <!-- 微信小店式批量入口：勾选后列头上方展示「已选 N 条＋编辑商品信息」选条，点击弹窗批量编辑 SKU 关键信息 -->
+      <div v-if="selLinks.size > 0" class="cp-selbar">
+        <span class="cp-selbar-count">已选 <b>{{ selLinks.size }}</b> 条</span>
+        <button class="lightBtn" @click="openBatchSku">编辑商品信息</button>
+      </div>
       <div class="ib-table-wrap">
         <table class="ib-table create-table">
           <thead>
             <tr>
-              <th :style="{ width: '44px' }">
+              <th :style="{ width: '4%' }">
                 <input
                   type="checkbox"
                   class="ib-check"
@@ -386,17 +743,18 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
               <td>
                 <div class="create-product">
                   <img class="create-thumb" :src="row.thumb" alt="thumb" />
-                  <div>
+                  <div class="create-product-info">
                     <div class="create-product-title">
-                      <span class="create-platform-badge sm" :class="props.jm ? 'jm' : 'taobao'">
-                        {{ row.platformBadge }}
-                      </span>
+                      <!-- 平台展示统一官方图标（PLATFORM_LOGO），不用文字徽章 -->
+                      <img class="create-platform-logo" :src="pubLogo(row.platformBadge)" :alt="row.platformBadge" />
                       <Ellipsis class-name="create-title-ell" :text="row.title" />
                     </div>
                     <div class="create-link">
                       竞品链接：<a href="#"><Ellipsis class-name="create-link-ell" :text="row.link" /></a>
                     </div>
                   </div>
+                  <!-- 千牛式 SKU 快捷编辑入口：「详」字芯片与商品主图居中对齐 -->
+                  <button type="button" class="cp-quick-sku" title="快捷编辑SKU" @click.stop="openQuickSku(row)">详</button>
                 </div>
               </td>
               <td class="create-store-text">{{ row.store }}</td>
@@ -556,6 +914,112 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
       </div>
     </div>
 
+  <!-- 竞品导入抽屉：修改竞品信息（导入方式 segment 双态：链接导入 / 文件导入） -->
+  <div v-if="impOpen" class="cp-drawer-mask" @click="impOpen = false" />
+  <div v-if="impOpen" class="cp-drawer cp-imp-drawer">
+    <div class="cp-drawer-head">
+      <span>修改竞品信息</span>
+      <button type="button" title="关闭" @click="impOpen = false">✕</button>
+    </div>
+    <div class="cp-drawer-body">
+      <div class="cp-imp-field">
+        <label>导入方式</label>
+        <div class="cp-imp-seg">
+          <button :class="{ on: impMode === 'link' }" @click="impMode = 'link'">链接导入</button>
+          <button :class="{ on: impMode === 'file' }" @click="impMode = 'file'">文件导入</button>
+        </div>
+      </div>
+      <template v-if="impMode === 'link'">
+        <div class="cp-imp-field">
+          <label>平台</label>
+          <BubbleSelect class-name="ib-select" :value="impPlat" :options="IMP_PLATS" @change="(v: string) => { impPlat = v; }" />
+        </div>
+        <div class="cp-imp-field">
+          <label>入口链接</label>
+          <input v-model="impLink" class="ib-input" placeholder="请输入竞品链接" />
+        </div>
+      </template>
+      <template v-else>
+        <div class="cp-imp-field">
+          <label>商品文件</label>
+          <div>
+            <button class="lightBtn" @click="pickImpFile">选择 xlsx 文件</button>
+            <span v-if="impFileName" class="cp-imp-filename">{{ impFileName }}</span>
+          </div>
+          <p class="cp-imp-tip">请上传「聚水潭商品库 → 导出商品」生成的 xlsx（不超过 10 MB），导入以文件内容为准，可先在表格里改价、改图再导入。</p>
+        </div>
+      </template>
+    </div>
+    <div class="cp-imp-foot">
+      <button v-if="impMode === 'link'" class="primaryBtn" @click="confirmImpLink">确认并获取竞品信息</button>
+      <button v-else class="primaryBtn" @click="confirmImpFile">确认并导入商品</button>
+    </div>
+    <input ref="impFileRef" class="cp-imp-fileinput" type="file" accept=".xlsx,.xls" @change="onImpFile" />
+  </div>
+
+  <!-- SKU 快捷编辑弹窗：规格×售价/库存/编码关键信息，保存回写详情种子；pm-host 宿主层复用 .pm-page 弹窗基础样式 -->
+  <div class="pm-page pm-host">
+    <Modal v-if="quickRow || quickBatch" :title="quickBatch ? '批量编辑商品' : '快捷编辑SKU'" :sub="quickBatch ? `已选 ${batchRows.length} 件商品` : quickRow?.title" size="xl" @close="closeQuick">
+      <table class="cp-quick-table">
+        <thead>
+          <tr>
+            <th>SKU图片</th>
+            <th>SKU名称</th>
+            <th>{{ props.jm ? '商家编码' : '商品编码' }}</th>
+            <th>系列编码</th>
+            <th>成本价</th>
+            <th>{{ props.jm ? '京东价' : '售价' }}<button type="button" class="cp-quick-col-btn" title="批量修改本列" @click.stop="openColEdit('price')"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M11.4 1.6l3 3-9 9-3.8.8.8-3.8 9-9z" fill="currentColor" /></svg></button>
+              <div v-if="colEdit?.key === 'price'" class="cp-quick-colpop" @click.stop>
+                <input v-model="colEdit.value" class="ib-input" placeholder="统一值" />
+                <button type="button" class="sg-btn primary" @click="applyColumn">应用</button>
+              </div>
+            </th>
+            <th>利润<button type="button" class="cp-quick-col-btn" title="批量修改本列" @click.stop="openColEdit('profit')"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M11.4 1.6l3 3-9 9-3.8.8.8-3.8 9-9z" fill="currentColor" /></svg></button>
+              <div v-if="colEdit?.key === 'profit'" class="cp-quick-colpop" @click.stop>
+                <input v-model="colEdit.value" class="ib-input" placeholder="统一值" />
+                <button type="button" class="sg-btn primary" @click="applyColumn">应用</button>
+              </div>
+            </th>
+            <th>利润率<button type="button" class="cp-quick-col-btn" title="批量修改本列" @click.stop="openColEdit('rate')"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M11.4 1.6l3 3-9 9-3.8.8.8-3.8 9-9z" fill="currentColor" /></svg></button>
+              <div v-if="colEdit?.key === 'rate'" class="cp-quick-colpop" @click.stop>
+                <input v-model="colEdit.value" class="ib-input" placeholder="统一值" />
+                <button type="button" class="sg-btn primary" @click="applyColumn">应用</button>
+              </div>
+            </th>
+            <th>库存数<button type="button" class="cp-quick-col-btn" title="批量修改本列" @click.stop="openColEdit('stock')"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M11.4 1.6l3 3-9 9-3.8.8.8-3.8 9-9z" fill="currentColor" /></svg></button>
+              <div v-if="colEdit?.key === 'stock'" class="cp-quick-colpop" @click.stop>
+                <input v-model="colEdit.value" class="ib-input" placeholder="统一值" />
+                <button type="button" class="sg-btn primary" @click="applyColumn">应用</button>
+              </div>
+            </th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(r, i) in quickDraft" :key="i">
+            <td><img class="cp-quick-img" :src="r.thumb" alt="" /></td>
+            <td><input v-model="r.val.name" class="ib-input" /></td>
+            <td><input v-model="r.val.code" class="ib-input" @blur="codeBlur(r)" /></td>
+            <td class="cp-quick-readonly">{{ r.val.series }}</td>
+            <td class="cp-quick-readonly">{{ r.val.cost }}</td>
+            <td><input v-model="r.val.price" class="ib-input" @input="syncPriceVal(r.val)" /></td>
+            <td><input v-model="r.val.profit" class="ib-input" @input="syncProfitVal(r.val)" /></td>
+            <td class="cp-quick-rate"><input v-model="r.val.rate" class="ib-input" @input="syncRateVal(r.val)" /><span class="cp-quick-rate-suf">%</span></td>
+            <td><input v-model="r.val.stock" class="ib-input" /></td>
+            <td class="cp-quick-ops">
+              <button type="button" class="cp-quick-op" @click="copyQuick(i)">复制</button>
+              <button type="button" class="cp-quick-op danger" @click="deleteQuick(i)">删除</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <template #foot>
+        <button class="sg-btn" @click="closeQuick">取消</button>
+        <button class="sg-btn primary" @click="saveQuickSku">保存</button>
+      </template>
+    </Modal>
+  </div>
+
   <!-- 发布到抽屉：两步向导——第一步多选策略 / 第二步按策略选店铺（店铺跨策略互斥） -->
   <div v-if="pubOpen" class="cp-drawer-mask" @click="pubOpen = false" />
   <div v-if="pubOpen" class="cp-pub-drawer">
@@ -571,7 +1035,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
       <template v-if="pubStep === 1">
         <div class="cp-pub-label">选择发布策略<i>*</i></div>
         <label
-          v-for="s in PUB_STRATEGIES"
+          v-for="s in pubStrategies"
           :key="s.name"
           class="cp-pub-strat"
           :class="pubSelOf(s.name) ? 'on' : ''"
@@ -630,7 +1094,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
               <BubbleSelect
                 class-name="ib-select cp-pub-plat"
                 :value="g.platform"
-                :options="PUB_SHOP_PLATFORMS"
+                :options="pubPlatforms"
                 @change="(v) => (g.platform = v)"
               />
             </div>
@@ -651,13 +1115,16 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
                 v-for="s in groupShopsVisible(g)"
                 :key="s.id"
                 class="cp-pub-shop"
-                :class="shopTakenBy.has(s.id) && shopTakenBy.get(s.id) !== g.name ? 'taken' : ''"
+                :class="[
+                  shopTakenBy.has(s.id) && shopTakenBy.get(s.id) !== g.name ? 'taken' : '',
+                  isShopOffline(s) ? 'offline' : '',
+                ]"
               >
                 <input
                   type="checkbox"
                   class="ib-check"
                   :checked="g.shops.includes(s.id)"
-                  :disabled="shopTakenBy.has(s.id) && shopTakenBy.get(s.id) !== g.name"
+                  :disabled="(shopTakenBy.has(s.id) && shopTakenBy.get(s.id) !== g.name) || isShopOffline(s)"
                   @change="toggleGroupShop(g, s.id, ($event.target as HTMLInputElement).checked)"
                 />
                 <img :src="pubLogo(s.platform)" alt="" />
@@ -665,7 +1132,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
                   <span class="plat">{{ s.platform }}</span>
                   <span class="name">{{ s.name }}</span>
                 </span>
-                <span v-if="shopTakenBy.has(s.id) && shopTakenBy.get(s.id) !== g.name" class="cp-pub-taken">已被 {{ shopTakenBy.get(s.id) }} 选择</span>
+                <!-- 离线店铺：禁选＋离线徽章＋前往登录入口（桥接账号管理卖家离线账号） -->
+                <template v-if="isShopOffline(s)">
+                  <span class="cp-pub-offline">离线</span>
+                  <a class="cp-pub-gologin" href="#" @click.prevent="goLoginShop(s)">前往登录</a>
+                </template>
+                <span v-else-if="shopTakenBy.has(s.id) && shopTakenBy.get(s.id) !== g.name" class="cp-pub-taken">已被 {{ shopTakenBy.get(s.id) }} 选择</span>
               </label>
               <div v-if="groupShopsVisible(g).length === 0" class="cp-pub-empty">暂无店铺</div>
             </template>

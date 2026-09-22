@@ -313,11 +313,22 @@ export interface PermMenuItem {
   manage: PermRadioCfg | null;
   func: string[];
   children?: PermMenuItem[];
+  /** 支持配置可见/可管理的平台、店铺范围（查看/管理列展示范围链接） */
+  scope?: boolean;
 }
 
 export const PERMISSION_MENU: PermMenuItem[] = [
   { name: '商品搜索', checked: true, view: null, manage: null, func: [] },
   { name: '链接商品库', checked: true, view: null, manage: null, func: [] },
+  {
+    name: '商机中心', checked: true, view: null, manage: null, func: [], children: [
+      { name: '全网搜索', checked: true, view: { opts: OPT5, sel: 1 }, manage: { opts: OPT5, sel: 1 }, func: [] },
+      { name: '内部商机', checked: true, view: { opts: OPT5, sel: 1 }, manage: { opts: OPT5, sel: 1 }, func: [], scope: true },
+      { name: '竞对商机', checked: true, view: { opts: OPT5, sel: 1 }, manage: { opts: OPT5, sel: 1 }, func: [] },
+      { name: '市场商机', checked: true, view: { opts: OPT5, sel: 1 }, manage: { opts: OPT5, sel: 1 }, func: [] },
+      { name: '竞价商品', checked: true, view: { opts: OPT5, sel: 1 }, manage: { opts: OPT5, sel: 1 }, func: [] },
+    ]
+  },
   {
     name: '模版中心', checked: true, view: null, manage: null, func: [], children: [
       { name: '商品模版', checked: true, view: { opts: OPT5, sel: 1, link: '选择' }, manage: { opts: OPT5, sel: 1, link: '选择' }, func: ['竞品导入', '发布到店铺', '创建版本', '编辑版本详情', '删除版本信息'] },

@@ -223,20 +223,20 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
             <input class="ib-input" placeholder="结束时间" :value="filter.aEnd" @input="filter = { ...filter, aEnd: ($event.target as HTMLInputElement).value }" />
           </div>
         </div>
-      </div>
-
-      <div class="ib-actions">
-        <div class="ib-rightacts">
-          <BubbleSelect class-name="ib-select" :style="{ width: '120px' }" default-value="快速选品" :options="['快速选品', '淘宝C店', '视频号']" />
-          <button class="lightBtn" @click="doExport">
-            导出
-          </button>
-          <button class="lightBtn" @click="filter = { ...empty }; applied = { ...empty }">
-            重置
-          </button>
-          <button class="primaryBtn" @click="applied = { ...filter }">
-            查询
-          </button>
+        <!-- 按钮组嵌入网格末子项：11 条件末排余 3 列，按钮组落入同排第 4 列右对齐（规范：条件与按钮同排） -->
+        <div class="ib-actions">
+          <div class="ib-rightacts">
+            <BubbleSelect class-name="ib-select" :style="{ width: '120px' }" default-value="快速选品" :options="['快速选品', '淘宝C店', '视频号']" />
+            <button class="lightBtn" @click="doExport">
+              导出
+            </button>
+            <button class="lightBtn" @click="filter = { ...empty }; applied = { ...empty }">
+              重置
+            </button>
+            <button class="primaryBtn" @click="applied = { ...filter }">
+              查询
+            </button>
+          </div>
         </div>
       </div>
     </div>

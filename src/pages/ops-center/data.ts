@@ -178,26 +178,11 @@ export const stockRows: StockRow[] = [
 ];
 
 /* ---------- 内部商机 / 运营管理 商品行 ---------- */
-const svgThumb = (bg: string, text: string, size = 56, rectH = 40) =>
-  "data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%27" +
-  size +
-  "%27%20height%3D%27" +
-  size +
-  "%27%20viewBox%3D%270%200%20" +
-  size +
-  '%20' +
-  size +
-  "%27%3E%3Crect%20width%3D%27" +
-  size +
-  "%27%20height%3D%27" +
-  size +
-  "%27%20rx%3D%2710%27%20fill%3D%27" +
-  encodeURIComponent(bg).replace(/'/g, '%27') +
-  "%27/%3E%3Crect%20x%3D%278%27%20y%3D%278%27%20width%3D%2740%27%20height%3D%27" +
-  rectH +
-  "%27%20rx%3D%278%27%20fill%3D%27white%27%20fill-opacity%3D%270.92%27/%3E%3Ctext%20x%3D%2728%27%20y%3D%2731%27%20text-anchor%3D%27middle%27%20font-size%3D%2712%27%20font-family%3D%27Arial%27%20fill%3D%27%235b6475%27%3E" +
-  encodeURIComponent(text).replace(/'/g, '%27') +
-  '%3C/text%3E%3C/svg%3E';
+/* 电商主图池：真实商品图（白底电商主图，存 public/materials/ec-*.webp）；
+   各列表按自身偏移顺取、模池长循环，保证同列表上下相邻行不重复；同一商品跨列表取同一张 */
+export const EC_MAINS: string[] = Array.from({ length: 24 }, (_, i) => `/materials/ec-${String(i + 1).padStart(2, '0')}.webp`);
+/** 顺取电商主图（索引可为任意整数，自动取模回绕） */
+export const ecMain = (i: number): string => EC_MAINS[((i % EC_MAINS.length) + EC_MAINS.length) % EC_MAINS.length];
 
 export interface ProductRow {
   thumb: string;
@@ -228,7 +213,7 @@ const spark6 = '2,28 16,28 30,28 44,28 56,18 62,14 68,10 74,12 80,8 86,30';
 /** 内部商机表格数据 */
 export const internalProducts: ProductRow[] = [
   {
-    thumb: svgThumb('#ffd9cf', '刀具'),
+    thumb: ecMain(0),
     pname: '水果刀削皮刀便携倒钩苹果去皮神器家用拼多多功能款...',
     pid: '2670779935129',
     storeMeta: { text: '快乐小店-佰得小站' },
@@ -243,7 +228,7 @@ export const internalProducts: ProductRow[] = [
     created: '2026/07/10 17:39',
   },
   {
-    thumb: svgThumb('#d9f4e7', '益智'),
+    thumb: ecMain(1),
     pname: '益智魔块3d立体拼图3到6岁动物趣味恐龙模型儿童手工...',
     pid: '26701928017129',
     storeMeta: { text: '快乐小店-佰得小站' },
@@ -258,7 +243,7 @@ export const internalProducts: ProductRow[] = [
     created: '2026/07/09 11:34',
   },
   {
-    thumb: svgThumb('#dfe8ff', '音响'),
+    thumb: ecMain(2),
     pname: '迷你随身小烟炮音响驱动无线蓝牙便携式重低音抽绳全...',
     pid: '3773095122930106470',
     storeMeta: { text: '抖音小店-丽丽居住/健身弹专卖店' },
@@ -273,7 +258,7 @@ export const internalProducts: ProductRow[] = [
     created: '2025/09/04 19:21',
   },
   {
-    thumb: svgThumb('#fff0c9', '挂钩'),
+    thumb: ecMain(3),
     pname: '挂钩强力粘胶粘钩强承重免打孔门后墙壁透明勾塑...',
     pid: '977051807853',
     storeMeta: { text: '拼多多-萌妮优选的小百货' },
@@ -288,7 +273,7 @@ export const internalProducts: ProductRow[] = [
     created: '2026/07/13 17:07',
   },
   {
-    thumb: svgThumb('#ffe1eb', '卡套'),
+    thumb: ecMain(4),
     pname: '【6个装】证件防丢卡套卡套防窥身份证银行卡保护隐...',
     pid: '25969737568832',
     storeMeta: { text: '快乐小店-歪歪轩' },
@@ -303,7 +288,7 @@ export const internalProducts: ProductRow[] = [
     created: '2026/01/24 21:02',
   },
   {
-    thumb: svgThumb('#e6f0ff', '胶泥'),
+    thumb: ecMain(5),
     pname: '密封胶泥空调孔填缝堵洞防虫防水家用耐高温下水道...',
     pid: '981543753220',
     storeMeta: { text: '拼多多-阿涛弄弄' },
@@ -322,6 +307,8 @@ export const internalProducts: ProductRow[] = [
 /** 运营管理（待上架 / ID数据）表格数据：与原 HTML 一致，音响行缩略图保留 height=440 原样；附带查询条件列演示值 */
 const OM_EXTRAS: Record<string, string>[] = internalProducts.map((row, i) => ({
   系列编码: `XL-220${i + 1}`,
+  /* 销售额：按近7日销量×客单价演示口径折算 */
+  销售额: `¥${Math.round(Number(row.week7) * 39.9).toLocaleString('zh-CN')}`,
   运营组: ['运营一组', '运营二组', '运营三组'][i % 3],
   运营专员: ['王芳', '李娜', '赵磊'][i % 3],
   运营助理: i % 2 ? '吴倩' : '孙悦',
@@ -349,7 +336,7 @@ const OM_SG: { channel: '淘宝' | '视频号'; status: SgStatus }[] = [
 ];
 export type OmProduct = ProductRow & { sg: { channel: '淘宝' | '视频号'; status: SgStatus } };
 export const omProducts: OmProduct[] = internalProducts.map((row, i) => ({
-  ...(i === 2 ? { ...row, thumb: svgThumb('#dfe8ff', '音响', 56, 440) } : row),
+  ...row,
   extra: OM_EXTRAS[i],
   sg: OM_SG[i],
 }));
@@ -394,13 +381,6 @@ export const PLATFORM_LOGO: Record<string, string> = {
 };
 
 /* ---------- 商品创建（淘宝） ---------- */
-const createThumb = (bg: string, text: string) =>
-  "data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2752%27%20height%3D%2752%27%20viewBox%3D%270%200%2052%2052%27%3E%3Crect%20width%3D%2752%27%20height%3D%2752%27%20rx%3D%2710%27%20fill%3D%27" +
-  encodeURIComponent(bg).replace(/'/g, '%27') +
-  "%27/%3E%3Crect%20x%3D%277%27%20y%3D%277%27%20width%3D%2738%27%20height%3D%2738%27%20rx%3D%278%27%20fill%3D%27white%27%20fill-opacity%3D%270.92%27/%3E%3Ctext%20x%3D%2726%27%20y%3D%2729%27%20text-anchor%3D%27middle%27%20font-size%3D%2711%27%20font-family%3D%27Arial%27%20fill%3D%27%235b6475%27%3E" +
-  encodeURIComponent(text).replace(/'/g, '%27') +
-  '%3C/text%3E%3C/svg%3E';
-
 export interface CreateRow {
   thumb: string;
   platformBadge: string;
@@ -409,11 +389,13 @@ export interface CreateRow {
   store: string;
   person: string;
   time: string;
+  /** 销量（竞对商机列表展示并支持排序；商品创建列表不展示） */
+  sales?: number;
 }
 
-export const createTaobaoRows: CreateRow[] = [
+export const createTaobaoRows: CreateRow[] = reactive([
   {
-    thumb: createThumb('#ffd9cf', '耳钉'),
+    thumb: ecMain(6),
     platformBadge: '天猫',
     title: '玫瑰小众轻奢复古耳钉，法式通勤百搭精致耳饰',
     link: 'https://detail.tmall.com/item.htm?id=809971029607&template=V20260813-01',
@@ -422,7 +404,7 @@ export const createTaobaoRows: CreateRow[] = [
     time: '2026-08-13 18:24:10',
   },
   {
-    thumb: createThumb('#fff0c9', '耳夹'),
+    thumb: ecMain(7),
     platformBadge: '天猫',
     title: '法式复古设计不对称方块流苏耳环，轻奢个性耳饰',
     link: 'https://detail.tmall.com/item.htm?id=804439001798&template=V20260813-02',
@@ -431,7 +413,7 @@ export const createTaobaoRows: CreateRow[] = [
     time: '2026-08-13 18:24:02',
   },
   {
-    thumb: createThumb('#d9f4e7', '项链'),
+    thumb: ecMain(8),
     platformBadge: '天猫',
     title: '双面可戴微镶满钻花朵珍珠耳环，少女心设计耳钉',
     link: 'https://detail.tmall.com/item.htm?id=889073036521&template=V20260813-03',
@@ -440,7 +422,7 @@ export const createTaobaoRows: CreateRow[] = [
     time: '2026-08-13 18:23:54',
   },
   {
-    thumb: createThumb('#dfe8ff', '手链'),
+    thumb: ecMain(9),
     platformBadge: '天猫',
     title: '手作新中古天然石串珠耳环，复古文艺耳饰套装',
     link: 'https://detail.tmall.com/item.htm?id=989730773601&template=V20260813-04',
@@ -449,7 +431,7 @@ export const createTaobaoRows: CreateRow[] = [
     time: '2026-08-13 18:23:47',
   },
   {
-    thumb: createThumb('#ffe1eb', '耳饰'),
+    thumb: ecMain(10),
     platformBadge: '天猫',
     title: '高级感小珍珠耳圈耳环，轻奢气质小众设计感耳饰',
     link: 'https://detail.tmall.com/item.htm?id=806181170343&template=V20260813-05',
@@ -458,7 +440,7 @@ export const createTaobaoRows: CreateRow[] = [
     time: '2026-08-13 18:23:40',
   },
   {
-    thumb: createThumb('#e6f0ff', '挂件'),
+    thumb: ecMain(11),
     platformBadge: '天猫',
     title: '家用门把手免打孔挂钩，厨房浴室收纳神器',
     link: 'https://detail.tmall.com/item.htm?id=106164978734&template=V20260813-06',
@@ -466,12 +448,12 @@ export const createTaobaoRows: CreateRow[] = [
     person: '陈鑫',
     time: '2026-08-13 18:05:52',
   },
-];
+]);
 
 /* ---------- 商品创建（京麦） ---------- */
 export const createJmRows: CreateRow[] = [
   {
-    thumb: createThumb('#ffe1e0', '刀具'),
+    thumb: ecMain(0),
     platformBadge: '京麦',
     title: '水果刀削皮刀便携刨刀苹果去皮神器家用不锈钢刀具',
     link: 'https://item.jd.com/100012345601.html?template=JM20260815-01',
@@ -480,7 +462,7 @@ export const createJmRows: CreateRow[] = [
     time: '2026-08-15 10:24:10',
   },
   {
-    thumb: createThumb('#dfe8ff', '音响'),
+    thumb: ecMain(2),
     platformBadge: '京麦',
     title: '迷你随身小钢炮音响强劲无线蓝牙便携式重低音炮',
     link: 'https://item.jd.com/100012345602.html?template=JM20260815-02',
@@ -489,7 +471,7 @@ export const createJmRows: CreateRow[] = [
     time: '2026-08-15 10:24:02',
   },
   {
-    thumb: createThumb('#d9f4e7', '精华'),
+    thumb: ecMain(12),
     platformBadge: '京麦',
     title: 'PERDORA 玻尿酸修护精华液 补水保湿舒缓敏感肌 30ml 装',
     link: 'https://item.jd.com/100012345603.html?template=JM20260815-03',
@@ -498,13 +480,110 @@ export const createJmRows: CreateRow[] = [
     time: '2026-08-15 10:23:54',
   },
   {
-    thumb: createThumb('#fff0c9', '挂钩'),
+    thumb: ecMain(3),
     platformBadge: '京麦',
     title: '挂钩强力粘胶粘钩强承重免打孔门后墙壁透明勾塑料款',
     link: 'https://item.jd.com/100012345604.html?template=JM20260815-04',
     store: '-',
     person: '陈鑫',
     time: '2026-08-15 10:23:47',
+  },
+];
+
+/* ---------- 商品创建-图片管理：真实素材池（花瓣网「平面」频道保存于 public/materials）；每商品顺取 3 张；rh=高宽比供最短列分布估算 ---------- */
+export interface CreateImg { key: string; src: string; title: string; rh: number; }
+const CP_MATS: { f: string; rh: number }[] = [
+  { f: 'mat-01.webp', rh: 2.163 },
+  { f: 'mat-02.webp', rh: 1.779 },
+  { f: 'mat-03.webp', rh: 2.163 },
+  { f: 'mat-04.webp', rh: 1.779 },
+  { f: 'mat-05.webp', rh: 1.779 },
+  { f: 'mat-06.webp', rh: 1 },
+  { f: 'mat-07.webp', rh: 2.163 },
+  { f: 'mat-08.webp', rh: 1.333 },
+  { f: 'mat-09.webp', rh: 2.442 },
+  { f: 'mat-10.webp', rh: 1.779 },
+  { f: 'mat-11.webp', rh: 1 },
+  { f: 'mat-12.webp', rh: 2.163 },
+  { f: 'mat-13.webp', rh: 0.983 },
+  { f: 'mat-14.webp', rh: 2.163 },
+  { f: 'mat-15.webp', rh: 2.163 },
+  { f: 'mat-16.webp', rh: 2.163 },
+  { f: 'mat-17.webp', rh: 4 },
+  { f: 'mat-18.webp', rh: 1 },
+  { f: 'mat-19.webp', rh: 2.163 },
+  { f: 'mat-20.webp', rh: 1.417 },
+  { f: 'mat-21.webp', rh: 2.75 },
+  { f: 'mat-22.webp', rh: 1.333 },
+  { f: 'mat-23.webp', rh: 2.163 },
+  { f: 'mat-24.webp', rh: 2.163 },
+];
+export const createImgsOf = (row: CreateRow, ri: number): CreateImg[] => [0, 1, 2].map((j) => {
+  const m = CP_MATS[(ri * 3 + j) % CP_MATS.length];
+  return { key: `${row.link}#${j}`, src: `/materials/${m.f}`, title: row.title, rh: m.rh };
+});
+
+/* ---------- 竞对商机（商机中心/内部商机下方，原母链商机）：状态均待完善，导入到商品创建时原位写入 createTaobaoRows 联动 ---------- */
+export const motherLinkRows: CreateRow[] = [
+  {
+    thumb: ecMain(6),
+    platformBadge: '天猫',
+    title: '玫瑰小众轻奢复古耳钉，法式通勤百搭精致耳饰',
+    link: 'https://detail.tmall.com/item.htm?id=809971029607&template=ML20260813-01',
+    store: '-',
+    person: '周梦琪',
+    time: '2026-08-13 18:24:10',
+    sales: 1286,
+  },
+  {
+    thumb: ecMain(7),
+    platformBadge: '天猫',
+    title: '法式复古设计不对称方块流苏耳环，轻奢个性耳饰',
+    link: 'https://detail.tmall.com/item.htm?id=804439001798&template=ML20260813-02',
+    store: '-',
+    person: '周梦琪',
+    time: '2026-08-13 18:24:02',
+    sales: 964,
+  },
+  {
+    thumb: ecMain(8),
+    platformBadge: '天猫',
+    title: '双面可戴微镶满钻花朵珍珠耳环，少女心设计耳钉',
+    link: 'https://detail.tmall.com/item.htm?id=889073036521&template=ML20260813-03',
+    store: '-',
+    person: '周梦琪',
+    time: '2026-08-13 18:23:54',
+    sales: 2310,
+  },
+  {
+    thumb: ecMain(9),
+    platformBadge: '天猫',
+    title: '手作新中古天然石串珠耳环，复古文艺耳饰套装',
+    link: 'https://detail.tmall.com/item.htm?id=989730773601&template=ML20260813-04',
+    store: '-',
+    person: '周梦琪',
+    time: '2026-08-13 18:23:47',
+    sales: 508,
+  },
+  {
+    thumb: ecMain(10),
+    platformBadge: '天猫',
+    title: '高级感小珍珠耳圈耳环，轻奢气质小众设计感耳饰',
+    link: 'https://detail.tmall.com/item.htm?id=806181170343&template=ML20260813-05',
+    store: '-',
+    person: '周梦琪',
+    time: '2026-08-13 18:23:40',
+    sales: 1742,
+  },
+  {
+    thumb: ecMain(11),
+    platformBadge: '天猫',
+    title: '家用门把手免打孔挂钩，厨房浴室收纳神器',
+    link: 'https://detail.tmall.com/item.htm?id=106164978734&template=ML20260813-06',
+    store: '-',
+    person: '陈鑫',
+    time: '2026-08-13 18:05:52',
+    sales: 329,
   },
 ];
 
@@ -1114,10 +1193,10 @@ export const createDetail = {
     { name: '款式', values: ['a款', 'b款'] },
   ],
   skus: [
-    { color: '黑色', style: 'a款', name: '黑a款', code: 'JSUZJDAO-001*2', series: '编码A', cost: '99.00', other: '20', price: '2026.00', profit: '2026.00', rate: '10' },
-    { color: '黑色', style: 'b款', name: '黑b款', code: 'ZH-ZJDAO-007*1', series: '编码B', cost: '99.00', other: '20', price: '2026.00', profit: '2026.00', rate: '10' },
-    { color: '白色', style: 'a款', name: '白a款', code: 'JSUZJDAO-001*2', series: '编码C', cost: '99.00', other: '20', price: '2026.00', profit: '2026.00', rate: '10' },
-    { color: '白色', style: 'b款', name: '白b款', code: 'JSUZJDAO-003*2', series: '编码D', cost: '99.00', other: '20', price: '2026.00', profit: '', rate: '10' },
+    { color: '黑色', style: 'a款', name: '黑a款', code: 'JSUZJDAO-001*2', series: '编码A', cost: '99.00', other: '20', price: '2026.00', stock: '120', profit: '2026.00', rate: '10', cloudRatio: '0%', wageRatio: '4', promoRate: '5', taxRatio: '2' },
+    { color: '黑色', style: 'b款', name: '黑b款', code: 'ZH-ZJDAO-007*1', series: '编码B', cost: '99.00', other: '20', price: '2026.00', stock: '86', profit: '2026.00', rate: '10', cloudRatio: '0%', wageRatio: '4', promoRate: '5', taxRatio: '2' },
+    { color: '白色', style: 'a款', name: '白a款', code: 'JSUZJDAO-001*2', series: '编码C', cost: '99.00', other: '20', price: '2026.00', stock: '0', profit: '2026.00', rate: '10', cloudRatio: '83.11%', wageRatio: '4', promoRate: '5', taxRatio: '2' },
+    { color: '白色', style: 'b款', name: '白b款', code: 'JSUZJDAO-003*2', series: '编码D', cost: '99.00', other: '20', price: '2026.00', stock: '64', profit: '', rate: '10', cloudRatio: '83.11%', wageRatio: '4', promoRate: '5', taxRatio: '2' },
   ],
   price: '2026',
   mainImgs: ['/products/serum.png', '/products/main.png', '/products/serum.png', '/products/main.png'],
@@ -1162,6 +1241,8 @@ export const createVersions: CreateVersion[] = [
 /* ================= 发布到抽屉（选择策略 → 选择店铺）静态数据 ================= */
 export interface PubStrategy {
   name: string;
+  /** 策略所属平台：发布到抽屉按当前路由（淘宝/视频号/京麦）只展示本平台策略 */
+  platform: string;
   /** 策略定义的上架方式：直接上架 / 放入仓库 */
   pubMethod: string;
   /** 策略定义的发布方式：蜂联发布 / 插件发布 */
@@ -1177,8 +1258,10 @@ export interface PubStrategy {
 }
 export const PUB_NO_STRATEGY = '不使用策略发布';
 export const PUB_STRATEGIES: PubStrategy[] = [
-  { name: '13245', pubMethod: '放入仓库', pubWay: '插件发布', profitMode: '控利润率', profitRate: '1%', promote: '-', bidMode: '-', bidTarget: '-', roi: '-', budgetType: '-', dailyBudget: '-' },
-  { name: '8801', pubMethod: '直接上架', pubWay: '蜂联发布', profitMode: '控利润率', profitRate: '5%', promote: '是', bidMode: '控投产比', bidTarget: '点击量', roi: '2.5', budgetType: '每日预算', dailyBudget: '100元' },
+  { name: '13245', platform: '淘宝', pubMethod: '放入仓库', pubWay: '插件发布', profitMode: '控利润率', profitRate: '1%', promote: '-', bidMode: '-', bidTarget: '-', roi: '-', budgetType: '-', dailyBudget: '-' },
+  { name: '8801', platform: '淘宝', pubMethod: '直接上架', pubWay: '蜂联发布', profitMode: '控利润率', profitRate: '5%', promote: '是', bidMode: '控投产比', bidTarget: '点击量', roi: '2.5', budgetType: '每日预算', dailyBudget: '100元' },
+  { name: '6603', platform: '视频号', pubMethod: '直接上架', pubWay: '蜂联发布', profitMode: '控利润率', profitRate: '3%', promote: '-', bidMode: '-', bidTarget: '-', roi: '-', budgetType: '-', dailyBudget: '-' },
+  { name: '5508', platform: '京麦', pubMethod: '放入仓库', pubWay: '插件发布', profitMode: '控利', profitRate: '6元', promote: '-', bidMode: '-', bidTarget: '-', roi: '-', budgetType: '-', dailyBudget: '-' },
 ];
 
 export interface PubShop {
@@ -1186,7 +1269,12 @@ export interface PubShop {
   platform: string;
   name: string;
 }
-export const PUB_SHOP_PLATFORMS = ['淘宝', '天猫', '拼多多', '抖音', '快手'];
+/** 发布到抽屉：按路由（商品创建 淘宝/视频号/京麦）可选的店铺平台——各路由只发布到本平台店铺（淘宝路由含天猫店） */
+export const PUB_ROUTE_PLATFORMS: Record<'tb' | 'video' | 'jm', string[]> = {
+  tb: ['淘宝', '天猫'],
+  video: ['视频号'],
+  jm: ['京麦'],
+};
 /** 发布到第二步：未分组店铺（平台筛选 + 名称搜索） */
 export const PUB_SHOPS: PubShop[] = [
   { id: 1, platform: '淘宝', name: '1111' },
@@ -1205,6 +1293,11 @@ export const PUB_SHOPS: PubShop[] = [
   { id: 14, platform: '淘宝', name: '全球好物严选PU' },
   { id: 15, platform: '天猫', name: 'Funion旗舰店' },
   { id: 16, platform: '天猫', name: 'Funion专营店' },
+  { id: 17, platform: '视频号', name: '首礼茹额小店' },
+  { id: 18, platform: '视频号', name: '臻子精品' },
+  { id: 19, platform: '视频号', name: '云享生活小店' },
+  { id: 20, platform: '京麦', name: 'Funion京麦自营店' },
+  { id: 21, platform: '京麦', name: '京麦百货联营店' },
 ];
 
 /* ================= 商机中心-竞价商品 静态数据 ================= */
@@ -1243,7 +1336,7 @@ export interface BiddingRow {
 }
 export const biddingRows: BiddingRow[] = [
   {
-    img: svgThumb('#ffd9cf', '刀具'),
+    img: ecMain(0),
     name: '水果刀削皮刀便携倒钩苹果去皮神器家用拼多多功能款...',
     link: 'https://item.taobao.com/item.htm?id=2670779935129',
     pid: '2670779935129',
@@ -1260,7 +1353,7 @@ export const biddingRows: BiddingRow[] = [
     actEnd: '2026-09-25 03:00:00',
   },
   {
-    img: svgThumb('#d9f4e7', '益智'),
+    img: ecMain(1),
     name: '益智魔块3d立体拼图3到6岁动物趣味恐龙模型儿童手工...',
     link: 'https://item.taobao.com/item.htm?id=26701928017129',
     pid: '26701928017129',
@@ -1277,7 +1370,7 @@ export const biddingRows: BiddingRow[] = [
     actEnd: '2026-09-30 23:59:59',
   },
   {
-    img: svgThumb('#dfe8ff', '音响'),
+    img: ecMain(2),
     name: '迷你随身小烟炮音响驱动无线蓝牙便携式重低音抽绳全...',
     link: 'https://v.douyin.com/item.htm?id=3773095122930106470',
     pid: '3773095122930106470',
@@ -1294,7 +1387,7 @@ export const biddingRows: BiddingRow[] = [
     actEnd: '2026-09-25 03:00:00',
   },
   {
-    img: svgThumb('#fff0c9', '挂钩'),
+    img: ecMain(3),
     name: '挂钩强力粘胶粘钩强承重免打孔门后墙壁透明勾塑...',
     link: 'https://mobile.yangkeduo.com/goods.html?goods_id=977051807853',
     pid: '977051807853',
@@ -1311,7 +1404,7 @@ export const biddingRows: BiddingRow[] = [
     actEnd: '2026-09-22 23:59:59',
   },
   {
-    img: svgThumb('#ffe1eb', '卡套'),
+    img: ecMain(4),
     name: '【6个装】证件防丢卡套卡套防窥身份证银行卡保护隐...',
     link: 'https://kwaishop.kuaishou.com/item.htm?id=25969737568832',
     pid: '25969737568832',
@@ -1327,7 +1420,7 @@ export const biddingRows: BiddingRow[] = [
     actEnd: '2026-08-15 23:59:59',
   },
   {
-    img: svgThumb('#e6f0ff', '胶泥'),
+    img: ecMain(5),
     name: '密封胶泥空调孔填缝堵洞防虫防水家用耐高温下水道...',
     link: 'https://mobile.yangkeduo.com/goods.html?goods_id=981543753220',
     pid: '981543753220',
@@ -1344,7 +1437,7 @@ export const biddingRows: BiddingRow[] = [
     actEnd: '2026-09-18 03:00:00',
   },
   {
-    img: svgThumb('#e9e2ff', '面霜'),
+    img: ecMain(6),
     name: '保湿面霜补水滋润秋冬护肤乳液敏感肌可用男女通用...',
     link: 'https://item.tmall.com/item.htm?id=881543753221',
     pid: '881543753221',

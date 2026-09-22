@@ -14,8 +14,6 @@
 }
 .kb-nav-item:hover { background: var(--color-fill-2); }
 .kb-nav-item.active { background: var(--color-primary-light); color: var(--color-primary); font-weight: 600; }
-/* 子入口（挂在父路由下的版本/子页，如场景配置 V2）：缩进+降档字号 */
-.kb-nav-item.kb-nav-sub { margin-left: 24px; padding: 7px 12px; font-size: var(--fs-aux); color: var(--color-text-3); }
 
 /* 主区（滚动条隐藏但保留滚轮滚动，全局约定） */
 .kb-main { flex: 1; min-width: 0; overflow-y: auto; display: flex; flex-direction: column; scrollbar-width: none; }
@@ -176,7 +174,7 @@
 .kbcat-col { flex: 1; min-width: 0; max-height: 236px; overflow-y: auto; scrollbar-width: none; padding: 2px; }
 .kbcat-col::-webkit-scrollbar { display: none; }
 .kbcat-col + .kbcat-col { border-left: 1px solid #f0f3f7; }
-.kbcat-opt { display: flex; align-items: center; gap: 6px; padding: 7px 10px; border-radius: 8px; font-size: 13px; color: #445066; cursor: pointer; white-space: nowrap; }
+.kbcat-opt { display: flex; align-items: center; gap: 6px; padding: 7px 10px; border-radius: 8px; font-size: var(--fs-base); color: #445066; cursor: pointer; white-space: nowrap; }
 .kbcat-opt:hover { background: #f5f8ff; }
 .kbcat-opt.active { background: #f5f8ff; color: var(--color-primary); font-weight: 600; }
 /* 多选复选框：选中主底白勾 */

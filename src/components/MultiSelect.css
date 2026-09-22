@@ -106,7 +106,7 @@
 /* 选中行：主色加粗 + ✓（对标 BubbleSelect 选项语言，不用勾选框） */
 .msel-opt.on {
   color: var(--color-primary);
-  font-weight: 600;
+  font-weight: 500;
 }
 /* ✓ 占位 span：未选时留空保持缩进对齐 */
 .msel-check {

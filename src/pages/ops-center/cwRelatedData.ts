@@ -1,4 +1,4 @@
-/** 异常编码预警-关联商品：三种关联关系的其它商品数据 */
+/** 关联商品（店铺商品页共用）：三种关联关系的其它商品数据 */
 import type { SgProduct } from './shopGoodsData';
 
 export type CwRelType = '系列编码关联' | '链接商品关联' | '竞品链接关联';

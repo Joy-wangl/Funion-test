@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { kpiItems, lossRows, metricNames, stockRows } from './data';
-import { CMP_COLORS, chartPeriod, formatChartValue, makeTrendValues, parseNumberText } from './trendChart';
+import { formatChartValue, isRateMetric, parseNumberText } from './trendChart';
 import { SG_STATUS_META } from './shopGoodsData';
 import type { SgStatus } from './shopGoodsData';
 import TrendModal from './TrendModal.vue';
 import SgBatchPriceModal from './SgBatchPriceModal.vue';
+import OverviewPage from './OverviewPage.vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import SortTh from '../../components/SortTh.vue';
 import { pushToast } from '../../components/toast';
+
+/* Tab 切换：商品数据（运营驾驶舱）/ 发布数据（店铺商品） */
+const dashTab = ref<'product' | 'publish'>('product');
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -45,102 +49,8 @@ const profitOpen = ref(false);
 const profitFilter = ref('all');
 const profitText = ref<string | null>('全部');
 
-/* ----- 数据模式：视图=指标卡墙 / 列表=指标明细表 / 对比=多指标同期趋势图 ----- */
+/* ----- 数据模式：视图=指标卡墙 / 列表=指标明细表 ----- */
 const viewMode = ref('视图模式');
-
-/* ----- 对比模式：多选指标 + 同期对比趋势 ----- */
-const cmpMetrics = ref<string[]>(['订单量', '新毛六利润']);
-const toggleCmp = (name: string) => {
-  cmpMetrics.value = cmpMetrics.value.includes(name)
-    ? cmpMetrics.value.filter((m) => m !== name)
-    : [...cmpMetrics.value, name];
-};
-
-/* 对比图几何：各序列按自身量程归一后同框对比走势（多单位指标不可共用刻度）；
-   折线样式对标品控趋势图：平滑曲线 + 实心小圆点 + 虚线网格 + 悬浮竖参考线/暗色 tooltip */
-const CMP_W = 1180;
-const CMP_H = 320;
-const CMP_L = 24;
-const CMP_R = 24;
-const CMP_T = 18;
-const CMP_B = 40;
-
-/* 平滑路径（Catmull-Rom → 贝塞尔，同品控 MetricTrendChart） */
-function smoothPath(pts: { x: number; y: number }[]): string {
-  if (!pts.length) return '';
-  let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[Math.max(0, i - 1)];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[Math.min(pts.length - 1, i + 2)];
-    const c1x = p1.x + (p2.x - p0.x) / 6;
-    const c1y = p1.y + (p2.y - p0.y) / 6;
-    const c2x = p2.x - (p3.x - p1.x) / 6;
-    const c2y = p2.y - (p3.y - p1.y) / 6;
-    d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
-  }
-  return d;
-}
-
-const cmpChart = computed(() => {
-  const period = chartPeriod(dateText.value, mode.value);
-  const n = period.labels.length;
-  const plotW = CMP_W - CMP_L - CMP_R;
-  const plotH = CMP_H - CMP_T - CMP_B;
-  const x = (i: number) => (n <= 1 ? CMP_L + plotW / 2 : CMP_L + i * (plotW / (n - 1)));
-  const series = cmpMetrics.value.map((m, idx) => {
-    const base = parseNumberText(kpiItems.find((k) => k.metric === m)?.value ?? '');
-    const values = makeTrendValues(m, n, base);
-    let min = Math.min(...values);
-    let max = Math.max(...values);
-    if (max === min) max = min + 1;
-    const pad = (max - min) * 0.15;
-    min = Math.max(0, min - pad);
-    max += pad;
-    const y = (v: number) => CMP_T + ((max - v) / (max - min)) * plotH;
-    const pts = values.map((v, i) => ({ x: x(i), y: y(v) }));
-    return {
-      metric: m,
-      color: CMP_COLORS[idx % CMP_COLORS.length],
-      path: smoothPath(pts),
-      dots: pts.map((pt, i) => ({ i, cx: pt.x, cy: pt.y })),
-      values,
-      valueText: formatChartValue(m, base),
-    };
-  });
-  /* 标签抽稀：小时轴(25点)每 2 小时一个，天轴按天数自适应 */
-  const step = Math.max(1, Math.ceil(n / 13));
-  return {
-    series,
-    n,
-    labels: period.labels,
-    xs: period.labels.map((_, i) => x(i)),
-    grids: [0, 1, 2, 3, 4].map((g) => CMP_T + g * (plotH / 4)),
-    xLabels: period.labels.map((label, i) => ({ i, label, x: x(i), show: i % step === 0 || i === n - 1 })),
-  };
-});
-
-/* 对比图悬浮：最近点竖参考线 + 暗色 tooltip（多序列数值同框） */
-const cmpWrapRef = ref<HTMLDivElement | null>(null);
-const cmpHover = ref<{ i: number; px: number; py: number } | null>(null);
-const onCmpMove = (e: MouseEvent) => {
-  const wrap = cmpWrapRef.value;
-  const rect = wrap?.querySelector('svg')?.getBoundingClientRect();
-  if (!wrap || !rect || !cmpChart.value.n) return;
-  const n = cmpChart.value.n;
-  const fx = ((e.clientX - rect.left) / rect.width) * CMP_W;
-  const i = Math.max(0, Math.min(n - 1, Math.round(((fx - CMP_L) / (CMP_W - CMP_L - CMP_R)) * (n - 1))));
-  const wr = wrap.getBoundingClientRect();
-  cmpHover.value = {
-    i,
-    px: (cmpChart.value.xs[i] / CMP_W) * rect.width,
-    py: Math.max(8, Math.min(e.clientY - wr.top, wr.height - 8)),
-  };
-};
-const onCmpLeave = () => { cmpHover.value = null; };
-/* tooltip 靠右缘时左翻转，避免溢出卡片 */
-const cmpTipFlip = computed(() => !!cmpWrapRef.value && !!cmpHover.value && cmpHover.value.px > cmpWrapRef.value.clientWidth - 200);
 
 /* ----- 趋势弹窗 ----- */
 const trendMetric = ref<string | null>(null);
@@ -398,58 +308,74 @@ const rangeText = computed(() => {
 });
 
 const trendKpi = computed(() => (trendMetric.value ? kpiItems.find((k) => k.metric === trendMetric.value) : undefined));
+/* 弹窗左侧对比指标选项源：当前可见的 KPI 卡片列表 */
+const visibleKpis = computed(() => kpiItems.filter((k) => selectedMetrics.value.includes(k.metric)).map((k) => ({ metric: k.metric, value: k.value })));
 
-/* 列表模式：把卡片 foot 拍平为 本期数值 / 环比上期 / 上期数值 三列，跟随指标选择过滤 */
-/* 列表模式排序：三数值列点击 降→升→取消（取消后回指标默认序，同概览页排序语言） */
-type ListSortKey = 'value' | 'delta' | 'prev';
-const listSort = ref<{ key: ListSortKey; dir: 'asc' | 'desc' } | null>(null);
-const toggleListSort = (key: ListSortKey) => {
+/* ----- 列表模式：平台×店铺维度矩阵（行=平台店铺，列=指标选择） ----- */
+/* 平台×店铺维度行：与亏损/缺货表组合词汇同源（原型口径平台与店铺为独立维度） */
+const DIM_PAIRS: { platform: string; shop: string }[] = [
+  { platform: '淘宝C店', shop: '快乐小店-佰得小站' },
+  { platform: '淘宝C店', shop: '抖音小店-BB丽居佳/健身弹专区' },
+  { platform: '淘宝C店', shop: '拼多多-阿涛弄弄' },
+  { platform: '视频号', shop: '快乐小店-佰得小站' },
+  { platform: '视频号', shop: '快乐小店-歪歪轩' },
+  { platform: '视频号', shop: '拼多多-朝妮优选的小百货' },
+];
+/* 维度单元格取值：按行哈希确定性拆分卡片基准值（率类指标围绕基准浮动） */
+function dimSeed(s: string) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 997;
+  return h;
+}
+const dimValue = (platform: string, shop: string, metric: string, base: number) => {
+  const seed = dimSeed(`${platform}::${shop}::${metric}`);
+  const share = isRateMetric(metric) ? 0.75 + (seed % 50) / 100 : 0.18 + (seed % 60) / 100;
+  return formatChartValue(metric, base * share);
+};
+/* 列表模式排序：指标列点击 降→升→取消（取消后回维度默认序，同概览页排序语言） */
+const listSort = ref<{ key: string; dir: 'asc' | 'desc' } | null>(null);
+const toggleListSort = (key: string) => {
   if (listSort.value?.key !== key) listSort.value = { key, dir: 'desc' };
   else if (listSort.value.dir === 'desc') listSort.value = { key, dir: 'asc' };
   else listSort.value = null;
 };
-const listSortState = (key: ListSortKey): 'none' | 'asc' | 'desc' => (listSort.value?.key === key ? listSort.value.dir : 'none');
-/* 排序量级归一：支持万字单位（如 546.33万）；环比 ▼ 计负值 */
+const listSortState = (key: string): 'none' | 'asc' | 'desc' => (listSort.value?.key === key ? listSort.value.dir : 'none');
+/* 排序量级归一：支持万字单位（如 546.33万） */
 const sortNum = (txt: string) => {
   const n = parseNumberText(txt);
   return txt.trim().endsWith('万') ? n * 10000 : n;
 };
-const listRows = computed(() =>
-  kpiItems
-    .filter((k) => selectedMetrics.value.includes(k.metric))
-    .map((k) => {
-      const lines = k.foot.flatMap((s) => s.lines.map((l) => ({ l, cls: s.cls ?? '' })));
-      const delta = lines.find((x) => /^[▼▲]/.test(x.l));
-      const prev = lines.find((x) => x.l.startsWith('上期'));
-      const prevText = prev ? prev.l.replace('上期 ', '') : '—';
-      return {
-        metric: k.metric,
-        value: k.value,
-        delta: delta ? delta.l : '—',
-        deltaCls: delta ? delta.cls : '',
-        prev: prevText,
-        valueNum: sortNum(k.value),
-        deltaNum: delta ? (delta.l.startsWith('▼') ? -1 : 1) * parseNumberText(delta.l.replace(/[▼▲]/g, '')) : 0,
-        prevNum: sortNum(prevText),
-      };
+/* 列表模式为店铺行粒度，店铺数恒为 1 无对比意义：按用户要求不展示该列 */
+const dimCols = computed(() => kpiItems.filter((k) => selectedMetrics.value.includes(k.metric) && k.metric !== '店铺数'));
+const dimRows = computed(() =>
+  DIM_PAIRS.map((p) => ({
+    platform: p.platform,
+    shop: p.shop,
+    cells: dimCols.value.map((k) => {
+      const text = dimValue(p.platform, p.shop, k.metric, parseNumberText(k.value));
+      return { metric: k.metric, text, num: sortNum(text) };
     }),
+  })),
 );
-const LIST_SORT_FIELD: Record<ListSortKey, 'valueNum' | 'deltaNum' | 'prevNum'> = {
-  value: 'valueNum',
-  delta: 'deltaNum',
-  prev: 'prevNum',
-};
-const visibleListRows = computed(() => {
-  const rows = listRows.value.slice();
+const visibleDimRows = computed(() => {
+  const rows = dimRows.value.slice();
   if (!listSort.value) return rows;
-  const f = LIST_SORT_FIELD[listSort.value.key];
+  const key = listSort.value.key;
   const dir = listSort.value.dir === 'asc' ? 1 : -1;
-  rows.sort((a, b) => (a[f] - b[f]) * dir);
+  rows.sort((a, b) => ((a.cells.find((c) => c.metric === key)?.num ?? 0) - (b.cells.find((c) => c.metric === key)?.num ?? 0)) * dir);
   return rows;
 });
 </script>
 
 <template>
+  <!-- Tab 切换：商品数据 / 发布数据 -->
+  <div class="dash-tabs">
+    <button class="dash-tab" :class="{ active: dashTab === 'product' }" @click="dashTab = 'product'">商品数据</button>
+    <button class="dash-tab" :class="{ active: dashTab === 'publish' }" @click="dashTab = 'publish'">发布数据</button>
+  </div>
+
+  <!-- 商品数据：原运营驾驶舱内容 -->
+  <template v-if="dashTab === 'product'">
   <div class="dash-toolbar">
     <div class="dash-line">
     <div ref="timebarRef" class="timebar">
@@ -690,7 +616,7 @@ const visibleListRows = computed(() => {
       <BubbleSelect
         class-name="platformSelect"
         :value="viewMode"
-        :options="['视图模式', '列表模式', '对比模式']"
+        :options="['视图模式', '列表模式']"
         @change="(v: string) => {
           if (v) viewMode = v;
         }"
@@ -771,122 +697,29 @@ const visibleListRows = computed(() => {
     </div>
   </div>
 
-  <!-- 列表模式：指标明细表，行点击同卡片开趋势弹窗 -->
+  <!-- 列表模式：平台×店铺维度矩阵，列跟随指标选择，指标列可排序 -->
   <div v-else-if="viewMode === '列表模式'" class="list-card">
-    <table class="list-table dash-metric-table">
-      <thead>
-        <tr>
-          <th :style="{ width: '240px' }">指标</th>
-          <SortTh label="本期数值" :state="listSortState('value')" @sort="toggleListSort('value')" />
-          <SortTh label="环比上期" :state="listSortState('delta')" @sort="toggleListSort('delta')" />
-          <SortTh label="上期数值" :state="listSortState('prev')" @sort="toggleListSort('prev')" />
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in visibleListRows" :key="row.metric" @click="trendMetric = row.metric">
-          <td>{{ row.metric }}</td>
-          <td class="dm-val">{{ row.value }}</td>
-          <td>
-            <span :class="row.deltaCls">{{ row.delta }}</span>
-          </td>
-          <td>{{ row.prev }}</td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="dash-dim-wrap">
+      <table class="list-table dash-dim-table">
+        <thead>
+          <tr>
+            <th class="dim-c-plat">平台</th>
+            <th class="dim-c-shop">店铺</th>
+            <SortTh v-for="k in dimCols" :key="k.metric" :label="k.metric" :state="listSortState(k.metric)" @sort="toggleListSort(k.metric)" />
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in visibleDimRows" :key="`${row.platform}::${row.shop}`">
+            <td class="dim-c-plat">{{ row.platform }}</td>
+            <td class="dim-c-shop">{{ row.shop }}</td>
+            <td v-for="c in row.cells" :key="c.metric">{{ c.text }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
-  <!-- 对比模式：左右布局，左侧指标选择列，右侧同期对比趋势图 -->
-  <div v-else class="card cmp-card">
-    <div class="cmp-side">
-      <span class="cmp-title">对比指标</span>
-      <div class="cmp-chips">
-        <button
-          v-for="name in metricNames"
-          :key="name"
-          class="cmp-chip"
-          :class="cmpMetrics.includes(name) ? 'active' : ''"
-          @click="toggleCmp(name)"
-        >
-          {{ name }}
-        </button>
-      </div>
-    </div>
-    <div class="cmp-main">
-      <template v-if="cmpChart.series.length">
-      <div class="cmp-legend">
-        <span v-for="s in cmpChart.series" :key="s.metric" class="cmp-legend-item">
-          <span class="cmp-dot" :style="{ background: s.color }" />
-          {{ s.metric }}
-          <span class="cmp-val">{{ s.valueText }}</span>
-        </span>
-      </div>
-      <div ref="cmpWrapRef" class="cmp-chart">
-        <svg :viewBox="`0 0 ${CMP_W} ${CMP_H}`" @mousemove="onCmpMove" @mouseleave="onCmpLeave">
-          <line
-            v-for="(gy, gi) in cmpChart.grids"
-            :key="`g-${gi}`"
-            :x1="CMP_L"
-            :y1="gy"
-            :x2="CMP_W - CMP_R"
-            :y2="gy"
-            stroke="#e7eaf0"
-            stroke-dasharray="3 4"
-          />
-          <template v-for="xl in cmpChart.xLabels" :key="`x-${xl.i}`">
-            <text
-              v-if="xl.show"
-              :x="xl.x"
-              :y="CMP_H - 14"
-              text-anchor="middle"
-              font-size="10"
-              fill="#9aa3b2"
-            >
-              {{ xl.label }}
-            </text>
-          </template>
-          <template v-for="s in cmpChart.series" :key="s.metric">
-            <path :d="s.path" fill="none" :stroke="s.color" stroke-width="2.2" />
-            <circle
-              v-for="d in s.dots"
-              :key="`${s.metric}-${d.i}`"
-              :cx="d.cx"
-              :cy="d.cy"
-              :r="cmpHover?.i === d.i ? 4 : 2.4"
-              :fill="s.color"
-            />
-          </template>
-          <line
-            v-if="cmpHover && cmpChart.series.length"
-            :x1="cmpChart.xs[cmpHover.i]"
-            :x2="cmpChart.xs[cmpHover.i]"
-            :y1="CMP_T"
-            :y2="CMP_H - CMP_B"
-            stroke="#8a94a6"
-            stroke-dasharray="4 4"
-            opacity="0.5"
-          />
-        </svg>
-        <div
-          v-if="cmpHover && cmpChart.series.length"
-          class="cmp-tip"
-          :style="{
-            left: cmpHover.px + 'px',
-            top: cmpHover.py + 'px',
-            transform: cmpTipFlip ? 'translate(calc(-100% - 12px), -50%)' : 'translate(12px, -50%)',
-          }"
-        >
-          <div class="cmp-tip-date">{{ cmpChart.labels[cmpHover.i] }}</div>
-          <div v-for="s in cmpChart.series" :key="s.metric" class="cmp-tip-line">
-            <i :style="{ background: s.color }" />
-            {{ s.metric }}
-            <b>{{ formatChartValue(s.metric, s.values[cmpHover.i]) }}</b>
-          </div>
-        </div>
-      </div>
-      </template>
-      <div v-else class="cmp-empty">请选择对比指标</div>
-    </div>
-  </div>
+
 
   <div class="dashboard-lists">
     <!-- 亏损/缺货合并单卡：tab 切换两表，头副行与批量按钮跟随当前 tab -->
@@ -1045,6 +878,13 @@ const visibleListRows = computed(() => {
     :kpi-value-text="trendKpi.value"
     :date-text="dateText"
     :mode="mode"
+    :kpis="visibleKpis"
     @close="trendMetric = null"
   />
+  </template>
+
+  <!-- 发布数据：原概览页内容 -->
+  <template v-else>
+    <OverviewPage />
+  </template>
 </template>

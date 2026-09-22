@@ -6,15 +6,14 @@ import CascadeSelect from '../../components/CascadeSelect.vue';
 import { pushToast } from '../../components/toast';
 import KbCatSelect from './KbCatSelect.vue';
 import GoodsKbV2 from './GoodsKbV2.vue';
-import SceneConfig from './SceneConfig.vue';
 import SceneConfigV2 from './SceneConfigV2.vue';
 import PlatLogo from '../quality/PlatLogo.vue';
 import type { Platform } from '../quality/data';
 import { kbProducts, KB_IMAGE_TYPES, KB_ITEM_STATUS_META, KB_KNOWLEDGE_TYPES, KB_SCENE_GROUPS, KB_VIDEO_TYPES, type KbCode, type KbItem, type KbKnowledgeEntry, type KbMaterial, type KbProduct } from './data';
 import './Knowledge.css';
 
-/* 左侧导航视图切换：商品知识库 V2（商品范畴）/ 场景配置（非商品范畴兜底，V1 二级列表 + V2 左右结构并存待择）；关联ID 为系列行钻取的二级列表页（非导航入口） */
-type KbView = 'base' | 'ids' | 'v2' | 'scene' | 'scene2';
+/* 左侧导航视图切换：商品知识库 V2（商品范畴）/ 场景配置（非商品范畴兜底，已定版 V2 左右结构）；关联ID 为系列行钻取的二级列表页（非导航入口） */
+type KbView = 'base' | 'ids' | 'v2' | 'scene';
 const kbView = ref<KbView>('v2');
 
 /* ---------- 条件查询模块：全部条件为草稿、「查询」统一生效；类目为三级级联多选 ---------- */
@@ -478,9 +477,6 @@ const shownKnowledge = computed(() => (currentCode.value?.knowledge ?? []).filte
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3" /><path d="M1 14h6M9 8h6M17 16h6" /></svg>
           <span>场景配置</span>
         </div>
-        <div class="kb-nav-item kb-nav-sub" :class="{ active: kbView === 'scene2' }" @click="kbView = 'scene2'">
-          <span>场景配置 V2（左右结构）</span>
-        </div>
       </nav>
     </aside>
 
@@ -785,9 +781,8 @@ const shownKnowledge = computed(() => (currentCode.value?.knowledge ?? []).filte
     <!-- 商品知识库 V2：同构复刻 + 商品知识条目增补问法匹配三件套（独立数据源，与本页互不影响） -->
     <GoodsKbV2 v-else-if="kbView === 'v2'" />
 
-    <!-- 场景配置：非商品范畴咨询的兜底场景库（独立主区，共用左侧导航）；V1 二级列表 / V2 左右结构并存待择 -->
-    <SceneConfig v-else-if="kbView === 'scene'" />
-    <SceneConfigV2 v-else-if="kbView === 'scene2'" />
+    <!-- 场景配置：非商品范畴咨询的兜底场景库（独立主区，共用左侧导航）；定版 V2 左右结构 -->
+    <SceneConfigV2 v-else-if="kbView === 'scene'" />
 
     <!-- 详情：右置宽抽屉 + 暗幕（空白处点击 / Esc 关闭） -->
     <template v-if="detail">

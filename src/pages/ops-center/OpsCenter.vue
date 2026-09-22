@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { provide, ref, watch } from 'vue';
 import './OpsCenter.css';
-import OverviewPage from './OverviewPage.vue';
 import DashboardPage from './DashboardPage.vue';
 import InternalPage from './InternalPage.vue';
+import MotherLinkPage from './MotherLinkPage.vue';
 import MarketPage from './MarketPage.vue';
 import BiddingPage from './BiddingPage.vue';
 import SearchPage from './SearchPage.vue';
@@ -11,8 +11,9 @@ import OperationManagePage from './OperationManagePage.vue';
 import ShopGoodsPage from './ShopGoodsPage.vue';
 import CreateProductPage from './CreateProductPage.vue';
 import TaskCenterPage from './TaskCenterPage.vue';
-import CodeWarnPage from './CodeWarnPage.vue';
 import StrategyPage from './StrategyPage.vue';
+import StrategyDrawer from './StrategyDrawer.vue';
+import type { StStrategy } from './strategyData';
 import MovePage from './MovePage.vue';
 import AiAssistantPage from './AiAssistantPage.vue';
 import MsgBell from './MsgBell.vue';
@@ -24,11 +25,13 @@ import AccountManagement from '../permission/AccountManagement.vue';
 import DepartmentManagement from '../permission/DepartmentManagement.vue';
 import RolePermission from '../permission/RolePermission.vue';
 import OpsGroupManagement from '../permission/OpsGroupManagement.vue';
+import DataImport from '../permission/DataImport.vue';
+import ReviewAppealPage from './ReviewAppealPage.vue';
 
 type PageKey =
-  | 'overview'
   | 'dashboard'
   | 'internal'
+  | 'motherLink'
   | 'market'
   | 'bidding'
   | 'search'
@@ -37,17 +40,19 @@ type PageKey =
   | 'createTaobao'
   | 'createVideo'
   | 'createJm'
-  | 'codeWarn'
   | 'taskCenter'
   | 'move'
   | 'strategy'
+  | 'strategyForm'
   | 'permMember'
   | 'permShop'
   | 'permAcct'
   | 'permDept'
   | 'permRole'
   | 'permOpsGroup'
-  | 'aiAssistant';
+  | 'dataImport'
+  | 'aiAssistant'
+  | 'reviewAppeal';
 
 /** 智能运营中心外壳：侧边栏 + 页面切换（与 preview.html 行为一致） */
 /* 收起状态仅本模块内生效并独立持久化，不影响其他顶部 tab 的侧边栏 */
@@ -70,6 +75,7 @@ const productOpen = ref(true);
 const createOpen = ref(false);
 const permissionOpen = ref(false);
 const automationOpen = ref(false);
+const appealOpen = ref(false);
 
 /* 切到商品创建子页时自动展开菜单（原版 showCreateTaobao / showCreateVideo） */
 const showCreate = (key: 'createTaobao' | 'createVideo' | 'createJm') => {
@@ -91,10 +97,14 @@ watch(shopAcctReq, (v) => {
 });
 
 /* 子页跨页跳转（如市场商机操作列「全网搜索」、任务详情「详情」→商品创建）；商品创建键走 clickCreate 以同步展开侧边栏分组 */
+const editStrategy = ref<StStrategy | undefined>();
+provide('opsEditStrategy', (s: StStrategy | undefined) => { editStrategy.value = s; });
 provide('opsGo', (target: PageKey) => {
   if (target === 'createTaobao' || target === 'createVideo' || target === 'createJm') clickCreate(target);
   else onSubnav(target, target);
 });
+/* 当前展示页下发：子页 Teleport 到 body 的悬浮件（市场商机设备悬浮球）仅在当页挂载，防 v-show 保活下漏到其它页 */
+provide('opsPage', page);
 
 /* 商品创建子项：高亮 + 切页 + 展开菜单（原版 setActive + showCreate） */
 const clickCreate = (key: 'createTaobao' | 'createVideo' | 'createJm') => {
@@ -106,8 +116,8 @@ const navCls = (key: PageKey) => `nav ${active.value === key ? 'active' : ''}`;
 const pageCls = (key: PageKey) => `page ${page.value === key ? 'show' : ''}`;
 
 /* 收起态点击分组：展开侧边栏并打开该组；展开态：正常收合切换 */
-const toggleGroup = (key: 'product' | 'create' | 'permission' | 'automation') => {
-  const open = key === 'product' ? productOpen : key === 'create' ? createOpen : key === 'automation' ? automationOpen : permissionOpen;
+const toggleGroup = (key: 'product' | 'create' | 'permission' | 'automation' | 'appeal') => {
+  const open = key === 'product' ? productOpen : key === 'create' ? createOpen : key === 'automation' ? automationOpen : key === 'appeal' ? appealOpen : permissionOpen;
   if (collapsed.value) {
     open.value = true;
     toggleCollapsed();
@@ -123,23 +133,23 @@ const permItems: { name: string; target?: PageKey }[] = [
   { name: '部门管理', target: 'permDept' },
   { name: '角色管理', target: 'permRole' },
   { name: '运营组管理', target: 'permOpsGroup' },
+  { name: '数据导入', target: 'dataImport' },
 ];
 
 /* 收起态路由图标悬浮气泡：展示路由名称，有二级路由则展示，点击跳转对应页面 */
 interface RailSub { name: string; target?: PageKey; create?: 'createTaobao' | 'createVideo' | 'createJm' }
 const railMenus: Record<string, { title: string; subs: RailSub[] }> = {
-  overview: { title: '概览', subs: [{ name: '概览', target: 'overview' }] },
   dashboard: { title: '运营驾驶舱', subs: [{ name: '运营驾驶舱', target: 'dashboard' }] },
   operationManage: { title: '运营管理', subs: [{ name: '运营管理', target: 'operationManage' }] },
-  product: { title: '商机中心', subs: [{ name: '全网搜索', target: 'search' }, { name: '内部商机', target: 'internal' }, { name: '市场商机', target: 'market' }, { name: '竞价商品', target: 'bidding' }] },
+  product: { title: '商机中心', subs: [{ name: '全网搜索', target: 'search' }, { name: '内部商机', target: 'internal' }, { name: '竞对商机', target: 'motherLink' }, { name: '市场商机', target: 'market' }, { name: '竞价商品', target: 'bidding' }] },
   shopGoods: { title: '店铺商品', subs: [{ name: '店铺商品', target: 'shopGoods' }] },
   create: { title: '商品创建', subs: [{ name: '淘宝', create: 'createTaobao' }, { name: '视频号', create: 'createVideo' }, { name: '京麦', create: 'createJm' }] },
-  codeWarn: { title: '异常编码预警', subs: [{ name: '异常编码预警', target: 'codeWarn' }] },
   taskCenter: { title: '任务中心', subs: [{ name: '任务中心', target: 'taskCenter' }] },
   strategy: { title: '商品策略', subs: [{ name: '商品策略', target: 'strategy' }] },
   aiAssistant: { title: 'AI助手', subs: [{ name: 'AI助手', target: 'aiAssistant' }] },
-  automation: { title: '自动化中心', subs: [{ name: '自动化任务', target: 'move' }] },
-  permission: { title: '权限设置', subs: permItems.map((p) => ({ name: p.name, target: p.target })) },
+  automation: { title: '自动化中心', subs: [{ name: '视频号自动化', target: 'move' }] },
+  appeal: { title: '申诉中心', subs: [{ name: '评价申诉', target: 'reviewAppeal' }] },
+  permission: { title: '设置', subs: permItems.map((p) => ({ name: p.name, target: p.target })) },
 };
 const railPop = ref<{ key: string; x: number; y: number } | null>(null);
 let railTimer: number | undefined;
@@ -159,7 +169,7 @@ const railGo = (sub: RailSub) => {
 };
 watch(collapsed, () => { railPop.value = null; });
 
-/* 消息通知点击跳转：切店铺商品 + 传定位令牌（列表页 watch 后按商品ID自动查询） */
+/* 消息通知点击跳转：切店铺商品 + 传定位令牌（列表页 watch 后按商品 ID 自动查询） */
 const msgLocate = ref<{ id: string; ts: number } | null>(null);
 const onMsgJump = (id: string) => {
   onSubnav('shopGoods', 'shopGoods');
@@ -178,10 +188,6 @@ const onMsgJump = (id: string) => {
           </div>
         </div>
         <div class="side-scroll">
-          <div :class="navCls('overview')" @click="onSubnav('overview', 'overview')" @mouseenter="railEnter('overview', $event)" @mouseleave="railLeave()">
-            <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="4" height="9" rx="1.5" /><rect x="10" y="4" width="4" height="16" rx="1.5" /><rect x="16" y="14" width="4" height="6" rx="1.5" /></svg></span>
-            <span class="nav-text">概览</span>
-          </div>
           <div :class="navCls('dashboard')" @click="onSubnav('dashboard', 'dashboard')" @mouseenter="railEnter('dashboard', $event)" @mouseleave="railLeave()">
             <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></svg></span>
             <span class="nav-text">运营驾驶舱</span>
@@ -204,6 +210,9 @@ const onMsgJump = (id: string) => {
             <div class="subnav" :class="active === 'internal' ? 'active' : ''" @click.stop="onSubnav('internal', 'internal')">
               内部商机
             </div>
+            <div class="subnav" :class="active === 'motherLink' ? 'active' : ''" @click.stop="onSubnav('motherLink', 'motherLink')">
+              竞对商机
+            </div>
             <div class="subnav" :class="active === 'market' ? 'active' : ''" @click.stop="onSubnav('market', 'market')">
               市场商机
             </div>
@@ -223,31 +232,10 @@ const onMsgJump = (id: string) => {
             <span class="nav-arrow">▶</span>
           </div>
           <div class="subnav-wrap" :class="createOpen ? 'show' : ''">
-            <div
-              class="subnav"
-              :class="active === 'createTaobao' ? 'active' : ''"
-              @click.stop="clickCreate('createTaobao')"
-            >
-              淘宝
-            </div>
-            <div
-              class="subnav"
-              :class="active === 'createVideo' ? 'active' : ''"
-              @click.stop="clickCreate('createVideo')"
-            >
-              视频号
-            </div>
-            <div
-              class="subnav"
-              :class="active === 'createJm' ? 'active' : ''"
-              @click.stop="clickCreate('createJm')"
-            >
-              京麦
-            </div>
-          </div>
-          <div :class="navCls('codeWarn')" @click="onSubnav('codeWarn', 'codeWarn')" @mouseenter="railEnter('codeWarn', $event)" @mouseleave="railLeave()">
-            <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2.5 19.5h19L12 3Z" /><path d="M12 10v4.5" /><path d="M12 17.5h.01" /></svg></span>
-            <span class="nav-text">异常编码预警</span>
+            <!-- 平台路由 subnav 使用名称（用户定案：侧栏 tab 不用图标） -->
+            <div class="subnav" :class="active === 'createTaobao' ? 'active' : ''" @click.stop="clickCreate('createTaobao')">淘宝</div>
+            <div class="subnav" :class="active === 'createVideo' ? 'active' : ''" @click.stop="clickCreate('createVideo')">视频号</div>
+            <div class="subnav" :class="active === 'createJm' ? 'active' : ''" @click.stop="clickCreate('createJm')">京麦</div>
           </div>
           <div :class="navCls('taskCenter')" @click="onSubnav('taskCenter', 'taskCenter')" @mouseenter="railEnter('taskCenter', $event)" @mouseleave="railLeave()">
             <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="m9 13 2 2 4-4" /></svg></span>
@@ -270,13 +258,25 @@ const onMsgJump = (id: string) => {
           </div>
           <div class="subnav-wrap" :class="automationOpen ? 'show' : ''">
             <div class="subnav" :class="active === 'move' ? 'active' : ''" @click.stop="onSubnav('move', 'move')">
-              自动化任务
+              视频号自动化
+            </div>
+          </div>
+          <div class="nav nav-parent" :class="appealOpen ? 'open' : ''" @click.stop="toggleGroup('appeal')" @mouseenter="railEnter('appeal', $event)" @mouseleave="railLeave()">
+            <div class="nav-left">
+              <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" /><path d="m9 12 2 2 4-4" /></svg></span>
+              <span class="nav-text">申诉中心</span>
+            </div>
+            <span class="nav-arrow">▶</span>
+          </div>
+          <div class="subnav-wrap" :class="appealOpen ? 'show' : ''">
+            <div class="subnav" :class="active === 'reviewAppeal' ? 'active' : ''" @click.stop="onSubnav('reviewAppeal', 'reviewAppeal')">
+              评价申诉
             </div>
           </div>
           <div class="nav nav-parent" :class="permissionOpen ? 'open' : ''" @click.stop="toggleGroup('permission')" @mouseenter="railEnter('permission', $event)" @mouseleave="railLeave()">
             <div class="nav-left">
               <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.4-2.9 7.5-7 9-4.1-1.5-7-4.6-7-9V6Z" /><path d="m9.3 11.8 2 2 3.4-3.6" /></svg></span>
-              <span class="nav-text">权限设置</span>
+              <span class="nav-text">设置</span>
               <!-- 掉店未读徽标：离线账号数 > 0 时展示，提醒及时处理 -->
               <span v-if="amOfflineCount" class="ops-nav-badge" :title="`${amOfflineCount} 个账号掉线，请及时处理`">{{ amOfflineCount }}</span>
             </div>
@@ -315,14 +315,14 @@ const onMsgJump = (id: string) => {
         <div class="ops-topbar"><MsgBell @jump="onMsgJump" /></div>
         <main class="main">
         <div class="content">
-          <section :class="pageCls('overview')">
-            <OverviewPage />
-          </section>
           <section :class="pageCls('dashboard')">
             <DashboardPage />
           </section>
           <section :class="pageCls('internal')">
             <InternalPage />
+          </section>
+          <section :class="pageCls('motherLink')">
+            <MotherLinkPage />
           </section>
           <section :class="pageCls('market')">
             <MarketPage />
@@ -343,16 +343,16 @@ const onMsgJump = (id: string) => {
             <CreateProductPage />
           </section>
           <section :class="pageCls('createVideo')">
-            <CreateProductPage />
+            <CreateProductPage video />
           </section>
           <section :class="pageCls('createJm')">
             <CreateProductPage jm />
           </section>
-          <section :class="pageCls('codeWarn')">
-            <CodeWarnPage />
-          </section>
           <section :class="pageCls('strategy')">
             <StrategyPage />
+          </section>
+          <section :class="pageCls('strategyForm')">
+            <StrategyDrawer :edit-data="editStrategy" @back="onSubnav('strategy', 'strategy')" />
           </section>
           <section :class="pageCls('aiAssistant')">
             <AiAssistantPage />
@@ -398,6 +398,12 @@ const onMsgJump = (id: string) => {
             <div class="pm-page pm-embed">
               <OpsGroupManagement />
             </div>
+          </section>
+          <section :class="pageCls('dataImport')">
+            <DataImport />
+          </section>
+          <section :class="pageCls('reviewAppeal')">
+            <ReviewAppealPage />
           </section>
         </div>
         </main>

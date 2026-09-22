@@ -3,13 +3,13 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import { pushToast } from '../../components/toast';
 import {
-  MV_KINDS, MV_METHODS, MV_METHOD_STATUS, MV_COND_METRIC_NAMES, MV_DATE_PRESETS, MV_WEEK_DAYS, MV_MONTH_DAYS, mvInitStatus,
+  MV_KINDS, MV_METHODS, MV_METHOD_STATUS, MV_COND_METRIC_NAMES, MV_DATE_PRESETS, MV_RANK_RANGES, MV_WEEK_DAYS, MV_MONTH_DAYS, MV_SOURCES, mvInitStatus,
   mvMetricMeta, mvShops, mvShopOf,
-  type MvCondMetric, type MvCondRow, type MvDatePreset, type MvKind, type MvMethod, type MvTask, type MvTaskStatus,
+  type MvCondMetric, type MvCondRow, type MvDatePreset, type MvKind, type MvMethod, type MvRankRange, type MvSource, type MvTask, type MvTaskStatus,
 } from './moveData';
 import { PLATFORM_LOGO, PUB_STRATEGIES } from './data';
 
-/** 自动化任务配置抽屉：自动搬家两步（配置含被搬店铺 → 目标店铺），自动下架单页；选店铺置于任务类型与执行方式之间；新建 / 编辑 */
+/** 视频号自动化配置抽屉：自动搬家两步（配置含被搬店铺 → 目标店铺），自动下架单页；选店铺置于任务类型与执行方式之间；新建 / 编辑 */
 const props = defineProps<{ model: MvTask | null; tasks: MvTask[] }>();
 const emit = defineEmits<{ (e: 'close'): void; (e: 'save', t: MvTask): void }>();
 
@@ -20,6 +20,7 @@ const METHOD_LABEL: Record<MvMethod, string> = { 循环: '循环任务', 条件�
 const METHOD_LABELS = MV_METHODS.map((md) => METHOD_LABEL[md]);
 const name = ref(m?.name ?? '');
 const kind = ref<MvKind>(m?.kind ?? '自动搬家');
+const source = ref<MvSource>(m?.source ?? '内部商机');
 const method = ref<MvMethod>(m?.method ?? '循环');
 const setMethod = (v: string) => { method.value = MV_METHODS.find((md) => METHOD_LABEL[md] === v) ?? '循环'; };
 /* 循环配置动态结构：每天=几点；每周=周几+几点；每月=几号+几点 */
@@ -93,13 +94,23 @@ const condRows = ref<MvCondRow[]>(m?.cond
 const newRowKey = () => `c${Date.now().toString(36)}${condRows.value.length}`;
 const addCondRow = () => { condRows.value.push({ key: newRowKey(), conj: '且', metric: '销量', op: '>', v1: '', v2: '' }); };
 const removeCondRow = (i: number) => { condRows.value.splice(i, 1); };
-/* 选定条件后带出对应约束：运算符枚举与值控件（数值+单位 / 时间预设+日期）随指标重置 */
+/* 选定条件后带出对应约束：运算符枚举与值控件（数值+单位 / 时间预设+日期 / 排行范围+前N）随指标重置 */
 const setRowMetric = (r: MvCondRow, v: string) => {
   r.metric = v as MvCondMetric;
   r.op = mvMetricMeta(r.metric).ops[0];
   r.v1 = '';
   r.v2 = '';
   r.preset = '自定义时间';
+  r.unit = undefined;
+  r.rankRange = '昨天';
+  r.topN = '';
+  dpOpen.value = '';
+};
+/* 销量排行时间范围切换：切回昨天清起止日期（相对窗口即完整条件） */
+const setRowRankRange = (r: MvCondRow, v: string) => {
+  r.rankRange = v as MvRankRange;
+  r.v1 = '';
+  r.v2 = '';
   dpOpen.value = '';
 };
 /* 时间预设切换：非自定义时清空日期输入（相对窗口即完整条件） */
@@ -116,9 +127,15 @@ const setRowOp = (r: MvCondRow, v: string) => {
   else if (mvMetricMeta(r.metric).kind !== 'date') { r.v2 = ''; }
   dpOpen.value = '';
 };
-/* 行完整性：数值型阈值 ≥ 0；上架时间预设非自定义即完整，自定义必填起止范围且起 ≤ 止 */
+/* 行完整性：数值型阈值 ≥ 0；排行型前N ≥ 1 且指定范围必填起止；上架时间预设非自定义即完整，自定义必填起止范围且起 ≤ 止 */
 const rowValid = (r: MvCondRow) => {
-  if (mvMetricMeta(r.metric).kind === 'date') {
+  const meta = mvMetricMeta(r.metric);
+  if (meta.kind === 'rank') {
+    const nOk = (r.topN ?? '').trim() !== '' && Number.isFinite(Number(r.topN)) && Number(r.topN) >= 1;
+    if ((r.rankRange ?? '昨天') === '昨天') return nOk;
+    return nOk && r.v1 !== '' && r.v2 !== '' && r.v1 <= r.v2;
+  }
+  if (meta.kind === 'date') {
     if (r.op === '介于') return r.v1 !== '' && r.v2 !== '' && r.v1 <= r.v2; /* 介于恒为范围，必填起止 */
     if ((r.preset ?? '自定义时间') !== '自定义时间') return true;
     return r.v1 !== '' && r.v2 !== '' && r.v1 <= r.v2;
@@ -242,16 +259,16 @@ const confirmPick = () => {
   pickModal.value = false;
 };
 
-/* 配置页校验：名称 + 循环时间（仅循环）+ 一次性执行时间（仅一次性）+ 条件配置（全方式）+ 被搬/关联店铺 */
+/* 配置页校验：名称 + 循环时间（仅循环）+ 一次性执行时间（仅一次性）+ 条件配置（全方式）+ 被搬/关联店铺（自动发品免店铺） */
 const validConfig = (needShops: boolean) => {
   if (!name.value.trim()) { pushToast('请输入任务名称', 'error'); return false; }
   if (method.value === '循环' && !cycleTime.value.trim()) { pushToast('请填写循环执行时间', 'error'); return false; }
   if (method.value === '一次性' && !execTimeValid.value) { pushToast('请选择执行时间', 'error'); return false; }
   if (!condValid.value) { pushToast('请完整填写条件配置（阈值与日期范围均需填写）', 'error'); return false; }
-  if (needShops && shopIds.value.length === 0) { pushToast(kind.value === '自动搬家' ? '请至少选择一个被搬店铺' : '请至少选择一个关联店铺', 'error'); return false; }
+  if (needShops && kind.value !== '自动发品' && shopIds.value.length === 0) { pushToast(kind.value === '自动搬家' ? '请至少选择一个被搬店铺' : '请至少选择一个关联店铺', 'error'); return false; }
   return true;
 };
-/* 自动搬家：条件配置完成后下一步进入目标店铺选择 */
+/* 自动搬家：条件配置完成后下一步进入目标店铺选择；自动发品/自动下架直接保存 */
 const step = ref(1);
 const nextStep = () => { if (validConfig(true)) step.value = 2; };
 /* 确认立即执行二次弹窗 */
@@ -265,14 +282,16 @@ const save = () => {
   }
   if (!validConfig(true)) return;
   if (kind.value === '自动搬家' && targetIds.value.length === 0) { pushToast('请至少选择一个发布店铺', 'error'); return; }
+  if (kind.value === '自动发品' && targetIds.value.length === 0) { pushToast('请至少选择一个发布店铺', 'error'); return; }
   const base: MvTask = m ? { ...m } : {
     id: `at-${Date.now().toString().slice(-6)}`,
     name: name.value.trim(),
     kind: kind.value,
     method: method.value,
     cond: [],
-    shopIds: [...shopIds.value],
+    shopIds: kind.value === '自动发品' ? [] : [...shopIds.value],
     targetShopIds: kind.value === '自动搬家' ? [...targetIds.value] : undefined,
+    source: kind.value === '自动发品' ? source.value : undefined,
     creator: '七妮妮',
     status: mvInitStatus(method.value),
     createdAt: '2026-09-13 10:00',
@@ -285,6 +304,7 @@ const save = () => {
     kind: kind.value,
     method: method.value,
     strategy: kind.value === '自动搬家' ? strategy.value : undefined,
+    source: kind.value === '自动发品' ? source.value : undefined,
     cycle: method.value === '循环' ? cycle.value : undefined,
     cycleDay: method.value === '循环' && cycle.value !== '每天' ? cycleDay.value : undefined,
     cycleTime: method.value === '循环' ? cycleTime.value.trim() : undefined,
@@ -292,7 +312,7 @@ const save = () => {
     execDate: method.value === '一次性' && execMode.value === 'scheduled' ? execDate.value : undefined,
     execTime: method.value === '一次性' && execMode.value === 'scheduled' ? execTimeOne.value : undefined,
     cond: condRows.value.map((r) => ({ ...r })),
-    shopIds: [...shopIds.value],
+    shopIds: kind.value === '自动发品' ? [] : [...shopIds.value],
     targetShopIds: kind.value === '自动搬家' ? [...targetIds.value] : undefined,
     status,
   });
@@ -319,7 +339,13 @@ const save = () => {
             <label>任务类型<span class="mv-req">*</span></label>
             <BubbleSelect class-name="sg-select" :options="MV_KINDS" :value="kind" @change="(v: string) => (kind = v as MvKind)" />
           </div>
-          <div class="sg-field">
+          <!-- 商品来源：仅自动发品展示（内部商机/店铺商品） -->
+          <div v-if="kind === '自动发品'" class="sg-field">
+            <label>商品来源<span class="mv-req">*</span></label>
+            <BubbleSelect class-name="sg-select" :options="MV_SOURCES" :value="source" @change="(v: string) => (source = v as MvSource)" />
+          </div>
+          <!-- 自动发品无被搬店铺（被搬的不是我们自己管理的店） -->
+          <div v-if="kind !== '自动发品'" class="sg-field">
             <label>{{ kind === '自动搬家' ? '被搬店铺（可多选）' : '关联店铺（可多选）' }}<span class="mv-req">*</span></label>
             <div class="mv-chips">
               <span v-for="id in shopIds" :key="id" class="mv-chip">
@@ -403,8 +429,23 @@ const save = () => {
                 <span v-if="i === 0" class="mv-cond-when">当</span>
                 <BubbleSelect v-else class-name="sg-select" :options="['且', '或']" :value="r.conj" class="mv-cond-conj" @change="(v: string) => (r.conj = v as '且' | '或')" />
                 <BubbleSelect class-name="sg-select" :options="MV_COND_METRIC_NAMES" :value="r.metric" class="mv-cond-metric" @change="(v: string) => setRowMetric(r, v)" />
-                <BubbleSelect class-name="sg-select" :options="mvMetricMeta(r.metric).ops" :value="r.op" class="mv-cond-op" @change="(v: string) => setRowOp(r, v)" />
-                <template v-if="mvMetricMeta(r.metric).kind === 'date'">
+                <BubbleSelect v-if="mvMetricMeta(r.metric).kind !== 'rank' && r.metric !== '近X日内'" class-name="sg-select" :options="mvMetricMeta(r.metric).ops" :value="r.op" class="mv-cond-op" @change="(v: string) => setRowOp(r, v)" />
+                <!-- 销量排行：时间范围（昨天/指定起止）＋前N名，无运算符 -->
+                <template v-if="mvMetricMeta(r.metric).kind === 'rank'">
+                  <BubbleSelect class-name="sg-select" :options="MV_RANK_RANGES" :value="r.rankRange ?? '昨天'" class="mv-cond-rangsel" @change="(v: string) => setRowRankRange(r, v)" />
+                  <div v-if="(r.rankRange ?? '昨天') === '指定时间范围'" class="mv-cond-val mv-cond-date" @click="openDp($event, r)">
+                    <span class="mv-date-text" :class="r.v1 ? '' : 'empty'">{{ r.v1 || '开始日期' }}<i>~</i>{{ r.v2 || '结束日期' }}</span>
+                    <span class="mv-cond-clock">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+                    </span>
+                  </div>
+                  <div class="mv-cond-val mv-cond-rank">
+                    <span class="mv-cond-prefix">前</span>
+                    <input v-model="r.topN" inputmode="numeric" placeholder="N" />
+                    <span class="mv-cond-unit">名</span>
+                  </div>
+                </template>
+                <template v-else-if="mvMetricMeta(r.metric).kind === 'date'">
                   <BubbleSelect v-if="r.op !== '介于'" class-name="sg-select" :options="MV_DATE_PRESETS" :value="r.preset ?? '自定义时间'" class="mv-cond-preset" @change="(v: string) => setRowPreset(r, v)" />
                   <div
                     v-if="r.op === '介于' || (r.preset ?? '自定义时间') === '自定义时间'"
@@ -417,10 +458,21 @@ const save = () => {
                     </span>
                   </div>
                 </template>
-                <div v-else class="mv-cond-val">
-                  <input v-model="r.v1" inputmode="decimal" placeholder="阈值" />
-                  <span class="mv-cond-unit">{{ mvMetricMeta(r.metric).unit }}</span>
-                </div>
+                <template v-else>
+                  <div class="mv-cond-val">
+                    <input v-model="r.v1" inputmode="decimal" placeholder="阈值" />
+                    <span v-if="!mvMetricMeta(r.metric).units" class="mv-cond-unit">{{ mvMetricMeta(r.metric).unit }}</span>
+                  </div>
+                  <!-- 销量较昨日：阈值单位件/%可切 -->
+                  <BubbleSelect
+                    v-if="mvMetricMeta(r.metric).units"
+                    class-name="sg-select"
+                    :options="mvMetricMeta(r.metric).units ?? []"
+                    :value="r.unit ?? mvMetricMeta(r.metric).unit"
+                    class="mv-cond-unitsel"
+                    @change="(v: string) => (r.unit = v as '件' | '%')"
+                  />
+                </template>
                 <button type="button" class="mv-cond-del" aria-label="删除条件" @click="removeCondRow(i)">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" /></svg>
                 </button>
@@ -431,7 +483,7 @@ const save = () => {
             </div>
           </div>
         </div>
-        <!-- 步骤2（仅自动搬家）：先下拉选发布策略，再选发布店铺（芯片行 + 加号弹窗，交互同被搬店铺） -->
+        <!-- 步骤2（自动搬家/自动发品）：先下拉选发布策略，再选发布店铺（芯片行 + 加号弹窗，交互同被搬店铺） -->
         <div v-else>
           <div class="sg-field">
             <label>发布策略<span class="mv-req">*</span></label>
@@ -456,7 +508,7 @@ const save = () => {
       </div>
       <div class="mv-dr-foot">
         <button class="sg-btn" @click="emit('close')">取消</button>
-        <button v-if="kind === '自动搬家' && step === 1" class="sg-btn primary" @click="nextStep">下一步</button>
+        <button v-if="(kind === '自动搬家' || kind === '自动发品') && step === 1" class="sg-btn primary" @click="nextStep">下一步</button>
         <template v-else-if="step === 1">
           <button v-if="method === '一次性' && execMode === 'immediate'" class="sg-btn primary" @click="save">立即执行</button>
           <button v-else class="sg-btn primary" @click="save">保存任务</button>

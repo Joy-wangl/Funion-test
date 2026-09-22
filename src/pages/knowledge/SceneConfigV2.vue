@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/* 场景配置 V2：左右结构（与 V1 二级列表并存，由用户比对后择一）
+/* 场景配置（定版 V2）：左右结构
  * 左栏=场景类型卡（类型名+场景定义摘要+细分场景快捷 chips，点 chip 右栏定位闪标）；
  * 右栏=类型定义带（条件定义+场景定义，命中链路回显）+ 所选类型下的场景卡；
  * 场景配置抽屉复用 SceneCfgDrawer；类型新建/编辑复用 TypeCfgDrawer（条件定义→场景定义） */
@@ -100,8 +100,8 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onEsc); window.cle
   <div class="sc2-wrap">
     <header class="kb-main-head sc2-head">
       <div>
-        <h2>场景配置 V2</h2>
-        <p class="kb-breadcrumb">知识库<span> / 场景配置 V2</span></p>
+        <h2>场景配置</h2>
+        <p class="kb-breadcrumb">知识库<span> / 场景配置</span></p>
       </div>
     </header>
 

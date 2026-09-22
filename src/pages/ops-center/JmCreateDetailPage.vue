@@ -4,6 +4,7 @@ import type { CreateRow } from './data';
 import { sgJmDetail } from './shopGoodsData';
 import { pushToast } from '../../components/toast';
 import CpdMediaSec from './CpdMediaSec.vue';
+import ImgSizeCrop from './ImgSizeCrop.vue';
 import MaterialCenter from './MaterialCenter.vue';
 
 const props = defineProps<{ row: CreateRow; startEdit?: boolean }>();
@@ -69,12 +70,18 @@ const curPreview = computed(() => previewList.value[previewIdx.value] ?? '');
 const zoom = ref(1);
 const zoomBy = (v: number) => { zoom.value = Math.min(3, Math.max(0.5, Math.round((zoom.value + v) * 100) / 100)); };
 const openPreview = (list: string[], i: number) => { previewList.value = list; previewIdx.value = i; zoom.value = 1; };
-const closePreview = () => { previewList.value = []; previewIdx.value = 0; zoom.value = 1; };
+const closePreview = () => { previewList.value = []; previewIdx.value = 0; zoom.value = 1; sizePanel.value = false; };
 const stepPreview = (v: number) => {
   const n = previewList.value.length;
   previewIdx.value = (previewIdx.value + v + n) % n;
   zoom.value = 1;
+  sizePanel.value = false;
 };
+
+/* 预览内修改尺寸＋自由裁剪（共享组件 ImgSizeCrop，与淘宝/视频号详情同款）：裁剪结果回写当前预览图 */
+const sizePanel = ref(false);
+const previewImgRef = ref<HTMLImageElement | null>(null);
+const commitSize = (url: string) => { previewList.value[previewIdx.value] = url; };
 
 /* 预览全屏切换（工具条末位图标） */
 const previewMaskRef = ref<HTMLDivElement | null>(null);
@@ -333,7 +340,9 @@ watch(previewList, (v) => {
       <button type="button" class="cpd-preview-close" title="关闭（Esc）" @click="closePreview">✕</button>
       <div class="cpd-preview-stage" @click.self="closePreview">
         <div class="cpd-preview-imgwrap" :style="{ transform: `scale(${zoom})` }">
-          <img :src="curPreview" alt="" />
+          <img ref="previewImgRef" :src="curPreview" alt="" />
+          <!-- 修改尺寸＋自由裁剪：选区层就地渲染，面板 Teleport 到暗幕（共享组件） -->
+          <ImgSizeCrop v-model:open="sizePanel" :src="curPreview" :zoom="zoom" :img-el="previewImgRef" :commit="commitSize" />
         </div>
       </div>
       <div class="cpd-preview-bar">
@@ -351,6 +360,13 @@ watch(previewList, (v) => {
           <svg v-if="!isFull" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
           <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /></svg>
         </button>
+        <template v-if="editing">
+          <i class="cpd-bar-div" />
+          <button type="button" class="cpd-bar-size" :class="sizePanel ? 'on' : ''" title="修改图片尺寸" @click="sizePanel = !sizePanel">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5" /><path d="M20 15v5h-5" /><path d="m4 4 7 7" /><path d="m20 20-7-7" /></svg>
+            修改尺寸
+          </button>
+        </template>
       </div>
     </div>
 

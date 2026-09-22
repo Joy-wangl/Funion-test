@@ -12,7 +12,7 @@
 }
 .qc-center-page .qc-sec-title {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   color: #202532;
 }
 .qc-center-page .qc-range-toggle {
@@ -98,7 +98,7 @@
 .qc-center-page .qc-range-toggle button.active {
   background: #fff;
   color: var(--primary);
-  font-weight: 600;
+  font-weight: 500;
   box-shadow: 0 1px 4px rgba(26, 34, 56, 0.1);
 }
 
@@ -109,7 +109,7 @@
 .qc-center-page .qc-date-range .sg-input { width: 150px; height: 32px; border-radius: 8px; font-size: 12px; }
 .qc-center-page .qc-date-picker { position: relative; }
 .qc-center-page .sg-field .qc-date-picker { width: 100%; }
-.qc-center-page .sg-field .qc-date-trigger { width: 100%; height: 40px; border-radius: 10px; font-size: 13px; }
+.qc-center-page .sg-field .qc-date-trigger { width: 100%; height: 40px; border-radius: 10px; font-size: var(--fs-base); }
 .qc-center-page .sg-grid .sg-field-actions { display: flex; align-items: flex-end; gap: 8px; }
 .qc-center-page .qc-date-trigger {
   display: inline-flex;
@@ -165,12 +165,12 @@
   box-shadow: 0 8px 28px rgba(26, 34, 56, 0.08);
 }
 .qc-center-page .flat-card .k {
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #445066;
 }
 .qc-center-page .flat-card .v {
   font-size: 26px;
-  font-weight: 800;
+  font-weight: 600;
   color: #1f2329;
   margin-top: 10px;
   line-height: 1.2;
@@ -463,7 +463,7 @@
 /* 创建优化任务弹窗：横排表单对齐原系统（标签右对齐 / 错误提示在控件下 / 凭证方片） */
 .qc-center-page .qc-create-grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; }
 .qc-center-page .qc-create-form .form-item { display: grid; grid-template-columns: 62px 1fr; column-gap: 10px; align-items: start; margin-bottom: 18px; }
-.qc-center-page .qc-create-form .form-item > label { padding-top: 9px; font-size: 13px; color: var(--text-1); text-align: right; }
+.qc-center-page .qc-create-form .form-item > label { padding-top: 9px; font-size: var(--fs-base); color: var(--text-1); text-align: right; }
 .qc-center-page .qc-create-form .form-item > label .req { color: var(--danger); margin-right: 2px; }
 .qc-center-page .qc-create-form .fi-ctrl { min-width: 0; }
 .qc-center-page .qc-create-form .form-err { margin-top: 4px; font-size: 12px; color: var(--danger); }
@@ -481,7 +481,7 @@
   background: #f2f3f5;
   color: #8a94a6;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .qc-center-page .qc-create-form .ev-thumb .x {
   position: absolute;
@@ -515,8 +515,8 @@
   background: transparent;
   padding: 7px 20px;
   border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--fs-base);
+  font-weight: 400;
   color: #5b6475;
   cursor: pointer;
   font-family: inherit;
@@ -535,7 +535,7 @@
   border: 1.5px solid currentColor;
   border-radius: 6px;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 /* ---------- 系列详情 · 商品标签维度：平台页签切换 + 标签按大类分组分行（健康度各平台不一致不做跨平台聚合，只展示情况不展示规则） ---------- */
@@ -577,7 +577,7 @@
   min-height: 62px;
   flex-wrap: wrap;
 }
-.qc-center-page .ib-pageinfo { font-size: 13px; color: #596273; white-space: nowrap; }
+.qc-center-page .ib-pageinfo { font-size: var(--fs-base); color: #596273; white-space: nowrap; }
 .qc-center-page .ib-page-size {
   height: 34px;
   min-width: 112px;
@@ -607,7 +607,7 @@
 .qc-center-page .ib-pagebtn:disabled { opacity: 0.4; cursor: not-allowed; }
 .qc-center-page .ib-pagebtn:disabled:hover { background: #fff; color: #9aa2b1; }
 .qc-center-page .ib-pagedots { color: #9aa2b1; padding: 0 4px; }
-.qc-center-page .ib-jump { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #596273; white-space: nowrap; }
+.qc-center-page .ib-jump { display: flex; align-items: center; gap: 8px; font-size: var(--fs-base); color: #596273; white-space: nowrap; }
 .qc-center-page .ib-jump-input {
   width: 58px;
   height: 34px;

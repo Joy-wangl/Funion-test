@@ -1,13 +1,44 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { internalProducts, toSgProduct } from './data';
+import { computed, ref, watch } from 'vue';
+import { internalProducts, platformOfStore, toSgProduct } from './data';
 import type { ProductRow } from './data';
 import ProductTable from './ProductTable.vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
+import DateRangePicker from '../../components/DateRangePicker.vue';
 import SgDetailPage from './SgDetailPage.vue';
+import { PERM_PLAT_SHOPS, scopeOf } from '../permission/permScope';
+import { pushToast } from '../../components/toast';
 
 /** 内部商机页（默认页） */
 const detail = ref<ProductRow | null>(null);
+/* 创建时间范围筛选 */
+const ibDateFrom = ref('');
+const ibDateTo = ref('');
+
+/* 权限控制（角色权限-商机中心/内部商机）：可见范围过滤平台筛选选项与列表行 */
+const scope = scopeOf('内部商机');
+const viewPlats = computed(() =>
+  PERM_PLAT_SHOPS.filter((p) => p.shops.some((s) => scope.view.shops.includes(s))).map((p) => p.platform),
+);
+const platOpts = computed(() => ['全部', ...viewPlats.value]);
+const plat = ref('全部');
+watch(viewPlats, (v) => {
+  if (plat.value !== '全部' && !v.includes(plat.value)) plat.value = '全部';
+});
+const rows = computed(() =>
+  internalProducts.filter(
+    (r) =>
+      scope.view.shops.includes(r.storeMeta.text) &&
+      (plat.value === '全部' || platformOfStore(r.storeMeta.text) === plat.value),
+  ),
+);
+/* 权限控制：可管理范围之外店铺的行「添加到」置灰，点击提示无权限 */
+const manageDenied = (r: ProductRow) => !scope.manage.shops.includes(r.storeMeta.text);
+const onAction = (row: ProductRow, action: string) => {
+  if (action === '添加到' && manageDenied(row)) {
+    pushToast(`当前角色无店铺「${row.storeMeta.text}」的管理权限`, 'warning');
+  }
+};
 </script>
 
 <template>
@@ -25,8 +56,9 @@ const detail = ref<ProductRow | null>(null);
           <label>平台</label>
           <BubbleSelect
             class-name="ib-select"
-            default-value="阿里巴巴"
-            :options="['阿里巴巴', '抖音', '京东', '快手', '拼多多', '淘宝', '天猫', '微信视频号小店']"
+            :value="plat"
+            :options="platOpts"
+            @change="(v: string) => (plat = v)"
           />
         </div>
         <div class="ib-field">
@@ -84,24 +116,27 @@ const detail = ref<ProductRow | null>(null);
         </div>
         <div class="ib-field">
           <label>创建时间</label>
-          <div class="ib-range">
-            <input class="ib-input" placeholder="开始时间" />
-            <span>→</span>
-            <input class="ib-input" placeholder="结束时间" />
-          </div>
+          <DateRangePicker v-model:from="ibDateFrom" v-model:to="ibDateTo" placeholder="请选择日期范围" />
         </div>
-      </div>
-
-      <div class="ib-actions">
-        <div class="ib-rightacts">
-          <BubbleSelect class-name="ib-select" :style="{ width: '120px' }" default-value="快速选品" :options="['淘宝C店', '视频号']" />
-          <button class="lightBtn">重置</button>
-          <button class="primaryBtn">查询</button>
-          <button class="lightBtn">⚙</button>
+        <!-- 按钮组嵌入网格末子项：条件占满整行时独占一行右对齐；列设置 ⚙ 居按钮组最左（规范） -->
+        <div class="ib-actions">
+          <div class="ib-rightacts">
+            <button class="lightBtn">⚙</button>
+            <BubbleSelect class-name="ib-select" :style="{ width: '120px' }" default-value="快速选品" :options="['淘宝C店', '视频号']" />
+            <button class="lightBtn">重置</button>
+            <button class="primaryBtn">查询</button>
+          </div>
         </div>
       </div>
     </div>
 
-    <ProductTable :rows="internalProducts" :check-width="48" :index-width="52" :on-detail="(row: ProductRow) => (detail = row)" />
+    <ProductTable
+      :rows="rows"
+      :check-width="48"
+      :index-width="52"
+      :on-detail="(row: ProductRow) => (detail = row)"
+      :manage-denied="manageDenied"
+      @action="onAction"
+    />
   </template>
 </template>

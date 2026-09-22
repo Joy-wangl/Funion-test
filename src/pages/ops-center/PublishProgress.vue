@@ -384,7 +384,7 @@ const onRiskCancel = () => {
 .pub-progress-empty {
   padding: 32px 16px;
   text-align: center;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #8a94a6;
 }
 
@@ -410,8 +410,8 @@ const onRiskCancel = () => {
 }
 .pub-task-name {
   flex: 1;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--fs-base);
+  font-weight: 500;
   color: #1d2129;
   white-space: nowrap;
   overflow: hidden;
@@ -468,7 +468,7 @@ const onRiskCancel = () => {
 .pub-task-risk {
   flex: none;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: #ff7d00;
   cursor: pointer;
 }
@@ -511,7 +511,7 @@ const onRiskCancel = () => {
 .pub-fail-reason.grey { color: #86909c; }
 .pub-group-risk {
   margin-left: 8px;
-  font-weight: 600;
+  font-weight: 500;
   color: #ff7d00;
   cursor: pointer;
 }
@@ -634,7 +634,7 @@ const onRiskCancel = () => {
   gap: 12px;
   padding: 16px;
 }
-.pub-iv-kv { display: flex; gap: 12px; font-size: 13px; }
+.pub-iv-kv { display: flex; gap: 12px; font-size: var(--fs-base); }
 .pub-iv-kv span { flex: none; width: 60px; color: #8a94a6; }
 .pub-iv-kv b {
   flex: 1;
@@ -652,7 +652,7 @@ const onRiskCancel = () => {
   padding: 8px 0 8px 6px;
   text-align: center;
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 500;
   font-style: italic;
   letter-spacing: 6px;
   color: #4f7cff;
@@ -667,7 +667,7 @@ const onRiskCancel = () => {
   padding: 0 10px;
   border: 1px solid #e5e6eb;
   border-radius: 4px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #1d2129;
   outline: none;
 }
@@ -685,7 +685,7 @@ const onRiskCancel = () => {
   border: 1px solid #e5e6eb;
   border-radius: 4px;
   background: #fff;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #4e5969;
   cursor: pointer;
 }

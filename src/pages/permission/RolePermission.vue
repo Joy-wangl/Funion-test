@@ -16,6 +16,8 @@ import RpPermCells from './RpPermCells.vue';
 import RpNameFormModal from './RpNameFormModal.vue';
 import RpMemberPickerModal from './RpMemberPickerModal.vue';
 import RpDeptPickerModal from './RpDeptPickerModal.vue';
+import RpPlatShopPickerDrawer from './RpPlatShopPickerDrawer.vue';
+import { scopeOf } from './permScope';
 
 /* ---------- 弹窗状态（msg 为结构化富文本：pre + <b>bold</b> + post） ---------- */
 type ConfirmMsg = { pre: string; bold?: string; post: string };
@@ -23,7 +25,8 @@ type ModalState =
   | { kind: 'nameForm'; title: string; value: string; onOk: (v: string) => void }
   | { kind: 'confirm'; title: string; msg: ConfirmMsg; okText: string; danger?: boolean; onOk: () => void }
   | { kind: 'memberPicker' }
-  | { kind: 'deptPicker' };
+  | { kind: 'deptPicker' }
+  | { kind: 'platShop'; scopeKey: string; scopeKind: 'view' | 'manage' };
 
 /** 重命名角色树节点（组或角色） */
 function renameRoleNode(tree: RoleGroupNode[], id: string, name: string): RoleGroupNode[] {
@@ -110,6 +113,15 @@ const onNameFormOk = (v: string) => {
 
 const openMemberPicker = () => { modal.value = { kind: 'memberPicker' }; };
 const openDeptPicker = () => { modal.value = { kind: 'deptPicker' }; };
+/* 平台/店铺范围配置（查看=可见、管理=可管理） */
+const openPlatShop = (scopeKey: string, scopeKind: 'view' | 'manage') => { modal.value = { kind: 'platShop', scopeKey, scopeKind }; };
+const onPlatShopConfirm = (shops: string[]) => {
+  if (modal.value?.kind !== 'platShop') return;
+  const { scopeKey, scopeKind } = modal.value;
+  scopeOf(scopeKey)[scopeKind].shops = [...shops];
+  pushToast(`已保存「${scopeKey}」${scopeKind === 'view' ? '可见' : '可管理'}平台/店铺范围`);
+  closeModal();
+};
 const openAddGroup = () => {
   modal.value = {
     kind: 'nameForm', title: '添加角色组', value: '',
@@ -200,13 +212,13 @@ const onMemberPickerConfirm = (added: Member[]) => {
                     <RpPermCheckbox :checked="item.checked" /> {{ item.name }}
                   </td>
                   <td class="c-name"><RpPermCheckbox :checked="child.checked" /> {{ child.name }}</td>
-                  <RpPermCells :cfg="child" :key-prefix="`p${pi}c${ci}`" @pick="openDeptPicker" />
+                  <RpPermCells :cfg="child" :key-prefix="`p${pi}c${ci}`" :scope-key="child.name" @pick="openDeptPicker" @pick-scope="openPlatShop" />
                 </tr>
               </template>
               <tr v-else>
                 <td class="c-name"><RpPermCheckbox :checked="item.checked" /> {{ item.name }}</td>
                 <td class="dash">–</td>
-                <RpPermCells :cfg="item" :key-prefix="`p${pi}`" @pick="openDeptPicker" />
+                <RpPermCells :cfg="item" :key-prefix="`p${pi}`" :scope-key="item.name" @pick="openDeptPicker" @pick-scope="openPlatShop" />
               </tr>
             </template>
           </tbody>
@@ -249,5 +261,13 @@ const onMemberPickerConfirm = (added: Member[]) => {
   </Modal>
   <RpMemberPickerModal v-else-if="modal?.kind === 'memberPicker'" @close="closeModal" @confirm="onMemberPickerConfirm" />
   <RpDeptPickerModal v-else-if="modal?.kind === 'deptPicker'" @close="closeModal" />
+  <RpPlatShopPickerDrawer
+    v-else-if="modal?.kind === 'platShop'"
+    :title="`配置平台/店铺（${modal.scopeKind === 'view' ? '可见' : '可管理'}）`"
+    :sub="`${modal.scopeKey} · 勾选平台即全选其下店铺，支持单店粒度`"
+    :sel="modal.scopeKind === 'view' ? scopeOf(modal.scopeKey).view.shops : scopeOf(modal.scopeKey).manage.shops"
+    @close="closeModal"
+    @confirm="onPlatShopConfirm"
+  />
 
 </template>

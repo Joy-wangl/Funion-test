@@ -53,9 +53,9 @@ const confirm = () => {
       <div class="bp-row">
         <span class="bp-label">模式</span>
         <div class="bp-opts">
-          <span class="bp-opt" :class="mode === 'adjust' ? 'on' : ''" @click="mode = 'adjust'; err = ''">批量调价</span>
+          <span class="bp-opt" :class="mode === 'adjust' ? 'on' : ''" @click="mode = 'adjust'; err = ''">批量调价<i class="bp-q">?<span class="bp-qtip">按填写的利润率/利润重新核算勾选商品售价，上调与下调均支持</span></i></span>
           <span class="bp-sep">/</span>
-          <span class="bp-opt" :class="mode === 'raise' ? 'on' : ''" @click="mode = 'raise'; err = ''">批量涨价</span>
+          <span class="bp-opt" :class="mode === 'raise' ? 'on' : ''" @click="mode = 'raise'; err = ''">批量涨价<i class="bp-q">?<span class="bp-qtip">按填写的利润率/利润统一上调勾选商品售价</span></i></span>
         </div>
       </div>
       <div class="bp-row">

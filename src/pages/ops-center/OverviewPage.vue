@@ -11,14 +11,20 @@ import SortTh from '../../components/SortTh.vue';
 import Modal from '../../components/Modal.vue';
 import { pushToast } from '../../components/toast';
 
-/** 平台维度：商品/任务/贡献等卡各一套 chips（全部/视频号/淘宝），各自仅过滤本卡数据 */
+/** 平台维度：商品/任务/贡献等卡各一套下拉（全部/视频号/淘宝），各自仅过滤本卡数据 */
 const OV_PLATS = ['全部', '视频号', '淘宝'] as const;
 type OvPlat = (typeof OV_PLATS)[number];
 /* 商品/任务概览拆两张卡后平台口径各自独立：商品卡存量快照、任务卡随时间窗口聚合 */
 const platGoods = ref<OvPlat>('全部');
 const platTask = ref<OvPlat>('全部');
-/* 贡献+预警大模块统一平台口径：卡头 chips 同时驱动两列 */
+/* 贡献+预警大模块统一平台口径：卡头下拉同时驱动两列 */
 const platDuo = ref<OvPlat>('全部');
+/* 平台筛选统一 BubbleSelect 下拉（后续平台会持续增多，chips 形态废弃）：选项数组 + 受控 change 回写 */
+const OV_PLAT_OPTS: string[] = [...OV_PLATS];
+const setPlatGoods = (v: string) => { platGoods.value = v as OvPlat; };
+const setPlatTask = (v: string) => { platTask.value = v as OvPlat; };
+const setPlatDuo = (v: string) => { platDuo.value = v as OvPlat; };
+const setPlatTrend = (v: string) => { platTrend.value = v; };
 
 /* 时间查询（数据总览卡头）：今日/昨日/近3天/近7天/近30天/自定义；只统计数据总览的任务口径，趋势图与其它模块不随之变化 */
 type OvRangeKey = '0' | '1' | '3' | '7' | '30' | 'custom';
@@ -88,7 +94,7 @@ const platformCount = computed(() => new Set(ovShops.map((s) => s.platform)).siz
 const kpiShops = computed(() => (platGoods.value === '全部' ? ovShops : ovShops.filter((s) => s.platform === platGoods.value)));
 const kpiShopSub = computed(() => (platGoods.value === '全部' ? `覆盖 ${platformCount.value} 个平台` : `占全部店铺 ${ovShops.length ? Math.round((kpiShops.value.length / ovShops.length) * 100) : 0}%`));
 
-/** 商品维度口径：库存与动销快照随本卡平台 chips 切换，不参与时间查询聚合（存量口径） */
+/** 商品维度口径：库存与动销快照随本卡平台下拉切换，不参与时间查询聚合（存量口径） */
 const goodsKpi = computed(() => (platGoods.value === '全部' ? OV_GOODS : { ...OV_GOODS.split[platGoods.value as '视频号' | '淘宝'] }));
 /** 商品总数 = 出售中 + 下架（动销为出售中子集，不计入分母） */
 const goodsTotal = computed(() => goodsKpi.value.onSale + goodsKpi.value.offShelf);
@@ -194,9 +200,11 @@ const openPicker = (e: Event) => {
   try { el.showPicker?.(); } catch { /* 无用户手势等场景降级为手动输入 */ }
 };
 const onTimeDocDown = (e: MouseEvent) => {
-  if (timeWrapRef.value && !timeWrapRef.value.contains(e.target as Node)) customOpen.value = false;
+  const t = e.target as Node;
+  if (timeWrapRef.value && !timeWrapRef.value.contains(t)) customOpen.value = false;
+  if (trendTimeWrapRef.value && !trendTimeWrapRef.value.contains(t)) trendCustomOpen.value = false;
 };
-const onTimeKey = (e: KeyboardEvent) => { if (e.key === 'Escape') customOpen.value = false; };
+const onTimeKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { customOpen.value = false; trendCustomOpen.value = false; } };
 onMounted(() => {
   document.addEventListener('click', onTimeDocDown);
   window.addEventListener('keydown', onTimeKey);
@@ -205,9 +213,52 @@ onBeforeUnmount(() => {
   document.removeEventListener('click', onTimeDocDown);
   window.removeEventListener('keydown', onTimeKey);
 });
-/* 趋势图与时间条件解耦：恒展示种子近 30 日全量，仅随本卡平台 chips 切换口径 */
-const trendSeries = computed(() => OV_TREND.map((t, i) => (platTrend.value === '全部' ? t : { d: t.d, ...OV_TREND_BY_PLAT[platTrend.value][i] })));
-const trendTitle = `近 ${OV_TREND.length} 天发布趋势`;
+/* 趋势卡时间查询：与任务概览同语言（今日/昨日/近3天/近7天/近30天/自定义）；种子日期固定（末日=OV_TODAY），预设窗口按种子末日倒切，自定义按月日比较 */
+const trendRange = ref<OvRangeKey>('7');
+const trendCustomOpen = ref(false);
+const trendCustomDraft = ref({ s: '', e: '' });
+const trendCustomRange = ref<{ s: string; e: string } | null>(null);
+const trendTimeWrapRef = ref<HTMLElement | null>(null);
+const pickTrendRange = (k: OvRangeKey) => {
+  if (k === 'custom') {
+    trendCustomOpen.value = !trendCustomOpen.value;
+    if (trendCustomOpen.value && trendCustomRange.value) trendCustomDraft.value = { ...trendCustomRange.value };
+    return;
+  }
+  trendRange.value = k;
+  trendCustomOpen.value = false;
+};
+const applyTrendCustom = () => {
+  let { s, e } = trendCustomDraft.value;
+  if (!s || !e) { pushToast('请先选择开始与结束日期', 'warning'); return; }
+  if (s > e) [s, e] = [e, s];
+  trendCustomRange.value = { s, e };
+  trendRange.value = 'custom';
+  trendCustomOpen.value = false;
+  pushToast(`已应用自定义时间 ${s.slice(5)} ~ ${e.slice(5)}`);
+};
+const clearTrendCustom = () => {
+  trendCustomDraft.value = { s: '', e: '' };
+  if (trendCustomRange.value) {
+    trendCustomRange.value = null;
+    trendRange.value = '7';
+    pushToast('已清除自定义时间');
+  }
+};
+const trendClearDisabled = computed(() => !trendCustomDraft.value.s && !trendCustomDraft.value.e && !trendCustomRange.value);
+/* 趋势图窗口：预设按种子末日倒切（今日=末1天/昨日=倒第2天/近N天=末N天），自定义按月日区间过滤；平台口径随下拉切换 */
+const trendSeries = computed(() => {
+  const mapped = OV_TREND.map((t, i) => (platTrend.value === '全部' ? t : { d: t.d, ...OV_TREND_BY_PLAT[platTrend.value][i] }));
+  if (trendRange.value === 'custom') {
+    const { s, e } = trendCustomRange.value ?? { s: '', e: '' };
+    if (!s || !e) return [] as typeof mapped;
+    return mapped.filter((t) => t.d >= s.slice(5) && t.d <= e.slice(5));
+  }
+  if (trendRange.value === '0') return mapped.slice(-1);
+  if (trendRange.value === '1') return mapped.slice(-2, -1);
+  return mapped.slice(-Number(trendRange.value));
+});
+const trendTitle = '发布趋势';
 /* 柱组几何随天数自适应：组距=画布宽/天数，柱宽按组距比例钳制；标签抽稀保最多 14 个 */
 const trendPitch = computed(() => 560 / Math.max(1, trendSeries.value.length));
 const trendBarW = computed(() => Math.max(3, Math.min(8, trendPitch.value * 0.22)));
@@ -307,20 +358,11 @@ watch(pageCount, (v) => { if (page.value > v) page.value = v; });
 
 <template>
   <div class="ov-page">
-    <!-- 商品概览：独立白卡置顶（存量快照口径，无时间查询），平台 chips 右置卡头 -->
+    <!-- 商品概览：独立白卡置顶（存量快照口径，无时间查询），平台下拉右置卡头 -->
     <section class="ov-card ov-hero">
       <div class="ov-sec-head">
         <b>商品概览</b>
-        <span class="ov-plat-chips">
-          <button
-            v-for="p in OV_PLATS"
-            :key="p"
-            type="button"
-            class="ov-plat-chip"
-            :class="platGoods === p ? 'active' : ''"
-            @click="platGoods = p"
-          >{{ p }}</button>
-        </span>
+        <BubbleSelect :options="OV_PLAT_OPTS" :value="platGoods" class="ov-plat-select" @change="setPlatGoods" />
       </div>
       <div class="ov-tiles ov-tiles-goods">
         <div class="ov-tile">
@@ -346,7 +388,7 @@ watch(pageCount, (v) => { if (page.value > v) page.value = v; });
       </div>
     </section>
 
-    <!-- 任务概览：独立白卡（随时间查询窗口聚合切片），时间 chips + 平台 chips 右置卡头 -->
+    <!-- 任务概览：独立白卡（随时间查询窗口聚合切片），时间 chips + 平台下拉右置卡头 -->
     <section class="ov-card ov-hero">
       <div class="ov-sec-head">
         <b>任务概览</b>
@@ -372,16 +414,7 @@ watch(pageCount, (v) => { if (page.value > v) page.value = v; });
             </button>
           </div>
         </span>
-        <span class="ov-plat-chips">
-          <button
-            v-for="p in OV_PLATS"
-            :key="p"
-            type="button"
-            class="ov-plat-chip"
-            :class="platTask === p ? 'active' : ''"
-            @click="platTask = p"
-          >{{ p }}</button>
-        </span>
+        <BubbleSelect :options="OV_PLAT_OPTS" :value="platTask" class="ov-plat-select" @change="setPlatTask" />
       </div>
       <div class="ov-tiles ov-tiles-task">
         <div class="ov-tile">
@@ -407,20 +440,33 @@ watch(pageCount, (v) => { if (page.value > v) page.value = v; });
       </div>
     </section>
 
-    <!-- 发布趋势与店铺概览：与数据总览一致的单一白卡大模块，组说明与平台 chips 收进卡头；内双列趋势/概览，发丝线分隔，概览列表自滚与趋势列等高 -->
+    <!-- 发布趋势与店铺概览：与数据总览一致的单一白卡大模块，组说明与平台下拉收进卡头；内双列趋势/概览，发丝线分隔，概览列表自滚与趋势列等高 -->
     <section class="ov-card ov-trend-card">
       <div class="ov-sec-head">
         <b>发布趋势与店铺概览</b>
-        <span class="ov-plat-chips">
+        <!-- 时间查询：与任务概览同语言右置；自定义展开日期区间浮层 -->
+        <span ref="trendTimeWrapRef" class="ov-time-wrap">
           <button
-            v-for="p in trendPlats"
-            :key="p"
+            v-for="r in OV_RANGES"
+            :key="r.key"
             type="button"
             class="ov-plat-chip"
-            :class="platTrend === p ? 'active' : ''"
-            @click="platTrend = p"
-          >{{ p }}</button>
+            :class="trendRange === r.key ? 'active' : ''"
+            @click="pickTrendRange(r.key)"
+          >{{ r.label }}</button>
+          <div v-if="trendCustomOpen" class="ov-time-pop" @click.stop>
+            <input v-model="trendCustomDraft.s" type="date" class="ov-date-input" @click="openPicker" />
+            <span class="ov-date-sep">至</span>
+            <input v-model="trendCustomDraft.e" type="date" class="ov-date-input" @click="openPicker" />
+            <button class="sg-btn" :disabled="trendClearDisabled" @click="clearTrendCustom">
+              清除
+            </button>
+            <button class="sg-btn primary" @click="applyTrendCustom">
+              确定
+            </button>
+          </div>
         </span>
+        <BubbleSelect :options="trendPlats" :value="platTrend" class="ov-plat-select" @change="setPlatTrend" />
       </div>
       <div class="ov-charts">
         <div class="ov-chart-col">
@@ -470,20 +516,11 @@ watch(pageCount, (v) => { if (page.value > v) page.value = v; });
       </div>
     </section>
     
-    <!-- 个人贡献与店铺预警：与数据总览/趋势模块一致的单一白卡大模块；平台 chips 上收卡头统一驱动双列；内双列贡献榜/预警，预警列自滚与贡献列等高 -->
+    <!-- 个人贡献与店铺预警：与数据总览/趋势模块一致的单一白卡大模块；平台下拉上收卡头统一驱动双列；内双列贡献榜/预警，预警列自滚与贡献列等高 -->
     <section class="ov-card ov-duo-card">
       <div class="ov-sec-head">
         <b>个人贡献与店铺预警</b>
-        <span class="ov-plat-chips">
-          <button
-            v-for="p in OV_PLATS"
-            :key="p"
-            type="button"
-            class="ov-plat-chip"
-            :class="platDuo === p ? 'active' : ''"
-            @click="platDuo = p"
-          >{{ p }}</button>
-        </span>
+        <BubbleSelect :options="OV_PLAT_OPTS" :value="platDuo" class="ov-plat-select" @change="setPlatDuo" />
       </div>
       <div class="ov-duo">
         <div class="ov-member-col">

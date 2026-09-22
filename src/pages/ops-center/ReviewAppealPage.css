@@ -1,0 +1,236 @@
+/* 评价申诉列表：沿用运营中心标准列表页的卡片、筛选栅格和表格密度 */
+.ops-center .ra-page { padding-bottom: 20px; }
+.ops-center .ra-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.ops-center .ra-breadcrumb { font-size: var(--fs-base); color: var(--color-text-3); }
+.ops-center .ra-breadcrumb span { color: var(--color-text); font-weight: 600; }
+
+/* 筛选卡：所有条件统一为标签+40px控件，操作按钮与末排条件底边对齐 */
+.ops-center .ra-filter {
+  background: #fff; border: 1px solid #e8ebf1; border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(26, 34, 56, 0.045);
+  padding: 16px 18px; margin-bottom: 16px;
+}
+.ops-center .ra-filter-grid {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end; gap: 12px 16px;
+}
+.ops-center .ra-filter-field { min-width: 0; }
+.ops-center .ra-filter-field label {
+  display: block; margin-bottom: 7px; color: #7f8796; font-size: 12px;
+}
+.ops-center .ra-input-wrap { position: relative; min-width: 0; }
+.ops-center .ra-input {
+  width: 100%; height: 40px; padding: 0 30px 0 12px; border: 1px solid #e4e8ef;
+  border-radius: 10px; outline: none; background: #fbfcfe; color: #465064;
+  font-size: var(--fs-base); transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  box-sizing: border-box;
+}
+.ops-center .ra-input:focus {
+  border-color: #a9bcff; box-shadow: 0 0 0 3px rgba(79, 124, 255, 0.07); background: #fff;
+}
+.ops-center .ra-input::placeholder { color: #9aa2b1; }
+.ops-center .ra-clear {
+  position: absolute; right: 9px; top: 50%; width: 14px; height: 14px;
+  display: inline-flex; align-items: center; justify-content: center; transform: translateY(-50%);
+  padding: 0; border: 0; border-radius: 50%; background: var(--color-text-3); color: #fff;
+  cursor: pointer; font-size: 13px; line-height: 14px; font-family: Arial, sans-serif;
+}
+.ops-center .ra-clear:hover { background: var(--color-text-2); }
+.ops-center .ra-clear svg { display: block; }
+.ops-center .ra-filter-date { min-width: 0; }
+.ops-center .ra-filter-date .drp-trigger { width: 100%; min-width: 0; }
+.ops-center .ra-select {
+  width: 100%; height: 40px; padding: 0 12px; border: 1px solid #e4e8ef;
+  border-radius: 10px; background: #fbfcfe; color: #465064;
+  box-sizing: border-box; transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.ops-center .ra-select:hover,
+.ops-center .ra-select.open { border-color: #a9bcff; background: #fff; }
+.ops-center .ra-filter-actions {
+  grid-column: 3 / -1; display: flex; justify-content: flex-end; align-items: center; gap: 8px;
+}
+.ops-center .ra-filter-btn {
+  height: 40px; min-width: 72px; padding: 0 16px; border: 1px solid #e2e7ef;
+  border-radius: 10px; cursor: pointer; font-size: var(--fs-base); transition: 0.15s;
+}
+.ops-center .ra-filter-btn.primary { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.ops-center .ra-filter-btn.primary:hover { filter: brightness(0.97); }
+.ops-center .ra-filter-btn.ghost { background: #fff; color: var(--color-text-2); }
+.ops-center .ra-filter-btn.ghost:hover { background: #f7f9fc; color: var(--color-primary); }
+
+/* 列表卡顶部：标题与结果摘要同层，表格不再悬浮在页面背景上 */
+.ops-center .ra-table-card {
+  background: #fff; border: 1px solid #e8ebf1; border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(26, 34, 56, 0.045); overflow: hidden;
+}
+/* 标准列表表格：表头 13px、行 16px、hover 浅底、横向溢出滚动 */
+.ops-center .ra-table {
+  width: 100%; min-width: 1420px; table-layout: fixed; border-collapse: separate; border-spacing: 0;
+}
+.ops-center .ra-table th {
+  background: #fbfcfe; color: var(--color-text-2); font-size: var(--fs-aux); font-weight: 500;
+  text-align: left; padding: 13px 12px; border-bottom: 1px solid #e9edf3; white-space: nowrap;
+}
+.ops-center .ra-table td {
+  padding: 16px 12px; border-bottom: 1px solid #f0f3f7;
+  font-size: var(--fs-base); line-height: 22px; color: var(--color-text-2); vertical-align: top;
+}
+.ops-center .ra-table tbody tr:hover td { background: #fcfdff; }
+
+/* 店铺信息列：只展示店铺名称 */
+.ops-center .ra-shop { color: var(--color-text-2); white-space: nowrap; }
+
+/* 评价人列：只保留昵称，避免头像占用列表信息位 */
+.ops-center .ra-user { display: flex; align-items: flex-start; min-width: 0; }
+.ops-center .ra-user-name { font-size: var(--fs-base); color: var(--color-text); font-weight: var(--fw-regular); max-width: 120px; }
+
+/* 评价内容列：评分标签 + 正文 + 附图 */
+.ops-center .ra-rating {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--fs-aux); font-weight: var(--fw-medium); margin-bottom: 4px;
+}
+.ops-center .ra-rating.bad { color: var(--color-warning); }
+.ops-center .ra-rating.good { color: var(--color-success); }
+.ops-center .ra-content { font-size: var(--fs-base); color: var(--color-text); line-height: 1.6; }
+.ops-center .ra-content-ell { max-width: 320px; }
+.ops-center .ra-images { display: flex; gap: 6px; margin-top: 6px; }
+.ops-center .ra-img-thumb {
+  width: 56px; height: 56px; border-radius: var(--radius-sm);
+  background: var(--color-fill-2); object-fit: cover;
+}
+
+/* 评价时间列 */
+.ops-center .ra-time { font-size: var(--fs-aux); color: var(--color-text-3); white-space: nowrap; }
+
+/* 订单详情列：真实商品缩略图 + 标题 + SKU + ID */
+.ops-center .ra-order { display: flex; gap: 10px; align-items: flex-start; min-width: 0; }
+.ops-center .ra-order-thumb {
+  width: 48px; height: 48px; border-radius: var(--radius-sm);
+  background: var(--color-fill-2); flex: none; object-fit: cover; display: block;
+}
+.ops-center .ra-order-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ops-center .ra-order-title { font-size: var(--fs-base); color: var(--color-text); }
+.ops-center .ra-order-sku { font-size: var(--fs-aux); color: var(--color-text-3); }
+.ops-center .ra-order-id {
+  font-size: var(--fs-aux); color: var(--color-text-3);
+  white-space: nowrap; align-self: flex-start; margin-top: 2px;
+}
+
+/* 申诉状态列：只展示状态标签 */
+.ops-center .ra-status {
+  display: inline-flex; align-items: center; height: 22px; padding: 0 8px;
+  border-radius: 4px; font-size: var(--fs-aux); white-space: nowrap;
+}
+.ops-center .ra-status.pend { background: var(--color-warning-light); color: var(--color-warning); }
+.ops-center .ra-status.done { background: var(--color-primary-light); color: var(--color-primary); }
+.ops-center .ra-status.deny { background: var(--color-fill-2); color: var(--color-text-3); }
+/* 审核状态色档：审核中=橙、已通过=绿、未通过=红、已撤回=灰 */
+.ops-center .ra-status.auditing { background: var(--color-warning-light); color: var(--color-warning); }
+.ops-center .ra-status.pass { background: var(--color-success-light); color: var(--color-success); }
+.ops-center .ra-status.reject { background: var(--color-danger-light); color: var(--color-danger); }
+.ops-center .ra-status.withdraw { background: var(--color-fill-2); color: var(--color-text-3); }
+/* 操作列：待申诉发起，已申诉进入详情 */
+.ops-center .ra-ops-link {
+  font-size: var(--fs-base); color: var(--color-primary); cursor: pointer;
+  text-decoration: none; background: none; border: 0; padding: 0;
+}
+.ops-center .ra-ops-link:hover { text-decoration: underline; }
+.ops-center .ra-ops-link.danger { color: var(--color-danger); }
+.ops-center .ra-ops-none { color: var(--color-text-4); }
+
+/* 空态行 */
+.ops-center .ra-empty { text-align: center; padding: 40px; color: var(--color-text-4); }
+
+/* 表格滚动容器 */
+.ops-center .ra-table-wrap { overflow: auto; }
+.ops-center .ra-order-title-ell { display: block; max-width: 250px; }
+/* 表头定宽列：订单优先，内容列适度加宽，操作列承载申诉原因 */
+.ops-center .ra-th-order { width: 330px; }
+.ops-center .ra-th-shop { width: 120px; }
+.ops-center .ra-th-user { width: 120px; }
+.ops-center .ra-th-content { width: 360px; }
+.ops-center .ra-th-time { width: 120px; }
+.ops-center .ra-th-appeal-time { width: 120px; }
+.ops-center .ra-th-status { width: 120px; }
+.ops-center .ra-th-audit { width: 120px; }
+.ops-center .ra-th-ops { width: 140px; }
+.ops-center .ra-content-ell { display: block; max-width: 330px; }
+
+/* 发起申诉与申诉详情共用同一套字段、卡片和固定内容区高度 */
+.ops-center .ra-appeal-form {
+  height: 620px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+  padding-right: 4px; box-sizing: border-box; scrollbar-width: none;
+}
+.ops-center .ra-appeal-form::-webkit-scrollbar { display: none; }
+.ops-center .ra-appeal-section { display: flex; flex-direction: column; gap: 8px; }
+.ops-center .ra-appeal-section-title { font-size: var(--fs-base); line-height: 22px; color: var(--color-text); font-weight: var(--fw-semibold); }
+.ops-center .ra-appeal-meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding: 8px 0; color: var(--color-text-2); font-size: var(--fs-base); }
+.ops-center .ra-appeal-meta > div { min-height: 22px; }
+.ops-center .ra-appeal-label { color: var(--color-text-3); font-size: var(--fs-base); font-weight: var(--fw-regular); }
+.ops-center .ra-appeal-reasons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.ops-center .ra-appeal-reason-card {
+  min-height: 72px; padding: 10px 14px; display: flex; flex-direction: column; gap: 4px;
+  border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: #fff;
+  color: var(--color-text-2); text-align: left; cursor: pointer; box-sizing: border-box;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.ops-center .ra-appeal-reason-card:hover { border-color: var(--color-primary); background: var(--color-primary-light-2); }
+.ops-center .ra-appeal-reason-card.selected { border-color: var(--color-primary); background: var(--color-primary-light); box-shadow: inset 0 0 0 1px var(--color-primary); }
+.ops-center .ra-appeal-reason-title { color: var(--color-text); font-size: var(--fs-base); line-height: 22px; font-weight: var(--fw-medium); }
+.ops-center .ra-appeal-reason-desc { color: var(--color-text-3); font-size: var(--fs-aux); line-height: 18px; }
+.ops-center .ra-appeal-selected-reason { width: 100%; }
+.ops-center .ra-appeal-selected-reason .ra-appeal-reason-card { cursor: default; }
+.ops-center .ra-appeal-selected-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ops-center .ra-appeal-selected-mark { flex: none; color: var(--color-primary); font-size: var(--fs-aux); font-weight: var(--fw-medium); }
+/* 申诉详情原因卡片：左侧蓝色竖条 + 浅蓝底，只读信息展示 */
+.ops-center .ra-appeal-detail-reason-card {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 12px 16px; border-radius: var(--radius-lg);
+  background: var(--color-primary-light-2);
+  border-left: 3px solid var(--color-primary);
+}
+.ops-center .ra-appeal-detail-reason-title { color: var(--color-text); font-size: var(--fs-base); font-weight: var(--fw-medium); }
+.ops-center .ra-appeal-detail-reason-desc { color: var(--color-text-3); font-size: var(--fs-aux); line-height: 18px; }
+.ops-center .ra-appeal-textarea {
+  width: 100%; min-height: 104px; resize: vertical; padding: 12px; border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg); outline: none; background: #fff; color: var(--color-text);
+  font: inherit; font-size: var(--fs-base); line-height: 22px; box-sizing: border-box;
+}
+.ops-center .ra-appeal-textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-10); }
+.ops-center .ra-appeal-textarea::placeholder { color: var(--color-text-4); }
+.ops-center .ra-appeal-readonly-text { overflow: hidden; resize: none; white-space: pre-wrap; }
+.ops-center .ra-appeal-count { align-self: flex-end; margin-top: -30px; padding-right: 12px; color: var(--color-text-4); font-size: var(--fs-aux); pointer-events: none; }
+.ops-center .ra-appeal-error { margin: -4px 0 0; color: var(--color-danger); font-size: var(--fs-aux); line-height: 18px; }
+.ops-center .ra-appeal-file-input { display: none; }
+.ops-center .ra-appeal-evidence-row { display: flex; align-items: center; gap: 12px; min-height: 72px; }
+.ops-center .ra-appeal-upload { width: 96px; height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 1px dashed var(--color-border); border-radius: var(--radius-lg); background: var(--color-fill); color: var(--color-text-3); cursor: pointer; font-size: var(--fs-aux); box-sizing: border-box; }
+.ops-center .ra-appeal-upload:hover { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-light-2); }
+.ops-center .ra-appeal-upload-readonly { cursor: default; }
+.ops-center .ra-appeal-upload-readonly:hover { border-color: var(--color-border); color: var(--color-text-3); background: var(--color-fill); }
+.ops-center .ra-appeal-upload-plus { font-size: 26px; line-height: 26px; font-weight: var(--fw-regular); }
+.ops-center .ra-appeal-file-name { color: var(--color-text-2); font-size: var(--fs-aux); }
+/* 申诉详情凭证托盘：缩略图网格 */
+.ops-center .ra-appeal-detail-evidence-tray { display: flex; gap: 8px; flex-wrap: wrap; }
+.ops-center .ra-appeal-evidence-thumb {
+  width: 72px; height: 72px; border-radius: var(--radius-lg);
+  background: var(--color-fill-2); background-size: cover; background-position: center;
+  flex: none;
+}
+.ops-center .ra-detail-close { height: 32px; padding: 0 16px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: #fff; color: var(--color-text-2); cursor: pointer; font-size: var(--fs-base); }
+.ops-center .ra-detail-close:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.ops-center .ra-appeal-submit { height: 32px; min-width: 72px; padding: 0 16px; border: 1px solid var(--color-primary); border-radius: var(--radius-sm); background: var(--color-primary); color: #fff; cursor: pointer; font-size: var(--fs-base); }
+.ops-center .ra-appeal-submit:hover { background: var(--color-primary-hover); border-color: var(--color-primary-hover); }
+.ops-center .ra-appeal-submit:disabled { cursor: not-allowed; opacity: 0.6; }
+
+@media (max-width: 1280px) {
+  .ops-center .ra-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ops-center .ra-filter-actions { grid-column: 2; }
+}
+@media (max-width: 720px) {
+  .ops-center .ra-filter-grid { grid-template-columns: 1fr; }
+  .ops-center .ra-filter-actions { grid-column: 1; }
+  .ops-center .ra-appeal-reasons { grid-template-columns: 1fr; }
+}

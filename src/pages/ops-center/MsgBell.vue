@@ -78,8 +78,8 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocDown));
             </div>
           </div>
           <div class="msg-kvs">
-            <div class="msg-kv"><span class="k">商品ID</span><span class="v">{{ m.p.id }}</span></div>
-            <div class="msg-kv"><span class="k">店铺</span><span class="v"><span class="store-logo"><img :src="PLATFORM_LOGO[m.p.storePlatform]" alt="" /></span>{{ m.p.store }}</span></div>
+            <div class="msg-kv"><span class="k">商品ID：</span><span class="v">{{ m.p.id }}</span></div>
+            <div class="msg-kv"><span class="k">店铺：</span><span class="v"><span class="store-logo"><img :src="PLATFORM_LOGO[m.p.storePlatform]" alt="" /></span>{{ m.p.store }}</span></div>
           </div>
         </div>
         <div v-if="!shown.length" class="msg-empty">暂无消息</div>

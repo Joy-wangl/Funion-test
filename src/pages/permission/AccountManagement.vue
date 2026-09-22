@@ -244,6 +244,8 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <div class="smg-dr-foot">
+          <!-- 离线账号：抽屉内直达前往登录（发布到抽屉「前往登录」桥接落到此处闭环） -->
+          <button v-if="acctRow.status === 'offline'" type="button" class="sg-btn primary" @click="goLogin(acctRow)">前往登录</button>
           <button type="button" class="sg-btn" @click="acctId = null">关闭</button>
         </div>
       </div>

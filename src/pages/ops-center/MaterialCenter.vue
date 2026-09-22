@@ -4,6 +4,7 @@ import { createDetail } from './data';
 import { pushToast } from '../../components/toast';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import Modal from '../../components/Modal.vue';
+import ImgSizeCrop from './ImgSizeCrop.vue';
 
 /** 素材中心：1:1 原型还原 + 同类拖拽排序 / 右→左批量拖拽换图 / 查看预览 / 条目单展开 */
 const emit = defineEmits<{ (e: 'back'): void }>();
@@ -12,6 +13,7 @@ const d = createDetail;
 const tab = ref<'swap' | 'beauty'>('swap');
 const mainImgs = ref<string[]>([...d.mainImgs]);
 const detailImgs = ref<string[]>([...d.detailImgs]);
+const skuImgs = ref<string[]>(d.skus.map((_s, i) => d.mainImgs[i % d.mainImgs.length]));
 const SKU_DESC = '德国指甲剪刀套装全套耳勺指甲刀指甲钳修剪专用斜口指甲钳剪刀 用起来还算不错哦';
 
 /* 分区定位 tab：左卡吸顶，点击滚动定位 + 滚动同步高亮 */
@@ -89,16 +91,21 @@ const toggleEntry = (idx: number) => {
   selRight.value = [];
 };
 
-/* 查看预览：遮罩点击 / ESC 关闭；ESC 同时可关闭取消编辑确认弹窗 */
+/* 查看预览：遮罩点击 / ESC 关闭；ESC 同时可关闭取消编辑确认弹窗与生成图查看器 */
 const preview = ref('');
 const onKey = (e: KeyboardEvent) => {
   if (e.key !== 'Escape') return;
-  if (preview.value) preview.value = '';
+  if (btView.value) btView.value = null;
+  else if (preview.value) preview.value = '';
   else if (cancelOpen.value) cancelOpen.value = false;
 };
-onMounted(() => window.addEventListener('keydown', onKey));
+onMounted(() => {
+  window.addEventListener('keydown', onKey);
+  document.addEventListener('fullscreenchange', onFullChange);
+});
 onUnmounted(() => {
   window.removeEventListener('keydown', onKey);
+  document.removeEventListener('fullscreenchange', onFullChange);
   if (tickTimer != null) clearInterval(tickTimer);
 });
 
@@ -233,7 +240,7 @@ const btMode = ref<BtMode>('set');
 const btSel = ref<string[]>([]);
 const btGroups = computed(() => [
   { label: '主图', items: mainImgs.value.map((src, i) => ({ key: `m${i}`, src })) },
-  { label: 'SKU图', items: d.skus.map((_s, i) => ({ key: `s${i}`, src: d.mainImgs[i % d.mainImgs.length] })) },
+  { label: 'SKU图', items: skuImgs.value.map((src, i) => ({ key: `s${i}`, src })) },
   { label: '详情图', items: detailImgs.value.map((src, i) => ({ key: `d${i}`, src })) },
 ]);
 const btAllItems = computed(() => btGroups.value.flatMap((g) => g.items));
@@ -247,6 +254,92 @@ const unpickBt = (key: string) => {
   if (k >= 0) btSel.value.splice(k, 1);
 };
 watch(btMode, () => { btSel.value = []; });
+
+/* 生成图 ↔ 左侧商品图：双向拖拽替换 + 任务级批量替换；查看走与去水印同款的暗幕查看器 */
+const writeBack = (key: string, src: string) => {
+  const i = Number(key.slice(1));
+  if (key.startsWith('m')) mainImgs.value[i] = src;
+  else if (key.startsWith('s')) skuImgs.value[i] = src;
+  else detailImgs.value[i] = src;
+};
+const leftSrcOf = (key: string) => btAllItems.value.find((x) => x.key === key)?.src ?? '';
+const btDrag = ref<{ from: 'task'; t: BeautyTask; i: number } | { from: 'left'; key: string } | null>(null);
+const onDragTaskImg = (t: BeautyTask, i: number, ev: DragEvent) => { btDrag.value = { from: 'task', t, i }; ev.dataTransfer?.setData('text/plain', `task:${t.id}:${i}`); };
+const onDragLeftTh = (key: string, ev: DragEvent) => { btDrag.value = { from: 'left', key }; ev.dataTransfer?.setData('text/plain', `left:${key}`); };
+const onDragEndBt = () => { btDrag.value = null; dropHint.value = ''; };
+/* 生成图落到左栏缩略图：覆盖该商品图 */
+const btDropLeft = (key: string) => {
+  const p = btDrag.value;
+  dropHint.value = '';
+  if (p && p.from === 'task') {
+    const im = p.t.imgs[p.i];
+    if (im && !im.failed && im.src) { writeBack(key, im.src); pushToast('已替换商品图'); }
+  }
+  btDrag.value = null;
+};
+/* 左栏缩略图落到生成图：覆盖该生成图 */
+const btDropTask = (t: BeautyTask, i: number) => {
+  const p = btDrag.value;
+  dropHint.value = '';
+  if (p && p.from === 'left') {
+    const src = leftSrcOf(p.key);
+    if (src) { t.imgs[i].src = src; t.imgs[i].failed = false; pushToast('已替换生成图'); }
+  }
+  btDrag.value = null;
+};
+/* 批量替换：任务成功生成图按顺序覆盖左侧商品图，二次确认 */
+const batchOpen = ref<BeautyTask | null>(null);
+const batchOks = computed(() => (batchOpen.value ? batchOpen.value.imgs.filter((x) => !x.failed && x.src) : []));
+const doBatchReplace = () => {
+  const all = btAllItems.value;
+  const n = Math.min(batchOks.value.length, all.length);
+  batchOks.value.slice(0, n).forEach((im, k) => writeBack(all[k].key, im.src));
+  batchOpen.value = null;
+  pushToast(`已按顺序替换 ${n} 张商品图`);
+};
+/* 生成图查看：去水印同款暗幕查看器（翻页/计数/缩放 0.5-3x/全屏，Esc 关闭） */
+const btView = ref<{ list: string[]; idx: number } | null>(null);
+const btZoom = ref(1);
+const btFull = ref(false);
+const btMaskRef = ref<HTMLElement | null>(null);
+/* 查看器内修改尺寸＋自由裁剪（共享组件 ImgSizeCrop）：裁剪结果回写查看器与源任务图 */
+const btSizePanel = ref(false);
+const btImgRef = ref<HTMLImageElement | null>(null);
+const btViewTask = ref<BeautyTask | null>(null);
+const commitBtSize = (url: string) => {
+  const v = btView.value;
+  if (!v) return;
+  v.list[v.idx] = url;
+  const t = btViewTask.value;
+  if (t) {
+    const im = t.imgs.filter((x) => !x.failed && x.src)[v.idx];
+    if (im) im.src = url;
+  }
+  dirty.value = true;
+};
+watch(btView, (v) => { if (!v) { btSizePanel.value = false; btViewTask.value = null; } });
+const openBtView = (t: BeautyTask, i: number) => {
+  const list = t.imgs.filter((x) => !x.failed && x.src).map((x) => x.src);
+  const idx = list.indexOf(t.imgs[i].src);
+  if (idx < 0) return;
+  btZoom.value = 1;
+  btViewTask.value = t;
+  btView.value = { list, idx };
+};
+const stepBtView = (s: number) => {
+  const v = btView.value;
+  if (!v) return;
+  v.idx = (v.idx + s + v.list.length) % v.list.length;
+  btSizePanel.value = false;
+};
+const btZoomBy = (s: number) => { btZoom.value = Math.min(3, Math.max(0.5, Math.round((btZoom.value + s) * 100) / 100)); };
+const toggleBtFull = () => {
+  const el = btMaskRef.value;
+  if (!el) return;
+  if (document.fullscreenElement) void document.exitFullscreen();
+  else if (el.requestFullscreen) void el.requestFullscreen();
+};
+const onFullChange = () => { btFull.value = !!document.fullscreenElement; };
 /** 本次参与生成的图片：套图=三组全部；美化=勾选项 */
 const btSources = computed<TaskImg[]>(() => {
   const picked = btMode.value === 'set' ? btAllItems.value : btAllItems.value.filter((t) => btSel.value.includes(t.key));
@@ -258,6 +351,9 @@ const btPicked = computed(() => btAllItems.value.filter((t) => btSel.value.inclu
 /* 参考图：弹层多选候选，选中结果展示在按钮下方指定行，可移除 */
 const btRefs = ref<TaskImg[]>([]);
 const btRefOpen = ref(false);
+/* 微信式叠堆：选中超过 3 张时收起为首图＋层叠＋角标，点击展开全量 */
+const pickExpanded = ref(false);
+const refExpanded = ref(false);
 const refKey = (r: TaskImg) => `${r.src}|${r.pos}`;
 const toggleRef = (r: TaskImg) => {
   const k = btRefs.value.findIndex((x) => refKey(x) === refKey(r));
@@ -356,6 +452,10 @@ const retryImg = (t: BeautyTask, i: number) => {
     recalcTask(t);
     pushToast('失败图片已重新生成');
   }, 1200);
+};
+/* 任务级重试：部分完成态一键重试全部失败槽（失败态走头部重新生成整单重跑） */
+const retryFailed = (t: BeautyTask) => {
+  t.imgs.forEach((im, i) => { if (im.failed) retryImg(t, i); });
 };
 
 /* 任务结果图操作：查看/美化/替换/添加/删除 */
@@ -557,7 +657,7 @@ const tDel = (t: BeautyTask, i: number) => { t.imgs.splice(i, 1); };
           <div v-for="g in btGroups" :key="g.label" class="mc-bt-group">
             <div class="mc-bt-ghead">{{ g.label }}<span class="mc-count">{{ g.items.length }}</span></div>
             <div class="mc-bt-thumbs">
-              <div v-for="it in g.items" :key="it.key" class="mc-bt-th" :class="{ sel: btSel.includes(it.key), pickable: btMode === 'beauty' }" @click="pickBt(it.key)">
+              <div v-for="it in g.items" :key="it.key" class="mc-bt-th" :class="{ sel: btSel.includes(it.key), pickable: btMode === 'beauty', 'drop-hint': dropHint === 'left:' + it.key }" draggable="true" @click="pickBt(it.key)" @dragstart="onDragLeftTh(it.key, $event)" @dragend="onDragEndBt" @dragover.prevent="dropHint = 'left:' + it.key" @dragleave="dropHint = ''" @drop.stop.prevent="btDropLeft(it.key)">
                 <img :src="it.src" alt="" />
               </div>
             </div>
@@ -572,6 +672,11 @@ const tDel = (t: BeautyTask, i: number) => { t.imgs.splice(i, 1); };
             <div class="mc-task-head">
               <div class="mc-task-title">{{ t.desc }}</div>
               <div class="mc-task-side">
+                <button v-if="(t.status === 'done' || t.status === 'partial') && t.imgs.some((x) => !x.failed && x.src)" class="mc-regen" @click="batchOpen = t">批量替换</button>
+                <button v-if="t.status === 'partial' && t.imgs.some((x) => x.failed)" class="mc-regen" @click="retryFailed(t)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" /></svg>
+                  重试失败项
+                </button>
                 <button v-if="t.status === 'failed'" class="mc-regen" @click="regen(t)">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" /></svg>
                   重新生成
@@ -584,7 +689,6 @@ const tDel = (t: BeautyTask, i: number) => { t.imgs.splice(i, 1); };
             </div>
             <div class="mc-task-meta">
               <span class="mc-task-tag mode">{{ MODE_LABEL[t.mode] }}</span>
-              <span class="mc-task-code">{{ t.code }}</span>
               <span>{{ t.time }}</span>
               <span>{{ t.owner }}</span>
             </div>
@@ -592,40 +696,30 @@ const tDel = (t: BeautyTask, i: number) => { t.imgs.splice(i, 1); };
               <div class="mc-task-bar"><i :style="{ width: t.percent + '%' }" /></div>
             </div>
             <div v-else-if="t.status === 'failed'">
-              <div class="mc-task-progress fail">
-                <div class="mc-task-bar"><i style="width: 100%" /></div>
-              </div>
-              <!-- 全失败：失败占位槽全展示，每槽可单张重新生成 -->
+              <!-- 全失败：失败占位槽全展示（纯文字占位，重试入口收归头部重新生成） -->
               <div class="mc-task-grid">
                 <div v-for="(im, i) in t.imgs" :key="i" class="mc-thwrap">
-                  <div v-if="im.retrying" class="mc-th-fail retrying"><i class="mc-th-spin" />重新生成中…</div>
-                  <div v-else-if="!im.failed" class="mc-img"><img :src="im.src" alt="" :style="{ objectPosition: im.pos }" /></div>
-                  <div v-else class="mc-th-fail">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /></svg>
-                    <span>生成失败</span>
-                    <button class="mc-th-retry" @click.stop="retryImg(t, i)">重新生成</button>
+                  <div v-if="im.retrying" class="mc-th-fail retrying"><i class="mc-th-spin" /></div>
+                  <div v-else-if="!im.failed" class="mc-img cpd-previewable" :class="{ 'drop-hint': dropHint === 'task:' + t.id + ':' + i }" draggable="true" @click="openBtView(t, i)" @dragstart="onDragTaskImg(t, i, $event)" @dragend="onDragEndBt" @dragover.prevent="dropHint = 'task:' + t.id + ':' + i" @dragleave="dropHint = ''" @drop.stop.prevent="btDropTask(t, i)">
+                    <img :src="im.src" alt="" :style="{ objectPosition: im.pos }" />
                   </div>
+                  <div v-else class="mc-th-fail"><span>生成失败</span></div>
                 </div>
               </div>
-              <div class="mc-fail-note">全部图片生成失败</div>
             </div>
             <template v-else>
-              <!-- 收起 5 列大图 +N 蒙层 / 展开大图密铺；失败槽与重试槽穿插展示 -->
+              <!-- 收起 6 列小缩略 +N 蒙层 / 展开大图密铺；失败槽与重试槽穿插展示 -->
               <div :class="t.open ? 'mc-task-grid' : 'mc-task-strip'">
-                <div v-for="(im, i) in (t.open ? t.imgs : t.imgs.slice(0, 5))" :key="i" class="mc-thwrap">
-                  <div v-if="im.failed" class="mc-th-fail">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /></svg>
-                    <span>生成失败</span>
-                    <button class="mc-th-retry" @click.stop="retryImg(t, i)">重新生成</button>
-                  </div>
-                  <div v-else-if="im.retrying" class="mc-th-fail retrying"><i class="mc-th-spin" />重新生成中…</div>
+                <div v-for="(im, i) in (t.open ? t.imgs : t.imgs.slice(0, 6))" :key="i" class="mc-thwrap">
+                  <div v-if="im.failed" class="mc-th-fail"><span>生成失败</span></div>
+                  <div v-else-if="im.retrying" class="mc-th-fail retrying"><i class="mc-th-spin" /></div>
                   <template v-else>
-                    <div class="mc-img">
+                    <div class="mc-img cpd-previewable" :class="{ 'drop-hint': dropHint === 'task:' + t.id + ':' + i }" draggable="true" @click="openBtView(t, i)" @dragstart="onDragTaskImg(t, i, $event)" @dragend="onDragEndBt" @dragover.prevent="dropHint = 'task:' + t.id + ':' + i" @dragleave="dropHint = ''" @drop.stop.prevent="btDropTask(t, i)">
                       <img :src="im.src" alt="" :style="{ objectPosition: im.pos }" />
-                      <span v-if="!t.open && i === 4 && t.imgs.length > 5" class="mc-strip-more">+{{ t.imgs.length - 4 }}</span>
+                      <span v-if="!t.open && i === 5 && t.imgs.length > 6" class="mc-strip-more">+{{ t.imgs.length - 5 }}</span>
                     </div>
                     <div class="mc-float-bubble">
-                      <a href="#" @click.prevent.stop="preview = im.src">查看</a>
+                      <a href="#" @click.prevent.stop="openBtView(t, i)">查看</a>
                       <a href="#" @click.prevent.stop="tBeauty(t)">美化</a>
                       <a href="#" @click.prevent.stop="tReplace(t, i)">替换</a>
                       <a href="#" @click.prevent.stop="tAdd(t)">添加</a>
@@ -634,47 +728,69 @@ const tDel = (t: BeautyTask, i: number) => { t.imgs.splice(i, 1); };
                   </template>
                 </div>
               </div>
-              <div v-if="t.status === 'partial'" class="mc-fail-note part">仍有 {{ t.imgs.filter((x) => x.failed).length }} 张图片生成失败</div>
             </template>
           </div>
         </div>
 
-        <!-- 底部提交栏：模式附加区（套图=图片数量+上传参考图 / 美化=已选图片）+ 描述 + 模型 + 算力 -->
+        <!-- 底部提交栏：模式附加区（套图=图片数量 / 美化=已选图片叠堆）+ 描述 + 工具行（上传参考图＋模型＋算力） -->
         <div class="mc-bt-composer">
           <div v-if="btMode === 'set'" class="mc-bt-refzone">
             <div class="mc-bt-crow">
               <span class="mc-bt-count">图片数量 {{ btSources.length }}</span>
+            </div>
+            <div v-if="btRefs.length" class="mc-bt-refrow">
+              <!-- 超过 3 张：首图＋层叠＋数量角标，点击展开 -->
+              <div v-if="btRefs.length > 3 && !refExpanded" class="mc-bt-stack" title="点击展开全部参考图" @click="refExpanded = true">
+                <div class="mc-bt-stack-layer l3"><img :src="btRefs[2].src" alt="" :style="{ objectPosition: btRefs[2].pos }" /></div>
+                <div class="mc-bt-stack-layer l2"><img :src="btRefs[1].src" alt="" :style="{ objectPosition: btRefs[1].pos }" /></div>
+                <div class="mc-bt-stack-th"><img :src="btRefs[0].src" alt="" :style="{ objectPosition: btRefs[0].pos }" /></div>
+                <span class="mc-bt-stack-badge">{{ btRefs.length }}</span>
+              </div>
+              <template v-else>
+                <div v-for="(r, i) in btRefs" :key="i" class="mc-bt-refth">
+                  <img :src="r.src" alt="" :style="{ objectPosition: r.pos }" />
+                  <button class="mc-bt-pickx" title="移除参考图" @click="btRefs.splice(i, 1)">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
+                  </button>
+                </div>
+                <button v-if="btRefs.length > 3" class="mc-bt-fold" @click="refExpanded = false">收起</button>
+              </template>
+            </div>
+          </div>
+          <div v-else class="mc-bt-crow pick">
+            <!-- 超过 3 张：首图＋层叠＋数量角标，点击展开 -->
+            <div v-if="btPicked.length > 3 && !pickExpanded" class="mc-bt-stack" title="点击展开全部已选图片" @click="pickExpanded = true">
+              <div class="mc-bt-stack-layer l3"><img :src="btPicked[2].src" alt="" /></div>
+              <div class="mc-bt-stack-layer l2"><img :src="btPicked[1].src" alt="" /></div>
+              <div class="mc-bt-stack-th"><img :src="btPicked[0].src" alt="" /></div>
+              <span class="mc-bt-stack-badge">{{ btPicked.length }}</span>
+            </div>
+            <template v-else>
+              <div v-for="it in btPicked" :key="it.key" class="mc-bt-pickth">
+                <img :src="it.src" alt="" />
+                <button class="mc-bt-pickx" title="移除" @click="unpickBt(it.key)">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
+                </button>
+              </div>
+              <button v-if="btPicked.length > 3" class="mc-bt-fold" @click="pickExpanded = false">收起</button>
+            </template>
+            <span v-if="!btPicked.length" class="mc-bt-pickempty">左侧选择的商品图片将展示在这里，支持单选或多选</span>
+          </div>
+          <textarea v-model="prompt" class="mc-bt-input" rows="2" :placeholder="btMode === 'set' ? '描述你想如何生成套图（可选）' : '描述你想如何美化图片（可选）'" />
+          <div class="mc-bt-cbar">
+            <!-- 上传参考图入口下移至工具行：候选弹层仍向上展开 -->
+            <div v-if="btMode === 'set'" class="mc-bt-refwrap">
               <button class="sg-btn mc-bt-upload" @click="btRefOpen = !btRefOpen">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 15V4M7.5 8L12 3.5 16.5 8M4 20h16" /></svg>
                 上传参考图
               </button>
-              <!-- 参考图候选弹层：多选，选中结果落到按钮下方指定行 -->
+              <!-- 参考图候选弹层：多选，选中结果落到上方指定行 -->
               <div v-if="btRefOpen" class="mc-bt-refpop">
                 <div v-for="(r, i) in LIB_IMGS" :key="i" class="mc-bt-refopt" :class="{ sel: btRefs.some((x) => x.src === r.src && x.pos === r.pos) }" @click="toggleRef(r)">
                   <img :src="r.src" alt="" :style="{ objectPosition: r.pos }" />
                 </div>
               </div>
             </div>
-            <div v-if="btRefs.length" class="mc-bt-refrow">
-              <div v-for="(r, i) in btRefs" :key="i" class="mc-bt-refth">
-                <img :src="r.src" alt="" :style="{ objectPosition: r.pos }" />
-                <button class="mc-bt-pickx" title="移除参考图" @click="btRefs.splice(i, 1)">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
-                </button>
-              </div>
-            </div>
-          </div>
-          <div v-else class="mc-bt-crow pick">
-            <div v-for="it in btPicked" :key="it.key" class="mc-bt-pickth">
-              <img :src="it.src" alt="" />
-              <button class="mc-bt-pickx" title="移除" @click="unpickBt(it.key)">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
-              </button>
-            </div>
-            <span v-if="!btPicked.length" class="mc-bt-pickempty">左侧选择的商品图片将展示在这里，支持单选或多选</span>
-          </div>
-          <textarea v-model="prompt" class="mc-bt-input" rows="2" :placeholder="btMode === 'set' ? '描述你想如何生成套图（可选）' : '描述你想如何美化图片（可选）'" />
-          <div class="mc-bt-cbar">
             <BubbleSelect class-name="mc-gen-select" :value="btModel" :options="['图片 5.0 Lite', '图片 4.6', '图片 4.0']" @change="(v: string) => { btModel = v; }" />
             <span class="mc-gen-spacer" />
             <span class="mc-bt-credit" title="算力余额">
@@ -690,10 +806,54 @@ const tDel = (t: BeautyTask, i: number) => { t.imgs.splice(i, 1); };
       </div>
     </div>
 
+    <!-- 生成图查看：与去水印同款暗幕查看器（翻页/计数/缩放/全屏，Esc 关闭） -->
+    <div v-if="btView" ref="btMaskRef" class="cpd-preview-mask">
+      <button type="button" class="cpd-preview-close" title="关闭（Esc）" @click="btView = null">✕</button>
+      <div class="cpd-preview-stage" @click.self="btView = null">
+        <div class="cpd-preview-imgwrap" :style="{ transform: `scale(${btZoom})` }">
+          <img ref="btImgRef" :src="btView.list[btView.idx]" alt="" />
+          <!-- 修改尺寸＋自由裁剪：选区层就地渲染，面板 Teleport 到暗幕（共享组件） -->
+          <ImgSizeCrop v-model:open="btSizePanel" :src="btView.list[btView.idx]" :zoom="btZoom" :img-el="btImgRef" :commit="commitBtSize" />
+        </div>
+      </div>
+      <div class="cpd-preview-bar">
+        <button type="button" class="cpd-bar-btn" title="上一张" :disabled="btView.list.length < 2" @click="stepBtView(-1)">‹</button>
+        <span class="cpd-bar-count">{{ btView.idx + 1 }} / {{ btView.list.length }}</span>
+        <button type="button" class="cpd-bar-btn" title="下一张" :disabled="btView.list.length < 2" @click="stepBtView(1)">›</button>
+        <i class="cpd-bar-div" />
+        <button type="button" class="cpd-bar-btn" title="缩小" :disabled="btZoom <= 0.5" @click="btZoomBy(-0.25)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21M7.5 10.5h6" /></svg>
+        </button>
+        <button type="button" class="cpd-bar-btn" title="放大" :disabled="btZoom >= 3" @click="btZoomBy(0.25)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21M10.5 7.5v6M7.5 10.5h6" /></svg>
+        </button>
+        <button type="button" class="cpd-bar-btn" :title="btFull ? '退出全屏' : '全屏'" @click="toggleBtFull">
+          <svg v-if="!btFull" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /></svg>
+        </button>
+        <template v-if="editing">
+          <i class="cpd-bar-div" />
+          <button type="button" class="cpd-bar-size" :class="btSizePanel ? 'on' : ''" title="修改图片尺寸" @click="btSizePanel = !btSizePanel">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5" /><path d="M20 15v5h-5" /><path d="m4 4 7 7" /><path d="m20 20-7-7" /></svg>
+            修改尺寸
+          </button>
+        </template>
+      </div>
+    </div>
+
     <!-- 查看预览：遮罩 -->
     <div v-if="preview" class="mc-preview" @click="preview = ''">
       <img :src="preview" alt="" />
     </div>
+
+    <!-- 批量替换二次确认：生成图按顺序覆盖左侧商品图 -->
+    <Modal v-if="batchOpen" title="批量替换" sub="生成图覆盖左侧商品图" @close="batchOpen = null">
+      <div class="mc-cancel-tip">将使用本任务 {{ batchOks.length }} 张成功生成图，按顺序覆盖左侧前 {{ Math.min(batchOks.length, btAllItems.length) }} 张商品图，原图将被替换。确认替换？</div>
+      <template #foot>
+        <button class="sg-btn" @click="batchOpen = null">取消</button>
+        <button class="sg-btn primary" @click="doBatchReplace">确认替换</button>
+      </template>
+    </Modal>
 
     <!-- 取消编辑二次确认：未保存修改将丢失 -->
     <Modal v-if="cancelOpen" title="取消编辑" sub="未保存的素材修改将会丢失" @close="cancelOpen = false">

@@ -64,7 +64,7 @@
   margin-bottom: -1px;
   padding-bottom: 1px;
   color: var(--primary);
-  font-weight: 600;
+  font-weight: 500;
   background: var(--color-bg);
   border-color: var(--color-border);
 }
@@ -94,8 +94,8 @@
   border-radius: 50%;
   background: linear-gradient(135deg, var(--color-primary-hover), var(--color-primary));
   color: #fff;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--fs-base);
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -108,7 +108,7 @@
   gap: 8px;
   padding: 8px 10px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #445066;
   cursor: pointer;
   user-select: none;
@@ -205,7 +205,7 @@
 .rc-page .qc-range-toggle button.active {
   background: #fff;
   color: var(--primary);
-  font-weight: 600;
+  font-weight: 500;
   box-shadow: 0 1px 4px rgba(26, 34, 56, 0.1);
 }
 .rc-group-tabs { margin-bottom: 12px; }
@@ -339,7 +339,7 @@
   padding-left: 8px;
   border-left: 3px solid var(--primary);
   font-size: var(--fs-md);
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text);
 }
 .rc-duty { display: grid; grid-template-columns: 200px 1fr; gap: 20px; }
@@ -548,7 +548,7 @@
   background: var(--color-primary-light);
   color: var(--color-primary);
   font-size: var(--fs-base);
-  font-weight: 600;
+  font-weight: 500;
 }
 .rc-trf-ava.sm { width: 24px; height: 24px; font-size: var(--fs-aux); }
 .rc-trf-search { margin-bottom: 10px; }
@@ -608,7 +608,7 @@
 /* ---------- 智能分流页：分区 + 分组策略表 ---------- */
 .rc-sec-title {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
   color: #202532;
   position: relative;
   padding-left: 10px;
@@ -711,7 +711,7 @@
   border-radius: 8px;
   padding: 10px 14px;
   margin-bottom: 8px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #445066;
 }
 .rc-cfg-row a { color: var(--primary); cursor: pointer; white-space: nowrap; }
@@ -732,27 +732,27 @@
   cursor: pointer;
 }
 .rc-seg-tabs button.cur { background: #fff; color: var(--primary); font-weight: 600; box-shadow: 0 1px 4px rgba(26, 34, 56, 0.1); }
-.rc-mode-line { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #445066; margin-bottom: 10px; }
+.rc-mode-line { display: flex; align-items: center; gap: 8px; font-size: var(--fs-base); color: #445066; margin-bottom: 10px; }
 .rc-mode-radios { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
-.rc-radio { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #445066; cursor: pointer; }
+.rc-radio { display: flex; align-items: center; gap: 6px; font-size: var(--fs-base); color: #445066; cursor: pointer; }
 .rc-radio b { font-weight: 600; }
 .rc-radio span { color: #8b92a1; font-size: 12px; }
-.rc-mode-metrics { display: flex; gap: 16px; margin-bottom: 12px; font-size: 13px; color: #445066; flex-wrap: wrap; }
+.rc-mode-metrics { display: flex; gap: 16px; margin-bottom: 12px; font-size: var(--fs-base); color: #445066; flex-wrap: wrap; }
 .rc-mode-metrics label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .rc-rules { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
-.rc-rule { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #445066; flex-wrap: wrap; }
+.rc-rule { display: flex; align-items: center; gap: 8px; font-size: var(--fs-base); color: #445066; flex-wrap: wrap; }
 .rc-rule-kw { color: var(--primary); font-weight: 700; width: 64px; text-align: center; }
 .rc-rule-conj { width: 64px; height: 32px; border-radius: 8px; }
 .rc-rule-v { width: 64px; height: 32px; border-radius: 8px; text-align: center; }
 .pm-page.rc-page .rc-rule-v { width: 64px; flex: none; }
-.rc-people-head { display: flex; align-items: center; font-size: 13px; font-weight: 700; color: #202532; margin-bottom: 8px; }
+.rc-people-head { display: flex; align-items: center; font-size: var(--fs-base); font-weight: 700; color: #202532; margin-bottom: 8px; }
 .rc-people-head a { margin-left: auto; color: var(--primary); font-weight: 400; cursor: pointer; }
 .rc-people-head a:hover { text-decoration: underline; }
 .rc-people-box {
   border: 1px solid #e5e9f0;
   border-radius: 10px;
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #445066;
   display: flex;
   align-items: center;
@@ -768,7 +768,7 @@
 .rc-pick-block { margin-bottom: 10px; }
 .rc-pick-block:last-child { margin-bottom: 0; }
 .rc-pick-group { font-size: 12px; color: #8b92a1; margin-bottom: 6px; }
-.rc-pick-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #445066; padding: 4px 0; cursor: pointer; }
+.rc-pick-item { display: flex; align-items: center; gap: 8px; font-size: var(--fs-base); color: #445066; padding: 4px 0; cursor: pointer; }
 
 /* =========================================================
    实时客服接待（平台账号接待监控）
@@ -794,7 +794,7 @@
   align-items: center;
   padding: 0 16px;
   border-radius: var(--radius-md);
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: var(--color-text-3);
   cursor: pointer;
   white-space: nowrap;
@@ -866,7 +866,7 @@
 
 /* ── 店铺流：单列全宽卡 ── */
 .rc-live-stores { display: flex; flex-direction: column; gap: 16px; }
-.rc-live-empty { padding: 60px 0; text-align: center; color: var(--color-text-3); font-size: 13px; }
+.rc-live-empty { padding: 60px 0; text-align: center; color: var(--color-text-3); font-size: var(--fs-base); }
 .rc-store { padding: 16px; box-shadow: var(--shadow-md); display: flex; flex-direction: column; gap: 12px; }
 .rc-store-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .rc-store-name { font-size: 15px; font-weight: 700; color: var(--color-text); }
@@ -929,13 +929,13 @@
 .rc-card-staff { display: flex; flex-direction: column; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--color-fill); }
 .rc-card-staff-row { display: flex; align-items: center; gap: 16px; }
 .rc-card-staff-row .rc-sub-main { flex: 1; min-width: 0; }
-.rc-acc-empty { text-align: center; color: var(--color-text-3); padding: 24px 0; font-size: 13px; }
+.rc-acc-empty { text-align: center; color: var(--color-text-3); padding: 24px 0; font-size: var(--fs-base); }
 /* 名称/ID 两行同左缘，整体位于 caret 之后 */
 .rc-acc-main { min-width: 0; flex: 1; }
 .rc-acc-name {
   display: block;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--fs-base);
+  font-weight: 500;
   color: var(--color-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -968,7 +968,7 @@
   background: transparent;
   padding: 0;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: var(--primary);
   cursor: pointer;
   white-space: nowrap;
@@ -981,7 +981,7 @@
   background: transparent;
   padding: 0;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: var(--primary);
   cursor: pointer;
   white-space: nowrap;
@@ -1102,7 +1102,7 @@
   justify-content: center;
   color: #fff;
   font-size: var(--fs-md);
-  font-weight: 600;
+  font-weight: 500;
   background: linear-gradient(135deg, var(--primary), var(--primary-hover));
 }
 /* 状态圆形角标：头像右下角（在线绿/小休橙/离线灰） */
@@ -1159,7 +1159,7 @@
   align-items: center;
   justify-content: center;
   font-size: var(--fs-aux);
-  font-weight: 600;
+  font-weight: 500;
 }
 .rcm-mava.buy { background: var(--color-primary-light); color: var(--color-primary); }
 .rcm-mava.ai { background: var(--color-success-light); color: var(--color-success); }

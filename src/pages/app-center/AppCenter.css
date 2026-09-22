@@ -8,7 +8,6 @@
   height: 100%;
   background: #f7f8fa;
   color: #1a1a1a;
-  font-family: Arial, 'Microsoft YaHei', sans-serif;
 }
 
 /* ---------- 左侧栏 ---------- */
@@ -42,7 +41,7 @@
   border: none;
   background: transparent;
   outline: none;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #333;
 }
 
@@ -86,7 +85,7 @@
 
 .ap-cats button:hover { background: #f2f3f7; }
 
-.ap-cats button.on { background: #f2f3f7; font-weight: 600; }
+.ap-cats button.on { background: #f2f3f7; font-weight: 500; }
 
 .ap-cat-ic { color: var(--color-primary); flex-shrink: 0; }
 
@@ -181,7 +180,7 @@
 
 .ap-list-title {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .ap-sorts {
@@ -196,7 +195,7 @@
   gap: 5px;
   border: none;
   background: transparent;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #333;
   cursor: pointer;
 }
@@ -235,7 +234,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
+  font-weight: 600;
   flex-shrink: 0;
   border: 1px solid rgba(0, 0, 0, 0.05);
   line-height: 1;
@@ -243,7 +242,7 @@
 
 .ap-row-name {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   color: #1a1a1a;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -251,7 +250,7 @@
 }
 
 .ap-row-desc {
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #999;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -267,7 +266,7 @@
   border-radius: 6px;
   background: #f2f3f7;
   color: var(--color-primary);
-  font-size: 13px;
+  font-size: var(--fs-base);
   cursor: pointer;
   flex-shrink: 0;
   transition: background 0.15s, color 0.15s;
@@ -362,7 +361,7 @@
 
 .ap-preview-title {
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 600;
   color: #1a1a1a;
 }
 
@@ -411,7 +410,7 @@
 
 .ap-detail-info h2 { font-size: 20px; font-weight: 700; }
 
-.ap-detail-info p { font-size: 13px; color: #666; }
+.ap-detail-info p { font-size: var(--fs-base); color: #666; }
 
 .ap-btn-solid {
   align-self: flex-start;
@@ -421,7 +420,7 @@
   border-radius: 16px;
   background: var(--color-primary);
   color: #fff;
-  font-size: 13px;
+  font-size: var(--fs-base);
   cursor: pointer;
 }
 
@@ -556,7 +555,7 @@
 
 .ap-detail-sub {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   margin-bottom: 16px;
 }
 
@@ -590,7 +589,7 @@
 
 .ap-mine-tabs button.on {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 500;
   color: #1a1a1a;
 }
 
@@ -601,7 +600,7 @@
   border-radius: 8px;
   background: var(--color-primary);
   color: #fff;
-  font-size: 13px;
+  font-size: var(--fs-base);
   cursor: pointer;
 }
 
@@ -637,7 +636,7 @@
   border: none;
   background: transparent;
   text-align: left;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #333;
   cursor: pointer;
 }
@@ -720,7 +719,7 @@
   padding: 0 14px;
   background: #f2f3f7;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #333;
   overflow: hidden;
   white-space: nowrap;
@@ -738,7 +737,7 @@
   border: 1px solid var(--color-primary);
   border-radius: 6px;
   padding: 0 12px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   outline: none;
 }
 
@@ -831,7 +830,7 @@
   border-radius: 6px;
   background: #f2f3f7;
   color: #98a0b3;
-  font-size: 13px;
+  font-size: var(--fs-base);
   cursor: pointer;
   text-align: left;
   padding: 0 14px;
@@ -886,7 +885,7 @@
 
 .ap-modal-body {
   padding: 28px 24px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #333;
   line-height: 1.8;
 }
@@ -901,12 +900,12 @@
 
 /* 更新弹窗：版本变化 + 更新内容 */
 .ap-upd-ver { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-.ap-upd-ver span { font-size: 13px; color: #98a0b3; }
+.ap-upd-ver span { font-size: var(--fs-base); color: #98a0b3; }
 .ap-upd-ver svg { color: var(--color-primary); }
 .ap-upd-ver b { font-size: 14px; color: var(--color-primary); }
 .ap-upd-note { padding: 12px 14px; border-radius: 8px; background: #f2f3f7; }
 .ap-upd-note i { display: block; font-style: normal; font-size: 12px; color: #98a0b3; margin-bottom: 6px; }
-.ap-upd-note p { margin: 0; font-size: 13px; color: #4a5162; line-height: 1.7; }
+.ap-upd-note p { margin: 0; font-size: var(--fs-base); color: #4a5162; line-height: 1.7; }
 
 .ap-btn-plain {
   height: 36px;
@@ -915,7 +914,7 @@
   border-radius: 6px;
   background: #fff;
   color: #333;
-  font-size: 13px;
+  font-size: var(--fs-base);
   cursor: pointer;
 }
 
@@ -937,7 +936,7 @@
 
 .ap-label {
   display: block;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #333;
   margin: 22px 0 10px;
 }
@@ -959,7 +958,7 @@
   border-radius: 8px;
   background: #f2f3f7;
   padding: 0 60px 0 14px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #333;
   outline: none;
 }
@@ -974,7 +973,7 @@
   border-radius: 8px;
   background: #f2f3f7;
   padding: 12px 14px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   font-family: inherit;
   color: #333;
   outline: none;
@@ -999,7 +998,7 @@
   border-radius: 8px;
   background: #f2f3f7;
   color: #666;
-  font-size: 13px;
+  font-size: var(--fs-base);
   cursor: pointer;
 }
 
@@ -1022,7 +1021,7 @@
   border: none;
   background: transparent;
   color: var(--color-primary);
-  font-size: 13px;
+  font-size: var(--fs-base);
   cursor: pointer;
   padding: 0;
 }
@@ -1060,7 +1059,7 @@
   border-radius: 8px;
   background: #f2f3f7;
   color: #333;
-  font-size: 13px;
+  font-size: var(--fs-base);
   cursor: pointer;
   flex-shrink: 0;
 }
@@ -1084,7 +1083,7 @@
   border-radius: 4px;
   background: transparent;
   color: #333;
-  font-size: 13px;
+  font-size: var(--fs-base);
   cursor: pointer;
 }
 
@@ -1100,7 +1099,7 @@
   border-radius: 4px;
   background: #f6ffed;
   color: var(--color-success);
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 
 .ap-tag button {
@@ -1108,7 +1107,7 @@
   background: transparent;
   color: var(--color-success);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--fs-base);
   padding: 0;
 }
 
@@ -1153,14 +1152,14 @@
 /* 新建标签弹窗：名称 + 拾色器 + 预览 */
 .ap-tm-field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
 
-.ap-tm-field > label { font-size: 13px; color: #5a6172; }
+.ap-tm-field > label { font-size: var(--fs-base); color: #5a6172; }
 
 .ap-tm-field input {
   height: 34px;
   border: 1px solid #e4e5eb;
   border-radius: 6px;
   padding: 0 10px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   outline: none;
 }
 
@@ -1193,7 +1192,7 @@
 
 .ap-tm-custom em { font-style: normal; font-size: 12px; color: #8a91a0; }
 
-.ap-tm-preview { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #5a6172; }
+.ap-tm-preview { display: flex; align-items: center; gap: 10px; font-size: var(--fs-base); color: #5a6172; }
 
 .ap-form-foot {
   display: flex;
@@ -1210,7 +1209,7 @@
   transform: translateX(-50%);
   background: rgba(32, 37, 50, 0.92);
   color: #fff;
-  font-size: 13px;
+  font-size: var(--fs-base);
   padding: 10px 18px;
   border-radius: 8px;
   z-index: 3100;
@@ -1271,7 +1270,7 @@
   padding: 22px 12px;
   text-align: center;
   color: #98a0b3;
-  font-size: 13px;
+  font-size: var(--fs-base);
   background: #fafbfc;
   border: 1px dashed #e4e5eb;
   border-radius: 8px;
@@ -1314,7 +1313,7 @@ button.ap-home-app { cursor: pointer; }
 .ap-home-app-name {
   display: block;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   color: #1f2329;
   max-width: 110px;
   overflow: hidden;
@@ -1413,7 +1412,7 @@ button.ap-home-app { cursor: pointer; }
 .ap-rel-main b {
   font-size: 14px;
   color: #1f2329;
-  font-weight: 600;
+  font-weight: 500;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -1456,7 +1455,7 @@ button.ap-home-app { cursor: pointer; }
   gap: 6px;
 }
 
-.ap-dash-kpi .lb { font-size: 13px; color: #666; }
+.ap-dash-kpi .lb { font-size: var(--fs-base); color: #666; }
 
 .ap-dash-kpi .vl { font-size: 26px; font-weight: 700; color: #1f2329; line-height: 1.1; }
 
@@ -1532,7 +1531,7 @@ button.ap-home-app { cursor: pointer; }
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   color: #fff;
   background: #c0c6d4;
   flex-shrink: 0;
@@ -1546,7 +1545,7 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-dash-top3-row .inf { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 
-.ap-dash-top3-row .inf b { font-size: 13px; color: #1f2329; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ap-dash-top3-row .inf b { font-size: var(--fs-base); color: #1f2329; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .ap-dash-top3-row .inf i { font-style: normal; font-size: 12px; color: #98a0b3; }
 
@@ -1647,7 +1646,7 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-trend-foot .pd { margin-left: auto; color: #98a0b3; }
 
-.ap-trend-closebtn { border: 1px solid #e5e7ef; background: #fff; border-radius: 8px; padding: 6px 18px; font-size: 13px; color: #333; cursor: pointer; }
+.ap-trend-closebtn { border: 1px solid #e5e7ef; background: #fff; border-radius: 8px; padding: 6px 18px; font-size: var(--fs-base); color: #333; cursor: pointer; }
 
 .ap-trend-closebtn:hover { border-color: var(--color-primary); color: var(--color-primary); }
 
@@ -1689,7 +1688,7 @@ button.ap-home-app { cursor: pointer; }
 .ap-dash-trow {
   padding: 12px 16px;
   border-bottom: 1px solid #f5f6f8;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #333;
 }
 
@@ -1777,7 +1776,7 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-fb-tabs button.on { background: #fff; color: #1f2329; font-weight: 600; box-shadow: 0 1px 3px rgba(31, 35, 41, 0.12); }
 
-.ap-fb-field-label { font-size: 13px; font-weight: 600; color: #1f2329; margin: 0 0 8px; }
+.ap-fb-field-label { font-size: var(--fs-base); font-weight: 600; color: #1f2329; margin: 0 0 8px; }
 .ap-fb-field-label.mt { margin-top: 16px; }
 
 .ap-fb-tip.right { text-align: right; margin-top: 6px; }
@@ -1802,7 +1801,7 @@ button.ap-home-app { cursor: pointer; }
   border: 1px solid #e4e5eb;
   border-radius: 10px;
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   font-family: inherit;
   line-height: 1.6;
   resize: vertical;
@@ -1818,7 +1817,7 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-fb-tip { font-size: 12px; color: #98a0b3; }
 
-.ap-fb-sub { font-size: 13px; font-weight: 600; color: #1f2329; margin: 18px 0 10px; }
+.ap-fb-sub { font-size: var(--fs-base); font-weight: 600; color: #1f2329; margin: 18px 0 10px; }
 
 .ap-fb-list { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; flex: 1; min-height: 0; }
 
@@ -1900,7 +1899,7 @@ button.ap-home-app { cursor: pointer; }
 
 .ap-fb-msg-head i { font-style: normal; color: #98a0b3; }
 
-.ap-fb-msg p { margin: 0; font-size: 13px; line-height: 1.6; color: #202532; white-space: pre-wrap; }
+.ap-fb-msg p { margin: 0; font-size: var(--fs-base); line-height: 1.6; color: #202532; white-space: pre-wrap; }
 
 .ap-fb-empty { font-size: 12px; color: #98a0b3; text-align: center; padding: 14px 0; }
 
@@ -1924,7 +1923,7 @@ button.ap-home-app { cursor: pointer; }
   background: transparent;
   padding: 6px 18px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #646a73;
   cursor: pointer;
 }
@@ -1932,7 +1931,7 @@ button.ap-home-app { cursor: pointer; }
 .ap-rank-tabs button.on {
   background: #fff;
   color: #1f2329;
-  font-weight: 600;
+  font-weight: 500;
   box-shadow: 0 1px 2px rgba(31, 35, 41, 0.08);
 }
 
@@ -1996,7 +1995,7 @@ button.ap-rank-row:hover .ap-rank-name { color: var(--color-primary); }
   text-overflow: ellipsis;
 }
 
-.ap-rank-row em { font-style: normal; font-size: 13px; color: #646a73; flex-shrink: 0; }
+.ap-rank-row em { font-style: normal; font-size: var(--fs-base); color: #646a73; flex-shrink: 0; }
 
 .ap-rank-caret { color: #98a0b3; flex-shrink: 0; transition: transform 0.2s; }
 
@@ -2033,7 +2032,7 @@ button.ap-rank-row:hover .ap-rank-name { color: var(--color-primary); }
 /* ---------- 新建第二步：类型/部署/上传文件/发布 ---------- */
 .ap-radio-line { display: flex; align-items: center; gap: 28px; }
 
-.ap-radio { display: flex; align-items: center; gap: 7px; font-size: 13px; color: #333; cursor: pointer; }
+.ap-radio { display: flex; align-items: center; gap: 7px; font-size: var(--fs-base); color: #333; cursor: pointer; }
 
 .ap-radio input { accent-color: var(--color-primary); width: 15px; height: 15px; cursor: pointer; }
 
@@ -2055,9 +2054,9 @@ button.ap-rank-row:hover .ap-rank-name { color: var(--color-primary); }
 
 .ap-upload-file .ap-uf-ic { color: var(--color-primary); }
 
-.ap-upload-file .ap-uf-empty { font-size: 13px; color: #98a0b3; }
+.ap-upload-file .ap-uf-empty { font-size: var(--fs-base); color: #98a0b3; }
 
-.ap-upload-file .ap-uf-name { font-size: 13px; color: #333; }
+.ap-upload-file .ap-uf-name { font-size: var(--fs-base); color: #333; }
 
 .ap-run-line,
 .ap-perm-line {
@@ -2071,11 +2070,11 @@ button.ap-rank-row:hover .ap-rank-name { color: var(--color-primary); }
   border-radius: 8px;
 }
 
-.ap-run-line span { font-size: 13px; color: #333; }
+.ap-run-line span { font-size: var(--fs-base); color: #333; }
 
 .ap-run-line span.ph { color: #98a0b3; }
 
-.ap-perm-line > span { font-size: 13px; color: #98a0b3; }
+.ap-perm-line > span { font-size: var(--fs-base); color: #98a0b3; }
 
 .ap-perm-pop {
   position: absolute;
@@ -2097,7 +2096,7 @@ button.ap-rank-row:hover .ap-rank-name { color: var(--color-primary); }
   background: transparent;
   text-align: left;
   padding: 8px 10px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #333;
   border-radius: 6px;
   cursor: pointer;
@@ -2122,7 +2121,7 @@ button.ap-rank-row:hover .ap-rank-name { color: var(--color-primary); }
 /* ---------- 详情：新功能介绍 ---------- */
 .ap-feat-entry ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
 
-.ap-feat-entry li { position: relative; padding-left: 16px; font-size: 13px; color: #1f2329; line-height: 1.7; }
+.ap-feat-entry li { position: relative; padding-left: 16px; font-size: var(--fs-base); color: #1f2329; line-height: 1.7; }
 
 .ap-feat-entry li::before { content: '–'; position: absolute; left: 0; color: #1f2329; }
 
@@ -2177,7 +2176,7 @@ button.ap-dev:hover { background: #eceef2; }
 
 .ap-dev-app-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 
-.ap-dev-app-main b { font-size: 13px; color: #1f2329; }
+.ap-dev-app-main b { font-size: var(--fs-base); color: #1f2329; }
 
 .ap-dev-app-main i { font-style: normal; font-size: 12px; color: #98a0b3; }
 
@@ -2192,9 +2191,9 @@ button.ap-dev:hover { background: #eceef2; }
 
 .ap-rate-left b { font-size: 44px; font-weight: 700; color: #1f2329; line-height: 1; }
 
-.ap-rate-left span { font-size: 13px; color: #4a5162; }
+.ap-rate-left span { font-size: var(--fs-base); color: #4a5162; }
 
-.ap-rate-left i { font-style: normal; margin-left: auto; font-size: 13px; color: #4a5162; }
+.ap-rate-left i { font-style: normal; margin-left: auto; font-size: var(--fs-base); color: #4a5162; }
 
 .ap-rate-hist { flex: 1; display: flex; flex-direction: column; gap: 5px; }
 
@@ -2251,13 +2250,13 @@ button.ap-dev:hover { background: #eceef2; }
 
 .ap-rev-stars { display: flex; gap: 3px; margin-bottom: 8px; }
 
-.ap-rev-card p, .ap-rev-item p { margin: 0; font-size: 13px; color: #4a5162; line-height: 1.7; }
+.ap-rev-card p, .ap-rev-item p { margin: 0; font-size: var(--fs-base); color: #4a5162; line-height: 1.7; }
 
 .ap-rev-form { margin-top: 16px; padding: 16px 18px; border-radius: 10px; background: #f7f8fa; border: 1px solid #ececf0; }
 
 .ap-rev-pick { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
 
-.ap-rev-pick span { font-size: 13px; color: #4a5162; margin-right: 6px; }
+.ap-rev-pick span { font-size: var(--fs-base); color: #4a5162; margin-right: 6px; }
 
 .ap-rev-pick button { border: none; background: none; padding: 2px; cursor: pointer; color: #d4d8e0; }
 
@@ -2265,17 +2264,17 @@ button.ap-dev:hover { background: #eceef2; }
 
 .ap-rev-form input {
   width: 100%; height: 36px; margin-bottom: 8px; padding: 0 12px;
-  border: 1px solid #d4d8e0; border-radius: 6px; font-size: 13px; color: #1f2329; background: #fff;
+  border: 1px solid #d4d8e0; border-radius: 6px; font-size: var(--fs-base); color: #1f2329; background: #fff;
 }
 
 .ap-rev-form textarea {
   width: 100%; padding: 10px 12px; resize: none;
-  border: 1px solid #d4d8e0; border-radius: 6px; font-size: 13px; color: #1f2329; background: #fff; font-family: inherit;
+  border: 1px solid #d4d8e0; border-radius: 6px; font-size: var(--fs-base); color: #1f2329; background: #fff; font-family: inherit;
 }
 
 .ap-rev-foot { display: flex; justify-content: flex-end; align-items: center; margin-top: 10px; }
 
-.ap-rev-collapse { border: none; background: none; padding: 0 14px 0 0; font-family: inherit; font-size: 13px; color: #98a0b3; cursor: pointer; }
+.ap-rev-collapse { border: none; background: none; padding: 0 14px 0 0; font-family: inherit; font-size: var(--fs-base); color: #98a0b3; cursor: pointer; }
 
 .ap-rev-collapse:hover { color: #445066; }
 
@@ -2289,7 +2288,7 @@ button.ap-dev:hover { background: #eceef2; }
 
 .ap-rev-form-closed:hover { background: #f2f3f7; }
 
-.ap-rev-form-closed span { font-size: 13px; color: #4a5162; margin-right: 6px; }
+.ap-rev-form-closed span { font-size: var(--fs-base); color: #4a5162; margin-right: 6px; }
 
 .ap-rev-form-closed i { display: flex; color: #d4d8e0; font-style: normal; }
 
@@ -2297,7 +2296,7 @@ button.ap-dev:hover { background: #eceef2; }
 
 .ap-rev-form-closed em { position: absolute; left: 50%; transform: translateX(-50%); font-style: normal; font-size: 12px; color: var(--color-primary); }
 
-.ap-rev-tip { margin-top: 14px; font-size: 13px; color: #98a0b3; }
+.ap-rev-tip { margin-top: 14px; font-size: var(--fs-base); color: #98a0b3; }
 
 /* 评价配图展示 */
 .ap-rev-imgs { display: flex; gap: 8px; margin-top: 8px; }
@@ -2352,7 +2351,7 @@ button.ap-dev:hover { background: #eceef2; }
 
 .ap-rev-reply i { display: block; margin-bottom: 4px; font-style: normal; font-size: 12px; color: var(--color-primary); }
 
-.ap-rev-reply p { margin: 0; font-size: 13px; color: #445066; line-height: 1.6; }
+.ap-rev-reply p { margin: 0; font-size: var(--fs-base); color: #445066; line-height: 1.6; }
 
 /* ---------- 消息中心 ---------- */
 .ap-msg-tabs { display: flex; gap: 26px; padding: 16px 24px 0; border-bottom: 1px solid #e8ebf1; }
@@ -2432,7 +2431,7 @@ button.ap-dev:hover { background: #eceef2; }
 .ap-msg-rail button {
   display: flex; align-items: center; gap: 12px; padding: 12px 14px;
   border: none; border-radius: 8px; background: transparent; cursor: pointer;
-  font-family: inherit; font-size: 13px; color: #445066; text-align: left;
+  font-family: inherit; font-size: var(--fs-base); color: #445066; text-align: left;
 }
 
 .ap-msg-rail button:hover { background: #f5f6fa; }
@@ -2481,25 +2480,25 @@ button.ap-dev:hover { background: #eceef2; }
 
 .ap-msg-rev { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 8px; background: #f7f8fa; margin-top: 10px; }
 
-.ap-msg-rev > span:first-child { font-size: 13px; font-weight: 600; color: #333; }
+.ap-msg-rev > span:first-child { font-size: var(--fs-base); font-weight: 600; color: #333; }
 
 .ap-msg-rev > span:first-child .ap-fb-type { margin-left: 6px; vertical-align: 1px; font-weight: 400; }
 
 .ap-msg-stars { display: flex; gap: 2px; }
 
-.ap-msg-rev p { margin: 0; font-size: 13px; color: #555; line-height: 1.6; }
+.ap-msg-rev p { margin: 0; font-size: var(--fs-base); color: #555; line-height: 1.6; }
 
 .ap-msg-reply { margin-top: 8px; padding: 8px 12px; border-left: 3px solid var(--color-primary); border-radius: 4px; background: #eaf2fe; }
 
 .ap-msg-reply i { display: block; margin-bottom: 4px; font-style: normal; font-size: 12px; color: var(--color-primary); }
 
-.ap-msg-reply p { margin: 0; font-size: 13px; color: #445066; line-height: 1.6; }
+.ap-msg-reply p { margin: 0; font-size: var(--fs-base); color: #445066; line-height: 1.6; }
 
 .ap-msg-replyform { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 
 .ap-msg-replyform input {
   flex: 1; height: 32px; padding: 0 10px; border: 1px solid #e4e5eb; border-radius: 8px;
-  font-size: 13px; color: #1f2329; outline: none; background: #fff;
+  font-size: var(--fs-base); color: #1f2329; outline: none; background: #fff;
 }
 
 .ap-msg-replyform input:focus { border-color: var(--color-primary); }
@@ -2508,7 +2507,7 @@ button.ap-dev:hover { background: #eceef2; }
 
 .ap-msg-replyform button {
   height: 32px; padding: 0 14px; border: 1px solid #e4e5eb; border-radius: 8px;
-  background: #fff; font-size: 13px; color: #555; cursor: pointer;
+  background: #fff; font-size: var(--fs-base); color: #555; cursor: pointer;
 }
 
 .ap-msg-replyform button.on { border-color: var(--color-primary); background: var(--color-primary); color: #fff; }
@@ -2532,7 +2531,7 @@ button.ap-dev:hover { background: #eceef2; }
 
 .ap-msg-m.admin i { color: var(--color-primary); }
 
-.ap-msg-m p { margin: 0; font-size: 13px; color: #445066; line-height: 1.6; }
+.ap-msg-m p { margin: 0; font-size: var(--fs-base); color: #445066; line-height: 1.6; }
 
 .ap-msg-note {
   margin: 16px 24px; padding: 12px 14px; border: 1px dashed #d7dbe2; border-radius: 8px;

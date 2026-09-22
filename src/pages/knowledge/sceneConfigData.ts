@@ -29,6 +29,14 @@ export const SC_STAGE_STATES: Record<string, string[]> = {
   发货后: ['部分发货', '待签收'],
   售后: ['已签收', '货到付款已签收', '顾客申请退款', '商家同意退款', '等待顾客退货', '顾客已退货', '商家拒绝退款', '退款成功', '已评价', '顾客申请换货', '退款关闭', '换货中，等待顾客确认收货', '交易关闭', '售后理由修改'],
 };
+/** 场景阶段→订单状态叶子映射（用户 2026-09-19 合并单块：阶段与订单状态同一块配置，售中=发货前+发货后） */
+export const SC_SCENE_STAGE_STATES: Record<string, string[]> = {
+  售前: [...SC_STAGE_STATES['售前']],
+  售中: [...SC_STAGE_STATES['发货前'], ...SC_STAGE_STATES['发货后']],
+  售后: [...SC_STAGE_STATES['售后']],
+};
+/** 订单状态大类→归属场景阶段（摘要折叠与阶段派生用） */
+const SC_STAGE_TO_SCENE: Record<string, string> = { 售前: '售前', 发货前: '售中', 发货后: '售中', 售后: '售后' };
 export const SC_BINDS = ['指定商品', '指定分类', '不绑定'] as const;
 export const SC_TITLES = ['不限', '包含', '不包含'] as const;
 export const SC_VALIDITY = ['永久有效', '指定时效'] as const;
@@ -102,7 +110,10 @@ export const typeCondText = (g: { condDef: ScTypeDef }): string => {
   for (const grp of SC_STAGES) {
     const leaves = SC_STAGE_STATES[grp] ?? [];
     const sel = leaves.filter((lv) => g.condDef.states.includes(lv));
-    if (sel.length) stParts.push(sel.length === leaves.length ? grp : sel.join('/'));
+    if (!sel.length) continue;
+    /* 整段全选且归属阶段已列于场景阶段=冗余信息，折叠进阶段不再重复列 */
+    if (sel.length === leaves.length && g.condDef.stages.includes(SC_STAGE_TO_SCENE[grp])) continue;
+    stParts.push(sel.length === leaves.length ? grp : sel.join('/'));
   }
   if (stParts.length) parts.push(`订单状态 ${stParts.join('/')}`);
   return parts.length ? parts.join(' · ') : '不限';
@@ -141,16 +152,16 @@ export const fbScenes = reactive<FbScene[]>([
     ],
   },
   {
-    id: 'FS02', name: '服务政策咨询', condDef: { stages: ['售前', '售后'], states: [...SC_STAGE_STATES['售后']] }, semDef: '客户询问发票开具、优惠活动、会员权益等店铺服务政策', questions: ['能开发票吗', '有没有优惠券', '会员有什么优惠'], creator: '李四', createdAt: '2026-07-18', subs: [
+    id: 'FS02', name: '服务政策咨询', condDef: { stages: ['售前', '售后'], states: [...SC_STAGE_STATES['售前'], ...SC_STAGE_STATES['售后']] }, semDef: '客户询问发票开具、优惠活动、会员权益等店铺服务政策', questions: ['能开发票吗', '有没有优惠券', '会员有什么优惠'], creator: '李四', createdAt: '2026-07-18', subs: [
       sub('FB04', '发票咨询', ['能开发票吗', '怎么开发票', '支持专票吗'], ['发票', '专票'], '智能回复', 58, { creator: '李四', createdAt: '2026-07-18', refs: 5, aiPrompt: '按电子发票口径答复，专票场景补充纳税人资质信息要求', conds: { ...defaultConds(), sceneStages: ['售后'], orderStates: ['已签收'] } }),
-      sub('FB05', '优惠活动咨询', ['有没有优惠券', '什么时候有活动', '新人有优惠吗'], ['优惠', '券', '活动'], '智能回复', 73, { creator: '李四', createdAt: '2026-07-19', refs: 4, conds: { ...defaultConds(), sceneStages: ['售前'], presale: '定金尾款状态' } }),
+      sub('FB05', '优惠活动咨询', ['有没有优惠券', '什么时候有活动', '新人有优惠吗'], ['优惠', '券', '活动'], '智能回复', 73, { creator: '李四', createdAt: '2026-07-19', refs: 4, conds: { ...defaultConds(), sceneStages: ['售前'], orderStates: [...SC_STAGE_STATES['售前']], presale: '定金尾款状态' } }),
       sub('FB06', '会员权益咨询', ['会员有什么优惠', '怎么加入会员'], ['会员', '权益'], '智能回复', 22, { creator: '李四', createdAt: '2026-07-20', refs: 1 }),
     ],
   },
   {
     id: 'FS03', name: '物流信息咨询', condDef: { stages: ['售前', '售中'], states: [...SC_STAGE_STATES['售前'], ...SC_STAGE_STATES['发货前'], ...SC_STAGE_STATES['发货后']] }, semDef: '客户询问物流进度、快递承运、能否指定快递、发货范围等物流履约信息', questions: ['我的包裹到哪里了', '可以指定快递吗', '能发新疆吗'], creator: '黄亚芳', createdAt: '2026-07-25', subs: [
       sub('FB13', '物流到哪里了', ['我的包裹到哪里了', '物流怎么还不更新', '帮我查下物流进度'], ['物流', '快递', '到哪'], '智能回复', 66, { createdAt: '2026-07-25', refs: 8, aiPrompt: '先安抚等件情绪，告知订单页查询路径，承诺长时间未更新可代催快递', conds: { ...defaultConds(), sceneStages: ['售中'], orderStates: ['待签收', '部分发货'] } }),
-      sub('FB14', '能否指定物流', ['可以指定快递吗', '能发顺丰吗', '你们用什么快递'], ['指定', '快递', '顺丰'], '智能回复', 29, { createdAt: '2026-07-26', refs: 2, conds: { ...defaultConds(), sceneStages: ['售前'], orderStates: ['未下单', '待发货'] } }),
+      sub('FB14', '能否指定物流', ['可以指定快递吗', '能发顺丰吗', '你们用什么快递'], ['指定', '快递', '顺丰'], '智能回复', 29, { createdAt: '2026-07-26', refs: 2, conds: { ...defaultConds(), sceneStages: ['售前', '售中'], orderStates: ['未下单', '待发货'] } }),
       sub('FB07', '发货范围咨询', ['能发新疆吗', '哪些地区不发货', '可以发到港澳台吗'], ['发货范围', '偏远', '地区'], '智能回复', 35, { createdAt: '2026-07-28', refs: 3, conds: { ...defaultConds(), sceneStages: ['售前'], orderStates: ['未下单'] } }),
     ],
   },

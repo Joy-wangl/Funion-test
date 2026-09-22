@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
+import DateRangePicker from '../../components/DateRangePicker.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
 import Modal from '../../components/Modal.vue';
 import MoreActions from '../../components/MoreActions.vue';
@@ -101,11 +102,7 @@ const confirmDel = () => {
         </div>
         <div class="sg-field">
           <label>创建时间</label>
-          <div class="sg-range">
-            <input class="sg-input" type="date" :value="filter.dateFrom" @input="filter.dateFrom = ($event.target as HTMLInputElement).value" />
-            <span>至</span>
-            <input class="sg-input" type="date" :value="filter.dateTo" @input="filter.dateTo = ($event.target as HTMLInputElement).value" />
-          </div>
+          <DateRangePicker v-model:from="filter.dateFrom" v-model:to="filter.dateTo" placeholder="请选择日期范围" />
         </div>
         <div class="sg-actions">
           <button class="sg-btn primary" @click="emit('create')">新建任务</button>

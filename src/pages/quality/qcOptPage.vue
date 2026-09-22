@@ -378,7 +378,7 @@ const statusMeta = (s: OptStatus) => OPT_STATUS_LABELS.find((x) => x.key === s)!
     size="md"
     @close="deleteIds = []"
   >
-    <div style="color: var(--text-3); font-size: 13px">删除仅移除优化任务记录，不影响监控列表中的系列与问题统计数据。</div>
+    <div style="color: var(--text-3); font-size: var(--fs-base)">删除仅移除优化任务记录，不影响监控列表中的系列与问题统计数据。</div>
     <template #foot>
       <button class="btn" @click="deleteIds = []">取消</button>
       <button class="btn danger" @click="doDelete">确认删除</button>

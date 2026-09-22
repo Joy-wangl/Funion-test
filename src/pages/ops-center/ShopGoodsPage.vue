@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
+import DateRangePicker from '../../components/DateRangePicker.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
 import SortTh from '../../components/SortTh.vue';
 import MoreActions from '../../components/MoreActions.vue';
 import Modal from '../../components/Modal.vue';
 import { pushToast } from '../../components/toast';
 import { PLATFORM_LOGO } from './data';
-import { sgProducts, SG_CHIPS, JM_CHIPS, SG_STATUS_META, sgRowActions, SG_OFF_FAIL_TYPES, SG_OFF_GROUP, SG_OFF_GROUPS, sgWarnType, sgSales7 } from './shopGoodsData';
+import { sgProducts, SG_CHIPS, JM_CHIPS, SG_STATUS_META, sgRowActions, SG_OFF_FAIL_TYPES, SG_OFF_GROUP, SG_OFF_GROUPS, sgWarnType, sgSales7, sgPrev7Avg } from './shopGoodsData';
 import type { SgProduct, SgTab } from './shopGoodsData';
 import SgDetailPage from './SgDetailPage.vue';
 import JmCreateDetailPage from './JmCreateDetailPage.vue';
@@ -36,16 +37,16 @@ const confirmDel = () => {
   pushToast(`已删除：商品「${p.title}」已从店铺商品列表移除`);
   delTarget.value = null;
 };
-/** 操作列：≤3 平铺、超出收「更多」；删除为危险动作固定第 3 位平铺，关联商品溢出时收「更多」 */
+/** 操作列：≤3 平铺、超出收「更多」；关联商品展示优先级高于删除，同现时删除溢出入「更多」 */
 type SgOp = { label: string; danger?: boolean; run: () => void };
 const sgOps = (p: SgProduct): SgOp[] => {
   const ops: SgOp[] = rowActions(p).map((a) => ({ label: a, run: () => { if (a === '商品详情') detail.value = p; } }));
-  ops.push({ label: '删除', danger: true, run: () => { delTarget.value = p; } });
   if (sgWarnType(p)) ops.push({ label: '关联商品', run: () => { relTarget.value = p; } });
+  ops.push({ label: '删除', danger: true, run: () => { delTarget.value = p; } });
   return ops;
 };
 const flatOps = (p: SgProduct) => sgOps(p).slice(0, 3);
-const moreOps = (p: SgProduct) => sgOps(p).slice(3).map((o) => ({ label: o.label, onClick: o.run }));
+const moreOps = (p: SgProduct) => sgOps(p).slice(3).map((o) => ({ label: o.label, danger: o.danger, onClick: o.run }));
 
 const tab = ref<SgTab>('视频号');
 const chip = ref('all');
@@ -67,7 +68,7 @@ const bpOpen = ref(false);
 const detailEdit = ref(false);
 
 /* 筛选 */
-const emptyFilter = { store: '', title: '', goodsId: '', seriesCode: '', tpl: '', linkId: '', source: '全部来源', publisher: '', strategy: '全部策略', publishMode: '全部', hitWarn: '全部' };
+const emptyFilter = { store: '', title: '', goodsId: '', seriesCode: '', tpl: '', linkId: '', source: '全部来源', publisher: '', strategy: '全部策略', publishMode: '全部', hitWarn: '全部', listOnFrom: '', listOnTo: '', offFrom: '', offTo: '' };
 const filter = ref({ ...emptyFilter });
 const applied = ref({ ...emptyFilter });
 const patchFilter = (patch: Partial<typeof emptyFilter>) => { filter.value = { ...filter.value, ...patch }; };
@@ -189,6 +190,7 @@ const rows = computed(() => {
   if (!k) return list;
   const val = (p: SgProduct): number | string => {
     if (k === 'sold') return numOf(p.sold30);
+    if (k === 'moment') return momentAt(p, 6);
     const t = p.shelfTime ?? p.publishTime;
     return t === '-' ? '' : t;
   };
@@ -201,7 +203,7 @@ const rows = computed(() => {
 });
 
 /* 排序：单列激活，点击循环 降序→升序→取消 */
-type SgSortKey = 'sold' | 'pub';
+type SgSortKey = 'sold' | 'pub' | 'moment';
 const sortKey = ref<SgSortKey | null>(null);
 const sortDir = ref<'asc' | 'desc'>('desc');
 const toggleSort = (k: SgSortKey) => {
@@ -213,14 +215,99 @@ const sortIco = (k: SgSortKey): 'none' | 'asc' | 'desc' => (sortKey.value === k 
 const numOf = (s: string) => Number(s.replace(/,/g, '')) || 0;
 /* 销量数据块：无数据展示 0（对齐微信小店经营概览） */
 const zero = (v: string) => (v === '-' ? '0' : v);
-/* 7日销量柱状图：柱高按近7日峰值缩放；悬浮气泡展示日期+具体值，末柱微标签「今日」 */
-const s7Max = (p: SgProduct) => Math.max(1, ...sgSales7(p));
-const s7H = (p: SgProduct, v: number) => (v > 0 ? Math.max(6, Math.round((v / s7Max(p)) * 36)) : 2);
+/* 7日销量迷你趋势图：仅平滑曲线＋圆点、无背景填充，峰值缩放量程；全 0 虚线占位；图下「时刻」开趋势弹窗 */
+const S7_W = 104;
+const S7_H = 44;
+const s7Zero = (p: SgProduct) => sgSales7(p).every((v) => v === 0);
+const s7Pts = (p: SgProduct) => {
+  const vs = sgSales7(p);
+  const max = Math.max(1, ...vs);
+  return vs.map((v, i) => ({ x: 4 + (i * (S7_W - 8)) / 6, y: 6 + (1 - v / max) * (S7_H - 12) }));
+};
+const s7Path = (p: SgProduct) => smoothPath(s7Pts(p));
 const s7Label = (i: number) => {
   if (i === 6) return '今日';
   const d = new Date();
   d.setDate(d.getDate() - (6 - i));
   return `${d.getMonth() + 1}/${d.getDate()}`;
+};
+/* 7日销量趋势弹窗 */
+const trendOpen = ref(false);
+const trendProduct = ref<SgProduct | null>(null);
+const openTrend = (p: SgProduct) => { trendProduct.value = p; trendOpen.value = true; };
+const closeTrend = () => { trendOpen.value = false; trendProduct.value = null; };
+const trendData = computed(() => {
+  if (!trendProduct.value) return { labels: [], values: [], max: 1 };
+  const values = sgSales7(trendProduct.value);
+  const labels = values.map((_, i) => s7Label(i));
+  const max = Math.max(1, ...values);
+  return { labels, values, max };
+});
+/* 时刻销量：日销量 × 此刻时间进度 × 商品哈希抖动（末点=现在时刻销量）；趋势弹窗对比线与列表时刻销量列共用 */
+const momentAt = (p: SgProduct, i: number) => {
+  const v = sgSales7(p)[i];
+  const now = new Date();
+  const progress = (now.getHours() * 60 + now.getMinutes()) / 1440;
+  let h = 7;
+  for (const c of p.id) h = (h * 31 + c.charCodeAt(0)) % 997;
+  return Math.min(v, Math.round(v * progress * (0.8 + ((h >> i) % 5) * 0.1)));
+};
+const momentSeries = computed(() => {
+  const p = trendProduct.value;
+  if (!p) return [] as number[];
+  return trendData.value.values.map((_, i) => momentAt(p, i));
+});
+/* 今日销量列：今日销量＋前7日均基线＋差值（百分比）三行展示，数字边界清晰；升绿/降红/持平灰无图标 */
+const s7Moment = (p: SgProduct) => {
+  const now = momentAt(p, 6);
+  const avg = Math.round(sgPrev7Avg(p));
+  const diff = now - avg;
+  const abs = Math.abs(diff);
+  const dir = abs === 0 ? 'flat' : diff > 0 ? 'up' : 'down';
+  const pct = avg <= 0 ? 0 : Math.round((abs / avg) * 1000) / 10;
+  return { now, avg, dir, abs, pct };
+};
+/* 趋势图几何与悬浮：对标品控中心 MetricTrendChart（虚线网格 + 悬浮导引线/圆点放大/浮动气泡 + 平滑曲线）；viewBox 760 与弹窗内宽近 1:1，字号不缩水 */
+const TW = 760;
+const TH = 320;
+const TL = 56;
+const TR = 24;
+const TT = 24;
+const TB = 40;
+const tx = (i: number) => TL + (i * (TW - TL - TR)) / 6;
+/* Y 轴上限取 4 的倍数：五档刻度恒为不重复整数（全 0 数据亦得 0~4）；双序列取共同上限 */
+const trendYMax = computed(() => 4 * Math.max(1, Math.ceil((Math.max(1, ...trendData.value.values, ...momentSeries.value) * 1.2) / 4)));
+const ty = (v: number) => TT + (1 - v / trendYMax.value) * (TH - TT - TB);
+/* 平滑路径（Catmull-Rom → 贝塞尔，与品控中心同源算法） */
+const smoothPath = (pts: { x: number; y: number }[]): string => {
+  if (!pts.length) return '';
+  let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[Math.min(pts.length - 1, i + 2)];
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+  }
+  return d;
+};
+const trendPath = computed(() => smoothPath(trendData.value.values.map((v, i) => ({ x: tx(i), y: ty(v) }))));
+const momentPath = computed(() => smoothPath(momentSeries.value.map((v, i) => ({ x: tx(i), y: ty(v) }))));
+const trendHover = ref<{ i: number; px: number; py: number } | null>(null);
+const trendWrapRef = ref<HTMLDivElement | null>(null);
+const trendWrapW = () => trendWrapRef.value?.clientWidth ?? 720;
+const onTrendMove = (e: MouseEvent) => {
+  const wrap = trendWrapRef.value;
+  const rect = wrap?.querySelector('svg')?.getBoundingClientRect();
+  if (!wrap || !rect) return;
+  const fx = ((e.clientX - rect.left) / rect.width) * TW;
+  const i = Math.max(0, Math.min(6, Math.round(((fx - TL) / (TW - TL - TR)) * 6)));
+  /* 气泡锚定数据点而非鼠标，单序列读数更稳；垂直 clamp 防遮 X 轴标签 */
+  trendHover.value = { i, px: (tx(i) / TW) * rect.width, py: Math.max(32, Math.min((ty(trendData.value.values[i]) / TH) * rect.height, rect.height - 32)) };
 };
 
 /* 下架原因悬浮气泡：fixed 定位挂在页面层，不被表格容器裁剪、悬浮不抖动 */
@@ -267,7 +354,7 @@ const onTab = (t: SgTab) => {
 
 <template>
   <JmCreateDetailPage v-if="detail && jmDetailRow" :row="jmDetailRow" :start-edit="detailEdit" @back="detail = null; detailEdit = false" @open-pub="pushToast('已关联发布任务')" />
-  <SgDetailPage v-else-if="detail" :product="detail" @back="detail = null" />
+  <SgDetailPage v-else-if="detail" :product="detail" show-log @back="detail = null" />
   <div v-else class="sg-page">
     <div class="sg-tabs">
       <button v-for="t in (['视频号', '淘宝', '京喜', '得物', '京麦'] as SgTab[])" :key="t" class="sg-tab" :class="tab === t ? 'active' : ''" @click="onTab(t)">
@@ -363,11 +450,7 @@ const onTab = (t: SgTab) => {
           </div>
           <div class="sg-field">
             <label>上架开始时间</label>
-            <div class="sg-range">
-              <input class="sg-input" placeholder="开始时间" />
-              <span>→</span>
-              <input class="sg-input" placeholder="结束时间" />
-            </div>
+            <DateRangePicker v-model:from="filter.listOnFrom" v-model:to="filter.listOnTo" placeholder="请选择日期范围" />
           </div>
           <div v-if="chip === 'off'" class="sg-field">
             <label>下架类型</label>
@@ -375,18 +458,15 @@ const onTab = (t: SgTab) => {
           </div>
           <div v-if="warnConds" class="sg-field">
             <label>下架时间</label>
-            <div class="sg-range">
-              <input class="sg-input" placeholder="开始时间" />
-              <span>→</span>
-              <input class="sg-input" placeholder="结束时间" />
-            </div>
+            <DateRangePicker v-model:from="filter.offFrom" v-model:to="filter.offTo" placeholder="请选择日期范围" />
           </div>
-          <!-- 销量 XX 日 大于/等于/小于 XXX：销量查询（与运营管理同款形式） -->
+          <!-- 近 X 日销量 大于/等于/小于 XXX：查询近X日销量商品有哪些 -->
           <div class="sg-field">
             <label>销量</label>
             <div class="sg-compact">
-              <input class="sg-input" placeholder="销量" />
-              <span>日</span>
+              <span>近</span>
+              <input class="sg-input" placeholder="请输入天数" />
+              <span>日销量</span>
               <BubbleSelect class-name="sg-select" default-value="请选择" :options="['大于', '等于', '小于']" />
               <input class="sg-input" placeholder="请输入值" />
             </div>
@@ -427,10 +507,9 @@ const onTab = (t: SgTab) => {
             <tr>
               <th v-if="canPrice" :style="{ width: '44px' }"><input type="checkbox" :checked="allChecked" @change="toggleAll" /></th>
               <th :style="{ width: '380px' }">商品信息</th>
-              <SortTh label="近20日销量概览" width="140px" :state="sortIco('sold')" @sort="toggleSort('sold')" />
-              <th :style="{ width: '150px' }">7日销量</th>
               <th :style="{ width: '150px' }">商品状态</th>
               <th :style="{ width: '120px' }">商品策略</th>
+              <th :style="{ width: '320px' }">销量趋势 <i class="sg-sales-hd-i" title="今日销量与前七日平均销量对比；曲线为近7日销量走势">ⓘ</i></th>
               <th :style="{ width: '150px' }">预警</th>
               <SortTh label="发布信息" width="240px" :state="sortIco('pub')" @sort="toggleSort('pub')" />
               <th :style="{ width: '110px' }">操作</th>
@@ -458,21 +537,6 @@ const onTab = (t: SgTab) => {
                 </div>
               </td>
               <td>
-                <div class="sg-biz sg-biz-1col">
-                  <div><span>销量</span><b>{{ zero(p.sold30) }}</b></div>
-                  <div><span>总销量</span><b>{{ zero(p.sales) }}</b></div>
-                </div>
-              </td>
-              <td>
-                <div class="sg-s7">
-                  <div v-for="(v, i) in sgSales7(p)" :key="i" class="sg-s7-col">
-                    <span class="sg-s7-tip">{{ s7Label(i) }}销量 {{ v }}</span>
-                    <i class="sg-s7-bar" :class="{ zero: v === 0 }" :style="{ height: s7H(p, v) + 'px' }" />
-                    <b v-if="i === 6" class="sg-s7-now">今日</b>
-                  </div>
-                </div>
-              </td>
-              <td>
                 <div class="sg-status">
                   <span class="sg-dot" :style="{ background: SG_STATUS_META[p.status].dot }" />
                   <span :style="{ color: SG_STATUS_META[p.status].color }">{{ SG_STATUS_META[p.status].label }}</span>
@@ -485,6 +549,44 @@ const onTab = (t: SgTab) => {
                 </div>
               </td>
               <td>{{ p.strategy }}</td>
+              <td>
+                <div class="sg-sales">
+                  <div class="sg-moment-top">
+                    <span class="sg-sales-l">今日</span>
+                    <b>{{ s7Moment(p).now }}</b>
+                    <!-- 今日与前7日均为 0 时涨跌无意义：不展示升降图标、差值与比例 -->
+                    <span v-if="s7Moment(p).now !== 0 || s7Moment(p).avg !== 0" class="sg-moment-delta" :class="s7Moment(p).dir">
+                      <i v-if="s7Moment(p).dir !== 'flat'" class="sg-moment-ico">{{ s7Moment(p).dir === 'up' ? '▲' : '▼' }}</i>{{ s7Moment(p).abs }}（{{ s7Moment(p).pct }}%）
+                    </span>
+                  </div>
+                  <div class="sg-sales-mid">
+                    <span class="sg-sales-l">近7日</span>
+                    <div class="sg-s7-chart">
+                      <svg class="sg-s7-line" :width="S7_W" :height="S7_H" :viewBox="`0 0 ${S7_W} ${S7_H}`">
+                        <template v-if="!s7Zero(p)">
+                          <path :d="s7Path(p)" fill="none" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" />
+                          <circle
+                            v-for="(pt, i) in s7Pts(p)"
+                            :key="i"
+                            :cx="pt.x"
+                            :cy="pt.y"
+                            :r="i === 6 ? 2.6 : 1.8"
+                            fill="var(--color-primary)"
+                            :stroke="i === 6 ? '#fff' : 'none'"
+                            :stroke-width="i === 6 ? 1 : 0"
+                          />
+                        </template>
+                        <line v-else :x1="4" :x2="S7_W - 4" :y1="S7_H - 6" :y2="S7_H - 6" stroke="var(--color-border)" stroke-width="2" stroke-dasharray="4 4" />
+                      </svg>
+                      <div v-for="(v, i) in sgSales7(p)" :key="'h' + i" class="sg-s7-col">
+                        <span class="sg-s7-tip">{{ s7Label(i) }}销量 {{ v }}</span>
+                      </div>
+                    </div>
+                    <span class="sg-s7-moment" @click="openTrend(p)">时刻</span>
+                  </div>
+                  <div class="sg-sales-foot">前7日均 {{ s7Moment(p).avg }} · 近20日销量 {{ zero(p.sold30) }} · 总销量 {{ zero(p.sales) }}</div>
+                </div>
+              </td>
               <td>
                 <div v-if="p.offType && sgWarnType(p)" class="sg-offtag" :class="isFailOff(p) ? 'fail' : 'normal'" @mouseenter="showOffPop($event, p.offReason ?? '')" @mouseleave="hideOffPop">
                   {{ sgWarnType(p) }} <i class="sg-fail-i">i</i>
@@ -672,5 +774,107 @@ const onTab = (t: SgTab) => {
     </div>
 
     <CwRelDrawer :product="relTarget" @close="relTarget = null" />
+
+    <!-- 7 日销量趋势弹窗：pm-host 宿主层复用 .pm-page 弹窗基础样式 -->
+    <div class="pm-page pm-host">
+    <Modal v-if="trendOpen" :title="trendProduct?.title || '销量趋势'" sub="近 7 日销量与时刻销量对比" size="lg" @close="closeTrend">
+      <div class="sg-trend-modal">
+        <div ref="trendWrapRef" class="sg-trend-wrap">
+          <svg class="sg-trend-chart" viewBox="0 0 760 320" @mousemove="onTrendMove" @mouseleave="trendHover = null">
+            <!-- 虚线网格 + Y 轴刻度（五档） -->
+            <g v-for="f in [0, 0.25, 0.5, 0.75, 1]" :key="f">
+              <line :x1="TL" :x2="TW - TR" :y1="TT + (1 - f) * (TH - TT - TB)" :y2="TT + (1 - f) * (TH - TT - TB)" stroke="var(--color-border)" stroke-width="1" stroke-dasharray="3 4" />
+              <text :x="TL - 8" :y="TT + (1 - f) * (TH - TT - TB) + 4" text-anchor="end" class="ax">{{ Math.round(trendYMax * f) }}</text>
+            </g>
+            <!-- 悬浮导引线 -->
+            <line
+              v-if="trendHover"
+              :x1="tx(trendHover.i)"
+              :x2="tx(trendHover.i)"
+              :y1="TT"
+              :y2="TH - TB"
+              stroke="#8a94a6"
+              stroke-dasharray="4 4"
+              opacity="0.5"
+            />
+            <!-- 平滑折线 -->
+            <path :d="trendPath" fill="none" stroke="var(--color-primary)" stroke-width="2.2" stroke-linecap="round" />
+            <!-- 时刻销量对比线：橙色平滑曲线，末点=现在时刻销量 -->
+            <path :d="momentPath" fill="none" stroke="var(--color-warning)" stroke-width="2.2" stroke-linecap="round" />
+            <!-- 数据点：悬浮放大 + 白描边 -->
+            <circle
+              v-for="(v, i) in trendData.values"
+              :key="'p'+i"
+              :cx="tx(i)"
+              :cy="ty(v)"
+              :r="trendHover?.i === i ? 5.5 : 3.5"
+              fill="var(--color-primary)"
+              :stroke="trendHover?.i === i ? '#fff' : 'none'"
+              :stroke-width="trendHover?.i === i ? 2 : 0"
+            />
+            <circle
+              v-for="(v, i) in momentSeries"
+              :key="'m'+i"
+              :cx="tx(i)"
+              :cy="ty(v)"
+              :r="trendHover?.i === i ? 5.5 : 3.5"
+              fill="var(--color-warning)"
+              :stroke="trendHover?.i === i ? '#fff' : 'none'"
+              :stroke-width="trendHover?.i === i ? 2 : 0"
+            />
+            <!-- X 轴标签：今日主色加粗 -->
+            <text
+              v-for="(label, i) in trendData.labels"
+              :key="'x'+i"
+              :x="tx(i)"
+              :y="TH - 12"
+              text-anchor="middle"
+              class="ax-x"
+              :class="i === 6 ? 'today' : ''"
+            >{{ label }}</text>
+          </svg>
+          <!-- 悬浮气泡：日期 + 日销量/时刻销量双读数，靠右自动翻转 -->
+          <div
+            v-if="trendHover"
+            class="sg-trend-tip"
+            :style="{
+              left: trendHover.px + 'px',
+              top: trendHover.py + 'px',
+              transform: trendHover.px > trendWrapW() - 170 ? 'translate(calc(-100% - 12px), -50%)' : 'translate(12px, -50%)',
+            }"
+          >
+            <div class="sg-trend-tip-date">{{ trendData.labels[trendHover.i] }}</div>
+            <div class="sg-trend-tip-line"><i />日销量<b>{{ trendData.values[trendHover.i] }}</b></div>
+            <div class="sg-trend-tip-line"><i class="warn" />时刻销量<b>{{ momentSeries[trendHover.i] }}</b></div>
+          </div>
+        </div>
+        <div class="sg-trend-legend">
+          <div class="sg-trend-legend-item">
+            <span class="sg-trend-legend-dot" style="background: var(--color-primary);" />
+            <span>日销量</span>
+          </div>
+          <div class="sg-trend-legend-item">
+            <span class="sg-trend-legend-dot" style="background: var(--color-warning);" />
+            <span>时刻销量</span>
+          </div>
+          <div class="sg-trend-legend-item">
+            <span style="color: var(--color-text-3);">今日：</span>
+            <span style="font-weight: 600; color: var(--color-primary);">{{ trendData.values[6] || 0 }}</span>
+          </div>
+          <div class="sg-trend-legend-item">
+            <span style="color: var(--color-text-3);">此刻：</span>
+            <span style="font-weight: 600; color: var(--color-warning);">{{ momentSeries[6] || 0 }}</span>
+          </div>
+          <div class="sg-trend-legend-item">
+            <span style="color: var(--color-text-3);">7 日合计：</span>
+            <span style="font-weight: 600;">{{ trendData.values.reduce((a, b) => a + b, 0) }}</span>
+          </div>
+        </div>
+      </div>
+      <template #foot>
+        <button class="btn" @click="closeTrend">关闭</button>
+      </template>
+    </Modal>
+    </div>
   </div>
 </template>

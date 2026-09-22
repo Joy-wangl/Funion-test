@@ -17,7 +17,7 @@
   border-radius: 10px;
   background: #fff;
   color: #596273;
-  font-size: 13px;
+  font-size: var(--fs-base);
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -47,7 +47,7 @@
   border-radius: 10px;
   background: #fbfcfe;
   color: #465064;
-  font-size: 13px;
+  font-size: var(--fs-base);
   outline: none;
   box-sizing: border-box;
 }
@@ -90,7 +90,7 @@
   text-align: center;
 }
 .sm-card-foot a {
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: var(--color-primary, #2563eb);
   text-decoration: none;
 }
@@ -126,7 +126,7 @@
   background: linear-gradient(135deg, #6f8cff, #8b5cf6);
   color: #fff;
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -178,7 +178,7 @@
   background: #3d7dff;
   color: #fff;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -237,7 +237,7 @@
 }
 .sm-side-logo {
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-text, #1d2129);
 }
 .sm-side-sub {
@@ -271,7 +271,7 @@
 .sm-nav-item.active {
   background: var(--color-primary-bg, #eef4ff);
   color: var(--color-primary, #2563eb);
-  font-weight: 600;
+  font-weight: 500;
 }
 .sm-nav-item svg { flex: none; }
 .sm-side-foot {
@@ -286,7 +286,7 @@
 .sm-btn.sm-ops-go {
   gap: 8px;
   padding: 0 14px;
-  font-weight: 500;
+  font-weight: 400;
 }
 .sm-btn.sm-ops-go img {
   width: 18px;
@@ -305,8 +305,8 @@
   justify-content: center;
   background: #e8efff;
   color: #4f7cff;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--fs-base);
+  font-weight: 500;
 }
 
 /* ---------- 主内容区 ---------- */
@@ -361,7 +361,7 @@
 }
 .sm-detail-name {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text, #1d2129);
 }
 .sm-detail-info .sm-progress-meta { margin-top: 0; }
@@ -426,7 +426,7 @@
   gap: 8px;
   margin-bottom: 14px;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   color: #202532;
 }
 .sm-refresh-btn {
@@ -435,7 +435,7 @@
   gap: 5px;
   padding: 4px 10px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 400;
   color: #2563eb;
   background: #eef4ff;
   border: none;
@@ -467,12 +467,12 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #445066;
 }
 .sm-flat-card .v {
   font-size: 24px;
-  font-weight: 800;
+  font-weight: 600;
   color: #1f2329;
   margin-top: 8px;
   line-height: 1.2;
@@ -499,7 +499,7 @@
 .sm-device-name {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--fs-base);
   font-weight: 500;
   color: #1d2129;
 }
@@ -551,7 +551,7 @@
 .sm-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 .sm-table th,
 .sm-table td {
@@ -561,7 +561,7 @@
   color: #465064;
 }
 .sm-table th {
-  font-weight: 700;
+  font-weight: 500;
   font-size: 12px;
   color: #5b6475;
   background: #fbfcfe;
@@ -648,8 +648,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 10px;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--fs-base);
+  font-weight: 500;
 }
 .sm-goods-img.tone-0 { background: #ffece8; color: #d54545; }
 .sm-goods-img.tone-1 { background: #e8f7ee; color: #16a34a; }
@@ -658,7 +658,7 @@
 .sm-goods-img.tone-4 { background: #fff7e8; color: #d97706; }
 .sm-goods-info { min-width: 0; }
 .sm-goods-title {
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #465064;
   white-space: nowrap;
   overflow: hidden;
@@ -699,7 +699,7 @@
   gap: 6px;
 }
 .sm-acts a {
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: var(--color-primary, #2563eb);
   text-decoration: none;
 }
@@ -819,7 +819,7 @@
   min-width: 0;
 }
 .sm-data-title {
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #465064;
   white-space: nowrap;
   overflow: hidden;
@@ -848,7 +848,7 @@
 .sm-exec-steps-head {
   padding: 14px 18px 10px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text, #1d2129);
 }
 .sm-exec-steps-list {
@@ -879,7 +879,7 @@
   align-items: baseline;
   gap: 8px;
   flex-wrap: wrap;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: var(--color-text, #1d2129);
 }
 .sm-step-title .idx {
@@ -890,7 +890,7 @@
 .sm-step-title .st { font-size: 12px; color: #86909c; }
 .sm-step-title .st.running { color: #2563eb; }
 .sm-step-title .act {
-  font-weight: 600;
+  font-weight: 500;
   font-size: 12.5px;
   font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
 }
@@ -945,8 +945,8 @@
 .sm-shot-card { padding: 12px 14px 14px; }
 .sm-shot-title {
   margin-bottom: 10px;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--fs-base);
+  font-weight: 500;
   color: var(--color-text, #1d2129);
 }
 .sm-shot-img {
@@ -999,7 +999,7 @@
   justify-content: flex-end;
   gap: 12px;
   padding: 14px 18px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: var(--color-text-2, #4e5969);
 }
 .sm-page-size { width: 80px; }
@@ -1069,7 +1069,7 @@
   display: block;
 }
 .sm-modal-confirm .sm-modal-body {
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #465064;
 }
 .sm-head-actions { display: flex; gap: 10px; }

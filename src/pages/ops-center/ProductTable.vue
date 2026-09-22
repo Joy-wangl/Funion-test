@@ -25,12 +25,18 @@ const props = defineProps<{
   extraCols?: { key: string; label: string }[];
   /** 中列完整有序列表（运营管理 ▦ 气泡拖拽排序后传入；不传则基础序 + 扩展列） */
   colOrder?: { key: string; label: string }[];
+  /** 钉住列 key（按钉住序，须与 colOrder 前缀一致）：列冻结在列表最左随横向滚动不消失 */
+  pinned?: string[];
+  /** 右钉列 key（按钉住序，须与 colOrder 后缀一致）：列冻结在列表最右（操作列之左）随横向滚动不消失 */
+  pinnedRight?: string[];
   /** 数字列 key：表头渲染 SortTh 支持排序（不传则全部普通表头） */
   sortKeys?: string[];
   /** 当前排序状态（单列激活） */
   sortState?: { key: string; dir: 'asc' | 'desc' } | null;
   /** 操作列动作（运营管理传入：与店铺商品操作列同步；不传则详情/添加到） */
   actions?: (row: ProductRow) => string[];
+  /** 管理权限判定（内部商机权限控制传入）：true=该行店铺不在可管理范围，「添加到」置灰且点击提示 */
+  manageDenied?: (row: ProductRow) => boolean;
 }>();
 const emit = defineEmits<{ (e: 'checkChange', index: number, checked: boolean): void; (e: 'sort', key: string): void; (e: 'action', row: ProductRow, action: string): void }>();
 
@@ -38,6 +44,33 @@ const isSortable = (k: string) => (props.sortKeys ?? []).includes(k);
 const thState = (k: string): 'none' | 'asc' | 'desc' => (props.sortState?.key === k ? props.sortState.dir : 'none');
 
 const isHidden = (k: string) => (props.hidden ?? []).includes(k);
+
+/* 钉住冻结：有钉住列时表格切 fixed 布局（冻结偏移才精确），勾选/序号/商品信息＋左钉列 sticky 左冻结，右钉列＋操作列 sticky 右冻结；
+   left 偏移＝前置冻结列累计宽（勾选+序号+商品信息 320+左钉列各 140）；right 偏移＝操作列 120＋其后右钉列累计宽 */
+const PRODUCT_W = 320;
+const PIN_W = 140;
+const ACT_W = 120;
+const pinActive = computed(() => (props.pinned ?? []).length > 0 || (props.pinnedRight ?? []).length > 0);
+const pinIdx = (k: string) => (props.pinned ?? []).indexOf(k);
+const pinRIdx = (k: string) => (props.pinnedRight ?? []).indexOf(k);
+const pinRActive = computed(() => (props.pinnedRight ?? []).length > 0);
+const stickCls = (k: string) => {
+  if (pinIdx(k) >= 0) return { 'ib-stick-l': true, 'ib-stick-edge': pinIdx(k) === (props.pinned ?? []).length - 1 };
+  if (pinRIdx(k) >= 0) return { 'ib-stick-r': true, 'ib-stick-edge-r': pinRIdx(k) === 0 };
+  return undefined;
+};
+const stickLeft = (k: string) => `${props.checkWidth + props.indexWidth + PRODUCT_W + pinIdx(k) * PIN_W}px`;
+const stickRight = (k: string) => `${ACT_W + ((props.pinnedRight ?? []).length - 1 - pinRIdx(k)) * PIN_W}px`;
+const stickStyle = (k: string) => {
+  if (pinIdx(k) >= 0) return { left: stickLeft(k), width: `${PIN_W}px` };
+  if (pinRIdx(k) >= 0) return { right: stickRight(k), width: `${PIN_W}px` };
+  return undefined;
+};
+/* fixed 布局下未定宽列均分剩余宽：min-width 保底每列 150 防压窄 */
+const pinMinW = computed(() => {
+  const rest = middleCols.value.filter((c) => !isHidden(c.key) && pinIdx(c.key) < 0 && pinRIdx(c.key) < 0).length;
+  return props.checkWidth + props.indexWidth + PRODUCT_W + (props.pinned ?? []).length * PIN_W + (props.pinnedRight ?? []).length * PIN_W + rest * 150 + ACT_W;
+});
 
 /* 基础可隐藏列（内部商机默认序）；运营管理经 colOrder 传入全量有序列 */
 const BASE_COLS = [
@@ -85,24 +118,30 @@ const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
   <!-- 内部商机 / 运营管理共用的商品表格（中列顺序由 colOrder 驱动）+ 分页 -->
   <div class="ib-table-card">
     <div class="ib-table-wrap">
-      <table class="ib-table ib-loose">
+      <table class="ib-table ib-loose" :class="{ 'ib-pin': pinActive }" :style="pinActive ? { minWidth: `${pinMinW}px` } : undefined">
         <thead>
           <tr>
-            <th :style="{ width: props.checkWidth + 'px' }">
+            <th :class="{ 'ib-stick-l': pinActive }" :style="{ width: props.checkWidth + 'px', left: pinActive ? '0px' : undefined }">
               <input type="checkbox" class="ib-check" />
             </th>
-            <th :style="{ width: props.indexWidth + 'px' }">序号</th>
-            <th>商品信息</th>
+            <th :class="{ 'ib-stick-l': pinActive }" :style="{ width: props.indexWidth + 'px', left: pinActive ? `${props.checkWidth}px` : undefined }">序号</th>
+            <th :class="{ 'ib-stick-l': pinActive }" :style="{ width: pinActive ? `${PRODUCT_W}px` : undefined, left: pinActive ? `${props.checkWidth + props.indexWidth}px` : undefined }">商品信息</th>
             <template v-for="c in middleCols" :key="`h-${c.key}`">
-              <SortTh v-if="!isHidden(c.key) && isSortable(c.key)" :label="c.label" :state="thState(c.key)" @sort="emit('sort', c.key)" />
-              <th v-else-if="!isHidden(c.key)">{{ c.label }}</th>
+              <SortTh
+                v-if="!isHidden(c.key) && isSortable(c.key)"
+                :class="stickCls(c.key)"
+                :style="stickStyle(c.key)"
+                :width="pinIdx(c.key) >= 0 || pinRIdx(c.key) >= 0 ? `${PIN_W}px` : undefined"
+                :label="c.label" :state="thState(c.key)" @sort="emit('sort', c.key)"
+              />
+              <th v-else-if="!isHidden(c.key)" :class="stickCls(c.key)" :style="stickStyle(c.key)">{{ c.label }}</th>
             </template>
-            <th>操作</th>
+            <th :class="{ 'ib-stick-r': pinRActive }" :style="pinRActive ? { right: '0px', width: `${ACT_W}px` } : undefined">操作</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="(row, i) in props.rows" :key="row.pid">
-            <td>
+            <td :class="{ 'ib-stick-l': pinActive }" :style="pinActive ? { left: '0px' } : undefined">
               <input
                 type="checkbox"
                 class="ib-check"
@@ -110,8 +149,9 @@ const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
                 @change="emit('checkChange', i, ($event.target as HTMLInputElement).checked)"
               />
             </td>
-            <td class="ib-center">{{ i + 1 }}</td>
-            <td>
+            <!-- 序号列与表头同左缘对齐（规范：表头与内容左对齐），不再居中 -->
+            <td :class="{ 'ib-stick-l': pinActive }" :style="pinActive ? { left: `${props.checkWidth}px` } : undefined">{{ i + 1 }}</td>
+            <td :class="{ 'ib-stick-l': pinActive }" :style="pinActive ? { left: `${props.checkWidth + props.indexWidth}px` } : undefined">
               <div class="ib-product">
                 <img class="ib-thumb" :src="row.thumb" />
                 <div>
@@ -128,12 +168,12 @@ const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
               </div>
             </td>
             <template v-for="c in middleCols" :key="`c-${c.key}`">
-              <td v-if="!isHidden(c.key) && c.key === 'trend'">
+              <td v-if="!isHidden(c.key) && c.key === 'trend'" :class="stickCls(c.key)" :style="stickStyle(c.key)">
                 <svg class="spark" viewBox="0 0 90 32">
                   <polyline fill="none" stroke="#68a1ff" stroke-width="2" :points="row.spark" />
                 </svg>
               </td>
-              <td v-else-if="!isHidden(c.key) && c.key === 'status'">
+              <td v-else-if="!isHidden(c.key) && c.key === 'status'" :class="stickCls(c.key)" :style="stickStyle(c.key)">
                 <template v-if="sgMetaOf(row)">
                   <div class="sg-status">
                     <span class="sg-dot" :style="{ background: sgMetaOf(row)!.dot }" />
@@ -148,9 +188,9 @@ const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
                 </template>
                 <span v-else class="badge-green">在售</span>
               </td>
-              <td v-else-if="!isHidden(c.key)">{{ cellText(row, c.key) }}</td>
+              <td v-else-if="!isHidden(c.key)" :class="stickCls(c.key)" :style="stickStyle(c.key)">{{ cellText(row, c.key) }}</td>
             </template>
-            <td class="actions-col">
+            <td class="actions-col" :class="{ 'ib-stick-r': pinRActive }" :style="pinRActive ? { right: '0px' } : undefined">
               <div v-if="props.actions" class="sg-acts">
                 <a
                   v-for="a in props.actions(row)"
@@ -170,8 +210,17 @@ const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
                   详情
                 </a>
                 <a
+                  v-if="!manageDenied?.(row)"
                   href="#"
                   @click.prevent.stop="openAddTip"
+                >
+                  添加到
+                </a>
+                <a
+                  v-else
+                  href="#"
+                  class="link-denied"
+                  @click.prevent="emit('action', row, '添加到')"
                 >
                   添加到
                 </a>

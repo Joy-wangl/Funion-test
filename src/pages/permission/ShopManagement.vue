@@ -10,18 +10,15 @@ import { INITIAL_MEMBERS, avaColor } from './data';
 import './style.css';
 
 /* =========================================================
-   权限设置 › 店铺管理（还原源系统店铺列表；账号维度已拆至账号管理页）
+   权限设置 › 店铺管理（店铺→账号两层可展开列表，展开样式同品控监控列表）
    状态 tab（全部/在线/离线）+ 筛选（平台/关键词/账号类型/店铺分组/可用成员）
-   + 店铺表（ID信息/店铺信息/账号分组/可用成员/操作）+ 分页
-   操作列：管理账号/进入店铺
+   第一层店铺行（店铺信息/账号数/可用成员/更新时间；进入店铺下沉到账号维度）
+   第二层账号子表（账号ID/登录账号/账号类型/账号分组/可用成员/更新时间/进入店铺＋管理账号）
    源系统筛选区无查询按钮：条件变更即生效；分配店铺走 MemberPickPanel 选成员
    ========================================================= */
 
-interface ShopRow {
+interface AcctRow {
   acctId: string;
-  shopId: string;
-  platform: string;
-  name: string;
   /** 登录账号（主账号 或 主账号:成员） */
   login: string;
   acctType: string;
@@ -29,21 +26,45 @@ interface ShopRow {
   group: string;
   /** 可用成员（空展示 —） */
   members: string[];
+  /** 更新时间 */
+  updated: string;
   status: 'online' | 'offline';
 }
+interface ShopRow {
+  shopId: string;
+  platform: string;
+  name: string;
+  /** 店铺分组（空展示 —；分组管理写入） */
+  group: string;
+  accts: AcctRow[];
+}
 
-/* 静态行（还原源系统首屏；分组/成员初始为空展示 —，分配店铺后写入） */
+/* 静态行（还原源系统首屏；同店铺ID聚合为店铺行，账号为其子行） */
 const rows = ref<ShopRow[]>([
-  { acctId: '15769', shopId: '305428412', platform: '淘宝', name: '淘系C店-環球甄选好物店', login: 'tb6688087462', acctType: '主账号', group: '', members: ['张三'], status: 'online' },
-  { acctId: '15768', shopId: '269190799', platform: '淘宝', name: '淘系C店-一点就到百货', login: 'frand956666:小孔', acctType: '子账号', group: '', members: ['李四', '赵六'], status: 'online' },
-  { acctId: '15767', shopId: '172420524', platform: '淘宝', name: '淘系C店-悦勤家居', login: '狂宠每个热粉:孔意飞', acctType: '子账号', group: '', members: [], status: 'offline' },
-  { acctId: '15753', shopId: '319800402', platform: '淘宝', name: '淘系C店-泰有钱百货店', login: 'tb709930255172:熊博韬', acctType: '子账号', group: '', members: ['黄亚芳', '孙倩', '周杰', '吴敏', '徐佳华', '郑婷'], status: 'online' },
-  { acctId: '15742', shopId: '15074719', platform: '淘宝', name: '淘系C店-义乌日用家居直供店', login: '义乌日用家居直供店:乐游原', acctType: '子账号', group: '', members: ['徐佳华', '黄亚芳', '张三', '李四', '赵六', '孙倩'], status: 'offline' },
-  { acctId: '15741', shopId: '15074719', platform: '淘宝', name: '淘系C店-义乌日用家居直供店', login: '义乌日用家居直供店:奉天', acctType: '子账号', group: '', members: ['吴敏', '黄亚芳', '张三', '李四', '赵六', '孙倩', '周杰'], status: 'online' },
-  { acctId: '15740', shopId: '15074719', platform: '淘宝', name: '淘系C店-义乌日用家居直供店', login: '义乌日用家居直供店:八一', acctType: '子账号', group: '', members: ['吴敏', '黄亚芳', '张三', '李四', '赵六', '孙倩'], status: 'online' },
-  { acctId: '15739', shopId: '15074742', platform: '淘宝', name: '淘系C店-天天有百货直供店', login: '天天有百货直供店:梓昌', acctType: '子账号', group: '', members: ['吴敏', '黄亚芳', '张三', '李四'], status: 'offline' },
-  { acctId: '15738', shopId: '15074742', platform: '淘宝', name: '淘系C店-天天有百货直供店', login: '天天有百货直供店:熊博韬', acctType: '子账号', group: '', members: ['吴敏', '黄亚芳', '张三', '李四', '赵六', '孙倩', '周杰', '徐佳华'], status: 'online' },
-  { acctId: '15734', shopId: '20886632', platform: '淘宝', name: '淘系C店-雅集臻品 Greenery', login: 'yajizhenpin:竹林', acctType: '子账号', group: '', members: ['吴敏', '黄亚芳', '张三', '李四', '赵六', '孙倩', '周杰', '徐佳华', '郑婷', '刘洋'], status: 'online' },
+  { shopId: '305428412', platform: '淘宝', name: '淘系C店-環球甄选好物店', group: '', accts: [
+    { acctId: '15769', login: 'tb6688087462', acctType: '主账号', group: '', members: ['张三'], updated: '2026-08-23 18:42:10', status: 'online' },
+  ] },
+  { shopId: '269190799', platform: '淘宝', name: '淘系C店-一点就到百货', group: '', accts: [
+    { acctId: '15768', login: 'frand956666:小孔', acctType: '子账号', group: '', members: ['李四', '赵六'], updated: '2026-08-23 16:21:33', status: 'online' },
+  ] },
+  { shopId: '172420524', platform: '淘宝', name: '淘系C店-悦勤家居', group: '', accts: [
+    { acctId: '15767', login: '狂宠每个热粉:孔意飞', acctType: '子账号', group: '', members: [], updated: '2026-08-22 09:15:47', status: 'offline' },
+  ] },
+  { shopId: '319800402', platform: '淘宝', name: '淘系C店-泰有钱百货店', group: '', accts: [
+    { acctId: '15753', login: 'tb709930255172:熊博韬', acctType: '子账号', group: '', members: ['黄亚芳', '孙倩', '周杰', '吴敏', '徐佳华', '郑婷'], updated: '2026-08-21 20:08:12', status: 'online' },
+  ] },
+  { shopId: '15074719', platform: '淘宝', name: '淘系C店-义乌日用家居直供店', group: '', accts: [
+    { acctId: '15742', login: '义乌日用家居直供店:乐游原', acctType: '子账号', group: '', members: ['徐佳华', '黄亚芳', '张三', '李四', '赵六', '孙倩'], updated: '2026-08-23 11:36:05', status: 'offline' },
+    { acctId: '15741', login: '义乌日用家居直供店:奉天', acctType: '子账号', group: '', members: ['吴敏', '黄亚芳', '张三', '李四', '赵六', '孙倩', '周杰'], updated: '2026-08-23 08:54:29', status: 'online' },
+    { acctId: '15740', login: '义乌日用家居直供店:八一', acctType: '子账号', group: '', members: ['吴敏', '黄亚芳', '张三', '李四', '赵六', '孙倩'], updated: '2026-08-20 17:47:56', status: 'online' },
+  ] },
+  { shopId: '15074742', platform: '淘宝', name: '淘系C店-天天有百货直供店', group: '', accts: [
+    { acctId: '15739', login: '天天有百货直供店:梓昌', acctType: '子账号', group: '', members: ['吴敏', '黄亚芳', '张三', '李四'], updated: '2026-08-19 14:23:41', status: 'offline' },
+    { acctId: '15738', login: '天天有百货直供店:熊博韬', acctType: '子账号', group: '', members: ['吴敏', '黄亚芳', '张三', '李四', '赵六', '孙倩', '周杰', '徐佳华'], updated: '2026-08-23 19:02:18', status: 'online' },
+  ] },
+  { shopId: '20886632', platform: '淘宝', name: '淘系C店-雅集臻品 Greenery', group: '', accts: [
+    { acctId: '15734', login: 'yajizhenpin:竹林', acctType: '子账号', group: '', members: ['吴敏', '黄亚芳', '张三', '李四', '赵六', '孙倩', '周杰', '徐佳华', '郑婷', '刘洋'], updated: '2026-08-22 21:39:54', status: 'online' },
+  ] },
 ]);
 
 /** 可用成员单元格文案（>2 人）：首名、次名等N人；≤2 人逐人「头像+姓名」对展示 */
@@ -73,20 +94,44 @@ const GROUP_OPTS = computed(() => groups.value.map((g) => g.name));
 const pool = INITIAL_MEMBERS.filter((m) => m.status !== 'pending');
 const MEMBER_OPTS = [...new Set(pool.map((m) => m.name))];
 
-const filtered = computed(() => rows.value.filter((r) => {
-  if (tab.value !== 'all' && r.status !== tab.value) return false;
-  if (fPlatform.value && r.platform !== fPlatform.value) return false;
-  if (fAcctType.value && r.acctType !== fAcctType.value) return false;
-  if (fGroup.value && r.group !== fGroup.value) return false;
-  if (fMember.value && !r.members.includes(fMember.value)) return false;
+/* 两层筛选：账号类型/可用成员/状态 tab 过滤账号子行，平台/店铺分组过滤店铺行；
+   关键词命中店铺则展示其全部账号，仅命中账号则只展示该账号；无匹配账号的店铺不展示 */
+const filtered = computed(() => {
   const kw = fKw.value.trim().toLowerCase();
-  if (kw && ![r.name, r.login, r.acctId, r.shopId].some((v) => v.toLowerCase().includes(kw))) return false;
-  return true;
-}));
+  return rows.value.map((s) => {
+    const shopKw = !kw || [s.name, s.shopId].some((v) => v.toLowerCase().includes(kw));
+    const accts = s.accts.filter((a) => {
+      if (tab.value !== 'all' && a.status !== tab.value) return false;
+      if (fAcctType.value && a.acctType !== fAcctType.value) return false;
+      if (fMember.value && !a.members.includes(fMember.value)) return false;
+      if (kw && !shopKw && ![a.login, a.acctId].some((v) => v.toLowerCase().includes(kw))) return false;
+      return true;
+    });
+    return { shop: s, accts };
+  }).filter(({ shop, accts }) => {
+    if (accts.length === 0) return false;
+    if (fPlatform.value && shop.platform !== fPlatform.value) return false;
+    if (fGroup.value && shop.group !== fGroup.value) return false;
+    return true;
+  });
+});
+/** 店铺行可用成员：子行账号成员并集（去重保序） */
+const shopMembers = (accts: AcctRow[]) => [...new Set(accts.flatMap((a) => a.members))];
+/** 店铺行更新时间：子行账号更新时间的最新值（格式定长，字符串序即时间序） */
+const shopUpdated = (accts: AcctRow[]) => accts.reduce((m, a) => (a.updated > m ? a.updated : m), '');
 
-/* ---------- 行勾选 ---------- */
+/* ---------- 行展开（品控监控列表式）：默认收起，点箭头展开账号子表 ---------- */
+const expanded = ref<Set<string>>(new Set());
+const toggleExpand = (id: string) => {
+  const s = new Set(expanded.value);
+  if (s.has(id)) s.delete(id);
+  else s.add(id);
+  expanded.value = s;
+};
+
+/* ---------- 行勾选（店铺维度） ---------- */
 const checked = ref<Set<string>>(new Set());
-const allChecked = computed(() => filtered.value.length > 0 && filtered.value.every((r) => checked.value.has(r.acctId)));
+const allChecked = computed(() => filtered.value.length > 0 && filtered.value.every((f) => checked.value.has(f.shop.shopId)));
 const toggleCheck = (id: string) => {
   const s = new Set(checked.value);
   if (s.has(id)) s.delete(id);
@@ -94,7 +139,7 @@ const toggleCheck = (id: string) => {
   checked.value = s;
 };
 const toggleAll = () => {
-  checked.value = allChecked.value ? new Set() : new Set(filtered.value.map((r) => r.acctId));
+  checked.value = allChecked.value ? new Set() : new Set(filtered.value.map((f) => f.shop.shopId));
 };
 
 /* ---------- 分配店铺：MemberPickPanel 选成员 → 写入选中行的可用成员 ---------- */
@@ -121,23 +166,30 @@ const confirmAssign = () => {
   if (!pickedMembers.value.length) { pushToast('请先选择要分配的成员', 'error'); return; }
   const names = pickedMembers.value.map((m) => m.name);
   const n = checked.value.size;
-  rows.value = rows.value.map((r) => (checked.value.has(r.acctId)
-    ? { ...r, members: [...new Set([...r.members, ...names])] }
-    : r));
+  rows.value = rows.value.map((s) => (checked.value.has(s.shopId)
+    ? { ...s, accts: s.accts.map((a) => ({ ...a, members: [...new Set([...a.members, ...names])] })) }
+    : s));
   pushToast(`已将 ${n} 个店铺分配给 ${names.join('、')}`);
   checked.value = new Set();
   assignOpen.value = false;
 };
 
-/* ---------- 管理账号抽屉：分组可选 + 可用成员增删（保存写回行） ---------- */
+/* ---------- 管理账号抽屉：分组可选 + 可用成员增删（保存写回账号子行） ---------- */
 const acctId = ref<string | null>(null);
 const draftGroup = ref('');
 const draftMembers = ref<string[]>([]);
-const acctRow = computed(() => rows.value.find((r) => r.acctId === acctId.value) ?? null);
-const openAccount = (r: ShopRow) => {
-  acctId.value = r.acctId;
-  draftGroup.value = r.group;
-  draftMembers.value = [...r.members];
+const acctRow = computed(() => {
+  for (const s of rows.value) {
+    const a = s.accts.find((x) => x.acctId === acctId.value);
+    /* 抽屉只读字段平台/店铺名称取自父店铺行，账号行自身不携带 */
+    if (a) return { ...a, platform: s.platform, name: s.name };
+  }
+  return null;
+});
+const openAccount = (a: AcctRow) => {
+  acctId.value = a.acctId;
+  draftGroup.value = a.group;
+  draftMembers.value = [...a.members];
 };
 const addMemberOpen = ref(false);
 const pickedAdd = ref<Set<string>>(new Set());
@@ -168,7 +220,10 @@ const removeDraftMember = (name: string) => {
 const saveAccount = () => {
   if (!acctRow.value) return;
   const g = draftGroup.value === '未分组店铺' ? '' : draftGroup.value;
-  rows.value = rows.value.map((r) => (r.acctId === acctId.value ? { ...r, group: g, members: [...draftMembers.value] } : r));
+  rows.value = rows.value.map((s) => ({
+    ...s,
+    accts: s.accts.map((a) => (a.acctId === acctId.value ? { ...a, group: g, members: [...draftMembers.value] } : a)),
+  }));
   pushToast('已保存账号设置');
   acctId.value = null;
 };
@@ -189,7 +244,7 @@ const gpSave = () => {
   if (names.some((n) => !n)) { pushToast('分组名称不能为空', 'error'); return; }
   if (new Set(names).size !== names.length) { pushToast('分组名称不能重复', 'error'); return; }
   groups.value = gpDraft.value.map((g, i) => ({ name: names[i], isDefault: g.isDefault }));
-  rows.value = rows.value.map((r) => (r.group && !names.includes(r.group) ? { ...r, group: '' } : r));
+  rows.value = rows.value.map((s) => (s.group && !names.includes(s.group) ? { ...s, group: '' } : s));
   if (groupSel.value && !names.includes(groupSel.value)) groupSel.value = '';
   if (draftGroup.value && !names.includes(draftGroup.value)) draftGroup.value = '';
   groupModalOpen.value = false;
@@ -199,7 +254,7 @@ const saveGroupDrawer = () => {
   if (!checked.value.size) { pushToast('请先勾选需要分组的店铺', 'error'); return; }
   if (!groupSel.value) { pushToast('请选择分组', 'error'); return; }
   const g = groupSel.value === '未分组店铺' ? '' : groupSel.value;
-  rows.value = rows.value.map((r) => (checked.value.has(r.acctId) ? { ...r, group: g } : r));
+  rows.value = rows.value.map((s) => (checked.value.has(s.shopId) ? { ...s, group: g } : s));
   pushToast(`已将 ${checked.value.size} 个店铺移入「${groupSel.value}」`);
   checked.value = new Set();
   groupOpen.value = false;
@@ -213,7 +268,7 @@ const savePublish = () => {
 };
 
 /* ---------- 行操作 / 入口按钮（原型演示交互） ---------- */
-const enterShop = (r: ShopRow) => pushToast(`已进入店铺：${r.name}`);
+const enterShop = (s: ShopRow) => pushToast(`已进入店铺：${s.name}`);
 
 /* ---------- ESC 逐层关闭（内层优先；抽屉/弹窗遮罩点击亦可关） ---------- */
 const onKey = (e: KeyboardEvent) => {
@@ -276,64 +331,115 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
       </div>
     </div>
 
-    <!-- 店铺列表 -->
+    <!-- 店铺列表：第一层店铺行，展开后第二层账号子表（品控监控列表展开样式） -->
     <div class="sg-card">
       <div :style="{ overflow: 'auto' }">
         <table class="sg-table smg-table">
           <thead>
             <tr>
-              <th :style="{ width: '44px' }"><input type="checkbox" :checked="allChecked" @change="toggleAll" /></th>
-              <th :style="{ width: '220px' }">ID信息</th>
+              <th :style="{ width: '64px' }">
+                <span class="ib-caret ghost"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6" /></svg></span>
+                <input type="checkbox" :checked="allChecked" @change="toggleAll" />
+              </th>
+              <!-- 勾选列固定 64px；四个数据列不写宽度，fixed 布局下等分剩余宽度（均分） -->
               <th>店铺信息</th>
-              <th :style="{ width: '160px' }">账号分组</th>
-              <th :style="{ width: '260px' }">可用成员</th>
-              <th :style="{ width: '120px' }">操作</th>
+              <th>账号数</th>
+              <th>可用成员</th>
+              <th>更新时间</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="r in filtered" :key="r.acctId">
-              <td><input type="checkbox" :checked="checked.has(r.acctId)" @change="toggleCheck(r.acctId)" /></td>
-              <td>
-                <div class="smg-idcell">
-                  <span>账号ID：{{ r.acctId }}</span>
-                  <span>店铺ID：{{ r.shopId }}</span>
-                </div>
-              </td>
-              <td>
-                <div class="smg-shop">
-                  <span class="store-logo"><img :src="PLATFORM_LOGO[r.platform]" alt="" /></span>
-                  <div class="smg-shop-info">
-                    <span class="smg-shop-name">{{ r.name }}</span>
-                    <span class="smg-shop-login">登录账号：{{ r.login }}</span>
+            <template v-for="f in filtered" :key="f.shop.shopId">
+              <tr>
+                <td>
+                  <span class="ib-caret" :class="{ open: expanded.has(f.shop.shopId) }" @click="toggleExpand(f.shop.shopId)">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6" /></svg>
+                  </span>
+                  <input type="checkbox" :checked="checked.has(f.shop.shopId)" @change="toggleCheck(f.shop.shopId)" />
+                </td>
+                <td>
+                  <div class="smg-shop">
+                    <span class="store-logo"><img :src="PLATFORM_LOGO[f.shop.platform]" alt="" /></span>
+                    <div class="smg-shop-info">
+                      <span class="smg-shop-name">{{ f.shop.name }}</span>
+                      <span class="smg-shop-login">店铺ID：{{ f.shop.shopId }}</span>
+                    </div>
                   </div>
-                </div>
-              </td>
-              <td><span v-if="r.group">{{ r.group }}</span><span v-else class="smg-dash">—</span></td>
-              <td>
-                <div v-if="r.members.length" class="smg-members">
-                  <!-- ≤2 人：逐人「头像+姓名」对；>2 人：叠放头像组 + 等N人文案 -->
-                  <template v-if="r.members.length <= 2">
-                    <span v-for="nm in r.members" :key="nm" class="smg-mpair">
-                      <span class="smg-ava" :style="{ background: avaColor(nm) }">{{ nm.slice(0, 1) }}</span>
-                      <span class="smg-mname">{{ nm }}</span>
-                    </span>
-                  </template>
-                  <template v-else>
-                    <span class="smg-avas">
-                      <span v-for="nm in r.members.slice(0, 2)" :key="nm" class="smg-ava" :style="{ background: avaColor(nm) }">{{ nm.slice(0, 1) }}</span>
-                    </span>
-                    <span class="smg-member-text">{{ memberText(r.members) }}</span>
-                  </template>
-                </div>
-                <span v-else class="smg-dash">—</span>
-              </td>
-              <td>
-                <div class="sg-acts">
-                  <a class="sg-link" href="javascript:void(0)" @click.prevent="openAccount(r)">管理账号</a>
-                  <a class="sg-link" href="javascript:void(0)" @click.prevent="enterShop(r)">进入店铺</a>
-                </div>
-              </td>
-            </tr>
+                </td>
+                <td>{{ f.accts.length }}</td>
+                <td>
+                  <div v-if="shopMembers(f.accts).length" class="smg-members">
+                    <!-- ≤2 人：逐人「头像+姓名」对；>2 人：叠放头像组 + 等N人文案 -->
+                    <template v-if="shopMembers(f.accts).length <= 2">
+                      <span v-for="nm in shopMembers(f.accts)" :key="nm" class="smg-mpair">
+                        <span class="smg-ava" :style="{ background: avaColor(nm) }">{{ nm.slice(0, 1) }}</span>
+                        <span class="smg-mname">{{ nm }}</span>
+                      </span>
+                    </template>
+                    <template v-else>
+                      <span class="smg-avas">
+                        <span v-for="nm in shopMembers(f.accts).slice(0, 2)" :key="nm" class="smg-ava" :style="{ background: avaColor(nm) }">{{ nm.slice(0, 1) }}</span>
+                      </span>
+                      <span class="smg-member-text">{{ memberText(shopMembers(f.accts)) }}</span>
+                    </template>
+                  </div>
+                  <span v-else class="smg-dash">—</span>
+                </td>
+                <td>{{ shopUpdated(f.accts) }}</td>
+              </tr>
+              <!-- 第二层：账号维度子表（灰底展开行 + 白底子表） -->
+              <tr v-if="expanded.has(f.shop.shopId)" class="ib-expand-row smg-expand-row">
+                <td colspan="5">
+                  <table class="ib-subtable">
+                    <thead>
+                      <tr>
+                        <!-- 固定列宽（配合 table-layout:fixed）：多个展开子表列位逐一对齐，不随内容长短漂移 -->
+                        <th :style="{ width: '10%' }">账号ID</th>
+                        <th :style="{ width: '20%' }">登录账号</th>
+                        <th :style="{ width: '10%' }">账号类型</th>
+                        <th :style="{ width: '12%' }">账号分组</th>
+                        <th :style="{ width: '20%' }">可用成员</th>
+                        <th :style="{ width: '16%' }">更新时间</th>
+                        <th :style="{ width: '12%' }">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="a in f.accts" :key="a.acctId">
+                        <td>{{ a.acctId }}</td>
+                        <td>{{ a.login }}</td>
+                        <td>{{ a.acctType }}</td>
+                        <td><span v-if="a.group">{{ a.group }}</span><span v-else class="smg-dash">—</span></td>
+                        <td>
+                          <div v-if="a.members.length" class="smg-members">
+                            <template v-if="a.members.length <= 2">
+                              <span v-for="nm in a.members" :key="nm" class="smg-mpair">
+                                <span class="smg-ava" :style="{ background: avaColor(nm) }">{{ nm.slice(0, 1) }}</span>
+                                <span class="smg-mname">{{ nm }}</span>
+                              </span>
+                            </template>
+                            <template v-else>
+                              <span class="smg-avas">
+                                <span v-for="nm in a.members.slice(0, 2)" :key="nm" class="smg-ava" :style="{ background: avaColor(nm) }">{{ nm.slice(0, 1) }}</span>
+                              </span>
+                              <span class="smg-member-text">{{ memberText(a.members) }}</span>
+                            </template>
+                          </div>
+                          <span v-else class="smg-dash">—</span>
+                        </td>
+                        <td>{{ a.updated }}</td>
+                        <td>
+                          <!-- 进入店铺为账号维度操作，与管理账号平铺 -->
+                          <div class="sg-acts">
+                            <a class="sg-link" href="javascript:void(0)" @click.prevent="enterShop(f.shop)">进入店铺</a>
+                            <a class="sg-link" href="javascript:void(0)" @click.prevent="openAccount(a)">管理账号</a>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
         <div v-if="filtered.length === 0" class="sg-empty">

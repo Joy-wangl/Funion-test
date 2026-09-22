@@ -39,7 +39,7 @@
   gap: 6px;
   padding: 7px 10px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: #303948;
   cursor: pointer;
   white-space: nowrap;

@@ -6,7 +6,7 @@ import MoveTaskDrawer from './MoveTaskDrawer.vue';
 import { mvTasks, type MvTask } from './moveData';
 import { pushToast } from '../../components/toast';
 
-/** 自动化中心-自动化任务：纯任务维度清单 + 配置抽屉 */
+/** 自动化中心-视频号自动化：纯任务维度清单 + 配置抽屉 */
 const tasks = ref<MvTask[]>(mvTasks);
 
 /* 配置抽屉：editing 空=新建 */
