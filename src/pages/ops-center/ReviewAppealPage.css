@@ -19,7 +19,7 @@
 }
 .ops-center .ra-filter-field { min-width: 0; }
 .ops-center .ra-filter-field label {
-  display: block; margin-bottom: 7px; color: #7f8796; font-size: 12px;
+  display: block; margin-bottom: 7px; color: #7f8796; font-size: var(--fs-aux);
 }
 .ops-center .ra-input-wrap { position: relative; min-width: 0; }
 .ops-center .ra-input {
@@ -36,7 +36,7 @@
   position: absolute; right: 9px; top: 50%; width: 14px; height: 14px;
   display: inline-flex; align-items: center; justify-content: center; transform: translateY(-50%);
   padding: 0; border: 0; border-radius: 50%; background: var(--color-text-3); color: #fff;
-  cursor: pointer; font-size: 13px; line-height: 14px; font-family: Arial, sans-serif;
+  cursor: pointer;
 }
 .ops-center .ra-clear:hover { background: var(--color-text-2); }
 .ops-center .ra-clear svg { display: block; }
@@ -206,12 +206,13 @@
 .ops-center .ra-appeal-error { margin: -4px 0 0; color: var(--color-danger); font-size: var(--fs-aux); line-height: 18px; }
 .ops-center .ra-appeal-file-input { display: none; }
 .ops-center .ra-appeal-evidence-row { display: flex; align-items: center; gap: 12px; min-height: 72px; }
-.ops-center .ra-appeal-upload { width: 96px; height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 1px dashed var(--color-border); border-radius: var(--radius-lg); background: var(--color-fill); color: var(--color-text-3); cursor: pointer; font-size: var(--fs-aux); box-sizing: border-box; }
+/* 上传凭证控件：文本同正文 fs-base、加号 18px，与素材中心 .mc-upload 口径一致 */
+.ops-center .ra-appeal-upload { width: 96px; height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 1px dashed var(--color-border); border-radius: var(--radius-lg); background: var(--color-fill); color: var(--color-text-3); cursor: pointer; font-size: var(--fs-base); box-sizing: border-box; }
 .ops-center .ra-appeal-upload:hover { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-light-2); }
 .ops-center .ra-appeal-upload-readonly { cursor: default; }
 .ops-center .ra-appeal-upload-readonly:hover { border-color: var(--color-border); color: var(--color-text-3); background: var(--color-fill); }
-.ops-center .ra-appeal-upload-plus { font-size: 26px; line-height: 26px; font-weight: var(--fw-regular); }
-.ops-center .ra-appeal-file-name { color: var(--color-text-2); font-size: var(--fs-aux); }
+.ops-center .ra-appeal-upload-plus { font-size: 18px; line-height: 18px; font-weight: var(--fw-regular); }
+.ops-center .ra-appeal-file-name { color: var(--color-text-2); font-size: var(--fs-base); }
 /* 申诉详情凭证托盘：缩略图网格 */
 .ops-center .ra-appeal-detail-evidence-tray { display: flex; gap: 8px; flex-wrap: wrap; }
 .ops-center .ra-appeal-evidence-thumb {

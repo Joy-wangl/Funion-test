@@ -8,12 +8,16 @@ import MoreActions from '../../components/MoreActions.vue';
 import Modal from '../../components/Modal.vue';
 import { pushToast } from '../../components/toast';
 import { PLATFORM_LOGO } from './data';
-import { sgProducts, SG_CHIPS, JM_CHIPS, SG_STATUS_META, sgRowActions, SG_OFF_FAIL_TYPES, SG_OFF_GROUP, SG_OFF_GROUPS, sgWarnType, sgSales7, sgPrev7Avg } from './shopGoodsData';
+import { sgProducts, SG_CHIPS, JM_CHIPS, SG_STATUS_META, sgRowActions, SG_OFF_FAIL_TYPES, SG_OFF_GROUP, SG_OFF_GROUPS, sgWarnType, sgSales7, sgPrev7Avg, sgDetail } from './shopGoodsData';
 import type { SgProduct, SgTab } from './shopGoodsData';
+import QuickSkuModal, { mkVal } from './QuickSkuModal.vue';
+import type { QuickDraftRow, QuickSpec } from './QuickSkuModal.vue';
 import SgDetailPage from './SgDetailPage.vue';
 import JmCreateDetailPage from './JmCreateDetailPage.vue';
 import SgBatchPriceModal from './SgBatchPriceModal.vue';
 import CwRelDrawer from './CwRelDrawer.vue';
+import ColFieldPop from './ColFieldPop.vue';
+import { useColField } from './colFields';
 
 const copy = (text: string) => {
   navigator.clipboard?.writeText(text).catch(() => undefined);
@@ -49,6 +53,44 @@ const flatOps = (p: SgProduct) => sgOps(p).slice(0, 3);
 const moreOps = (p: SgProduct) => sgOps(p).slice(3).map((o) => ({ label: o.label, danger: o.danger, onClick: o.run }));
 
 const tab = ref<SgTab>('视频号');
+
+/* 快捷编辑 SKU（仅视频号平台）：列表商品信息列「详」芯片开弹窗，draft 由 sgDetail.skus 构建，保存回写种子；底部主按钮文案「立即修改」 */
+const sgQuickRow = ref<SgProduct | null>(null);
+const sgQuickDraft = ref<QuickDraftRow[]>([]);
+/* 属性配置草稿（与详情规格同构，维度名同详情 SKU 表列头）：弹窗内增删属性值，保存回写 colors/styles */
+const sgQuickSpecs = ref<QuickSpec[]>([]);
+const openSgQuick = (p: SgProduct) => {
+  sgQuickSpecs.value = [
+    { name: '颜色分类', values: [...sgDetail.colors] },
+    { name: '款式', values: [...sgDetail.styles] },
+  ];
+  sgQuickDraft.value = sgDetail.skus.map((s): QuickDraftRow => ({
+    thumb: p.img,
+    title: p.title,
+    jm: false,
+    src: s as unknown as Record<string, string>,
+    qcode: s.code,
+    val: mkVal(s.name, s.code, s.series, s.cost, s.price, s.stock),
+    vals: { 颜色分类: s.color, 款式: s.style },
+  }));
+  sgQuickRow.value = p;
+};
+const closeSgQuick = () => {
+  sgQuickRow.value = null;
+};
+const saveSgQuick = () => {
+  for (const r of sgQuickDraft.value) {
+    Object.assign(r.src, { name: r.val.name, code: r.val.code, series: r.val.series, cost: r.val.cost, price: r.val.price, stock: r.val.stock });
+    /* 属性关联回写：按维度写回 color/style */
+    r.src.color = r.vals[sgQuickSpecs.value[0]?.name ?? ''] ?? '';
+    r.src.style = r.vals[sgQuickSpecs.value[1]?.name ?? ''] ?? '';
+  }
+  /* 属性配置（含新增属性值）回写种子 */
+  sgDetail.colors = [...(sgQuickSpecs.value[0]?.values ?? [])];
+  sgDetail.styles = [...(sgQuickSpecs.value[1]?.values ?? [])];
+  pushToast('SKU 信息已保存');
+  closeSgQuick();
+};
 const chip = ref('all');
 /* 已下架 tab 下的下架类型筛选 */
 const offType = ref('全部');
@@ -332,6 +374,40 @@ const chipsDef = computed(() => (tab.value === '京麦' ? JM_CHIPS : SG_CHIPS));
 
 /* 批量调价除淘宝外各 TAB 提供，且仅「销售中」状态商品可勾选调价；京麦走自己的批量改价/改库存 */
 const canPrice = computed(() => tab.value !== '淘宝' && tab.value !== '京麦');
+
+/* 列表字段管理：▦ 气泡勾选显隐＋拖拽排序＋左/右钉住（主列表/京麦列表各自独立 scope） */
+const cfMain = useColField('shopGoods', {
+  /* 淘宝 tab 无勾选列：固定左列随 canPrice 联动，钉住偏移才准确 */
+  get fixedLeft() {
+    return canPrice.value
+      ? [{ key: 'check', width: 44 }, { key: 'product', label: '商品信息', width: 380 }]
+      : [{ key: 'product', label: '商品信息', width: 380 }];
+  },
+  fields: [
+    { key: 'status', label: '商品状态', width: 150 },
+    { key: 'strategy', label: '商品策略', width: 120 },
+    { key: 'trend', label: '销量趋势', width: 320 },
+    { key: 'warn', label: '预警', width: 150 },
+    { key: 'pub', label: '发布信息', width: 240 },
+  ],
+  fixedRight: [{ key: 'actions', label: '操作', width: 110 }],
+});
+const cfJm = useColField('shopGoodsJm', {
+  fixedLeft: [{ key: 'check', width: 44 }, { key: 'product', label: '商品信息', width: 420 }],
+  fields: [
+    { key: 'jdPrice', label: '京东价', width: 110 },
+    { key: 'stock', label: '可用库存', width: 110 },
+    { key: 'status', label: '商品状态', width: 180 },
+  ],
+  fixedRight: [{ key: 'actions', label: '操作', width: 220 }],
+});
+/* 顶层解构：模板自动解包 ref（钉住态/保底宽/列序） */
+const {
+  pinActive: mainPin, tableMinWidth: mainMinW, midCols: mainMid,
+} = cfMain;
+const {
+  pinActive: jmPin, tableMinWidth: jmMinW, midCols: jmMid,
+} = cfJm;
 const sellingSel = computed(() => sgProducts[tab.value].filter((p) => checked.value.has(p.id) && p.status === 'selling' && !removedIds.value.has(p.id)).length);
 const sellRows = computed(() => rows.value.filter((p) => p.status === 'selling'));
 const allChecked = computed(() => sellRows.value.length > 0 && sellRows.value.every((p) => checked.value.has(p.id)));
@@ -396,6 +472,7 @@ const onTab = (t: SgTab) => {
           <input class="sg-input" placeholder="请输入类目关键词" :value="jmFilter.cat" @input="patchJmFilter({ cat: ($event.target as HTMLInputElement).value })" />
         </div>
         <div class="sg-actions">
+          <ColFieldPop :st="cfJm" />
           <div v-if="jmSel > 0" class="sg-mini">已选 <b>{{ jmSel }}</b> 件商品</div>
           <button class="sg-btn primary" :disabled="jmSel === 0" :title="jmSel === 0 ? '请先勾选在售/待售商品' : '对勾选商品批量修改京东价'" @click="jmPriceOpen = true">批量改价</button>
           <button class="sg-btn primary" :disabled="jmSel === 0" :title="jmSel === 0 ? '请先勾选在售/待售商品' : '对勾选商品批量修改可用库存'" @click="jmStockOpen = true">批量改库存</button>
@@ -477,6 +554,7 @@ const onTab = (t: SgTab) => {
           </div>
         </template>
         <div class="sg-actions">
+          <ColFieldPop :st="cfMain" />
           <div v-if="canPrice && sellingSel > 0" class="sg-mini">已选 <b>{{ sellingSel }}</b> 件出售中商品</div>
           <button
             v-if="canPrice"
@@ -502,25 +580,25 @@ const onTab = (t: SgTab) => {
 
     <div class="sg-card">
       <div :style="{ overflow: 'auto' }">
-        <table v-if="tab !== '京麦'" class="sg-table">
+        <table v-if="tab !== '京麦'" class="sg-table" :class="{ 'cf-pin': mainPin }" :style="mainMinW ? { minWidth: `${mainMinW}px` } : undefined">
           <thead>
             <tr>
-              <th v-if="canPrice" :style="{ width: '44px' }"><input type="checkbox" :checked="allChecked" @change="toggleAll" /></th>
-              <th :style="{ width: '380px' }">商品信息</th>
-              <th :style="{ width: '150px' }">商品状态</th>
-              <th :style="{ width: '120px' }">商品策略</th>
-              <th :style="{ width: '320px' }">销量趋势 <i class="sg-sales-hd-i" title="今日销量与前七日平均销量对比；曲线为近7日销量走势">ⓘ</i></th>
-              <th :style="{ width: '150px' }">预警</th>
-              <SortTh label="发布信息" width="240px" :state="sortIco('pub')" @sort="toggleSort('pub')" />
-              <th :style="{ width: '110px' }">操作</th>
+              <th v-if="canPrice" :class="cfMain.stickCls('check')" :style="{ width: '44px', ...cfMain.stickStyle('check') }"><input type="checkbox" :checked="allChecked" @change="toggleAll" /></th>
+              <th :class="cfMain.stickCls('product')" :style="{ width: '380px', ...cfMain.stickStyle('product') }">商品信息</th>
+              <template v-for="c in mainMid" :key="c.key">
+                <SortTh v-if="c.key === 'pub'" :class="cfMain.stickCls(c.key)" :style="cfMain.stickStyle(c.key)" label="发布信息" width="240px" :state="sortIco('pub')" @sort="toggleSort('pub')" />
+                <th v-else-if="c.key === 'trend'" :class="cfMain.stickCls(c.key)" :style="{ width: '320px', ...cfMain.stickStyle(c.key) }">销量趋势 <i class="sg-sales-hd-i" title="今日销量与前七日平均销量对比；曲线为近7日销量走势">ⓘ</i></th>
+                <th v-else :class="cfMain.stickCls(c.key)" :style="{ width: `${c.width}px`, ...cfMain.stickStyle(c.key) }">{{ c.label }}</th>
+              </template>
+              <th :class="cfMain.stickCls('actions')" :style="{ width: '110px', ...cfMain.stickStyle('actions') }">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="p in rows" :key="p.id">
-              <td v-if="canPrice">
+              <td v-if="canPrice" :class="cfMain.stickCls('check')" :style="cfMain.stickStyle('check')">
                 <input v-if="p.status === 'selling'" type="checkbox" :checked="checked.has(p.id)" @change="toggleCheck(p.id)" />
               </td>
-              <td>
+              <td :class="cfMain.stickCls('product')" :style="cfMain.stickStyle('product')">
                 <div class="sg-goods">
                   <img class="sg-thumb" :src="p.img" alt="" />
                   <div class="sg-ginfo">
@@ -534,79 +612,83 @@ const onTab = (t: SgTab) => {
                       <button class="sg-copy" title="复制" @click="copy(p.id)">⧉</button>
                     </div>
                   </div>
+                  <!-- 千牛式 SKU 快捷编辑入口（仅视频号）：「详」字芯片与商品主图居中对齐 -->
+                  <button v-if="tab === '视频号'" type="button" class="cp-quick-sku" title="快捷编辑SKU" @click.stop="openSgQuick(p)">详</button>
                 </div>
               </td>
-              <td>
-                <div class="sg-status">
-                  <span class="sg-dot" :style="{ background: SG_STATUS_META[p.status].dot }" />
-                  <span :style="{ color: SG_STATUS_META[p.status].color }">{{ SG_STATUS_META[p.status].label }}</span>
-                </div>
-                <div v-if="p.status === 'auditFail'" class="sg-failtag" :title="p.rejectReason">
-                  审核未通过 <i class="sg-fail-i" :title="p.rejectReason">i</i>
-                </div>
-                <div v-else-if="p.offType" class="sg-offtag" :class="isFailOff(p) ? 'fail' : 'normal'">
-                  {{ SG_OFF_GROUP[p.offType] }}
-                </div>
-              </td>
-              <td>{{ p.strategy }}</td>
-              <td>
-                <div class="sg-sales">
-                  <div class="sg-moment-top">
-                    <span class="sg-sales-l">今日</span>
-                    <b>{{ s7Moment(p).now }}</b>
-                    <!-- 今日与前7日均为 0 时涨跌无意义：不展示升降图标、差值与比例 -->
-                    <span v-if="s7Moment(p).now !== 0 || s7Moment(p).avg !== 0" class="sg-moment-delta" :class="s7Moment(p).dir">
-                      <i v-if="s7Moment(p).dir !== 'flat'" class="sg-moment-ico">{{ s7Moment(p).dir === 'up' ? '▲' : '▼' }}</i>{{ s7Moment(p).abs }}（{{ s7Moment(p).pct }}%）
-                    </span>
+              <template v-for="c in mainMid" :key="c.key">
+                <td v-if="c.key === 'status'" :class="cfMain.stickCls(c.key)" :style="cfMain.stickStyle(c.key)">
+                  <div class="sg-status">
+                    <span class="sg-dot" :style="{ background: SG_STATUS_META[p.status].dot }" />
+                    <span :style="{ color: SG_STATUS_META[p.status].color }">{{ SG_STATUS_META[p.status].label }}</span>
                   </div>
-                  <div class="sg-sales-mid">
-                    <span class="sg-sales-l">近7日</span>
-                    <div class="sg-s7-chart">
-                      <svg class="sg-s7-line" :width="S7_W" :height="S7_H" :viewBox="`0 0 ${S7_W} ${S7_H}`">
-                        <template v-if="!s7Zero(p)">
-                          <path :d="s7Path(p)" fill="none" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" />
-                          <circle
-                            v-for="(pt, i) in s7Pts(p)"
-                            :key="i"
-                            :cx="pt.x"
-                            :cy="pt.y"
-                            :r="i === 6 ? 2.6 : 1.8"
-                            fill="var(--color-primary)"
-                            :stroke="i === 6 ? '#fff' : 'none'"
-                            :stroke-width="i === 6 ? 1 : 0"
-                          />
-                        </template>
-                        <line v-else :x1="4" :x2="S7_W - 4" :y1="S7_H - 6" :y2="S7_H - 6" stroke="var(--color-border)" stroke-width="2" stroke-dasharray="4 4" />
-                      </svg>
-                      <div v-for="(v, i) in sgSales7(p)" :key="'h' + i" class="sg-s7-col">
-                        <span class="sg-s7-tip">{{ s7Label(i) }}销量 {{ v }}</span>
-                      </div>
+                  <div v-if="p.status === 'auditFail'" class="sg-failtag" :title="p.rejectReason">
+                    审核未通过 <i class="sg-fail-i" :title="p.rejectReason">i</i>
+                  </div>
+                  <div v-else-if="p.offType" class="sg-offtag" :class="isFailOff(p) ? 'fail' : 'normal'">
+                    {{ SG_OFF_GROUP[p.offType] }}
+                  </div>
+                </td>
+                <td v-else-if="c.key === 'strategy'" :class="cfMain.stickCls(c.key)" :style="cfMain.stickStyle(c.key)">{{ p.strategy }}</td>
+                <td v-else-if="c.key === 'trend'" :class="cfMain.stickCls(c.key)" :style="cfMain.stickStyle(c.key)">
+                  <div class="sg-sales">
+                    <div class="sg-moment-top">
+                      <span class="sg-sales-l">今日</span>
+                      <b>{{ s7Moment(p).now }}</b>
+                      <!-- 今日与前7日均为 0 时涨跌无意义：不展示升降图标、差值与比例 -->
+                      <span v-if="s7Moment(p).now !== 0 || s7Moment(p).avg !== 0" class="sg-moment-delta" :class="s7Moment(p).dir">
+                        <i v-if="s7Moment(p).dir !== 'flat'" class="sg-moment-ico">{{ s7Moment(p).dir === 'up' ? '▲' : '▼' }}</i>{{ s7Moment(p).abs }}（{{ s7Moment(p).pct }}%）
+                      </span>
                     </div>
-                    <span class="sg-s7-moment" @click="openTrend(p)">时刻</span>
+                    <div class="sg-sales-mid">
+                      <span class="sg-sales-l">近7日</span>
+                      <div class="sg-s7-chart">
+                        <svg class="sg-s7-line" :width="S7_W" :height="S7_H" :viewBox="`0 0 ${S7_W} ${S7_H}`">
+                          <template v-if="!s7Zero(p)">
+                            <path :d="s7Path(p)" fill="none" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" />
+                            <circle
+                              v-for="(pt, i) in s7Pts(p)"
+                              :key="i"
+                              :cx="pt.x"
+                              :cy="pt.y"
+                              :r="i === 6 ? 2.6 : 1.8"
+                              fill="var(--color-primary)"
+                              :stroke="i === 6 ? '#fff' : 'none'"
+                              :stroke-width="i === 6 ? 1 : 0"
+                            />
+                          </template>
+                          <line v-else :x1="4" :x2="S7_W - 4" :y1="S7_H - 6" :y2="S7_H - 6" stroke="var(--color-border)" stroke-width="2" stroke-dasharray="4 4" />
+                        </svg>
+                        <div v-for="(v, i) in sgSales7(p)" :key="'h' + i" class="sg-s7-col">
+                          <span class="sg-s7-tip">{{ s7Label(i) }}销量 {{ v }}</span>
+                        </div>
+                      </div>
+                      <span class="sg-s7-moment" @click="openTrend(p)">时刻</span>
+                    </div>
+                    <div class="sg-sales-foot">前7日均 {{ s7Moment(p).avg }} · 近20日销量 {{ zero(p.sold30) }} · 总销量 {{ zero(p.sales) }}</div>
                   </div>
-                  <div class="sg-sales-foot">前7日均 {{ s7Moment(p).avg }} · 近20日销量 {{ zero(p.sold30) }} · 总销量 {{ zero(p.sales) }}</div>
-                </div>
-              </td>
-              <td>
-                <div v-if="p.offType && sgWarnType(p)" class="sg-offtag" :class="isFailOff(p) ? 'fail' : 'normal'" @mouseenter="showOffPop($event, p.offReason ?? '')" @mouseleave="hideOffPop">
-                  {{ sgWarnType(p) }} <i class="sg-fail-i">i</i>
-                </div>
-                <span v-else class="sg-dash">-</span>
-              </td>
-              <td>
-                <div class="sg-kv"><span class="sg-kv-l">发布人：</span><b>{{ p.publisher }}</b></div>
-                <div class="sg-kv sg-kv-store">
-                  <span class="sg-kv-l">发布店铺：</span>
-                  <span class="store-logo"><img :src="PLATFORM_LOGO[p.storePlatform]" alt="" /></span>
-                  <b>{{ p.store }}</b>
-                </div>
-                <div class="sg-kv"><span class="sg-kv-l">发布方式：</span><b>{{ p.publishMode ?? '-' }}</b></div>
-                <div class="sg-kv">
-                  <span class="sg-kv-l">{{ p.offTime ? '下架时间：' : p.shelfTime ? '上架时间：' : '发布时间：' }}</span>
-                  <b>{{ p.offTime ?? p.shelfTime ?? p.publishTime }}</b>
-                </div>
-              </td>
-              <td>
+                </td>
+                <td v-else-if="c.key === 'warn'" :class="cfMain.stickCls(c.key)" :style="cfMain.stickStyle(c.key)">
+                  <div v-if="p.offType && sgWarnType(p)" class="sg-offtag" :class="isFailOff(p) ? 'fail' : 'normal'" @mouseenter="showOffPop($event, p.offReason ?? '')" @mouseleave="hideOffPop">
+                    {{ sgWarnType(p) }} <i class="sg-fail-i">i</i>
+                  </div>
+                  <span v-else class="sg-dash">-</span>
+                </td>
+                <td v-else-if="c.key === 'pub'" :class="cfMain.stickCls(c.key)" :style="cfMain.stickStyle(c.key)">
+                  <div class="sg-kv"><span class="sg-kv-l">发布人：</span><b>{{ p.publisher }}</b></div>
+                  <div class="sg-kv sg-kv-store">
+                    <span class="sg-kv-l">发布店铺：</span>
+                    <span class="store-logo"><img :src="PLATFORM_LOGO[p.storePlatform]" alt="" /></span>
+                    <b>{{ p.store }}</b>
+                  </div>
+                  <div class="sg-kv"><span class="sg-kv-l">发布方式：</span><b>{{ p.publishMode ?? '-' }}</b></div>
+                  <div class="sg-kv">
+                    <span class="sg-kv-l">{{ p.offTime ? '下架时间：' : p.shelfTime ? '上架时间：' : '发布时间：' }}</span>
+                    <b>{{ p.offTime ?? p.shelfTime ?? p.publishTime }}</b>
+                  </div>
+                </td>
+              </template>
+              <td :class="cfMain.stickCls('actions')" :style="cfMain.stickStyle('actions')">
                 <div class="sg-acts">
                   <a
                     v-for="o in flatOps(p)"
@@ -625,23 +707,23 @@ const onTab = (t: SgTab) => {
           </tbody>
         </table>
         <!-- 京麦列表：商品信息（含商品ID/SKU ID/货号）+ 京东价 + 可用库存 + 商品状态（含待售子状态/驳回原因）+ 平铺操作 -->
-        <table v-else class="sg-table jm-table">
+        <table v-else class="sg-table jm-table" :class="{ 'cf-pin': jmPin }" :style="jmMinW ? { minWidth: `${jmMinW}px` } : undefined">
           <thead>
             <tr>
-              <th :style="{ width: '44px' }"><input type="checkbox" :checked="jmAllChecked" @change="toggleAllJm" /></th>
-              <th :style="{ width: '420px' }">商品信息</th>
-              <th :style="{ width: '110px' }">京东价</th>
-              <th :style="{ width: '110px' }">可用库存</th>
-              <th :style="{ width: '180px' }">商品状态</th>
-              <th :style="{ width: '220px' }">操作</th>
+              <th :class="cfJm.stickCls('check')" :style="{ width: '44px', ...cfJm.stickStyle('check') }"><input type="checkbox" :checked="jmAllChecked" @change="toggleAllJm" /></th>
+              <th :class="cfJm.stickCls('product')" :style="{ width: '420px', ...cfJm.stickStyle('product') }">商品信息</th>
+              <template v-for="c in jmMid" :key="c.key">
+                <th :class="cfJm.stickCls(c.key)" :style="{ width: `${c.width}px`, ...cfJm.stickStyle(c.key) }">{{ c.label }}</th>
+              </template>
+              <th :class="cfJm.stickCls('actions')" :style="{ width: '220px', ...cfJm.stickStyle('actions') }">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="p in rows" :key="p.id">
-              <td>
+              <td :class="cfJm.stickCls('check')" :style="cfJm.stickStyle('check')">
                 <input v-if="jmCheckable(p)" type="checkbox" :checked="jmChecked.has(p.id)" @change="toggleJmCheck(p.id)" />
               </td>
-              <td>
+              <td :class="cfJm.stickCls('product')" :style="cfJm.stickStyle('product')">
                 <div class="sg-goods">
                   <img class="sg-thumb" :src="p.img" alt="" />
                   <div class="sg-ginfo">
@@ -660,19 +742,21 @@ const onTab = (t: SgTab) => {
                   </div>
                 </div>
               </td>
-              <td><b class="jm-price">¥{{ p.jdPrice }}</b></td>
-              <td>{{ p.stockAvail }}</td>
-              <td>
-                <div class="sg-status">
-                  <span class="sg-dot" :style="{ background: SG_STATUS_META[p.status].dot }" />
-                  <span :style="{ color: SG_STATUS_META[p.status].color }">{{ SG_STATUS_META[p.status].label }}</span>
-                </div>
-                <div v-if="p.jmReject" class="sg-failtag" :title="p.jmReject">
-                  审核驳回 <i class="sg-fail-i" :title="p.jmReject">i</i>
-                </div>
-                <div v-else-if="p.jmSub" class="sg-offtag normal">{{ p.jmSub }}</div>
-              </td>
-              <td>
+              <template v-for="c in jmMid" :key="c.key">
+                <td v-if="c.key === 'jdPrice'" :class="cfJm.stickCls(c.key)" :style="cfJm.stickStyle(c.key)"><b class="jm-price">¥{{ p.jdPrice }}</b></td>
+                <td v-else-if="c.key === 'stock'" :class="cfJm.stickCls(c.key)" :style="cfJm.stickStyle(c.key)">{{ p.stockAvail }}</td>
+                <td v-else-if="c.key === 'status'" :class="cfJm.stickCls(c.key)" :style="cfJm.stickStyle(c.key)">
+                  <div class="sg-status">
+                    <span class="sg-dot" :style="{ background: SG_STATUS_META[p.status].dot }" />
+                    <span :style="{ color: SG_STATUS_META[p.status].color }">{{ SG_STATUS_META[p.status].label }}</span>
+                  </div>
+                  <div v-if="p.jmReject" class="sg-failtag" :title="p.jmReject">
+                    审核驳回 <i class="sg-fail-i" :title="p.jmReject">i</i>
+                  </div>
+                  <div v-else-if="p.jmSub" class="sg-offtag normal">{{ p.jmSub }}</div>
+                </td>
+              </template>
+              <td :class="cfJm.stickCls('actions')" :style="cfJm.stickStyle('actions')">
                 <div class="jm-acts">
                   <a
                     v-for="a in rowActions(p)"
@@ -695,6 +779,19 @@ const onTab = (t: SgTab) => {
         </div>
       </div>
     </div>
+
+    <!-- 快捷编辑 SKU 弹窗（仅视频号）：复用共享组件，底部主按钮「立即修改」 -->
+    <QuickSkuModal
+      v-if="sgQuickRow"
+      :draft="sgQuickDraft"
+      :batch="false"
+      :specs="sgQuickSpecs"
+      :sub="sgQuickRow.title"
+      :jm="false"
+      save-text="立即修改"
+      @close="closeSgQuick"
+      @save="saveSgQuick"
+    />
 
     <div class="pm-page pm-host">
       <SgBatchPriceModal

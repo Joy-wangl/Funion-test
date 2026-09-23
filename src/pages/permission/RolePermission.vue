@@ -16,7 +16,7 @@ import RpPermCells from './RpPermCells.vue';
 import RpNameFormModal from './RpNameFormModal.vue';
 import RpMemberPickerModal from './RpMemberPickerModal.vue';
 import RpDeptPickerModal from './RpDeptPickerModal.vue';
-import RpPlatShopPickerDrawer from './RpPlatShopPickerDrawer.vue';
+import RpPlatShopPickerModal from './RpPlatShopPickerModal.vue';
 import { scopeOf } from './permScope';
 
 /* ---------- 弹窗状态（msg 为结构化富文本：pre + <b>bold</b> + post） ---------- */
@@ -115,10 +115,12 @@ const openMemberPicker = () => { modal.value = { kind: 'memberPicker' }; };
 const openDeptPicker = () => { modal.value = { kind: 'deptPicker' }; };
 /* 平台/店铺范围配置（查看=可见、管理=可管理） */
 const openPlatShop = (scopeKey: string, scopeKind: 'view' | 'manage') => { modal.value = { kind: 'platShop', scopeKey, scopeKind }; };
-const onPlatShopConfirm = (shops: string[]) => {
+const onPlatShopConfirm = (shops: string[], allPlats: string[]) => {
   if (modal.value?.kind !== 'platShop') return;
   const { scopeKey, scopeKind } = modal.value;
-  scopeOf(scopeKey)[scopeKind].shops = [...shops];
+  const sc = scopeOf(scopeKey)[scopeKind];
+  sc.shops = [...shops];
+  sc.allPlats = [...allPlats];
   pushToast(`已保存「${scopeKey}」${scopeKind === 'view' ? '可见' : '可管理'}平台/店铺范围`);
   closeModal();
 };
@@ -261,11 +263,12 @@ const onMemberPickerConfirm = (added: Member[]) => {
   </Modal>
   <RpMemberPickerModal v-else-if="modal?.kind === 'memberPicker'" @close="closeModal" @confirm="onMemberPickerConfirm" />
   <RpDeptPickerModal v-else-if="modal?.kind === 'deptPicker'" @close="closeModal" />
-  <RpPlatShopPickerDrawer
+  <RpPlatShopPickerModal
     v-else-if="modal?.kind === 'platShop'"
     :title="`配置平台/店铺（${modal.scopeKind === 'view' ? '可见' : '可管理'}）`"
     :sub="`${modal.scopeKey} · 勾选平台即全选其下店铺，支持单店粒度`"
     :sel="modal.scopeKind === 'view' ? scopeOf(modal.scopeKey).view.shops : scopeOf(modal.scopeKey).manage.shops"
+    :all-plats="(modal.scopeKind === 'view' ? scopeOf(modal.scopeKey).view : scopeOf(modal.scopeKey).manage).allPlats ?? []"
     @close="closeModal"
     @confirm="onPlatShopConfirm"
   />

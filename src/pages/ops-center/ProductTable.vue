@@ -24,7 +24,7 @@ const props = defineProps<{
   /** 查询条件扩展列（运营管理传入：key 与筛选标签一致，值取 row.extra[key]；不传则仅基础 13 列） */
   extraCols?: { key: string; label: string }[];
   /** 中列完整有序列表（运营管理 ▦ 气泡拖拽排序后传入；不传则基础序 + 扩展列） */
-  colOrder?: { key: string; label: string }[];
+  colOrder?: { key: string; label?: string }[];
   /** 钉住列 key（按钉住序，须与 colOrder 前缀一致）：列冻结在列表最左随横向滚动不消失 */
   pinned?: string[];
   /** 右钉列 key（按钉住序，须与 colOrder 后缀一致）：列冻结在列表最右（操作列之左）随横向滚动不消失 */
@@ -132,7 +132,7 @@ const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
                 :class="stickCls(c.key)"
                 :style="stickStyle(c.key)"
                 :width="pinIdx(c.key) >= 0 || pinRIdx(c.key) >= 0 ? `${PIN_W}px` : undefined"
-                :label="c.label" :state="thState(c.key)" @sort="emit('sort', c.key)"
+                :label="c.label ?? ''" :state="thState(c.key)" @sort="emit('sort', c.key)"
               />
               <th v-else-if="!isHidden(c.key)" :class="stickCls(c.key)" :style="stickStyle(c.key)">{{ c.label }}</th>
             </template>

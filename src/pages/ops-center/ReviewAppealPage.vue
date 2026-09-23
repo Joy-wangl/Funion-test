@@ -7,7 +7,27 @@ import Ellipsis from '../../components/Ellipsis.vue';
 import Modal from '../../components/Modal.vue';
 import { pushToast } from '../../components/toast';
 import { raReviews, type RaReview, type RaVisibility, type RaAppealStatus, type RaAuditStatus } from './reviewAppealData';
+import ColFieldPop from './ColFieldPop.vue';
+import { useColField } from './colFields';
 import './ReviewAppealPage.css';
+
+/* 列表字段管理：订单详情置首、操作固定右；CSS 类驱动宽 sticky=false */
+const cf = useColField('reviewAppeal', {
+  fixedLeft: [],
+  fields: [
+    { key: 'order', label: '订单详情' },
+    { key: 'shop', label: '店铺信息' },
+    { key: 'user', label: '评价人' },
+    { key: 'content', label: '评价内容' },
+    { key: 'ratedAt', label: '评价时间' },
+    { key: 'appealTime', label: '申诉时间' },
+    { key: 'appealStatus', label: '申诉状态' },
+    { key: 'auditStatus', label: '审核状态' },
+  ],
+  fixedRight: [{ key: 'ops', label: '操作' }],
+  sticky: false,
+});
+const { midCols } = cf;
 
 /* ---------- 筛选态 ---------- */
 const fProductId = ref('');
@@ -218,6 +238,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
           <BubbleSelect class-name="ra-select" :value="fAuditStatus" :options="['全部', '审核中', '已通过', '未通过', '已撤回']" @change="(v) => (fAuditStatus = v as RaAuditStatus | '全部')" />
         </div>
         <div class="ra-filter-actions">
+          <!-- 列表字段管理 ▦：居按钮组最左（规范） -->
+          <ColFieldPop :st="cf" />
           <button class="ra-filter-btn ghost" type="button" @click="doExport">全部导出</button>
           <button class="ra-filter-btn ghost" type="button" @click="doReset">重置</button>
           <button class="ra-filter-btn primary" type="button" @click="doFilter">查询</button>
@@ -231,63 +253,67 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
         <table class="ra-table">
           <thead>
           <tr>
-            <th class="ra-th-order">订单详情</th>
-            <th class="ra-th-shop">店铺信息</th>
-            <th class="ra-th-user">评价人</th>
-            <th class="ra-th-content">评价内容</th>
-            <th class="ra-th-time">评价时间</th>
-            <th class="ra-th-appeal-time">申诉时间</th>
-            <th class="ra-th-status">申诉状态</th>
-            <th class="ra-th-audit">审核状态</th>
+            <template v-for="c in midCols" :key="c.key">
+              <th v-if="c.key === 'order'" class="ra-th-order">{{ c.label }}</th>
+              <th v-else-if="c.key === 'shop'" class="ra-th-shop">{{ c.label }}</th>
+              <th v-else-if="c.key === 'user'" class="ra-th-user">{{ c.label }}</th>
+              <th v-else-if="c.key === 'content'" class="ra-th-content">{{ c.label }}</th>
+              <th v-else-if="c.key === 'ratedAt'" class="ra-th-time">{{ c.label }}</th>
+              <th v-else-if="c.key === 'appealTime'" class="ra-th-appeal-time">{{ c.label }}</th>
+              <th v-else-if="c.key === 'appealStatus'" class="ra-th-status">{{ c.label }}</th>
+              <th v-else-if="c.key === 'auditStatus'" class="ra-th-audit">{{ c.label }}</th>
+            </template>
             <th class="ra-th-ops">操作</th>
           </tr>
           </thead>
           <tbody>
           <tr v-for="r in filtered" :key="r.id">
-            <!-- 订单详情：置于首列，优先展示用户需要核对的订单信息 -->
-            <td>
-              <div class="ra-order">
-                <img class="ra-order-thumb" :src="r.productThumb || '/products/main.png'" alt="商品缩略图" />
-                <div class="ra-order-info">
-                  <Ellipsis class="ra-order-title ra-order-title-ell" :text="r.productTitle" />
-                  <span v-if="r.productSku" class="ra-order-sku">{{ r.productSku }}</span>
-                  <span class="ra-order-id">ID：63528697121</span>
+            <template v-for="c in midCols" :key="c.key">
+              <!-- 订单详情：商品缩略 + 标题/SKU/ID -->
+              <td v-if="c.key === 'order'">
+                <div class="ra-order">
+                  <img class="ra-order-thumb" :src="r.productThumb || '/products/main.png'" alt="商品缩略图" />
+                  <div class="ra-order-info">
+                    <Ellipsis class="ra-order-title ra-order-title-ell" :text="r.productTitle" />
+                    <span v-if="r.productSku" class="ra-order-sku">{{ r.productSku }}</span>
+                    <span class="ra-order-id">ID：63528697121</span>
+                  </div>
                 </div>
-              </div>
-            </td>
-            <!-- 店铺信息：仅保留店铺名称 -->
-            <td class="ra-shop">{{ r.shopName }}</td>
-            <!-- 评价人：保留昵称，不展示头像首字占位 -->
-            <td>
-              <div class="ra-user">
-                <span class="ra-user-name" :title="r.userName">{{ r.userName }}</span>
-              </div>
-            </td>
-            <!-- 评价内容：评分标签 + 正文 + 附图 -->
-            <td>
-              <div class="ra-rating" :class="r.rating === '不够好' ? 'bad' : 'good'">
-                <span>{{ r.rating === '不够好' ? '😞' : '😊' }} {{ r.rating }}</span>
-              </div>
-              <div class="ra-content">
-                <Ellipsis class="ra-content-ell" :text="r.content" />
-              </div>
-              <div v-if="r.images.length" class="ra-images">
-                <img v-for="img in r.images" :key="img" class="ra-img-thumb" :src="img" alt="评价附图" />
-              </div>
-            </td>
-            <!-- 评价时间 -->
-            <td class="ra-time">{{ r.ratedAt }}</td>
-            <!-- 申诉时间 -->
-            <td class="ra-time">{{ r.appealTime || '—' }}</td>
-            <!-- 申诉状态：状态独立展示，申诉内容通过操作弹层查看 -->
-            <td>
-              <span class="ra-status" :class="statusCls(r.appealStatus)">{{ r.appealStatus }}</span>
-            </td>
-            <!-- 审核状态：提交申诉后的平台审核结果 -->
-            <td>
-              <span v-if="r.auditStatus" class="ra-status" :class="auditCls(r.auditStatus)">{{ r.auditStatus }}</span>
-              <span v-else class="ra-ops-none">—</span>
-            </td>
+              </td>
+              <!-- 店铺信息：仅保留店铺名称 -->
+              <td v-else-if="c.key === 'shop'" class="ra-shop">{{ r.shopName }}</td>
+              <!-- 评价人：保留昵称 -->
+              <td v-else-if="c.key === 'user'">
+                <div class="ra-user">
+                  <span class="ra-user-name" :title="r.userName">{{ r.userName }}</span>
+                </div>
+              </td>
+              <!-- 评价内容：评分标签 + 正文 + 附图 -->
+              <td v-else-if="c.key === 'content'">
+                <div class="ra-rating" :class="r.rating === '不够好' ? 'bad' : 'good'">
+                  <span>{{ r.rating === '不够好' ? '😞' : '😊' }} {{ r.rating }}</span>
+                </div>
+                <div class="ra-content">
+                  <Ellipsis class="ra-content-ell" :text="r.content" />
+                </div>
+                <div v-if="r.images.length" class="ra-images">
+                  <img v-for="img in r.images" :key="img" class="ra-img-thumb" :src="img" alt="评价附图" />
+                </div>
+              </td>
+              <!-- 评价时间 -->
+              <td v-else-if="c.key === 'ratedAt'" class="ra-time">{{ r.ratedAt }}</td>
+              <!-- 申诉时间 -->
+              <td v-else-if="c.key === 'appealTime'" class="ra-time">{{ r.appealTime || '—' }}</td>
+              <!-- 申诉状态 -->
+              <td v-else-if="c.key === 'appealStatus'">
+                <span class="ra-status" :class="statusCls(r.appealStatus)">{{ r.appealStatus }}</span>
+              </td>
+              <!-- 审核状态：提交申诉后的平台审核结果 -->
+              <td v-else-if="c.key === 'auditStatus'">
+                <span v-if="r.auditStatus" class="ra-status" :class="auditCls(r.auditStatus)">{{ r.auditStatus }}</span>
+                <span v-else class="ra-ops-none">—</span>
+              </td>
+            </template>
             <!-- 操作：待申诉发起申诉，已申诉查看实际发起内容 -->
             <td>
               <button v-if="r.appealStatus === '待申诉'" type="button" class="ra-ops-link" @click="doAppeal(r)">申诉</button>
@@ -296,7 +322,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
             </td>
           </tr>
           <tr v-if="!filtered.length">
-            <td colspan="9" class="ra-empty">暂无数据</td>
+            <td :colspan="1 + midCols.length" class="ra-empty">暂无数据</td>
           </tr>
           </tbody>
         </table>

@@ -26,6 +26,8 @@ export const ALL_PERM_SHOPS: string[] = PERM_PLAT_SHOPS.flatMap((p) => p.shops);
 /** 范围选择：以店铺为最小粒度；平台由已选店铺派生（含 ≥1 店铺即视为该平台入选） */
 export interface ScopeSel {
   shops: string[];
+  /** 勾选「全部店铺」的平台：其下新增店铺自动纳入生效范围 */
+  allPlats?: string[];
 }
 
 export interface MenuScope {
@@ -48,8 +50,15 @@ export function platsOfShops(shops: string[]): string[] {
   return PERM_PLAT_SHOPS.filter((p) => p.shops.some((s) => shops.includes(s))).map((p) => p.platform);
 }
 
+/** 生效店铺＝显式勾选 ∪ 「全部店铺」平台旗下全部店铺（含未来新增，按池序去重） */
+export function effectiveShops(sel: ScopeSel): string[] {
+  const extra = (sel.allPlats ?? []).flatMap((p) => PERM_PLAT_SHOPS.find((x) => x.platform === p)?.shops ?? []);
+  return ALL_PERM_SHOPS.filter((s) => sel.shops.includes(s) || extra.includes(s));
+}
+
 /** 范围摘要文案：全选=全部平台/店铺；否则 已选 N 平台 · M 店铺 */
-export function scopeSummary(shops: string[]): string {
+export function scopeSummary(sel: ScopeSel): string {
+  const shops = effectiveShops(sel);
   if (shops.length >= ALL_PERM_SHOPS.length) return '全部平台/店铺';
   return `已选 ${platsOfShops(shops).length} 平台 · ${shops.length} 店铺`;
 }

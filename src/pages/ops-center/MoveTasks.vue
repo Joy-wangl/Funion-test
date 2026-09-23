@@ -7,6 +7,24 @@ import Modal from '../../components/Modal.vue';
 import MoreActions from '../../components/MoreActions.vue';
 import { pushToast } from '../../components/toast';
 import { MV_KINDS, MV_METHODS, MV_STATUSES, mvRunSummary, mvShopOf, mvShops, mvStatusDot, type MvTask, type MvTaskStatus } from './moveData';
+import ColFieldPop from './ColFieldPop.vue';
+import { useColField } from './colFields';
+
+/** 列表字段管理：操作固定右；状态列仅「全部」chip 下出现（动态列集）；窄表 sticky=false */
+const cf = useColField('move', {
+  fixedLeft: [],
+  get fields() {
+    const base = [
+      { key: 'name', label: '任务信息', width: 280 },
+      { key: 'kind', label: '任务类型', width: 100 },
+    ];
+    const tail = [{ key: 'created', label: '创建信息', width: 170 }];
+    return chip.value === '全部' ? [...base, { key: 'status', label: '状态', width: 90 }, ...tail] : [...base, ...tail];
+  },
+  fixedRight: [{ key: 'actions', label: '操作', width: 130 }],
+  sticky: false,
+});
+const { midCols } = cf;
 
 /** 任务列表：自动搬家 / 自动下架两类任务的统一配置清单（状态 + 创建人入列） */
 const props = defineProps<{ tasks: MvTask[] }>();
@@ -105,6 +123,8 @@ const confirmDel = () => {
           <DateRangePicker v-model:from="filter.dateFrom" v-model:to="filter.dateTo" placeholder="请选择日期范围" />
         </div>
         <div class="sg-actions">
+          <!-- 列表字段管理 ▦：居按钮组最左（规范） -->
+          <ColFieldPop :st="cf" />
           <button class="sg-btn primary" @click="emit('create')">新建任务</button>
           <button class="sg-btn" @click="doReset">重置</button>
           <button class="sg-btn primary" @click="doSearch">查询</button>
@@ -117,33 +137,34 @@ const confirmDel = () => {
         <table class="sg-table">
           <thead>
             <tr>
-              <th :style="{ width: '280px' }">任务信息</th>
-              <th :style="{ width: '100px' }">任务类型</th>
-              <th v-if="chip === '全部'" :style="{ width: '90px' }">状态</th>
-              <th :style="{ width: '170px' }">创建信息</th>
+              <template v-for="c in midCols" :key="c.key">
+                <th :style="{ width: `${c.width}px` }">{{ c.label }}</th>
+              </template>
               <th :style="{ width: '130px' }">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="t in rows" :key="t.id">
-              <td>
-                <Ellipsis :text="t.name" class-name="mv-name" />
-                <div class="mv-sub">任务ID：{{ t.id }}</div>
-              </td>
-              <td>
-                <div>{{ t.kind }}</div>
-                <div class="mv-methodline"><span :class="methodBadge(t.method)">{{ t.method }}</span></div>
-              </td>
-              <td v-if="chip === '全部'">
-                <span class="sg-status">
-                  <span class="sg-dot" :class="mvStatusDot(t.status)" />
-                  <span>{{ t.status }}</span>
-                </span>
-              </td>
-              <td>
-                <div>{{ t.creator }}</div>
-                <div class="mv-sub">{{ t.createdAt }}</div>
-              </td>
+              <template v-for="c in midCols" :key="c.key">
+                <td v-if="c.key === 'name'">
+                  <Ellipsis :text="t.name" class-name="mv-name" />
+                  <div class="mv-sub">任务ID：{{ t.id }}</div>
+                </td>
+                <td v-else-if="c.key === 'kind'">
+                  <div>{{ t.kind }}</div>
+                  <div class="mv-methodline"><span :class="methodBadge(t.method)">{{ t.method }}</span></div>
+                </td>
+                <td v-else-if="c.key === 'status'">
+                  <span class="sg-status">
+                    <span class="sg-dot" :class="mvStatusDot(t.status)" />
+                    <span>{{ t.status }}</span>
+                  </span>
+                </td>
+                <td v-else-if="c.key === 'created'">
+                  <div>{{ t.creator }}</div>
+                  <div class="mv-sub">{{ t.createdAt }}</div>
+                </td>
+              </template>
               <td>
                 <div class="sg-acts">
                   <a class="sg-link" href="javascript:void(0)" @click.prevent="emit('edit', t)">编辑</a>

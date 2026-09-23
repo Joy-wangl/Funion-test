@@ -13,12 +13,12 @@
 /* 任务类型列：类型纯文字 + 执行方式徽章两行 */
 .ops-center .mv-methodline { margin-top: 2px; }
 
-/* 配置抽屉：右滑 760px */
+/* 配置抽屉：右滑 760px；遮罩层统一 1000 阶：高于页内悬浮锚点/气泡（≤999），避免页面元素透盖抽屉 */
 .ops-center .mv-drawer-mask {
   position: fixed;
   inset: 0;
   background: rgba(15, 23, 42, 0.42);
-  z-index: 60;
+  z-index: 1000;
 }
 .ops-center .mv-drawer {
   position: absolute;
@@ -344,12 +344,12 @@
 }
 .ops-center .mv-chip-add:hover { color: var(--color-primary, #3d6df2); border-color: var(--color-primary, #3d6df2); }
 
-/* 选店弹窗（被搬/目标共用）：居中 480px，搜索 + 视频号店铺列表内滚 */
+/* 选店弹窗（被搬/目标共用）：居中 480px，搜索 + 视频号店铺列表内滚；居中弹窗统一 1010 阶：压过抽屉遮罩（1000） */
 .ops-center .mv-srcmask {
   position: fixed;
   inset: 0;
   background: rgba(15, 23, 42, 0.42);
-  z-index: 70;
+  z-index: 1010;
   display: flex;
   align-items: center;
   justify-content: center;

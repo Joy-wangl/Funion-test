@@ -11,6 +11,8 @@ import { SM_TASK_STATUS_META, genTaskId, nowTime, smRecordsSeed, smTasksSeed } f
 import type { SmTask, SmTaskStatus } from '../shunmai/data';
 import { PLATFORM_LOGO, ecMain } from './data';
 import type { SgProduct } from './shopGoodsData';
+import ColFieldPop from './ColFieldPop.vue';
+import { useColField } from './colFields';
 
 type CrawlStatus = '待完善' | '已完善' | '已导入';
 interface MkRow {
@@ -44,6 +46,42 @@ const subTab = ref<SubTabKey>('xiaodian');
 /* 视图判定：视频号模式＝顺买商机＋视频号子 tab；小店模式＝顺买商机＋小店子 tab */
 const isVh = computed(() => tab.value === 'shunmai' && subTab.value === 'shipinhao');
 const isXd = computed(() => tab.value === 'shunmai' && subTab.value === 'xiaodian');
+
+/* 列表字段管理：非视频号（淘宝顺买/小店）与视频号推荐两表独立 scope；百分比宽表 sticky=false；小店独有列随 tab 动态增删 */
+const cf = useColField('market', {
+  fixedLeft: [{ key: 'check', pct: 4 }],
+  get fields() {
+    return isXd.value
+      ? [
+          { key: 'product', label: '商品信息', pct: 40 },
+          { key: 'sales', label: '销量', pct: 13 },
+          { key: 'time', label: '创建人/创建时间', pct: 21 },
+          { key: 'grab', label: '抓取状态', pct: 10 },
+        ]
+      : [
+          { key: 'product', label: '商品信息', pct: 50 },
+          { key: 'sales', label: '销量', pct: 13 },
+          { key: 'time', label: '抓取人/抓取时间', pct: 21 },
+        ];
+  },
+  fixedRight: [{ key: 'actions', label: '操作', pct: 12 }],
+  sticky: false,
+});
+const cfVh = useColField('marketVh', {
+  fixedLeft: [],
+  fields: [
+    { key: 'product', label: '商品信息', pct: 32 },
+    { key: 'category', label: '商品类目', pct: 10 },
+    { key: 'price', label: '价格', pct: 12 },
+    { key: 'top', label: '同类目近期推荐top', pct: 12 },
+    { key: 'exposure', label: '曝光热度指数', pct: 12 },
+    { key: 'deal', label: '成交热度指数', pct: 12 },
+  ],
+  fixedRight: [{ key: 'actions', label: '操作', pct: 10 }],
+  sticky: false,
+});
+const { midCols } = cf;
+const { midCols: vhMid } = cfVh;
 
 const taobaoRows: MkRow[] = [
   { id: 't1', pid: '726184905531', name: '【10A抗菌】桂枫3.0Pro玻尿酸凉感深睡重力被 夏凉被', img: ecMain(0), plat: '淘宝', shop: '白屿家居小铺', sales: 1286, crawler: '李昀川', time: '2026-08-23 18:42:10', status: '待完善' },
@@ -437,6 +475,8 @@ const goApp = inject<(key: string) => void>('goApp');
           </div>
         </template>
         <div class="sg-actions">
+          <!-- 列表字段管理 ▦：居按钮组最左（规范）；随视图切换对应表的列集 -->
+          <ColFieldPop :st="isVh ? cfVh : cf" />
           <button v-if="!isVh" class="sg-btn" @click="pushToast('批量导入：演示环境暂不可用')">
             批量导入
           </button>
@@ -459,36 +499,39 @@ const goApp = inject<(key: string) => void>('goApp');
             <tr>
               <th :style="{ width: '4%' }"><input type="checkbox" /></th>
               <!-- 列占比均衡：各列宽度和恒为 100%（fixed 布局余宽会被首列吸收），商品信息按 tab 微调 -->
-              <th :style="{ width: isXd ? '40%' : '50%' }">商品信息</th>
-              <SortTh label="销量" width="13%" :state="salesSort" @sort="toggleSalesSort" />
-              <SortTh :label="(isXd ? '创建人/创建时间' : '抓取人/抓取时间')" width="21%" :state="timeSort" @sort="toggleTimeSort" />
-              <th v-if="isXd" :style="{ width: '10%' }">抓取状态</th>
+              <template v-for="c in midCols" :key="c.key">
+                <SortTh v-if="c.key === 'sales'" label="销量" width="13%" :state="salesSort" @sort="toggleSalesSort" />
+                <SortTh v-else-if="c.key === 'time'" :label="(isXd ? '创建人/创建时间' : '抓取人/抓取时间')" width="21%" :state="timeSort" @sort="toggleTimeSort" />
+                <th v-else :style="{ width: `${c.pct}%` }">{{ c.label }}</th>
+              </template>
               <th :style="{ width: '12%' }">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="r in list" :key="r.id">
               <td><input type="checkbox" /></td>
-              <td>
-                <div class="sg-goods">
-                  <img class="sg-thumb" :src="r.img" alt="" />
-                  <div class="sg-ginfo">
-                    <div class="sg-gtitle mk-gtitle"><Ellipsis :text="r.name" /></div>
-                    <!-- 商品信息单元格样式同内部商机（图二）：标题黑色单行＋店铺灰字行带平台 LOGO；不展示商品ID/竞品链接 -->
-                    <div class="ib-meta">
-                      店铺：
-                      <span class="store-logo"><img :src="PLATFORM_LOGO[r.plat]" alt="" /></span>
-                      {{ r.shop }}
+              <template v-for="c in midCols" :key="c.key">
+                <td v-if="c.key === 'product'">
+                  <div class="sg-goods">
+                    <img class="sg-thumb" :src="r.img" alt="" />
+                    <div class="sg-ginfo">
+                      <div class="sg-gtitle mk-gtitle"><Ellipsis :text="r.name" /></div>
+                      <!-- 商品信息单元格样式同内部商机（图二）：标题黑色单行＋店铺灰字行带平台 LOGO；不展示商品ID/竞品链接 -->
+                      <div class="ib-meta">
+                        店铺：
+                        <span class="store-logo"><img :src="PLATFORM_LOGO[r.plat]" alt="" /></span>
+                        {{ r.shop }}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </td>
-              <td>{{ r.sales }}</td>
-              <td>
-                <div class="mk-ct">{{ r.crawler }}</div>
-                <div class="mk-ct-t">{{ r.time }}</div>
-              </td>
-              <td v-if="isXd"><span class="sgd-tag" :class="statusCls(r.status)">{{ r.status }}</span></td>
+                </td>
+                <td v-else-if="c.key === 'sales'">{{ r.sales }}</td>
+                <td v-else-if="c.key === 'time'">
+                  <div class="mk-ct">{{ r.crawler }}</div>
+                  <div class="mk-ct-t">{{ r.time }}</div>
+                </td>
+                <td v-else-if="c.key === 'grab'"><span class="sgd-tag" :class="statusCls(r.status)">{{ r.status }}</span></td>
+              </template>
               <td class="actions-col">
                 <a href="#" @click.prevent="detail = r">详情</a>
                 <a href="#" @click.prevent="opsGo?.('search')">全网搜索</a>
@@ -501,38 +544,41 @@ const goApp = inject<(key: string) => void>('goApp');
         <table v-else class="sg-table mk-table">
           <thead>
             <tr>
-              <th :style="{ width: '32%' }">商品信息</th>
-              <th :style="{ width: '10%' }">商品类目</th>
-              <SortTh label="价格" width="12%" :state="vhSortState('price')" @sort="toggleVhSort('price')" />
-              <SortTh label="同类目近期推荐top" width="12%" :state="vhSortState('top')" @sort="toggleVhSort('top')" />
-              <SortTh label="曝光热度指数" width="12%" :state="vhSortState('exposure')" @sort="toggleVhSort('exposure')">
-                <i class="sg-sales-hd-i" title="商品近30日在视频号渠道的曝光热度，按区间展示；区间越高曝光越热" @click.stop>ⓘ</i>
-              </SortTh>
-              <SortTh label="成交热度指数" width="12%" :state="vhSortState('deal')" @sort="toggleVhSort('deal')">
-                <i class="sg-sales-hd-i" title="商品近30日在视频号渠道的成交热度，按区间展示；区间越高成交越热" @click.stop>ⓘ</i>
-              </SortTh>
+              <template v-for="c in vhMid" :key="c.key">
+                <SortTh v-if="c.key === 'price'" label="价格" width="12%" :state="vhSortState('price')" @sort="toggleVhSort('price')" />
+                <SortTh v-else-if="c.key === 'top'" label="同类目近期推荐top" width="12%" :state="vhSortState('top')" @sort="toggleVhSort('top')" />
+                <SortTh v-else-if="c.key === 'exposure'" label="曝光热度指数" width="12%" :state="vhSortState('exposure')" @sort="toggleVhSort('exposure')">
+                  <i class="sg-sales-hd-i" title="商品近30日在视频号渠道的曝光热度，按区间展示；区间越高曝光越热" @click.stop>ⓘ</i>
+                </SortTh>
+                <SortTh v-else-if="c.key === 'deal'" label="成交热度指数" width="12%" :state="vhSortState('deal')" @sort="toggleVhSort('deal')">
+                  <i class="sg-sales-hd-i" title="商品近30日在视频号渠道的成交热度，按区间展示；区间越高成交越热" @click.stop>ⓘ</i>
+                </SortTh>
+                <th v-else :style="{ width: `${c.pct}%` }">{{ c.label }}</th>
+              </template>
               <th :style="{ width: '10%' }">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="r in vhList" :key="r.id">
-              <td>
-                <div class="sg-goods">
-                  <img class="sg-thumb" :src="r.img" alt="" />
-                  <div class="sg-ginfo">
-                    <div class="sg-gtitle mk-gtitle"><Ellipsis :text="r.name" /></div>
-                    <div class="ib-meta">{{ r.shop }}</div>
+              <template v-for="c in vhMid" :key="c.key">
+                <td v-if="c.key === 'product'">
+                  <div class="sg-goods">
+                    <img class="sg-thumb" :src="r.img" alt="" />
+                    <div class="sg-ginfo">
+                      <div class="sg-gtitle mk-gtitle"><Ellipsis :text="r.name" /></div>
+                      <div class="ib-meta">{{ r.shop }}</div>
+                    </div>
                   </div>
-                </div>
-              </td>
-              <td>{{ r.category }}</td>
-              <td>{{ r.price }}</td>
-              <td>
-                <span v-if="r.top" class="mk-vh-top" :class="{ hot: r.top <= 3 }">TOP {{ r.top }}</span>
-                <span v-else class="sg-dash">-</span>
-              </td>
-              <td>{{ r.exposure }}</td>
-              <td>{{ r.deal }}</td>
+                </td>
+                <td v-else-if="c.key === 'category'">{{ r.category }}</td>
+                <td v-else-if="c.key === 'price'">{{ r.price }}</td>
+                <td v-else-if="c.key === 'top'">
+                  <span v-if="r.top" class="mk-vh-top" :class="{ hot: r.top <= 3 }">TOP {{ r.top }}</span>
+                  <span v-else class="sg-dash">-</span>
+                </td>
+                <td v-else-if="c.key === 'exposure'">{{ r.exposure }}</td>
+                <td v-else-if="c.key === 'deal'">{{ r.deal }}</td>
+              </template>
               <td class="actions-col">
                 <a href="#" @click.prevent="opsGo?.('search')">全网搜索</a>
               </td>

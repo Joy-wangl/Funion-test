@@ -3,8 +3,27 @@ import { computed, ref } from 'vue';
 import { parentTasks, type ParentTask } from './data';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import TcRange from './TcRange.vue';
+import ColFieldPop from './ColFieldPop.vue';
+import { useColField } from './colFields';
 
 const emit = defineEmits<{ (e: 'detail', p: ParentTask): void }>();
+
+/* 列表字段管理：序号固定左、操作固定右；自适应宽表 sticky=false */
+const cf = useColField('taskParent', {
+  fixedLeft: [{ key: 'index', label: '序号', width: 64 }],
+  fields: [
+    { key: 'creator', label: '创建人/创建时间' },
+    { key: 'type', label: '任务类型' },
+    { key: 'status', label: '任务状态' },
+    { key: 'publish', label: '发布信息' },
+    { key: 'exec', label: '执行信息' },
+    { key: 'channel', label: '渠道' },
+    { key: 'execTime', label: '执行起止时间' },
+  ],
+  fixedRight: [{ key: 'actions', label: '操作' }],
+  sticky: false,
+});
+const { midCols } = cf;
 
 const platformOptions = ['全部', '淘宝', '天猫', '拼多多', '抖音', '快手', '京东', '阿里巴巴', '微信视频号小店'];
 const typeOptions = ['全部', '快速铺货', '商品铺货', '商品发布', '批量上架', '自动定价', '自动换图'];
@@ -128,6 +147,8 @@ const visible = computed(() => parentTasks.filter((p) => {
         <BubbleSelect class-name="sg-select" :value="pubWay" :options="pubWayOptions" @change="(v: string) => (pubWay = v)" />
       </div>
       <div class="sg-actions">
+        <!-- 列表字段管理 ▦：居按钮组最左（规范） -->
+        <ColFieldPop :st="cf" />
         <button class="sg-btn" @click="onReset">
           重置
         </button>
@@ -144,70 +165,67 @@ const visible = computed(() => parentTasks.filter((p) => {
         <thead>
           <tr>
             <th :style="{ width: '64px' }">序号</th>
-            <th>
-              创建人/创建时间 <span class="tc-sort">⇅</span>
-            </th>
-            <th>任务类型</th>
-            <th>任务状态</th>
-            <th>发布信息</th>
-            <th>执行信息</th>
-            <th>渠道</th>
-            <th>
-              执行起止时间 <span class="tc-sort">⇅</span>
-            </th>
+            <template v-for="c in midCols" :key="c.key">
+              <th v-if="c.key === 'creator' || c.key === 'execTime'">
+                {{ c.label }} <span class="tc-sort">⇅</span>
+              </th>
+              <th v-else>{{ c.label }}</th>
+            </template>
             <th>操作</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="p in visible" :key="p.id">
             <td>{{ parentTasks.indexOf(p) + 1 }}</td>
-            <td>
-              <div class="tc-cell-lines">
-                <div>{{ p.creator }}</div>
-                <div>{{ p.createTime }}</div>
-              </div>
-            </td>
-            <td>{{ p.type }}</td>
-            <td>
-              <span class="tc-ring-cell">
-                <span class="tc-ring-wrap">
-                  <svg class="tc-ring" width="36" height="36" viewBox="0 0 36 36">
-                    <circle class="track" cx="18" cy="18" r="15" />
-                    <circle
-                      class="bar"
-                      :class="p.status"
-                      cx="18"
-                      cy="18"
-                      r="15"
-                      :stroke-dasharray="`${(RING_C * ringPct(p)) / 100} ${RING_C}`"
-                    />
-                  </svg>
-                  <b>{{ ringPct(p) }}%</b>
+            <template v-for="c in midCols" :key="c.key">
+              <td v-if="c.key === 'creator'">
+                <div class="tc-cell-lines">
+                  <div>{{ p.creator }}</div>
+                  <div>{{ p.createTime }}</div>
+                </div>
+              </td>
+              <td v-else-if="c.key === 'type'">{{ p.type }}</td>
+              <td v-else-if="c.key === 'status'">
+                <span class="tc-ring-cell">
+                  <span class="tc-ring-wrap">
+                    <svg class="tc-ring" width="36" height="36" viewBox="0 0 36 36">
+                      <circle class="track" cx="18" cy="18" r="15" />
+                      <circle
+                        class="bar"
+                        :class="p.status"
+                        cx="18"
+                        cy="18"
+                        r="15"
+                        :stroke-dasharray="`${(RING_C * ringPct(p)) / 100} ${RING_C}`"
+                      />
+                    </svg>
+                    <b>{{ ringPct(p) }}%</b>
+                  </span>
+                  <span class="tc-ring-text">{{ parentStatusText[p.status] }}</span>
                 </span>
-                <span class="tc-ring-text">{{ parentStatusText[p.status] }}</span>
-              </span>
-            </td>
-            <td>
-              <div class="tc-cell-lines">
-                <div>发布店铺数：{{ p.shops }}</div>
-                <div>发布链接数：{{ p.links }}</div>
-                <div>发布方式：{{ p.pubWay }}</div>
-              </div>
-            </td>
-            <td>
-              <div class="tc-cell-lines">
-                <div>任务成功：{{ p.success }}</div>
-                <div>任务失败：{{ p.failed }}</div>
-                <div>执行中：{{ p.running }}</div>
-              </div>
-            </td>
-            <td>{{ p.channel }}</td>
-            <td>
-              <div class="tc-cell-lines">
-                <div>起：{{ p.startTime || '–' }}</div>
-                <div>止：{{ p.endTime || '–' }}</div>
-              </div>
-            </td>
+              </td>
+              <td v-else-if="c.key === 'publish'">
+                <div class="tc-cell-lines">
+                  <div>发布店铺数：{{ p.shops }}</div>
+                  <div>发布链接数：{{ p.links }}</div>
+                  <div>发布方式：{{ p.pubWay }}</div>
+                </div>
+              </td>
+              <td v-else-if="c.key === 'exec'">
+                <div class="tc-cell-lines">
+                  <div>任务成功：{{ p.success }}</div>
+                  <div>任务失败：{{ p.failed }}</div>
+                  <div>执行中：{{ p.running }}</div>
+                </div>
+              </td>
+              <td v-else-if="c.key === 'channel'">{{ p.channel }}</td>
+              <td v-else-if="c.key === 'execTime'">
+                <div class="tc-cell-lines">
+                  <div>起：{{ p.startTime || '–' }}</div>
+                  <div>止：{{ p.endTime || '–' }}</div>
+                </div>
+              </td>
+            </template>
             <td class="actions-col">
               <a class="tc-link" @click="emit('detail', p)">
                 查看详情

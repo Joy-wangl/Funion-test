@@ -20,7 +20,7 @@ const emit = defineEmits<{ (e: 'pick'): void; (e: 'pickScope', key: string, kind
       </label>
       <div v-if="cfg.scope && scopeKey" class="perm-scope">
         <span class="ps-label">可见平台/店铺</span>
-        <span class="link" @click="emit('pickScope', scopeKey, 'view')">{{ scopeSummary(scopeOf(scopeKey).view.shops) }}</span>
+        <span class="link" @click="emit('pickScope', scopeKey, 'view')">{{ scopeSummary(scopeOf(scopeKey).view) }}</span>
       </div>
     </div>
   </td>
@@ -35,7 +35,7 @@ const emit = defineEmits<{ (e: 'pick'): void; (e: 'pickScope', key: string, kind
       </label>
       <div v-if="cfg.scope && scopeKey" class="perm-scope">
         <span class="ps-label">可管理平台/店铺</span>
-        <span class="link" @click="emit('pickScope', scopeKey, 'manage')">{{ scopeSummary(scopeOf(scopeKey).manage.shops) }}</span>
+        <span class="link" @click="emit('pickScope', scopeKey, 'manage')">{{ scopeSummary(scopeOf(scopeKey).manage) }}</span>
       </div>
     </div>
   </td>

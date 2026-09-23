@@ -1359,7 +1359,7 @@ button.ap-home-app { cursor: pointer; }
   position: relative;
   border-radius: 12px;
   overflow: hidden;
-  min-height: 196px;
+  min-height: 320px;
   background: linear-gradient(135deg, var(--color-primary) 0%, #6aa6ff 60%, #8fc0ff 100%);
   cursor: pointer;
 }
@@ -1582,7 +1582,7 @@ button.ap-home-app { cursor: pointer; }
 .ap-dash-trendcell:hover { background: #f2f6ff; text-decoration: underline; }
 
 /* 使用趋势弹窗（参考品控中心趋势图） */
-.ap-trend-mask { position: fixed; inset: 0; background: rgba(20, 26, 40, .45); display: flex; align-items: center; justify-content: center; z-index: 60; }
+.ap-trend-mask { position: fixed; inset: 0; background: rgba(20, 26, 40, .45); display: flex; align-items: center; justify-content: center; z-index: 1010; }
 
 .ap-trend-modal { width: 880px; max-width: calc(100vw - 80px); background: #fff; border-radius: 12px; padding: 20px 24px; box-shadow: 0 18px 50px rgba(15, 25, 45, .25); }
 

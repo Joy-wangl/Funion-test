@@ -6,20 +6,37 @@ import { sgJmDetail } from './shopGoodsData';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import DateRangePicker from '../../components/DateRangePicker.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
-import Modal from '../../components/Modal.vue';
 import MoreActions from '../../components/MoreActions.vue';
 import SortTh from '../../components/SortTh.vue';
 import CreateDetailPage from './CreateDetailPage.vue';
 import JmCreateDetailPage from './JmCreateDetailPage.vue';
 import { pushToast } from '../../components/toast';
 import TcStepsCell from './TcStepsCell.vue';
+import QuickSkuModal, { mkVal } from './QuickSkuModal.vue';
+import type { QuickDraftRow, QuickSpec, QuickVal } from './QuickSkuModal.vue';
 import { addPublishTask, setPublishResume, setPublishRiskResume } from './publishStore';
 import { pushGMsg, requestShopAcct } from '../../components/globalMsgData';
 import { amOfflineShopNames, amOfflineSellerOfShop } from '../permission/accountData';
+import ColFieldPop from './ColFieldPop.vue';
+import { useColField } from './colFields';
 
 /** 商品创建页（jm=京麦平台：列表同源结构，详情走京麦接口字段页；video=视频号：详情走微信小店规格×SKU 笛卡尔积交互） */
 const props = defineProps<{ jm?: boolean; video?: boolean }>();
 const rows = ref<CreateRow[]>(props.jm ? createJmRows : createTaobaoRows);
+
+/* 列表字段管理：三平台实例列结构同源共用 scope；百分比宽表不横向溢出，sticky=false 钉住仅置顶/置尾 */
+const cf = useColField('create', {
+  fixedLeft: [{ key: 'check' }],
+  fields: [
+    { key: 'product', label: '商品信息' },
+    { key: 'store', label: '上架店铺' },
+    { key: 'status', label: '状态' },
+    { key: 'created', label: '创建人 / 创建时间' },
+  ],
+  fixedRight: [{ key: 'actions', label: '操作' }],
+  sticky: false,
+});
+const { midCols } = cf;
 /* 详情态：复用内部商机/店铺商品详情样式 */
 const detail = ref<CreateRow | null>(null);
 /* 创建时间范围筛选 */
@@ -203,12 +220,21 @@ const confirmImpFile = () => {
 };
 
 /* ---------- SKU 快捷编辑（千牛式）：双入口——列表商品信息列「详」字芯片（单件）、勾选后列头上方选条「编辑商品信息」（批量，微信小店式交互）；
-   弹窗保留 SKU 全字段（图片/名称/商品编码/系列编码/成本价/售价/利润/利润率/库存数）＋操作（复制/删除），保存按平台重建种子 SKU 数组回写 ---------- */
-type QuickVal = { name: string; code: string; series: string; cost: string; price: string; stock: string; profit: string; rate: string };
-type QuickDraftRow = { thumb: string; title: string; jm: boolean; src: Record<string, string>; qcode: string; val: QuickVal };
+   弹窗保留 SKU 全字段（图片/名称/商品编码/系列编码/成本价/售价/利润/利润率/库存数）＋操作（复制/删除），保存按平台重建种子 SKU 数组回写；
+   弹窗 UI 与联动/查询逻辑抽取至共享组件 QuickSkuModal（店铺商品详情视频号快捷编辑复用），类型与构造器由其普通 script 块导出 ---------- */
 const quickRow = ref<CreateRow | null>(null);
 const quickBatch = ref(false);
 const quickDraft = ref<QuickDraftRow[]>([]);
+/* 属性配置草稿（与详情 specs/saleAttrs 同构）：弹窗内增删属性值，保存回写种子 */
+const quickSpecs = ref<QuickSpec[]>([]);
+const loadQuickSpecs = () => {
+  quickSpecs.value = (props.jm ? sgJmDetail.saleAttrs : createDetail.specs).map((s) => ({ name: s.name, values: [...s.values] }));
+};
+/* 种子 SKU → 属性关联：非京麦按 specs 维度序取 color/style；京麦解析 attrs 串（颜色:黑 规格:标准） */
+const valsOf = (u: Record<string, string>): Record<string, string> => {
+  if (props.jm) return Object.fromEntries((u.attrs ?? '').split(' ').filter(Boolean).map((kv) => { const [k, v] = kv.split(':'); return [k, v]; }));
+  return { [quickSpecs.value[0]?.name ?? '颜色分类']: u.color, [quickSpecs.value[1]?.name ?? '款式']: u.style };
+};
 /* 同种子 SKU 在多商品行间共享同一 draft 值对象（淘宝路由各商品共用同一种子）；批量勾选多件同种子商品时按 src 去重只铺一行（不展示商品信息列，重复行无意义） */
 const buildDraft = (list: CreateRow[]): QuickDraftRow[] => {
   const vals = new Map<Record<string, string>, QuickVal>();
@@ -224,10 +250,11 @@ const buildDraft = (list: CreateRow[]): QuickDraftRow[] => {
     return [s];
   };
   return list.flatMap((row) => (props.jm
-    ? sgJmDetail.skus.flatMap((s) => once(s).map((u): QuickDraftRow => ({ thumb: row.thumb, title: row.title, jm: true, src: u, qcode: u.outerId, val: valOf(u, () => mkVal(u.name, u.outerId, u.series, u.cost, u.jdPrice, u.stock)) })))
-    : createDetail.skus.flatMap((s) => once(s).map((u): QuickDraftRow => ({ thumb: row.thumb, title: row.title, jm: false, src: u, qcode: u.code, val: valOf(u, () => mkVal(u.name, u.code, u.series, u.cost, u.price, u.stock)) })))));
+    ? sgJmDetail.skus.flatMap((s) => once(s).map((u): QuickDraftRow => ({ thumb: row.thumb, title: row.title, jm: true, src: u, qcode: u.outerId, val: valOf(u, () => mkVal(u.name, u.outerId, u.series, u.cost, u.jdPrice, u.stock)), vals: valsOf(u) })))
+    : createDetail.skus.flatMap((s) => once(s).map((u): QuickDraftRow => ({ thumb: row.thumb, title: row.title, jm: false, src: u, qcode: u.code, val: valOf(u, () => mkVal(u.name, u.code, u.series, u.cost, u.price, u.stock)), vals: valsOf(u) })))));
 };
 const openQuickSku = (row: CreateRow) => {
+  loadQuickSpecs();
   quickDraft.value = buildDraft([row]);
   quickBatch.value = false;
   quickRow.value = row;
@@ -235,6 +262,7 @@ const openQuickSku = (row: CreateRow) => {
 /* 批量入口：勾选行展开为去重后的 SKU draft，与单件共用弹窗与回写 */
 const batchRows = computed(() => rows.value.filter((r) => selLinks.value.has(r.link)));
 const openBatchSku = () => {
+  loadQuickSpecs();
   quickDraft.value = buildDraft(batchRows.value);
   quickBatch.value = true;
   quickRow.value = null;
@@ -242,107 +270,26 @@ const openBatchSku = () => {
 const closeQuick = () => {
   quickRow.value = null;
   quickBatch.value = false;
-  colEdit.value = null;
-};
-/* 成本价只读不可改；售价/利润/利润率三值联动可编辑：成本恒定，改任一项反推其余两项（利润=售价−成本；利润率=利润÷售价；售价=成本÷(1−利润率)） */
-const numOf = (v: string) => {
-  const n = parseFloat(v);
-  return Number.isFinite(n) ? n : NaN;
-};
-const syncPriceVal = (v: QuickVal) => {
-  const p = numOf(v.price);
-  const c = numOf(v.cost);
-  if (Number.isFinite(p) && Number.isFinite(c)) {
-    v.profit = (p - c).toFixed(2);
-    v.rate = p > 0 ? (((p - c) / p) * 100).toFixed(1) : '';
-  }
-};
-const syncProfitVal = (v: QuickVal) => {
-  const pr = numOf(v.profit);
-  const c = numOf(v.cost);
-  if (Number.isFinite(pr) && Number.isFinite(c)) {
-    const p = c + pr;
-    v.price = p.toFixed(2);
-    v.rate = p > 0 ? ((pr / p) * 100).toFixed(1) : '';
-  }
-};
-const syncRateVal = (v: QuickVal) => {
-  const rt = numOf(v.rate);
-  const c = numOf(v.cost);
-  if (Number.isFinite(rt) && Number.isFinite(c) && rt < 100) {
-    const p = c / (1 - rt / 100);
-    v.price = p.toFixed(2);
-    v.profit = (p - c).toFixed(2);
-  }
-};
-const mkVal = (name: string, code: string, series: string, cost: string, price: string, stock: string): QuickVal => {
-  /* 商品编码为空时系列编码/成本价默认 0.00，编码查询成功后回填 */
-  const v: QuickVal = { name, code, series: code.trim() ? series : '0.00', cost: code.trim() ? cost : '0.00', price, stock, profit: '', rate: '' };
-  syncPriceVal(v);
-  return v;
-};
-/* 列头批量编辑：售价/利润/利润率/库存数 列头 icon，浮层输入统一值后整列应用（利润/利润率按联动反推） */
-type ColEditKey = 'price' | 'profit' | 'rate' | 'stock';
-const colEdit = ref<{ key: ColEditKey; value: string } | null>(null);
-const openColEdit = (key: ColEditKey) => {
-  colEdit.value = colEdit.value?.key === key ? null : { key, value: '' };
-};
-const applyColumn = () => {
-  const ce = colEdit.value;
-  if (!ce) return;
-  for (const r of quickDraft.value) {
-    if (ce.key === 'stock') r.val.stock = ce.value;
-    else {
-      r.val[ce.key] = ce.value;
-      (ce.key === 'price' ? syncPriceVal : ce.key === 'profit' ? syncProfitVal : syncRateVal)(r.val);
-    }
-  }
-  colEdit.value = null;
-};
-/* 系列编码查询（mock 600ms）：按商品编码回查系列编码与成本价；编码输入失焦（点击空白）时先 toast 提示，查询完成后回填 */
-const mockSeriesQuery = (code: string): Promise<{ series: string; cost: string }> =>
-  new Promise((resolve) => {
-    setTimeout(() => {
-      const hit = createDetail.skus.find((s) => s.code === code) || sgJmDetail.skus.find((s) => s.outerId === code);
-      resolve(hit ? { series: hit.series, cost: hit.cost } : { series: `编码${code.slice(-2) || '00'}`, cost: '25.00' });
-    }, 600);
-  });
-const codeBlur = (r: QuickDraftRow) => {
-  const code = r.val.code.trim();
-  if (!code) {
-    r.qcode = '';
-    r.val.series = '0.00';
-    r.val.cost = '0.00';
-    syncPriceVal(r.val);
-    return;
-  }
-  if (code === r.qcode) return;
-  r.qcode = code;
-  pushToast('正在查询系列编码信息');
-  mockSeriesQuery(code).then((res) => {
-    r.val.series = res.series;
-    r.val.cost = res.cost;
-    syncPriceVal(r.val);
-  });
-};
-/* 操作：复制＝当前行后插入值完全一致的 draft 行（src 独立克隆，保存即新种子 SKU）；删除＝直接从 draft 移除 */
-const copyQuick = (i: number) => {
-  const r = quickDraft.value[i];
-  if (!r) return;
-  quickDraft.value.splice(i + 1, 0, { ...r, src: { ...r.src }, val: { ...r.val } });
-};
-const deleteQuick = (i: number) => {
-  quickDraft.value.splice(i, 1);
 };
 const saveQuickSku = () => {
   const write = (r: QuickDraftRow) => {
     Object.assign(r.src, r.jm
       ? { name: r.val.name, outerId: r.val.code, series: r.val.series, cost: r.val.cost, jdPrice: r.val.price, stock: r.val.stock }
       : { name: r.val.name, code: r.val.code, series: r.val.series, cost: r.val.cost, price: r.val.price, stock: r.val.stock });
+    /* 属性关联回写：京麦重拼 attrs 串；非京麦按 specs 维度序写回 color/style */
+    if (r.jm) r.src.attrs = quickSpecs.value.map((sp) => `${sp.name}:${r.vals[sp.name] ?? ''}`).join(' ');
+    else {
+      r.src.color = r.vals[quickSpecs.value[0]?.name ?? ''] ?? '';
+      r.src.style = r.vals[quickSpecs.value[1]?.name ?? ''] ?? '';
+    }
     return r.src;
   };
   if (props.jm) sgJmDetail.skus = quickDraft.value.filter((r) => r.jm).map(write) as typeof sgJmDetail.skus;
   else createDetail.skus = quickDraft.value.filter((r) => !r.jm).map(write) as typeof createDetail.skus;
+  /* 属性配置（含新增属性值）回写种子 */
+  const specsBack = quickSpecs.value.map((s) => ({ name: s.name, values: [...s.values] }));
+  if (props.jm) sgJmDetail.saleAttrs = specsBack as typeof sgJmDetail.saleAttrs;
+  else createDetail.specs = specsBack as typeof createDetail.specs;
   pushToast(quickBatch.value ? `SKU 信息已保存（${batchRows.value.length} 件商品）` : 'SKU 信息已保存');
   closeQuick();
 };
@@ -683,20 +630,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
           <DateRangePicker v-model:from="createDateFrom" v-model:to="createDateTo" placeholder="请选择日期范围" />
         </div>
         <div class="create-actions-inline">
-          <!-- 图片管理入口：点击进入二级页批量管理勾选商品图片；未勾选行时禁用（与快速铺货同口径） -->
-          <button class="lightBtn cp-img-entry" :disabled="selLinks.size === 0" @click="imgPage = true">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" />
-              <circle cx="5.5" cy="6.5" r="1.5" fill="currentColor" />
-              <path d="M2.5 11.5l3.5-3 3 2.5 2.5-2 2 1.8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-            图片管理
-          </button>
           <div class="create-act-left">
             <button class="primaryBtn" :disabled="selLinks.size === 0" @click="openQuickPub">快速铺货</button>
             <button class="primaryBtn" @click="openImp">竞品导入</button>
           </div>
           <div class="create-act-right">
+            <!-- 列表字段管理 ▦：居按钮组最左（规范） -->
+            <ColFieldPop :st="cf" />
             <button class="lightBtn">重置</button>
             <button class="primaryBtn">查询</button>
           </div>
@@ -709,6 +649,15 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
       <div v-if="selLinks.size > 0" class="cp-selbar">
         <span class="cp-selbar-count">已选 <b>{{ selLinks.size }}</b> 条</span>
         <button class="lightBtn" @click="openBatchSku">编辑商品信息</button>
+        <!-- 图片管理入口：勾选后选条内展示，点击进入二级页批量管理勾选商品图片 -->
+        <button class="lightBtn cp-img-entry" @click="imgPage = true">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" />
+            <circle cx="5.5" cy="6.5" r="1.5" fill="currentColor" />
+            <path d="M2.5 11.5l3.5-3 3 2.5 2.5-2 2 1.8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          图片管理
+        </button>
       </div>
       <div class="ib-table-wrap">
         <table class="ib-table create-table">
@@ -723,10 +672,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
                   "
                 />
               </th>
-              <th>商品信息</th>
-              <th>上架店铺</th>
-              <th>状态</th>
-              <th>创建人 / 创建时间</th>
+              <template v-for="c in midCols" :key="c.key">
+                <th>{{ c.label }}</th>
+              </template>
               <th>操作</th>
             </tr>
           </thead>
@@ -740,31 +688,33 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
                   @change="toggleSel(row.link, ($event.target as HTMLInputElement).checked)"
                 />
               </td>
-              <td>
-                <div class="create-product">
-                  <img class="create-thumb" :src="row.thumb" alt="thumb" />
-                  <div class="create-product-info">
-                    <div class="create-product-title">
-                      <!-- 平台展示统一官方图标（PLATFORM_LOGO），不用文字徽章 -->
-                      <img class="create-platform-logo" :src="pubLogo(row.platformBadge)" :alt="row.platformBadge" />
-                      <Ellipsis class-name="create-title-ell" :text="row.title" />
+              <template v-for="c in midCols" :key="c.key">
+                <td v-if="c.key === 'product'">
+                  <div class="create-product">
+                    <img class="create-thumb" :src="row.thumb" alt="thumb" />
+                    <div class="create-product-info">
+                      <div class="create-product-title">
+                        <!-- 平台展示统一官方图标（PLATFORM_LOGO），不用文字徽章 -->
+                        <img class="create-platform-logo" :src="pubLogo(row.platformBadge)" :alt="row.platformBadge" />
+                        <Ellipsis class-name="create-title-ell" :text="row.title" />
+                      </div>
+                      <div class="create-link">
+                        竞品链接：<a href="#"><Ellipsis class-name="create-link-ell" :text="row.link" /></a>
+                      </div>
                     </div>
-                    <div class="create-link">
-                      竞品链接：<a href="#"><Ellipsis class-name="create-link-ell" :text="row.link" /></a>
-                    </div>
+                    <!-- 千牛式 SKU 快捷编辑入口：「详」字芯片与商品主图居中对齐 -->
+                    <button type="button" class="cp-quick-sku" title="快捷编辑SKU" @click.stop="openQuickSku(row)">详</button>
                   </div>
-                  <!-- 千牛式 SKU 快捷编辑入口：「详」字芯片与商品主图居中对齐 -->
-                  <button type="button" class="cp-quick-sku" title="快捷编辑SKU" @click.stop="openQuickSku(row)">详</button>
-                </div>
-              </td>
-              <td class="create-store-text">{{ row.store }}</td>
-              <td>
-                <span class="sgd-tag" :class="i % 2 ? 'orange' : 'green'">{{ i % 2 ? '待完善' : '已完善' }}</span>
-              </td>
-              <td>
-                <div class="create-person">{{ row.person }}</div>
-                <div class="create-time">{{ row.time }}</div>
-              </td>
+                </td>
+                <td v-else-if="c.key === 'store'" class="create-store-text">{{ row.store }}</td>
+                <td v-else-if="c.key === 'status'">
+                  <span class="sgd-tag" :class="i % 2 ? 'orange' : 'green'">{{ i % 2 ? '待完善' : '已完善' }}</span>
+                </td>
+                <td v-else-if="c.key === 'created'">
+                  <div class="create-person">{{ row.person }}</div>
+                  <div class="create-time">{{ row.time }}</div>
+                </td>
+              </template>
               <td class="create-ops">
                 <a href="#" @click.prevent="detail = row">详情</a>
                 <a
@@ -957,68 +907,17 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
     <input ref="impFileRef" class="cp-imp-fileinput" type="file" accept=".xlsx,.xls" @change="onImpFile" />
   </div>
 
-  <!-- SKU 快捷编辑弹窗：规格×售价/库存/编码关键信息，保存回写详情种子；pm-host 宿主层复用 .pm-page 弹窗基础样式 -->
-  <div class="pm-page pm-host">
-    <Modal v-if="quickRow || quickBatch" :title="quickBatch ? '批量编辑商品' : '快捷编辑SKU'" :sub="quickBatch ? `已选 ${batchRows.length} 件商品` : quickRow?.title" size="xl" @close="closeQuick">
-      <table class="cp-quick-table">
-        <thead>
-          <tr>
-            <th>SKU图片</th>
-            <th>SKU名称</th>
-            <th>{{ props.jm ? '商家编码' : '商品编码' }}</th>
-            <th>系列编码</th>
-            <th>成本价</th>
-            <th>{{ props.jm ? '京东价' : '售价' }}<button type="button" class="cp-quick-col-btn" title="批量修改本列" @click.stop="openColEdit('price')"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M11.4 1.6l3 3-9 9-3.8.8.8-3.8 9-9z" fill="currentColor" /></svg></button>
-              <div v-if="colEdit?.key === 'price'" class="cp-quick-colpop" @click.stop>
-                <input v-model="colEdit.value" class="ib-input" placeholder="统一值" />
-                <button type="button" class="sg-btn primary" @click="applyColumn">应用</button>
-              </div>
-            </th>
-            <th>利润<button type="button" class="cp-quick-col-btn" title="批量修改本列" @click.stop="openColEdit('profit')"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M11.4 1.6l3 3-9 9-3.8.8.8-3.8 9-9z" fill="currentColor" /></svg></button>
-              <div v-if="colEdit?.key === 'profit'" class="cp-quick-colpop" @click.stop>
-                <input v-model="colEdit.value" class="ib-input" placeholder="统一值" />
-                <button type="button" class="sg-btn primary" @click="applyColumn">应用</button>
-              </div>
-            </th>
-            <th>利润率<button type="button" class="cp-quick-col-btn" title="批量修改本列" @click.stop="openColEdit('rate')"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M11.4 1.6l3 3-9 9-3.8.8.8-3.8 9-9z" fill="currentColor" /></svg></button>
-              <div v-if="colEdit?.key === 'rate'" class="cp-quick-colpop" @click.stop>
-                <input v-model="colEdit.value" class="ib-input" placeholder="统一值" />
-                <button type="button" class="sg-btn primary" @click="applyColumn">应用</button>
-              </div>
-            </th>
-            <th>库存数<button type="button" class="cp-quick-col-btn" title="批量修改本列" @click.stop="openColEdit('stock')"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M11.4 1.6l3 3-9 9-3.8.8.8-3.8 9-9z" fill="currentColor" /></svg></button>
-              <div v-if="colEdit?.key === 'stock'" class="cp-quick-colpop" @click.stop>
-                <input v-model="colEdit.value" class="ib-input" placeholder="统一值" />
-                <button type="button" class="sg-btn primary" @click="applyColumn">应用</button>
-              </div>
-            </th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(r, i) in quickDraft" :key="i">
-            <td><img class="cp-quick-img" :src="r.thumb" alt="" /></td>
-            <td><input v-model="r.val.name" class="ib-input" /></td>
-            <td><input v-model="r.val.code" class="ib-input" @blur="codeBlur(r)" /></td>
-            <td class="cp-quick-readonly">{{ r.val.series }}</td>
-            <td class="cp-quick-readonly">{{ r.val.cost }}</td>
-            <td><input v-model="r.val.price" class="ib-input" @input="syncPriceVal(r.val)" /></td>
-            <td><input v-model="r.val.profit" class="ib-input" @input="syncProfitVal(r.val)" /></td>
-            <td class="cp-quick-rate"><input v-model="r.val.rate" class="ib-input" @input="syncRateVal(r.val)" /><span class="cp-quick-rate-suf">%</span></td>
-            <td><input v-model="r.val.stock" class="ib-input" /></td>
-            <td class="cp-quick-ops">
-              <button type="button" class="cp-quick-op" @click="copyQuick(i)">复制</button>
-              <button type="button" class="cp-quick-op danger" @click="deleteQuick(i)">删除</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <template #foot>
-        <button class="sg-btn" @click="closeQuick">取消</button>
-        <button class="sg-btn primary" @click="saveQuickSku">保存</button>
-      </template>
-    </Modal>
-  </div>
+  <!-- SKU 快捷编辑弹窗：共享组件 QuickSkuModal（含 pm-host 宿主层），保存回写详情种子 -->
+  <QuickSkuModal
+    v-if="quickRow || quickBatch"
+    :draft="quickDraft"
+    :batch="quickBatch"
+    :specs="quickSpecs"
+    :sub="quickBatch ? `已选 ${batchRows.length} 件商品` : quickRow?.title ?? ''"
+    :jm="props.jm"
+    @close="closeQuick"
+    @save="saveQuickSku"
+  />
 
   <!-- 发布到抽屉：两步向导——第一步多选策略 / 第二步按策略选店铺（店铺跨策略互斥） -->
   <div v-if="pubOpen" class="cp-drawer-mask" @click="pubOpen = false" />

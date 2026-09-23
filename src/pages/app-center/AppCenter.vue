@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /* 应用中心（1:1 移植自 AppCenter.tsx）
    toast 接入全局 pushToast + ToastWrap（迁移约定，等价 React 本地 ap-toast 提示） */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
   CATEGORIES, FORM_CATEGORIES,
   AC_EASTER_BANNERS, AC_EASTER_TOAST,
@@ -19,6 +19,11 @@ import AcDetail from './AcDetail.vue';
 import AcCreate from './AcCreate.vue';
 import AcMsgDrawer from './AcMsgDrawer.vue';
 import AppDashboard from './Dashboard.vue';
+import Modal from '../../components/Modal.vue';
+import MemberPickPanel from '../permission/MemberPickPanel.vue';
+import OgPickedSide from '../permission/OgPickedSide.vue';
+import { INITIAL_MEMBERS } from '../permission/data';
+import '../permission/style.css';
 import './AppCenter.css';
 
 type View =
@@ -39,8 +44,26 @@ const sortKey = ref<'users' | 'release' | null>(null);
 const sortDesc = ref(true);
 const view = ref<View>({ kind: 'home' });
 const detailBack = ref<View>({ kind: 'list' });
-const recent = ref<{ id: string; at: number }[]>([]);
-const favIds = ref<string[]>([]);
+/* 收藏/最近使用落 localStorage（沿用旧版键 funion:ac:favs，历史收藏直接读回），刷新不丢 */
+const readStore = <T>(key: string, fallback: T): T => {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+const writeStore = (key: string, v: unknown) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(v));
+  } catch {
+    /* ignore */
+  }
+};
+const recent = ref<{ id: string; at: number }[]>(readStore('funion:ac:recent', []));
+const favIds = ref<string[]>(readStore('funion:ac:favs', []));
+watch(favIds, (v) => writeStore('funion:ac:favs', v));
+watch(recent, (v) => writeStore('funion:ac:recent', v));
 const rankRange = ref('近30天');
 const rankTab = ref<'person' | 'dept' | 'best'>('person');
 const rankOpen = ref<string | null>(null);
@@ -218,6 +241,30 @@ const menuApp = computed(() => {
   const m = menu.value;
   return m ? apps.value.find((a) => a.id === m.id) ?? null : null;
 });
+
+/* 权限管理→管理可用成员：MemberPickPanel 组织钻取（部门/全选可勾）+ 已选侧栏，确定写回应用 */
+const permApp = ref<AppItem | null>(null);
+const permPicked = ref<Set<string>>(new Set());
+const openPerm = (a: AppItem) => { permApp.value = a; permPicked.value = new Set(a.memberIds ?? []); };
+const permToggle = (id: string) => {
+  const s = new Set(permPicked.value);
+  if (s.has(id)) s.delete(id); else s.add(id);
+  permPicked.value = s;
+};
+const permBulk = (ids: string[], checked: boolean) => {
+  const s = new Set(permPicked.value);
+  ids.forEach((id) => (checked ? s.add(id) : s.delete(id)));
+  permPicked.value = s;
+};
+const permPickedMembers = computed(() => INITIAL_MEMBERS.filter((m) => permPicked.value.has(m.id)));
+const confirmPerm = () => {
+  const a = permApp.value;
+  if (a) {
+    a.memberIds = [...permPicked.value];
+    pushToast(`已保存：「${a.name}」可用成员 ${permPicked.value.size} 人`);
+  }
+  permApp.value = null;
+};
 
 const confirmDelete = () => {
   const id = deleteId.value;
@@ -741,17 +788,36 @@ const gotoAppDetail = (appId: string) => {
           </template>
           <template v-else-if="view.kind === 'mine'">
             <button type="button" @click="openCreate(menuApp.id); menu = null">编辑应用</button>
-            <button type="button" @click="menu = null; pushToast('权限管理：演示')">权限管理</button>
+            <button type="button" @click="openPerm(menuApp); menu = null">权限管理</button>
             <button type="button" class="danger" @click="deleteId = menuApp.id; menu = null">删除应用</button>
           </template>
           <template v-else>
             <button type="button" @click="act(menuApp, $event); menu = null">打开</button>
-            <button type="button" @click="menu = null; pushToast('权限管理：演示')">权限管理</button>
+            <button type="button" @click="openPerm(menuApp); menu = null">权限管理</button>
             <button type="button" @click="openCreate(menuApp.id); menu = null">编辑应用</button>
           </template>
         </div>
       </template>
     </Teleport>
+
+    <!-- 管理可用成员弹窗：卡片菜单「权限管理」入口；组织钻取+搜索+面包屑，部门与全选可勾，右栏已选 -->
+    <div v-if="permApp" class="pm-page pm-host">
+      <Modal title="管理可用成员" size="xl" @close="permApp = null">
+        <div class="member-transfer">
+          <MemberPickPanel
+            :members="INITIAL_MEMBERS"
+            :selected-ids="permPicked"
+            :on-toggle="permToggle"
+            :on-bulk="permBulk"
+          />
+          <OgPickedSide :picked="permPickedMembers" :max="10000" :on-remove="permToggle" />
+        </div>
+        <template #foot>
+          <button class="btn" @click="permApp = null">取消</button>
+          <button class="btn primary" @click="confirmPerm">确定</button>
+        </template>
+      </Modal>
+    </div>
 
     <!-- 类目管理抽屉 -->
     <Teleport to="body">

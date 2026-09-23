@@ -7,6 +7,23 @@ import DateRangePicker from '../../components/DateRangePicker.vue';
 import SortTh from '../../components/SortTh.vue';
 import TcStepsCell from './TcStepsCell.vue';
 import { firstStepFailed, createPageOf, type CreatePageKey } from './tcSteps';
+import ColFieldPop from './ColFieldPop.vue';
+import { useColField } from './colFields';
+
+/* 列表字段管理：勾选+序号固定左、操作固定右；自适应宽表 sticky=false */
+const cf = useColField('taskSub', {
+  fixedLeft: [{ key: 'check' }, { key: 'index', label: '序号', width: 64 }],
+  fields: [
+    { key: 'product', label: '商品信息' },
+    { key: 'taskType', label: '任务类型/状态' },
+    { key: 'node', label: '节点状态' },
+    { key: 'create', label: '创建信息' },
+    { key: 'exec', label: '发布店铺/执行起止时间' },
+  ],
+  fixedRight: [{ key: 'actions', label: '操作' }],
+  sticky: false,
+});
+const { midCols } = cf;
 
 const platformOptions = ['全部', '淘宝', '天猫', '拼多多', '抖音', '快手', '京东', '阿里巴巴', '微信视频号小店', '微信小店'];
 const typeOptions = ['快速铺货', '商品铺货', '商品发布', '批量上架', '自动定价', '自动换图', '商品搬家', '自动下架'];
@@ -336,6 +353,8 @@ watch(pageCount, (v) => { if (page.value > v) page.value = v; });
     <div class="sg-actions">
       <div class="sg-mini" />
       <div class="sg-rightacts">
+        <!-- 列表字段管理 ▦：居按钮组最左（规范） -->
+        <ColFieldPop :st="cf" />
         <button class="sg-btn primary" @click="batchRepub">
           批量重新发布
         </button>
@@ -359,13 +378,13 @@ watch(pageCount, (v) => { if (page.value > v) page.value = v; });
               <input type="checkbox" :checked="allChecked" @change="toggleAll" />
             </th>
             <th :style="{ width: '64px' }">序号</th>
-            <th>商品信息</th>
-            <th>任务类型/状态</th>
-            <th>节点状态</th>
-            <th :style="{ width: '140px' }">
-              <SortTh as="span" label="创建信息" :state="sortKey === 'create' ? sortDir : 'none'" @sort="onSort('create')" />
-            </th>
-            <SortTh label="发布店铺/执行起止时间" :state="sortKey === 'exec' ? sortDir : 'none'" @sort="onSort('exec')" />
+            <template v-for="c in midCols" :key="c.key">
+              <th v-if="c.key === 'create'" :style="{ width: '140px' }">
+                <SortTh as="span" label="创建信息" :state="sortKey === 'create' ? sortDir : 'none'" @sort="onSort('create')" />
+              </th>
+              <SortTh v-else-if="c.key === 'exec'" label="发布店铺/执行起止时间" :state="sortKey === 'exec' ? sortDir : 'none'" @sort="onSort('exec')" />
+              <th v-else>{{ c.label }}</th>
+            </template>
             <th>操作</th>
           </tr>
         </thead>
@@ -375,53 +394,55 @@ watch(pageCount, (v) => { if (page.value > v) page.value = v; });
               <input type="checkbox" :disabled="r.sub.status !== 'failed'" :checked="checked.includes(r.sub.taskId)" @change="toggleCheck(r.sub)" />
             </td>
             <td>{{ pageNo + i + 1 }}</td>
-            <td>
-              <div class="tc-product">
-                <img class="tc-thumb" :src="r.sub.thumb" />
-                <div>
-                  <div class="tc-pname">{{ r.sub.name }}</div>
-                  <template v-if="r.parent.type === '商品搬家'">
-                    <div class="tc-pmeta">来源店铺：{{ r.sub.sourceShop || '–' }}</div>
-                    <div class="tc-pmeta">来源商品ID：{{ r.sub.sourceProductId || '–' }}</div>
-                  </template>
-                  <template v-else-if="r.parent.type === '自动下架'">
-                    <div class="tc-pmeta">店铺：{{ r.sub.sourceShop || '–' }}</div>
-                    <div class="tc-pmeta">商品ID：{{ r.sub.sourceProductId || '–' }}</div>
-                  </template>
-                  <template v-else>
-                    <div class="tc-pmeta">链接商品ID：{{ r.sub.linkId }}</div>
-                  </template>
-                  <div class="tc-pmeta">任务ID：{{ String(r.sub.taskId).padStart(6, '0') }}</div>
+            <template v-for="c in midCols" :key="c.key">
+              <td v-if="c.key === 'product'">
+                <div class="tc-product">
+                  <img class="tc-thumb" :src="r.sub.thumb" />
+                  <div>
+                    <div class="tc-pname">{{ r.sub.name }}</div>
+                    <template v-if="r.parent.type === '商品搬家'">
+                      <div class="tc-pmeta">来源店铺：{{ r.sub.sourceShop || '–' }}</div>
+                      <div class="tc-pmeta">来源商品ID：{{ r.sub.sourceProductId || '–' }}</div>
+                    </template>
+                    <template v-else-if="r.parent.type === '自动下架'">
+                      <div class="tc-pmeta">店铺：{{ r.sub.sourceShop || '–' }}</div>
+                      <div class="tc-pmeta">商品ID：{{ r.sub.sourceProductId || '–' }}</div>
+                    </template>
+                    <template v-else>
+                      <div class="tc-pmeta">链接商品ID：{{ r.sub.linkId }}</div>
+                    </template>
+                    <div class="tc-pmeta">任务ID：{{ String(r.sub.taskId).padStart(6, '0') }}</div>
+                  </div>
                 </div>
-              </div>
-            </td>
-            <td>
-              <div class="tc-cell-lines">
-                <div>{{ r.parent.type }}</div>
-                <div>
-                  <span class="tc-st" :class="subStatusCls[r.sub.status]">
-                    <i />
-                    {{ subStatusText[r.sub.status] }}
-                  </span>
+              </td>
+              <td v-else-if="c.key === 'taskType'">
+                <div class="tc-cell-lines">
+                  <div>{{ r.parent.type }}</div>
+                  <div>
+                    <span class="tc-st" :class="subStatusCls[r.sub.status]">
+                      <i />
+                      {{ subStatusText[r.sub.status] }}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </td>
-            <td>
-              <TcStepsCell :sub="r.sub" :type="r.parent.type" />
-            </td>
-            <td>
-              <div class="tc-cell-lines">
-                <div>{{ r.parent.creator }}</div>
-                <div>{{ r.parent.createTime }}</div>
-              </div>
-            </td>
-            <td>
-              <div class="tc-cell-lines">
-                <div>{{ r.sub.shops[0]?.shop ?? '–' }}</div>
-                <div>{{ r.sub.startTime ? `${r.sub.startTime} 至` : '–' }}</div>
-                <div>{{ r.sub.endTime || '–' }}</div>
-              </div>
-            </td>
+              </td>
+              <td v-else-if="c.key === 'node'">
+                <TcStepsCell :sub="r.sub" :type="r.parent.type" />
+              </td>
+              <td v-else-if="c.key === 'create'">
+                <div class="tc-cell-lines">
+                  <div>{{ r.parent.creator }}</div>
+                  <div>{{ r.parent.createTime }}</div>
+                </div>
+              </td>
+              <td v-else-if="c.key === 'exec'">
+                <div class="tc-cell-lines">
+                  <div>{{ r.sub.shops[0]?.shop ?? '–' }}</div>
+                  <div>{{ r.sub.startTime ? `${r.sub.startTime} 至` : '–' }}</div>
+                  <div>{{ r.sub.endTime || '–' }}</div>
+                </div>
+              </td>
+            </template>
             <td class="actions-col">
               <a v-if="!firstStepFailed(r.sub, r.parent.type) && r.sub.status !== 'cancelled' && r.sub.status !== 'confirm'" class="tc-link" @click.prevent="goCreate(r.sub)">详情</a>
               <a v-if="r.sub.status === 'failed'" class="tc-link" @click.prevent="retryOne(r.sub)">重试</a>

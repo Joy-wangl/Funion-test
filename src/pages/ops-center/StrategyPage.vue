@@ -4,6 +4,8 @@ import BubbleSelect from '../../components/BubbleSelect.vue';
 import DateRangePicker from '../../components/DateRangePicker.vue';
 import { pushToast } from '../../components/toast';
 import { stStrategies, type StStrategy } from './strategyData';
+import ColFieldPop from './ColFieldPop.vue';
+import { useColField } from './colFields';
 
 /** 商品策略页：策略管理列表（冲量相关字段按需求删除） */
 const TYPE_OPTIONS = ['淘宝平台策略', '视频号平台策略', '通用类型'];
@@ -25,6 +27,21 @@ const openStrategyForm = () => { opsEditStrategy(undefined); opsGo('strategyForm
 const openDetail = (s: StStrategy) => { opsEditStrategy(s); opsGo('strategyForm' as any); };
 
 const list = ref<StStrategy[]>([...stStrategies]);
+
+/* 列表字段管理：无勾选列，全部数据列可管；百分比宽表 sticky=false */
+const cf = useColField('strategy', {
+  fixedLeft: [],
+  fields: [
+    { key: 'name', label: '策略名称', pct: 24 },
+    { key: 'status', label: '状态', pct: 8 },
+    { key: 'activity', label: '活动信息', pct: 14 },
+    { key: 'mode', label: '控利模式', pct: 18 },
+    { key: 'created', label: '创建信息', pct: 20 },
+  ],
+  fixedRight: [{ key: 'actions', label: '操作', pct: 16 }],
+  sticky: false,
+});
+const { midCols } = cf;
 
 const rows = computed(() => list.value.filter((s) => {
   if (applied.value.name && !s.name.includes(applied.value.name)) return false;
@@ -91,6 +108,8 @@ const removeRow = (s: StStrategy) => {
           <DateRangePicker v-model:from="filter.dateFrom" v-model:to="filter.dateTo" placeholder="创建开始时间 → 创建结束时间" />
         </div>
         <div class="sg-actions">
+          <!-- 列表字段管理 ▦：居按钮组最左（规范） -->
+          <ColFieldPop :st="cf" />
           <button class="sg-btn primary" @click="openStrategyForm">新建策略</button>
           <button class="sg-btn" @click="doReset">重置</button>
           <button class="sg-btn primary" @click="doSearch">查询</button>
@@ -103,38 +122,38 @@ const removeRow = (s: StStrategy) => {
         <table class="sg-table st-table">
           <thead>
             <tr>
-              <th :style="{ width: '24%' }">策略名称</th>
-              <th :style="{ width: '8%' }">状态</th>
-              <th :style="{ width: '14%' }">活动信息</th>
-              <th :style="{ width: '18%' }">控利模式</th>
-              <th :style="{ width: '20%' }">创建信息</th>
+              <template v-for="c in midCols" :key="c.key">
+                <th :style="{ width: `${c.pct}%` }">{{ c.label }}</th>
+              </template>
               <th :style="{ width: '16%' }">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="s in rows" :key="s.id">
-              <td>
-                <div class="st-name">{{ s.name }}</div>
-                <div class="st-kv"><span>策略类型：</span><b>{{ s.type }}</b></div>
-              </td>
-              <td>
-                <div class="sg-status">
-                  <span class="sg-dot" :style="{ background: s.status === '启用中' ? '#16a34a' : '#ef4444' }" />
-                  <span>{{ s.status }}</span>
-                </div>
-              </td>
-              <td>
-                <div class="st-kv"><span>报入活动：</span><b>{{ s.joinActivity }}</b></div>
-                <div class="st-kv"><span>活动类型：</span><b>{{ s.activityType }}</b></div>
-              </td>
-              <td>
-                <div class="st-kv"><span>控制模式：</span><b>{{ s.mode }}</b></div>
-                <div class="st-kv"><span>利润设置：</span><b>{{ s.rate }}</b></div>
-              </td>
-              <td>
-                <div class="st-kv"><span>创建人：</span><b>{{ s.creator }}</b></div>
-                <div class="st-kv"><span>创建时间：</span><b>{{ s.createdAt }}</b></div>
-              </td>
+              <template v-for="c in midCols" :key="c.key">
+                <td v-if="c.key === 'name'">
+                  <div class="st-name">{{ s.name }}</div>
+                  <div class="st-kv"><span>策略类型：</span><b>{{ s.type }}</b></div>
+                </td>
+                <td v-else-if="c.key === 'status'">
+                  <div class="sg-status">
+                    <span class="sg-dot" :style="{ background: s.status === '启用中' ? '#16a34a' : '#ef4444' }" />
+                    <span>{{ s.status }}</span>
+                  </div>
+                </td>
+                <td v-else-if="c.key === 'activity'">
+                  <div class="st-kv"><span>报入活动：</span><b>{{ s.joinActivity }}</b></div>
+                  <div class="st-kv"><span>活动类型：</span><b>{{ s.activityType }}</b></div>
+                </td>
+                <td v-else-if="c.key === 'mode'">
+                  <div class="st-kv"><span>控制模式：</span><b>{{ s.mode }}</b></div>
+                  <div class="st-kv"><span>利润设置：</span><b>{{ s.rate }}</b></div>
+                </td>
+                <td v-else-if="c.key === 'created'">
+                  <div class="st-kv"><span>创建人：</span><b>{{ s.creator }}</b></div>
+                  <div class="st-kv"><span>创建时间：</span><b>{{ s.createdAt }}</b></div>
+                </td>
+              </template>
               <td>
                 <div class="st-acts">
                   <a class="sg-link" href="javascript:void(0)" @click.prevent="openDetail(s)">详情</a>

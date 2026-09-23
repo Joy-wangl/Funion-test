@@ -1,6 +1,22 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import Ellipsis from '../../components/Ellipsis.vue';
+import ColFieldPop from './ColFieldPop.vue';
+import { useColField } from './colFields';
+
+/* 列表字段管理：搜索结果行字段（平台/名称/价格/销量）可显隐与排序；非表格 sticky=false */
+const cf = useColField('search', {
+  fixedLeft: [],
+  fields: [
+    { key: 'platform', label: '平台' },
+    { key: 'name', label: '商品名称' },
+    { key: 'price', label: '价格' },
+    { key: 'sales', label: '销量' },
+  ],
+  fixedRight: [],
+  sticky: false,
+});
+const { midCols } = cf;
 
 const PLATFORMS = [
   { name: '淘宝', color: '#ff7700' },
@@ -73,6 +89,8 @@ const clear = () => {
         />
         <button class="sg-btn primary" @click="doSearch">全网搜索</button>
         <button class="sg-btn" @click="clear">清空结果</button>
+        <!-- 列表字段管理 ▦ -->
+        <ColFieldPop :st="cf" />
       </div>
       <div class="ss-row2">
         <span class="ss-label">搜索平台：</span>
@@ -99,13 +117,15 @@ const clear = () => {
       </div>
       <div v-else class="ss-list">
         <div v-for="(r, i) in results" :key="i" class="ss-item">
-          <span class="ss-item-plat">
-            <span class="ss-dot" :style="{ background: r.color }" />
-            {{ r.platform }}
-          </span>
-          <span class="ss-item-name"><Ellipsis :text="r.name" /></span>
-          <span class="ss-item-price">¥{{ r.price }}</span>
-          <span class="ss-item-sales">销量 {{ r.sales.toLocaleString() }}</span>
+          <template v-for="c in midCols" :key="c.key">
+            <span v-if="c.key === 'platform'" class="ss-item-plat">
+              <span class="ss-dot" :style="{ background: r.color }" />
+              {{ r.platform }}
+            </span>
+            <span v-else-if="c.key === 'name'" class="ss-item-name"><Ellipsis :text="r.name" /></span>
+            <span v-else-if="c.key === 'price'" class="ss-item-price">¥{{ r.price }}</span>
+            <span v-else-if="c.key === 'sales'" class="ss-item-sales">销量 {{ r.sales.toLocaleString() }}</span>
+          </template>
         </div>
       </div>
     </div>

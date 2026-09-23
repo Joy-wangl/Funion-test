@@ -62,9 +62,11 @@ const removeVSpecValue = (si: number, v: string) => {
 };
 /* SKU 行=各维度规格值笛卡尔积；已知组合沿用静态售价/编码，新增组合给默认值；售价/库存按组合键记忆编辑 */
 const vSkuEdit = ref<Record<string, { price: string; stock: string }>>({});
+/* 空维度（新增规格未填值）不参与笛卡尔积：SKU 不因添加规格清零，对应列暂隐 */
+const vFilledCount = computed(() => vSpecs.value.filter((s) => s.values.length > 0).length);
 const vSkuRows = computed(() => {
-  const lists = vSpecs.value.map((s) => s.values);
-  if (lists.length === 0 || lists.some((l) => l.length === 0)) return [];
+  const lists = vSpecs.value.map((s) => s.values).filter((l) => l.length > 0);
+  if (lists.length === 0) return [];
   let combos: string[][] = [[]];
   for (const list of lists) {
     const next: string[][] = [];
@@ -100,12 +102,15 @@ let specIdSeed = d.specs.length;
 /* 手动删除的 SKU 组合 key：笛卡尔积重算时过滤，避免被删行复活 */
 const skuDeleted = ref<string[]>([]);
 const tSkus = ref<TSku[]>([]);
-const skuKeyOf = (vals: Record<string, string>) => [...specIds.value].sort().map((id) => vals[id]).join(' / ');
-const skuNameOf = (vals: Record<string, string>) => specIds.value.map((id) => vals[id]).join(' + ');
+/* 空维度值（undefined）不参与 key/组合文本：新增空规格前后 SKU key 不变，已编辑售价/库存不丢 */
+const skuKeyOf = (vals: Record<string, string>) => [...specIds.value].sort().map((id) => vals[id]).filter(Boolean).join(' / ');
+const skuNameOf = (vals: Record<string, string>) => specIds.value.map((id) => vals[id]).filter(Boolean).join(' + ');
+const filledSpecCount = computed(() => d.specs.filter((s) => s.values.length > 0).length);
 const syncSkus = () => {
-  if (d.specs.length === 0 || d.specs.some((s) => s.values.length === 0)) { tSkus.value = []; return; }
+  if (filledSpecCount.value === 0) { tSkus.value = []; return; }
   let combos: Record<string, string>[] = [{}];
   d.specs.forEach((s, si) => {
+    if (s.values.length === 0) return; /* 空维度不参与笛卡尔积，SKU 表暂隐该列 */
     const id = specIds.value[si];
     const next: Record<string, string>[] = [];
     for (const c of combos) for (const v of s.values) next.push({ ...c, [id]: v });
@@ -219,12 +224,16 @@ const onValDragOver = (si: number, vi: number) => {
 const askRemoveSpecValue = (si: number, vi: number) => {
   const v = d.specs[si].values[vi];
   const id = specIds.value[si];
+  const last = d.specs[si].values.length === 1;
   const n = tSkus.value.filter((s) => s.vals[id] === v).length;
-  askConfirm('删除属性值', `删除属性值「${v}」将同步删除包含该属性值的 ${n} 个 SKU，是否继续？`, () => {
-    d.specs[si].values.splice(vi, 1);
-    syncSkus();
-    pushToast(`属性值「${v}」及关联的 ${n} 个 SKU 已删除`);
-  });
+  /* 删最后一个值＝维度转空：SKU 保留仅暂隐该列，与删普通值的联动删除语义区分 */
+  askConfirm('删除属性值', last
+    ? `删除属性值「${v}」后规格「${d.specs[si].name || `规格${si + 1}`}」将无属性值，SKU 列表暂隐该规格列，其余 SKU 保留，是否继续？`
+    : `删除属性值「${v}」将同步删除包含该属性值的 ${n} 个 SKU，是否继续？`, () => {
+      d.specs[si].values.splice(vi, 1);
+      syncSkus();
+      pushToast(last ? `属性值「${v}」已删除，规格「${d.specs[si].name || `规格${si + 1}`}」无属性值暂隐于 SKU 列表` : `属性值「${v}」及关联的 ${n} 个 SKU 已删除`);
+    });
 };
 /* 属性值改名：失焦提交；空值/重名回退并提示；已生成 SKU 同步改名且不丢售价/库存编辑 */
 const onSpecValChange = (si: number, vi: number, e: Event) => {
@@ -643,7 +652,7 @@ watch(previewList, (v) => {
           <table v-if="video" class="sg-table cpd-sku-table cpd-vsku">
             <thead>
               <tr>
-                <th v-for="(sp, si) in vSpecs" :key="si">{{ sp.name || '规格' }}</th>
+                <template v-for="(sp, si) in vSpecs" :key="si"><th v-if="sp.values.length">{{ sp.name || '规格' }}</th></template>
                 <th>售价</th>
                 <th>库存</th>
                 <th>SKU编码</th>
@@ -659,7 +668,7 @@ watch(previewList, (v) => {
                 <td><input v-if="editing" class="cpd-cell-input" :value="s.stock" @input="setVSku(s.key, 'stock', ($event.target as HTMLInputElement).value)" /><template v-else>{{ s.stock }}</template></td>
                 <td><span class="sgd-code">{{ s.code }}</span></td>
               </tr>
-              <tr v-if="vSkuRows.length === 0"><td :colspan="vSpecs.length + 3" class="cpd-vsku-empty">—</td></tr>
+              <tr v-if="vSkuRows.length === 0"><td :colspan="vFilledCount + 3" class="cpd-vsku-empty">—</td></tr>
             </tbody>
           </table>
           <!-- 淘宝：SKU 行=规格属性值笛卡尔积自动生成；属性列按绑定关系 rowspan 合并（前置属性值占多行）；删除 SKU 联动删除未被引用的属性值 -->
@@ -669,7 +678,7 @@ watch(previewList, (v) => {
                 <th>排序</th>
                 <th>SKU图</th>
                 <th>编码图片</th>
-                <th v-for="(sp, di) in d.specs" :key="specIds[di]">{{ sp.name || `规格${di + 1}` }}</th>
+                <template v-for="(sp, di) in d.specs" :key="specIds[di]"><th v-if="sp.values.length">{{ sp.name || `规格${di + 1}` }}</th></template>
                 <th>组合</th>
                 <th>SKU名称</th>
                 <th>商品编码</th>
@@ -700,7 +709,7 @@ watch(previewList, (v) => {
                 <td><img class="sgd-sku-img" :src="row.thumb" alt="" /></td>
                 <td><img class="sgd-sku-img" :src="row.thumb" alt="" /></td>
                 <template v-for="(sid, di) in specIds" :key="sid">
-                  <td v-if="skuMerge[ri][di].show" class="cpd-merge-cell" :rowspan="skuMerge[ri][di].span">{{ s.vals[specIds[di]] }}</td>
+                  <td v-if="d.specs[di].values.length && skuMerge[ri][di].show" class="cpd-merge-cell" :rowspan="skuMerge[ri][di].span">{{ s.vals[specIds[di]] }}</td>
                 </template>
                 <td>{{ s.name }}</td>
                 <td>
@@ -757,7 +766,7 @@ watch(previewList, (v) => {
                   <a v-if="editing" class="danger" href="#" @click.prevent="askRemoveSku(s)">删除</a>
                 </td>
               </tr>
-              <tr v-if="tSkus.length === 0"><td :colspan="(skuShow ? 18 : 14) + d.specs.length" class="cpd-vsku-empty">—</td></tr>
+              <tr v-if="tSkus.length === 0"><td :colspan="(skuShow ? 18 : 14) + filledSpecCount" class="cpd-vsku-empty">—</td></tr>
             </tbody>
           </table>
         </div>

@@ -49,6 +49,8 @@ export interface AppItem {
   publishMode?: 'online' | 'test';
   /** 权限管理范围 */
   permScope?: string;
+  /** 可用成员（权限管理弹窗选定的成员 id） */
+  memberIds?: string[];
   users: number;
   release: string;
   creator: string;
@@ -130,31 +132,38 @@ export const featuresOf = (appId: string): Feature[] => {
 
 const bee = (n: number): IconSpec => ICON_PRESETS[n % ICON_PRESETS.length];
 
+/* 上架日期按「今天」偏移生成：固定写死的历史日期会随系统日期推进使近 N 天上新/贡献榜逐渐空榜 */
+const daysAgo = (n: number): string => {
+  const d = new Date(Date.now() - n * 86400000);
+  const p = (x: number) => String(x).padStart(2, '0');
+  return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())}`;
+};
+
 export const initialApps: AppItem[] = [
-  { id: 'hb-1', name: '小蜜蜂A', desc: '小蜜蜂干活很刻苦', icon: bee(1), category: '数据管理类', added: false, mine: false, users: 892, release: '2026/05/12', creator: '吴孝朝', previews: [], tags: ['高效'] },
-  { id: 'hb-2', name: '小蜜蜂B', desc: '小蜜蜂干活很刻苦', icon: bee(2), category: '数据管理类', added: true, mine: false, hasUpdate: true, releaseNote: '新增批量导出与快捷键，修复偶发卡顿', version: '2.3.1', prevVersion: '2.2.0', users: 1521, release: '2026/06/01', creator: '吴孝朝', previews: [], tags: [] },
-  { id: 'hb-3', name: '小蜜蜂C', desc: '小蜜蜂干活很刻苦', icon: bee(3), category: '浏览器插件', added: false, mine: false, users: 356, release: '2026/08/16', creator: '徐佳华', previews: [], tags: [] },
-  { id: 'hb-4', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(4), category: '绘图工具', added: true, mine: false, users: 2210, release: '2026/01/20', creator: '黄亚芳', previews: [], tags: [] },
-  { id: 'hb-5', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(5), category: '实用小工具', added: false, mine: false, users: 480, release: '2026/07/28', creator: '陈晓', previews: [], tags: [] },
-  { id: 'hb-6', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(6), category: 'Agent工具', added: false, mine: false, users: 764, release: '2026/03/18', creator: '吴孝朝', previews: [], tags: [] },
-  { id: 'hb-7', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(2), category: '绘图工具', added: false, mine: false, users: 233, release: '2026/08/05', creator: '吴孝朝', previews: [], tags: [] },
-  { id: 'hb-8', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(3), category: '实用小工具', added: false, mine: false, users: 610, release: '2026/02/14', creator: '郑婷', previews: [], tags: [] },
-  { id: 'hb-9', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(4), category: 'Agent工具', added: false, mine: false, releaseNote: '新增 Agent 任务编排能力', users: 158, release: '2026/08/18', creator: '杨帆', previews: [], tags: [] },
-  { id: 'jst', name: '聚水潭ERP', desc: '小蜜蜂干活很刻苦', icon: bee(7), category: '数据管理类', added: false, mine: false, users: 1310, release: '2026/05/28', creator: '吴孝朝', previews: [PREVIEW_PRESETS[2]], tags: ['高效', '协同'] },
-  { id: 'kingdee', name: '金蝶ERP', desc: '小蜜蜂干活很刻苦', icon: bee(8), category: '数据管理类', added: true, mine: false, hasUpdate: true, releaseNote: '升级报表引擎，新增多账套切换', version: '3.1.0', prevVersion: '3.0.2', users: 980, release: '2026/04/19', creator: '吴孝朝', previews: [PREVIEW_PRESETS[1]], tags: [] },
-  { id: 'hzw', name: '海贼王ERP', desc: '小蜜蜂干活很刻苦，不知劳累就是干', icon: bee(5), category: '数据管理类', added: false, mine: false, users: 599, release: '2026/08/13', creator: '吴孝朝', previews: [PREVIEW_PRESETS[0], PREVIEW_PRESETS[0], PREVIEW_PRESETS[0]], tags: ['高效'] },
-  { id: 'c-1', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(1), category: 'Agent', added: false, mine: true, users: 120, release: '2026/06/10', creator: '七妮妮', previews: [PREVIEW_PRESETS[3]], tags: ['绿色'] },
-  { id: 'c-2', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(2), category: 'Agent', added: false, mine: true, users: 86, release: '2026/08/20', creator: '七妮妮', previews: [PREVIEW_PRESETS[1]], tags: [] },
-  { id: 'a-1', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(1), category: '数据管理类', added: true, mine: false, users: 892, release: '2026/05/12', creator: '吴孝朝', previews: [], tags: ['协同'] },
-  { id: 'a-2', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(2), category: '浏览器插件', added: true, mine: false, users: 1521, release: '2026/06/01', creator: '吴孝朝', previews: [], tags: [] },
-  { id: 't-1', name: '客服话术宝', desc: '客服常用话术一键回复', icon: bee(3), category: '实用小工具', added: false, mine: false, users: 320, release: '2026/08/16', creator: '张三', previews: [], tags: [] },
-  { id: 't-2', name: '周报生成器', desc: '自动汇总本周工作生成周报', icon: bee(4), category: 'Agent工具', added: false, mine: false, users: 260, release: '2026/08/17', creator: '赵六', previews: [], tags: [] },
-  { id: 't-3', name: '淘宝详情大师', desc: '详情页排版与主图优化', icon: bee(5), category: '绘图工具', added: false, mine: false, users: 410, release: '2026/08/18', creator: '孙倩', previews: [], tags: [] },
-  { id: 't-4', name: '拼多多模板王', desc: '拼多多推广模板批量生成', icon: bee(6), category: '浏览器插件', added: false, mine: false, releaseNote: '首发上线：推广模板批量生成', users: 380, release: '2026/08/19', creator: '周杰', previews: [], tags: [] },
-  { id: 't-5', name: '订单对账通', desc: '多平台订单自动对账', icon: bee(7), category: '数据管理类', added: false, mine: false, releaseNote: '首发上线：多平台订单自动对账', users: 520, release: '2026/08/20', creator: '刘洋', previews: [], tags: [] },
-  { id: 't-6', name: '部门知识库', desc: '部门文档沉淀与问答', icon: bee(8), category: 'Agent', added: false, mine: false, releaseNote: '首发上线：文档沉淀与智能问答', users: 150, release: '2026/08/21', creator: '何静', previews: [], tags: [] },
-  { id: 't-7', name: '杭州巡店助手', desc: '巡店记录与问题跟进', icon: bee(1), category: '实用小工具', added: false, mine: false, releaseNote: '首发上线：巡店打卡与问题跟进闭环', users: 290, release: '2026/08/21', creator: '陈晓', previews: [], tags: [] },
-  { id: 't-8', name: '视频脚本库', desc: '短视频脚本灵感与模板', icon: bee(2), category: 'Agent工具', added: false, mine: false, releaseNote: '首发上线：内置 200+ 短视频脚本模板', users: 340, release: '2026/08/22', creator: '黄亚芳', previews: [], tags: [] },
+  { id: 'hb-1', name: '小蜜蜂A', desc: '小蜜蜂干活很刻苦', icon: bee(1), category: '数据管理类', added: false, mine: false, users: 892, release: daysAgo(102), creator: '吴孝朝', previews: [], tags: ['高效'] },
+  { id: 'hb-2', name: '小蜜蜂B', desc: '小蜜蜂干活很刻苦', icon: bee(2), category: '数据管理类', added: true, mine: false, hasUpdate: true, releaseNote: '新增批量导出与快捷键，修复偶发卡顿', version: '2.3.1', prevVersion: '2.2.0', users: 1521, release: daysAgo(82), creator: '吴孝朝', previews: [], tags: [] },
+  { id: 'hb-3', name: '小蜜蜂C', desc: '小蜜蜂干活很刻苦', icon: bee(3), category: '浏览器插件', added: false, mine: false, users: 356, release: daysAgo(6), creator: '徐佳华', previews: [], tags: [] },
+  { id: 'hb-4', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(4), category: '绘图工具', added: true, mine: false, users: 2210, release: daysAgo(214), creator: '黄亚芳', previews: [], tags: [] },
+  { id: 'hb-5', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(5), category: '实用小工具', added: false, mine: false, users: 480, release: daysAgo(25), creator: '陈晓', previews: [], tags: [] },
+  { id: 'hb-6', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(6), category: 'Agent工具', added: false, mine: false, users: 764, release: daysAgo(157), creator: '吴孝朝', previews: [], tags: [] },
+  { id: 'hb-7', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(2), category: '绘图工具', added: false, mine: false, users: 233, release: daysAgo(17), creator: '吴孝朝', previews: [], tags: [] },
+  { id: 'hb-8', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(3), category: '实用小工具', added: false, mine: false, users: 610, release: daysAgo(189), creator: '郑婷', previews: [], tags: [] },
+  { id: 'hb-9', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(4), category: 'Agent工具', added: false, mine: false, releaseNote: '新增 Agent 任务编排能力', users: 158, release: daysAgo(4), creator: '杨帆', previews: [], tags: [] },
+  { id: 'jst', name: '聚水潭ERP', desc: '小蜜蜂干活很刻苦', icon: bee(7), category: '数据管理类', added: false, mine: false, users: 1310, release: daysAgo(86), creator: '吴孝朝', previews: [PREVIEW_PRESETS[2]], tags: ['高效', '协同'] },
+  { id: 'kingdee', name: '金蝶ERP', desc: '小蜜蜂干活很刻苦', icon: bee(8), category: '数据管理类', added: true, mine: false, hasUpdate: true, releaseNote: '升级报表引擎，新增多账套切换', version: '3.1.0', prevVersion: '3.0.2', users: 980, release: daysAgo(125), creator: '吴孝朝', previews: [PREVIEW_PRESETS[1]], tags: [] },
+  { id: 'hzw', name: '海贼王ERP', desc: '小蜜蜂干活很刻苦，不知劳累就是干', icon: bee(5), category: '数据管理类', added: false, mine: false, users: 599, release: daysAgo(9), creator: '吴孝朝', previews: [PREVIEW_PRESETS[0], PREVIEW_PRESETS[0], PREVIEW_PRESETS[0]], tags: ['高效'] },
+  { id: 'c-1', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(1), category: 'Agent', added: false, mine: true, users: 120, release: daysAgo(73), creator: '七妮妮', previews: [PREVIEW_PRESETS[3]], tags: ['绿色'] },
+  { id: 'c-2', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(2), category: 'Agent', added: false, mine: true, users: 86, release: daysAgo(2), creator: '七妮妮', previews: [PREVIEW_PRESETS[1]], tags: [] },
+  { id: 'a-1', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(1), category: '数据管理类', added: true, mine: false, users: 892, release: daysAgo(102), creator: '吴孝朝', previews: [], tags: ['协同'] },
+  { id: 'a-2', name: '勤劳小蜜蜂', desc: '小蜜蜂干活很刻苦', icon: bee(2), category: '浏览器插件', added: true, mine: false, users: 1521, release: daysAgo(82), creator: '吴孝朝', previews: [], tags: [] },
+  { id: 't-1', name: '客服话术宝', desc: '客服常用话术一键回复', icon: bee(3), category: '实用小工具', added: false, mine: false, users: 320, release: daysAgo(6), creator: '张三', previews: [], tags: [] },
+  { id: 't-2', name: '周报生成器', desc: '自动汇总本周工作生成周报', icon: bee(4), category: 'Agent工具', added: false, mine: false, users: 260, release: daysAgo(5), creator: '赵六', previews: [], tags: [] },
+  { id: 't-3', name: '淘宝详情大师', desc: '详情页排版与主图优化', icon: bee(5), category: '绘图工具', added: false, mine: false, users: 410, release: daysAgo(4), creator: '孙倩', previews: [], tags: [] },
+  { id: 't-4', name: '拼多多模板王', desc: '拼多多推广模板批量生成', icon: bee(6), category: '浏览器插件', added: false, mine: false, releaseNote: '首发上线：推广模板批量生成', users: 380, release: daysAgo(3), creator: '周杰', previews: [], tags: [] },
+  { id: 't-5', name: '订单对账通', desc: '多平台订单自动对账', icon: bee(7), category: '数据管理类', added: false, mine: false, releaseNote: '首发上线：多平台订单自动对账', users: 520, release: daysAgo(2), creator: '刘洋', previews: [], tags: [] },
+  { id: 't-6', name: '部门知识库', desc: '部门文档沉淀与问答', icon: bee(8), category: 'Agent', added: false, mine: false, releaseNote: '首发上线：文档沉淀与智能问答', users: 150, release: daysAgo(1), creator: '何静', previews: [], tags: [] },
+  { id: 't-7', name: '杭州巡店助手', desc: '巡店记录与问题跟进', icon: bee(1), category: '实用小工具', added: false, mine: false, releaseNote: '首发上线：巡店打卡与问题跟进闭环', users: 290, release: daysAgo(1), creator: '陈晓', previews: [], tags: [] },
+  { id: 't-8', name: '视频脚本库', desc: '短视频脚本灵感与模板', icon: bee(2), category: 'Agent工具', added: false, mine: false, releaseNote: '首发上线：内置 200+ 短视频脚本模板', users: 340, release: daysAgo(0), creator: '黄亚芳', previews: [], tags: [] },
 ];
 
 /* ---------- 首页：组织归属 / 平台公告 / 区间使用人次 ---------- */

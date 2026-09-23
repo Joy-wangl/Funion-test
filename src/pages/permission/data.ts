@@ -271,6 +271,8 @@ export const INITIAL_ROLE_MEMBERS: RoleMember[] = [
 // 数据权限选项
 export const OPT5 = ['全部数据', '指定部门及以下', '本级及下级部门', '本部门', '仅自己'];
 export const OPT4 = ['全部数据', '本级及下级部门', '本部门', '仅自己'];
+/* 无部门概念的菜单（如内部商机）：查看/管理列空选项集＝不渲染部门单选，仅保留平台/店铺范围选择 */
+const NO_DEPT: PermRadioCfg = { opts: [], sel: -1 };
 
 // 指定部门选择树（权限配置-选择部门弹窗）
 export interface PickerDeptNode {
@@ -323,7 +325,7 @@ export const PERMISSION_MENU: PermMenuItem[] = [
   {
     name: '商机中心', checked: true, view: null, manage: null, func: [], children: [
       { name: '全网搜索', checked: true, view: { opts: OPT5, sel: 1 }, manage: { opts: OPT5, sel: 1 }, func: [] },
-      { name: '内部商机', checked: true, view: { opts: OPT5, sel: 1 }, manage: { opts: OPT5, sel: 1 }, func: [], scope: true },
+      { name: '内部商机', checked: true, view: NO_DEPT, manage: NO_DEPT, func: [], scope: true },
       { name: '竞对商机', checked: true, view: { opts: OPT5, sel: 1 }, manage: { opts: OPT5, sel: 1 }, func: [] },
       { name: '市场商机', checked: true, view: { opts: OPT5, sel: 1 }, manage: { opts: OPT5, sel: 1 }, func: [] },
       { name: '竞价商品', checked: true, view: { opts: OPT5, sel: 1 }, manage: { opts: OPT5, sel: 1 }, func: [] },

@@ -112,6 +112,7 @@ button {
   width: max-content;
   max-width: 360px;
   line-height: 1.6;
-  z-index: 999;
+  /* Teleport 至 body 的悬浮提示：需压过抽屉/弹窗遮罩（1000/1010）与弹层（4100/4300） */
+  z-index: 4500;
   pointer-events: none;
 }

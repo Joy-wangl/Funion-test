@@ -7,6 +7,8 @@ import Ellipsis from '../../components/Ellipsis.vue';
 import CreateDetailPage from './CreateDetailPage.vue';
 import { pushToast } from '../../components/toast';
 import { useAnchorPop } from '../../hooks/useAnchorPop';
+import ColFieldPop from './ColFieldPop.vue';
+import { useColField } from './colFields';
 
 /** 商机中心-竞价商品：筛选 + 列表 */
 const empty = {
@@ -28,6 +30,21 @@ const empty = {
   aEnd: '',
 };
 const filter = ref({ ...empty });
+
+/* 列表字段管理：主列表列（展开行 SKU 子表为详情不纳管）；自适应宽表 sticky=false */
+const cf = useColField('bidding', {
+  fixedLeft: [{ key: 'check', width: 64 }],
+  fields: [
+    { key: 'product', label: '商品信息' },
+    { key: 'recruit', label: '招募状态' },
+    { key: 'profit', label: '预估利润区间' },
+    { key: 'fetch', label: '抓取状态' },
+    { key: 'imported', label: '导入时间' },
+  ],
+  fixedRight: [{ key: 'actions', label: '操作' }],
+  sticky: false,
+});
+const { midCols } = cf;
 const applied = ref({ ...empty });
 
 const num = (s: string) => {
@@ -226,6 +243,8 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
         <!-- 按钮组嵌入网格末子项：11 条件末排余 3 列，按钮组落入同排第 4 列右对齐（规范：条件与按钮同排） -->
         <div class="ib-actions">
           <div class="ib-rightacts">
+            <!-- 列表字段管理 ▦：居按钮组最左（规范） -->
+            <ColFieldPop :st="cf" />
             <BubbleSelect class-name="ib-select" :style="{ width: '120px' }" default-value="快速选品" :options="['快速选品', '淘宝C店', '视频号']" />
             <button class="lightBtn" @click="doExport">
               导出
@@ -250,11 +269,9 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
                 <span class="ib-caret ghost"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6" /></svg></span>
                 <input type="checkbox" class="ib-check" :checked="allChecked" @change="toggleAll" />
               </th>
-              <th>商品信息</th>
-              <th>招募状态</th>
-              <th>预估利润区间</th>
-              <th>抓取状态</th>
-              <th>导入时间</th>
+              <template v-for="c in midCols" :key="c.key">
+                <th>{{ c.label }}</th>
+              </template>
               <th>操作</th>
             </tr>
           </thead>
@@ -267,26 +284,28 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
                   </span>
                   <input type="checkbox" class="ib-check" :checked="checked.has(r.pid)" @change="toggleCheck(r.pid)" />
                 </td>
-                <td>
-                  <div class="ib-product">
-                    <img class="ib-thumb bd-thumb" :src="r.img" alt="" />
-                    <div>
-                      <a class="ib-pname bd-name" :href="r.link" target="_blank" rel="noreferrer"><Ellipsis :text="r.name" /></a>
-                      <div class="ib-meta">商品ID：{{ r.pid }}</div>
+                <template v-for="c in midCols" :key="c.key">
+                  <td v-if="c.key === 'product'">
+                    <div class="ib-product">
+                      <img class="ib-thumb bd-thumb" :src="r.img" alt="" />
+                      <div>
+                        <a class="ib-pname bd-name" :href="r.link" target="_blank" rel="noreferrer"><Ellipsis :text="r.name" /></a>
+                        <div class="ib-meta">商品ID：{{ r.pid }}</div>
+                      </div>
                     </div>
-                  </div>
-                </td>
-                <td>
-                  <div class="bd-stline">
-                    <span class="bd-st" :class="statusCls(bidStatus(r))">{{ bidStatus(r) }}</span>
-                    <span :class="r.bidType === '基准竞价' ? 'badge-green' : 'badge-gray'">{{ r.bidType }}</span>
-                  </div>
-                  <div class="bd-sttime"><i>招募时间：</i>{{ r.recruitStart }} - {{ r.recruitEnd }}</div>
-                  <div class="bd-sttime"><i>活动时间：</i>{{ r.actStart }} - {{ r.actEnd }}</div>
-                </td>
-                <td>{{ profitRange(r) }}</td>
-                <td><span :class="r.fetchStatus === '已抓取' ? 'badge-green' : 'badge-orange'">{{ r.fetchStatus }}</span></td>
-                <td>{{ r.imported }}</td>
+                  </td>
+                  <td v-else-if="c.key === 'recruit'">
+                    <div class="bd-stline">
+                      <span class="bd-st" :class="statusCls(bidStatus(r))">{{ bidStatus(r) }}</span>
+                      <span :class="r.bidType === '基准竞价' ? 'badge-green' : 'badge-gray'">{{ r.bidType }}</span>
+                    </div>
+                    <div class="bd-sttime"><i>招募时间：</i>{{ r.recruitStart }} - {{ r.recruitEnd }}</div>
+                    <div class="bd-sttime"><i>活动时间：</i>{{ r.actStart }} - {{ r.actEnd }}</div>
+                  </td>
+                  <td v-else-if="c.key === 'profit'">{{ profitRange(r) }}</td>
+                  <td v-else-if="c.key === 'fetch'"><span :class="r.fetchStatus === '已抓取' ? 'badge-green' : 'badge-orange'">{{ r.fetchStatus }}</span></td>
+                  <td v-else-if="c.key === 'imported'">{{ r.imported }}</td>
+                </template>
                 <td class="actions-col">
                   <template v-if="r.fetchStatus === '已抓取'">
                     <a href="#" @click.prevent="detail = r">详情</a>
@@ -296,7 +315,7 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
                 </td>
               </tr>
               <tr v-if="expanded.has(r.pid)" class="ib-expand-row">
-                <td colspan="7">
+                <td :colspan="2 + midCols.length">
                   <table class="ib-subtable">
                     <thead>
                       <tr>
