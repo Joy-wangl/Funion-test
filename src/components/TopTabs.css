@@ -1,10 +1,12 @@
 .top-tabs {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   height: 100%;
-  gap: 46px;
-  margin-left: 64px;
+  gap: 4px;
+  margin-left: 12px;
+  padding: 0 12px;
   overflow-x: auto;
+  overflow-y: visible;
   scrollbar-width: none;
 }
 
@@ -15,52 +17,227 @@
 /* ≤1440 紧凑断点（覆盖 1440 屏） */
 @media (max-width: 1440px) {
   .top-tabs {
-    gap: 28px;
-    margin-left: 40px;
+    gap: 6px;
+    margin-left: 24px;
   }
 }
 
 /* <1200 窄屏断点 */
 @media (max-width: 1199px) {
   .top-tabs {
-    gap: 20px;
-    margin-left: 24px;
+    gap: 4px;
+    margin-left: 16px;
   }
 }
 
+/* 顶栏 tab：浏览器标签页异形（顶圆角 + 底部外扩裙边）；落底对齐，激活态白底与下方内容连通 */
 .top-tabs-item {
   position: relative;
   display: flex;
   align-items: center;
-  height: 100%;
-  padding: 0;
+  gap: 8px;
+  align-self: flex-end;
+  height: 40px;
+  padding: 0 18px;
   border: none;
+  border-radius: 12px 12px 0 0;
   background: transparent;
-  font-size: 15px;
-  color: #1d2129;
+  font-size: var(--fs-base);
+  color: #465064;
   cursor: pointer;
   flex-shrink: 0;
   white-space: nowrap;
+  transition: background 0.15s;
 }
 
 .top-tabs-item:hover {
-  color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.5);
+  color: #1d2129;
 }
 
 .top-tabs-item.is-active {
-  color: var(--color-primary);
+  background: #fff;
+  color: #1d2129;
+  font-weight: 500;
 }
 
-/* 选中 Tab 底部的白色上三角指示器 */
+/* 激活 tab 底部左右外扩裙边（凹弧衔接标签条底） */
+.top-tabs-item.is-active::before,
 .top-tabs-item.is-active::after {
   content: '';
   position: absolute;
-  left: 50%;
   bottom: 0;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 12px solid transparent;
-  border-right: 12px solid transparent;
-  border-bottom: 11px solid #fff;
+  width: 12px;
+  height: 12px;
+}
+
+.top-tabs-item.is-active::before {
+  left: -12px;
+  background: radial-gradient(circle at 0 0, transparent 12px, #fff 12px);
+}
+
+.top-tabs-item.is-active::after {
+  right: -12px;
+  background: radial-gradient(circle at 100% 0, transparent 12px, #fff 12px);
+}
+
+/* 芯片彩色图标：首字符实心圆角小方块 */
+.top-tabs-chip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.top-tabs-chip-label {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 展开/收纳入口：置最后；落底 40px 盒内居中，与 tab 内容垂直居中对齐 */
+.top-tabs-more-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  align-self: flex-end;
+  height: 40px;
+  margin-left: 12px;
+  flex-shrink: 0;
+}
+
+.top-tabs-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #5a6474;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.top-tabs-more:hover {
+  background: rgba(255, 255, 255, 0.7);
+  color: #1d2129;
+}
+
+.top-tabs-more.is-active {
+  background: rgba(255, 255, 255, 0.7);
+  color: #1d2129;
+}
+
+/* 箭头展开旋转 */
+.top-tabs-more-icon {
+  transition: transform 0.2s;
+}
+
+.top-tabs-more-icon.open {
+  transform: rotate(180deg);
+}
+
+/* 超量气泡：入口下方悬浮，z 压过页面所有元素；展示全部 tab + 拖拽重排 */
+.top-tabs-more-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  min-width: 288px;
+  max-height: 480px;
+  padding: 8px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: var(--shadow-lg);
+  overflow-y: auto;
+}
+
+/* 气泡头部说明文字 */
+.top-tabs-pop-header {
+  padding: 6px 10px 12px;
+  font-size: 12px;
+  color: #98a1b0;
+  line-height: 1.5;
+  border-bottom: 1px solid #f0f1f4;
+  margin: 0 2px 6px;
+}
+
+/* 气泡行：内缩圆角 pill，图标字标 + 标签名 + 拖拽把手 */
+.top-tabs-pop-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 40px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: var(--fs-base);
+  color: #1d2129;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  width: 100%;
+  transition: background 0.12s;
+}
+
+.top-tabs-pop-row:hover {
+  background: #f4f6fa;
+}
+
+.top-tabs-pop-row.is-active {
+  color: var(--color-primary);
+  background: #eef4ff;
+}
+
+/* 图标字标：首字符实心圆角小方块（背景色由行内 style 按 tab 配色注入） */
+.top-tabs-pop-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+/* 标签文字 */
+.top-tabs-pop-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 拖拽把手 */
+.top-tabs-pop-grip {
+  color: #c0c6d2;
+  font-size: 15px;
+  letter-spacing: 1px;
+  cursor: grab;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.top-tabs-pop-row:hover .top-tabs-pop-grip {
+  color: #8a92a1;
+}
+
+/* 拖拽中半透反馈 */
+.top-tabs-pop-row.dragging {
+  opacity: 0.4;
 }

@@ -37,6 +37,8 @@ interface ShopRow {
   /** 店铺分组（空展示 —；分组管理写入） */
   group: string;
   accts: AcctRow[];
+  /** 店铺配置（运费险/换货/7天无理由/运费模板；未设置时取默认值） */
+  settings?: { shippingInsurance: 'yes' | 'no'; fakeComp: 'yes' | 'no'; noReason7d: 'yes' };
 }
 
 /* 静态行（还原源系统首屏；同店铺ID聚合为店铺行，账号为其子行） */
@@ -270,6 +272,32 @@ const savePublish = () => {
 /* ---------- 行操作 / 入口按钮（原型演示交互） ---------- */
 const enterShop = (s: ShopRow) => pushToast(`已进入店铺：${s.name}`);
 
+/* ---------- 店铺配置抽屉：运费险/换货/7天无理由开关 + 运费模板选择 ---------- */
+const shopSettingsOpen = ref(false);
+const shopSettingsId = ref<string | null>(null);
+const draftInsurance = ref<'yes' | 'no'>('no');
+const draftFakeComp = ref<'yes' | 'no'>('no');
+const shopSettingsRow = computed(() => rows.value.find((s) => s.shopId === shopSettingsId.value) ?? null);
+const openShopSettings = (s: ShopRow) => {
+  shopSettingsId.value = s.shopId;
+  const st = s.settings;
+  draftInsurance.value = st?.shippingInsurance ?? 'no';
+  draftFakeComp.value = st?.fakeComp ?? 'no';
+  shopSettingsOpen.value = true;
+};
+const shopSettingsConfirm = ref(false);
+const confirmSaveShopSettings = () => { shopSettingsConfirm.value = true; };
+const doSaveShopSettings = () => {
+  if (!shopSettingsId.value) return;
+  rows.value = rows.value.map((s) => (s.shopId === shopSettingsId.value
+    ? { ...s, settings: { shippingInsurance: draftInsurance.value, fakeComp: draftFakeComp.value, noReason7d: 'yes' } }
+    : s));
+  pushToast('已保存店铺配置');
+  shopSettingsOpen.value = false;
+  shopSettingsId.value = null;
+  shopSettingsConfirm.value = false;
+};
+
 /* ---------- ESC 逐层关闭（内层优先；抽屉/弹窗遮罩点击亦可关） ---------- */
 const onKey = (e: KeyboardEvent) => {
   if (e.key !== 'Escape') return;
@@ -279,6 +307,8 @@ const onKey = (e: KeyboardEvent) => {
   else if (groupOpen.value) groupOpen.value = false;
   else if (publishOpen.value) publishOpen.value = false;
   else if (assignOpen.value) assignOpen.value = false;
+  else if (shopSettingsConfirm.value) shopSettingsConfirm.value = false;
+  else if (shopSettingsOpen.value) { shopSettingsOpen.value = false; shopSettingsId.value = null; }
 };
 onMounted(() => window.addEventListener('keydown', onKey));
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
@@ -346,6 +376,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
               <th>账号数</th>
               <th>可用成员</th>
               <th>更新时间</th>
+              <th :style="{ width: '100px' }">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -386,10 +417,15 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
                   <span v-else class="smg-dash">—</span>
                 </td>
                 <td>{{ shopUpdated(f.accts) }}</td>
+                <td>
+                  <div class="sg-acts">
+                    <a class="sg-link" href="javascript:void(0)" @click.prevent="openShopSettings(f.shop)">操作设置</a>
+                  </div>
+                </td>
               </tr>
               <!-- 第二层：账号维度子表（灰底展开行 + 白底子表） -->
               <tr v-if="expanded.has(f.shop.shopId)" class="ib-expand-row smg-expand-row">
-                <td colspan="5">
+                <td colspan="6">
                   <table class="ib-subtable">
                     <thead>
                       <tr>
@@ -630,5 +666,60 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
         </div>
       </div>
     </div>
+
+    <!-- 店铺配置抽屉：运费险/换货/7天无理由开关 + 运费模板选择 -->
+    <div v-if="shopSettingsOpen" class="smg-drawer-mask" @click.self="{ shopSettingsOpen = false; shopSettingsId = null; }">
+      <div class="smg-drawer">
+        <div class="smg-dr-head">
+          <span class="smg-dr-title">店铺配置</span>
+          <button type="button" class="smg-dr-x" @click="{ shopSettingsOpen = false; shopSettingsId = null; }">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div class="smg-dr-body">
+          <div class="smg-dr-field">
+            <div class="smg-dr-label">店铺名称</div>
+            <input class="smg-dr-input" :value="shopSettingsRow?.name ?? ''" disabled />
+          </div>
+          <div class="smg-dr-field">
+            <div class="smg-dr-label">是否开启运费险</div>
+            <div class="smg-radios">
+              <label class="smg-radio"><input type="radio" name="ss-insurance" :checked="draftInsurance === 'yes'" @change="draftInsurance = 'yes'" /><span>开启</span></label>
+              <label class="smg-radio"><input type="radio" name="ss-insurance" :checked="draftInsurance === 'no'" @change="draftInsurance = 'no'" /><span>不开启</span></label>
+            </div>
+          </div>
+          <div class="smg-dr-field">
+            <div class="smg-dr-label">是否支持假一赔三</div>
+            <div class="smg-radios">
+              <label class="smg-radio"><input type="radio" name="ss-fake" :checked="draftFakeComp === 'yes'" @change="draftFakeComp = 'yes'" /><span>支持</span></label>
+              <label class="smg-radio"><input type="radio" name="ss-fake" :checked="draftFakeComp === 'no'" @change="draftFakeComp = 'no'" /><span>不支持</span></label>
+            </div>
+          </div>
+          <div class="smg-dr-field">
+            <div class="smg-dr-label">是否支持7天无理由</div>
+            <div class="smg-radios">
+              <label class="smg-radio"><input type="radio" name="ss-7d" checked disabled /><span>支持</span></label>
+            </div>
+          </div>
+        </div>
+        <div class="smg-dr-foot">
+          <button type="button" class="sg-btn" @click="{ shopSettingsOpen = false; shopSettingsId = null; }">取消</button>
+          <button type="button" class="sg-btn primary" @click="confirmSaveShopSettings">保存</button>
+        </div>
+      </div>
+    </div>
+    <!-- 保存确认弹窗：内容保存后全店生效 -->
+    <Teleport to="body">
+      <div v-if="shopSettingsConfirm" class="mk-create-mask mk-confirm-mask" @click.self="shopSettingsConfirm = false">
+        <div class="mk-confirm-modal">
+          <div class="mk-confirm-head">确认保存</div>
+          <div class="mk-confirm-body">内容保存后全店生效，是否确认保存修改？</div>
+          <div class="mk-confirm-foot">
+            <button class="sg-btn" @click="shopSettingsConfirm = false">取消</button>
+            <button class="sg-btn primary" @click="doSaveShopSettings">确认</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>

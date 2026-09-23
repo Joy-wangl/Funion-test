@@ -27,6 +27,9 @@ import RolePermission from '../permission/RolePermission.vue';
 import OpsGroupManagement from '../permission/OpsGroupManagement.vue';
 import DataImport from '../permission/DataImport.vue';
 import ReviewAppealPage from './ReviewAppealPage.vue';
+import CodeKbMaterial from '../code-kb/CodeKbMaterial.vue';
+import CodeKbLineage from '../code-kb/CodeKbLineage.vue';
+import CodeKbLineageList from '../code-kb/CodeKbLineageList.vue';
 
 type PageKey =
   | 'dashboard'
@@ -52,7 +55,10 @@ type PageKey =
   | 'permOpsGroup'
   | 'dataImport'
   | 'aiAssistant'
-  | 'reviewAppeal';
+  | 'reviewAppeal'
+  | 'codeKbMaterial'
+  | 'codeKbLineage'
+  | 'codeKbLineageList';
 
 /** 智能运营中心外壳：侧边栏 + 页面切换（与 preview.html 行为一致） */
 /* 收起状态仅本模块内生效并独立持久化，不影响其他顶部 tab 的侧边栏 */
@@ -76,6 +82,7 @@ const createOpen = ref(false);
 const permissionOpen = ref(false);
 const automationOpen = ref(false);
 const appealOpen = ref(false);
+const codeKbOpen = ref(false);
 
 /* 切到商品创建子页时自动展开菜单（原版 showCreateTaobao / showCreateVideo） */
 const showCreate = (key: 'createTaobao' | 'createVideo' | 'createJm') => {
@@ -116,8 +123,8 @@ const navCls = (key: PageKey) => `nav ${active.value === key ? 'active' : ''}`;
 const pageCls = (key: PageKey) => `page ${page.value === key ? 'show' : ''}`;
 
 /* 收起态点击分组：展开侧边栏并打开该组；展开态：正常收合切换 */
-const toggleGroup = (key: 'product' | 'create' | 'permission' | 'automation' | 'appeal') => {
-  const open = key === 'product' ? productOpen : key === 'create' ? createOpen : key === 'automation' ? automationOpen : key === 'appeal' ? appealOpen : permissionOpen;
+const toggleGroup = (key: 'product' | 'create' | 'permission' | 'automation' | 'appeal' | 'codeKb') => {
+  const open = key === 'product' ? productOpen : key === 'create' ? createOpen : key === 'automation' ? automationOpen : key === 'appeal' ? appealOpen : key === 'codeKb' ? codeKbOpen : permissionOpen;
   if (collapsed.value) {
     open.value = true;
     toggleCollapsed();
@@ -149,6 +156,7 @@ const railMenus: Record<string, { title: string; subs: RailSub[] }> = {
   aiAssistant: { title: 'AI助手', subs: [{ name: 'AI助手', target: 'aiAssistant' }] },
   automation: { title: '自动化中心', subs: [{ name: '视频号自动化', target: 'move' }] },
   appeal: { title: '申诉中心', subs: [{ name: '评价申诉', target: 'reviewAppeal' }] },
+  codeKb: { title: '系列编码知识库', subs: [{ name: '系列编码素材库', target: 'codeKbMaterial' }, { name: '系列编码血缘图谱', target: 'codeKbLineage' }, { name: '血缘关系列表', target: 'codeKbLineageList' }] },
   permission: { title: '设置', subs: permItems.map((p) => ({ name: p.name, target: p.target })) },
 };
 const railPop = ref<{ key: string; x: number; y: number } | null>(null);
@@ -271,6 +279,24 @@ const onMsgJump = (id: string) => {
           <div class="subnav-wrap" :class="appealOpen ? 'show' : ''">
             <div class="subnav" :class="active === 'reviewAppeal' ? 'active' : ''" @click.stop="onSubnav('reviewAppeal', 'reviewAppeal')">
               评价申诉
+            </div>
+          </div>
+          <div class="nav nav-parent" :class="codeKbOpen ? 'open' : ''" @click.stop="toggleGroup('codeKb')" @mouseenter="railEnter('codeKb', $event)" @mouseleave="railLeave()">
+            <div class="nav-left">
+              <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.4" /><circle cx="18" cy="6" r="2.4" /><circle cx="12" cy="18" r="2.4" /><path d="M7.6 7.7 10.8 16" /><path d="M16.4 7.7 13.2 16" /><path d="M8.4 6h7.2" /></svg></span>
+              <span class="nav-text">系列编码知识库</span>
+            </div>
+            <span class="nav-arrow">▶</span>
+          </div>
+          <div class="subnav-wrap" :class="codeKbOpen ? 'show' : ''">
+            <div class="subnav" :class="active === 'codeKbMaterial' ? 'active' : ''" @click.stop="onSubnav('codeKbMaterial', 'codeKbMaterial')">
+              系列编码素材库
+            </div>
+            <div class="subnav" :class="active === 'codeKbLineage' ? 'active' : ''" @click.stop="onSubnav('codeKbLineage', 'codeKbLineage')">
+              系列编码血缘图谱
+            </div>
+            <div class="subnav" :class="active === 'codeKbLineageList' ? 'active' : ''" @click.stop="onSubnav('codeKbLineageList', 'codeKbLineageList')">
+              血缘关系列表
             </div>
           </div>
           <div class="nav nav-parent" :class="permissionOpen ? 'open' : ''" @click.stop="toggleGroup('permission')" @mouseenter="railEnter('permission', $event)" @mouseleave="railLeave()">
@@ -404,6 +430,15 @@ const onMsgJump = (id: string) => {
           </section>
           <section :class="pageCls('reviewAppeal')">
             <ReviewAppealPage />
+          </section>
+          <section :class="pageCls('codeKbMaterial')">
+            <CodeKbMaterial />
+          </section>
+          <section :class="pageCls('codeKbLineage')">
+            <CodeKbLineage />
+          </section>
+          <section :class="pageCls('codeKbLineageList')">
+            <CodeKbLineageList />
           </section>
         </div>
         </main>

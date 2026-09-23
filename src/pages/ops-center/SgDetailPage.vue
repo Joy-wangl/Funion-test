@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import Modal from '../../components/Modal.vue';
 import { PLATFORM_LOGO } from './data';
 import { sgDetail, sgOpsLogCls, sgOpsLogOf, sgOpsSalesOf } from './shopGoodsData';
 import type { SgProduct } from './shopGoodsData';
+import { pushToast } from '../../components/toast';
 
 const props = defineProps<{
   product: SgProduct;
@@ -33,12 +34,12 @@ function footAction(p: SgProduct): { text: string; cls: string } {
     case 'draft':
       return { text: '发布上架', cls: 'primary' };
     default:
-      /* 京麦等其它平台商品走各自详情页（JmCreateDetailPage），此处仅兜底保证 switch 类型完备 */
       return { text: '立即上架', cls: 'primary' };
   }
 }
 
 /* ================= 详情页 ================= */
+const editing = ref(false);
 const specOpen = ref(true);
 const skuShow = ref(true);
 const p = computed(() => props.product);
@@ -58,6 +59,187 @@ const logOpen = ref(false);
 const logTab = ref<'detail' | 'sales'>('detail');
 const logs = computed(() => sgOpsLogOf(p.value));
 const salesNodes = computed(() => sgOpsSalesOf(p.value));
+
+/* ---------- 规格/SKU 联动模型（与淘宝版一致） ---------- */
+interface SgSpec { name: string; values: string[] }
+interface SgSku { key: string; vals: Record<string, string>; name: string; skuName: string; code: string; series: string; cost: string; price: string; stock: string }
+/* 深拷贝防污染共用种子 */
+const d = reactive(JSON.parse(JSON.stringify(sgDetail)) as typeof sgDetail);
+/* 将 colors/styles 转为统一 specs 格式 */
+const specs = reactive<SgSpec[]>([
+  { name: '颜色分类', values: [...d.colors] },
+  { name: '款式', values: [...d.styles] },
+]);
+const specIds = ref<string[]>(specs.map((_, i) => `sgp${i}`));
+let specIdSeed = specs.length;
+const skuDeleted = ref<string[]>([]);
+const tSkus = ref<SgSku[]>([]);
+const skuKeyOf = (vals: Record<string, string>) => [...specIds.value].sort().map((id) => vals[id]).filter(Boolean).join(' / ');
+const skuNameOf = (vals: Record<string, string>) => specIds.value.map((id) => vals[id]).filter(Boolean).join(' + ');
+const filledSpecCount = computed(() => specs.filter((s) => s.values.length > 0).length);
+const syncSkus = () => {
+  if (filledSpecCount.value === 0) { tSkus.value = []; return; }
+  let combos: Record<string, string>[] = [{}];
+  specs.forEach((s, si) => {
+    if (s.values.length === 0) return;
+    const id = specIds.value[si];
+    const next: Record<string, string>[] = [];
+    for (const c of combos) for (const v of s.values) next.push({ ...c, [id]: v });
+    combos = next;
+  });
+  const old = new Map(tSkus.value.map((s) => [s.key, s]));
+  const deleted = new Set(skuDeleted.value);
+  tSkus.value = combos
+    .map((vals, i) => {
+      const key = skuKeyOf(vals);
+      const prev = old.get(key);
+      if (prev) return { ...prev, vals, key, name: skuNameOf(vals) };
+      const texts = Object.values(vals);
+      const base = d.skus.find((s) => texts.includes(s.color) && texts.includes(s.style));
+      return {
+        key, vals, name: skuNameOf(vals),
+        skuName: base?.name ?? skuNameOf(vals),
+        code: base?.code ?? `SKU-${String(i + 1).padStart(3, '0')}`,
+        series: base?.series ?? `编码${String.fromCharCode(65 + (i % 26))}`,
+        cost: base?.cost ?? '0', price: base?.price ?? d.price, stock: base?.stock ?? '0',
+      };
+    })
+    .filter((s) => !deleted.has(s.key));
+};
+syncSkus();
+/* rowspan 合并 */
+const samePrefix = (a: SgSku, b: SgSku, di: number) => {
+  for (let k = 0; k <= di; k++) {
+    const id = specIds.value[k];
+    if (a.vals[id] !== b.vals[id]) return false;
+  }
+  return true;
+};
+const skuMerge = computed(() => {
+  const rows = tSkus.value;
+  const grid: { show: boolean; span: number }[][] = rows.map(() => specs.map(() => ({ show: false, span: 1 })));
+  for (let di = 0; di < specs.length; di++) {
+    let i = 0;
+    while (i < rows.length) {
+      let j = i + 1;
+      while (j < rows.length && samePrefix(rows[i], rows[j], di)) j++;
+      grid[i][di] = { show: true, span: j - i };
+      i = j;
+    }
+  }
+  return grid;
+});
+
+/* 二次确认弹窗 */
+const confirmBox = ref<{ title: string; message: string; onOk: () => void } | null>(null);
+const askConfirm = (title: string, message: string, onOk: () => void) => { confirmBox.value = { title, message, onOk }; };
+const doConfirm = () => { confirmBox.value?.onOk(); confirmBox.value = null; };
+
+/* 拖拽排序规格 */
+const specArm = ref<number | null>(null);
+const specDrag = ref<number | null>(null);
+const specAddVals = ref<string[]>([]);
+const onSpecDragOver = (i: number) => {
+  const from = specDrag.value;
+  if (from === null || from === i) return;
+  const [m] = specs.splice(from, 1);
+  specs.splice(i, 0, m);
+  const [mid] = specIds.value.splice(from, 1);
+  specIds.value.splice(i, 0, mid);
+  specDrag.value = i;
+};
+const askRemoveSpec = (si: number) => {
+  const sp = specs[si];
+  askConfirm('删除规格', `删除规格「${sp.name || `规格${si + 1}`}」将同时删除其下全部属性值（${sp.values.length} 个），SKU 列表将按剩余规格重新生成，是否继续？`, () => {
+    skuDeleted.value = skuDeleted.value.filter((k) => !k.split(' / ').some((v) => sp.values.includes(v)));
+    specs.splice(si, 1);
+    specIds.value.splice(si, 1);
+    specAddVals.value.splice(si, 1);
+    syncSkus();
+    pushToast('规格已删除，SKU 已按剩余规格重新生成');
+  });
+};
+const addSpec = () => {
+  specs.push({ name: `规格${specs.length + 1}`, values: [] });
+  specIds.value.push(`sgp${specIdSeed++}`);
+  specAddVals.value.push('');
+  syncSkus();
+};
+/* 拖拽排序属性值 */
+const valArm = ref<string | null>(null);
+const valDrag = ref<string | null>(null);
+const onValDragOver = (si: number, vi: number) => {
+  const from = valDrag.value;
+  if (!from || from === `${si}-${vi}`) return;
+  const [fs, fv] = from.split('-').map(Number);
+  if (fs !== si) return;
+  const [m] = specs[si].values.splice(fv, 1);
+  specs[si].values.splice(vi, 0, m);
+  valDrag.value = `${si}-${vi}`;
+};
+const askRemoveSpecValue = (si: number, vi: number) => {
+  const v = specs[si].values[vi];
+  const id = specIds.value[si];
+  const last = specs[si].values.length === 1;
+  const n = tSkus.value.filter((s) => s.vals[id] === v).length;
+  askConfirm('删除属性值', last
+    ? `删除属性值「${v}」后规格「${specs[si].name || `规格${si + 1}`}」将无属性值，SKU 列表暂隐该规格列，其余 SKU 保留，是否继续？`
+    : `删除属性值「${v}」将同步删除包含该属性值的 ${n} 个 SKU，是否继续？`, () => {
+      specs[si].values.splice(vi, 1);
+      skuDeleted.value = skuDeleted.value.filter((k) => !k.includes(v));
+      syncSkus();
+      pushToast(last ? `属性值「${v}」已删除，规格「${specs[si].name || `规格${si + 1}`}」无属性值暂隐于 SKU 列表` : `属性值「${v}」及关联的 ${n} 个 SKU 已删除`);
+    });
+};
+/* 属性值改名 */
+const onSpecValChange = (si: number, vi: number, e: Event) => {
+  const input = e.target as HTMLInputElement;
+  const nv = input.value.trim();
+  const ov = specs[si].values[vi];
+  if (nv === ov) { input.value = ov; return; }
+  if (!nv) { pushToast('属性值不能为空', 'warning'); input.value = ov; return; }
+  if (specs[si].values.includes(nv)) { pushToast('该属性值已存在', 'warning'); input.value = ov; return; }
+  specs[si].values[vi] = nv;
+  const id = specIds.value[si];
+  skuDeleted.value = skuDeleted.value.map((k) => k.replace(ov, nv));
+  tSkus.value.forEach((s) => {
+    if (s.vals[id] !== ov) return;
+    s.vals = { ...s.vals, [id]: nv };
+    s.key = skuKeyOf(s.vals);
+    s.name = skuNameOf(s.vals);
+  });
+};
+const addSpecValue = (si: number) => {
+  const v = (specAddVals.value[si] ?? '').trim();
+  if (!v) return;
+  if (specs[si].values.includes(v)) { pushToast('该属性值已存在', 'warning'); return; }
+  specs[si].values.push(v);
+  specAddVals.value[si] = '';
+  syncSkus();
+};
+/* 删除 SKU：孤立属性值联动删除 */
+const askRemoveSku = (sku: SgSku) => {
+  const others = tSkus.value.filter((s) => s.key !== sku.key);
+  const orphans = specIds.value
+    .map((id, si) => ({ si, id, v: sku.vals[id] }))
+    .filter(({ id, v }) => !others.some((s) => s.vals[id] === v));
+  const orphanTxt = orphans.map((o) => `「${o.v}」`).join('、');
+  askConfirm(
+    '删除 SKU',
+    orphans.length
+      ? `删除 SKU「${sku.name}」后，属性值${orphanTxt}未被其它 SKU 引用，将一并删除，是否继续？`
+      : `确认删除 SKU「${sku.name}」？其属性值仍被其它 SKU 引用，将予以保留。`,
+    () => {
+      skuDeleted.value.push(sku.key);
+      orphans.forEach(({ si, v }) => {
+        const idx = specs[si].values.indexOf(v);
+        if (idx >= 0) specs[si].values.splice(idx, 1);
+      });
+      syncSkus();
+      pushToast(orphans.length ? `SKU「${sku.name}」及属性值${orphanTxt}已删除` : `SKU「${sku.name}」已删除`);
+    },
+  );
+};
 </script>
 
 <template>
@@ -69,8 +251,14 @@ const salesNodes = computed(() => sgOpsSalesOf(p.value));
           <span class="sgd-top-title">商品详情</span>
         </div>
         <div class="sgd-top-acts">
-          <button v-if="showLog" class="sg-btn" @click="logOpen = true">操作日志</button>
-          <button v-if="!hideEdit" class="sg-btn">编辑</button>
+          <template v-if="editing">
+            <button class="sg-btn" @click="editing = false">取消编辑</button>
+            <button class="sg-btn primary" @click="editing = false; pushToast('版本已保存')">保存版本</button>
+          </template>
+          <template v-else>
+            <button v-if="showLog" class="sg-btn" @click="logOpen = true">操作日志</button>
+            <button v-if="!hideEdit" class="sg-btn" @click="editing = true">编辑</button>
+          </template>
         </div>
       </div>
 
@@ -126,14 +314,58 @@ const salesNodes = computed(() => sgOpsSalesOf(p.value));
         <button class="sgd-collapse" @click="specOpen = !specOpen">{{ specOpen ? '∨ 收起' : '∧ 展开' }}</button>
       </div>
       <div v-if="specOpen" class="sgd-sec-body">
-        <div class="sgd-spec-row">
-          <span class="sgd-spec-label">颜色</span>
-          <div class="sgd-spec-chips"><span v-for="c in sgDetail.colors" :key="c" class="sgd-chip">{{ c }}</span></div>
-        </div>
-        <div class="sgd-spec-row">
-          <span class="sgd-spec-label">规格</span>
-          <div class="sgd-spec-chips"><span v-for="c in sgDetail.styles" :key="c" class="sgd-chip">{{ c }}</span></div>
-        </div>
+        <template v-if="editing">
+          <div
+            v-for="(sp, si) in specs"
+            :key="specIds[si]"
+            class="cpd-spec-card"
+            :class="specDrag === si ? 'dragging' : ''"
+            :draggable="specArm === si"
+            @dragstart="specDrag = si"
+            @dragover.prevent="onSpecDragOver(si)"
+            @dragend="specArm = null; specDrag = null; syncSkus()"
+          >
+            <div class="cpd-spec-head">
+              <span class="cpd-drag" title="拖动排序规格" @mousedown="specArm = si" @mouseup="specArm = null">⋮</span>
+              <input v-model="sp.name" class="cpd-vspec-name" placeholder="规格名" />
+              <span class="cpd-spec-ics">
+                <i class="danger" title="删除该规格" @click="askRemoveSpec(si)">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6.5 7l.8 12a1.6 1.6 0 0 0 1.6 1.5h6.2a1.6 1.6 0 0 0 1.6-1.5l.8-12M10 11v6M14 11v6" /></svg>
+                </i>
+              </span>
+            </div>
+            <div class="cpd-vspec-vals">
+              <span
+                v-for="(v, vi) in sp.values"
+                :key="vi"
+                class="cpd-vspec-chip cpd-tchip"
+                :class="valDrag === `${si}-${vi}` ? 'dragging' : ''"
+                :draggable="valArm === `${si}-${vi}`"
+                @dragstart="valDrag = `${si}-${vi}`"
+                @dragover.prevent="onValDragOver(si, vi)"
+                @dragend="valArm = null; valDrag = null; syncSkus()"
+              >
+                <i class="cpd-chip-grip" title="拖动排序属性值" @mousedown="valArm = `${si}-${vi}`" @mouseup="valArm = null">⋮</i>
+                <input class="cpd-chip-input" :value="v" @change="onSpecValChange(si, vi, $event)" />
+                <i class="cpd-chip-del" title="删除该属性值" @click="askRemoveSpecValue(si, vi)">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6.5 7l.8 12a1.6 1.6 0 0 0 1.6 1.5h6.2a1.6 1.6 0 0 0 1.6-1.5l.8-12M10 11v6M14 11v6" /></svg>
+                </i>
+              </span>
+              <span v-if="sp.values.length === 0" class="cpd-vsku-empty">—</span>
+              <input class="cpd-val-add" v-model="specAddVals[si]" placeholder="输入属性值，点击空白处保存" @blur="addSpecValue(si)" @keyup.enter="addSpecValue(si)" />
+            </div>
+          </div>
+          <button class="cpd-add-spec" @click="addSpec">⊕ 添加规格</button>
+        </template>
+        <template v-else>
+          <div v-for="sp in specs" :key="sp.name" class="cpd-spec-card cpd-spec-view">
+            <div class="cpd-spec-head"><span class="cpd-vspec-name">{{ sp.name }}</span></div>
+            <div class="cpd-vspec-vals">
+              <span v-for="v in sp.values" :key="v" class="cpd-vspec-chip">{{ v }}</span>
+              <span v-if="sp.values.length === 0" class="cpd-vsku-empty">—</span>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -146,31 +378,65 @@ const salesNodes = computed(() => sgOpsSalesOf(p.value));
         </label>
       </div>
       <div class="sgd-sec-body">
-        <table v-if="skuShow" class="sg-table sgd-sku-table">
-          <thead>
-            <tr>
-              <th :style="{ width: '76px' }">SKU图</th>
-              <th :style="{ width: '76px' }">编码图片</th>
-              <th>颜色分类</th>
-              <th :style="{ width: '120px' }">款式</th>
-              <th :style="{ width: '160px' }">SKU名称</th>
-              <th :style="{ width: '160px' }">商品编码</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(s, i) in sgDetail.skus" :key="i">
-              <td><img class="sgd-sku-img" :src="p.img" alt="" /></td>
-              <td><img class="sgd-sku-img" :src="p.img" alt="" /></td>
-              <td>{{ i % 2 === 0 ? s.color : '' }}</td>
-              <td>{{ s.style }}</td>
-              <td>{{ s.name }}</td>
-              <td><span class="sgd-code">{{ s.code }}</span></td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="cpd-sku-wrap">
+          <table :class="['sg-table', 'cpd-sku-table', 'cpd-tsku', skuShow ? 'cpd-tsku-x' : '']">
+            <thead>
+              <tr>
+                <th>排序</th>
+                <th>SKU图</th>
+                <th>编码图片</th>
+                <template v-for="(sp, di) in specs" :key="specIds[di]"><th v-if="sp.values.length">{{ sp.name || `规格${di + 1}` }}</th></template>
+                <th>组合</th>
+                <th>SKU名称</th>
+                <th>商品编码</th>
+                <th>系列编码</th>
+                <th>库存数</th>
+                <template v-if="skuShow">
+                  <th>成本价</th>
+                </template>
+                <th>售价</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(s, ri) in tSkus" :key="s.key">
+                <td>{{ ri + 1 }}</td>
+                <td><img class="sgd-sku-img" :src="p.img" alt="" /></td>
+                <td><img class="sgd-sku-img" :src="p.img" alt="" /></td>
+                <template v-for="(sid, di) in specIds" :key="sid">
+                  <td v-if="specs[di].values.length && skuMerge[ri][di].show" class="cpd-merge-cell" :rowspan="skuMerge[ri][di].span">{{ s.vals[specIds[di]] }}</td>
+                </template>
+                <td>{{ s.name }}</td>
+                <td>
+                  <input v-if="editing" v-model="s.skuName" class="cpd-cell-input cpd-cell-wide" />
+                  <template v-else>{{ s.skuName }}</template>
+                </td>
+                <td><span class="cpd-code-outline">{{ s.code }}</span></td>
+                <td><span v-if="s.series" class="sgd-code">{{ s.series }}</span><template v-else>0</template></td>
+                <td>
+                  <span v-if="editing" class="cpd-cell-num"><input v-model="s.stock" class="cpd-cell-input" /><i>件</i></span>
+                  <template v-else>{{ s.stock }}</template>
+                </td>
+                <template v-if="skuShow">
+                  <td>{{ s.cost ? `${s.cost} 元` : '0 元' }}</td>
+                </template>
+                <td>
+                  <span v-if="editing" class="cpd-cell-num"><input v-model="s.price" class="cpd-cell-input" /><i>元</i></span>
+                  <template v-else>{{ s.price }} 元</template>
+                </td>
+                <td class="cpd-row-ops">
+                  <a href="#" @click.prevent>查看</a>
+                  <a v-if="editing" class="danger" href="#" @click.prevent="askRemoveSku(s)">删除</a>
+                </td>
+              </tr>
+              <tr v-if="tSkus.length === 0"><td :colspan="(skuShow ? 11 : 10) + filledSpecCount" class="cpd-vsku-empty">—</td></tr>
+            </tbody>
+          </table>
+        </div>
         <div class="sgd-price">
           <span>一口价<i>*</i></span>
-          <input class="sg-input sgd-price-input" :value="sgDetail.price" readonly />
+          <input v-if="editing" class="sg-input sgd-price-input" :value="d.price" />
+          <b v-else>{{ d.price }}</b>
         </div>
       </div>
     </div>
@@ -269,5 +535,19 @@ const salesNodes = computed(() => sgOpsSalesOf(p.value));
         </table>
       </Modal>
     </div>
+
+    <!-- 删除规格/属性值/SKU 二次确认 -->
+    <Teleport to="body">
+      <div v-if="confirmBox" class="mk-create-mask mk-confirm-mask" @click.self="confirmBox = null">
+        <div class="mk-confirm-modal">
+          <div class="mk-confirm-head">{{ confirmBox.title }}</div>
+          <div class="mk-confirm-body">{{ confirmBox.message }}</div>
+          <div class="mk-confirm-foot">
+            <button class="sg-btn" @click="confirmBox = null">取消</button>
+            <button class="sg-btn danger" @click="doConfirm">确认删除</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>

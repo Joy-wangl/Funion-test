@@ -1370,3 +1370,10 @@
 .ops-center .di-table th:nth-child(3) { width: 14%; }
 .ops-center .di-table th:nth-child(4) { width: 16%; }
 .ops-center .di-table th:nth-child(5) { width: 18%; }
+
+/* ---------- 店铺配置抽屉：单选 radio 组（对齐 StrategyDrawer 的 st-radios 样式） ---------- */
+.smg-radios { display: flex; gap: 24px; }
+.smg-radio { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: var(--fs-base); color: var(--color-text); }
+.smg-radio input[type="radio"] { accent-color: var(--color-primary); width: 16px; height: 16px; cursor: pointer; }
+.smg-radio input[type="radio"]:disabled { cursor: not-allowed; opacity: 0.5; }
+.smg-radio span { user-select: none; }

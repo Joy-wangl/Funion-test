@@ -156,11 +156,10 @@ const nowStr = () => {
   const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 };
-/* 状态流转：在售⇄待售、删除→回收站、回收站→还原/彻底删除、复制→新待售商品、审核中→催审 */
+/* 状态流转：在售⇄待售、删除→回收站、回收站→还原/彻底删除、复制→新待售商品 */
 const jmDelTarget = ref<SgProduct | null>(null);
 const jmAct = (p: SgProduct, a: string) => {
   if (a === '修改') { detailEdit.value = true; detail.value = p; return; }
-  if (a === '催审') { pushToast('已催审：审核结果将通过京麦消息通知'); return; }
   if (a === '上架') { p.status = 'jmOnsale'; p.jmSub = undefined; p.shelfTime = nowStr(); pushToast('已上架：商品状态变更为在售'); return; }
   if (a === '下架') { p.status = 'jmPending'; p.jmSub = '自主下架'; p.offTime = nowStr(); pushToast('已下架：商品转入待售商品管理'); return; }
   if (a === '删除') { p.status = 'jmRecycle'; p.jmSub = undefined; p.offTime = nowStr(); pushToast('已删除：移入商品回收站（保留 45 天）'); return; }
@@ -168,7 +167,7 @@ const jmAct = (p: SgProduct, a: string) => {
   if (a === '彻底删除') { jmDelTarget.value = p; return; }
   if (a === '复制') {
     const nid = String(Number(p.id) + 100);
-    jmList.value = [...jmList.value, { ...p, id: nid, linkId: nid, skuId: `${nid}1`, itemNo: `${p.itemNo ?? 'JM'}-C`, status: 'jmPending', jmSub: '未上架', jmReject: undefined }];
+    jmList.value = [...jmList.value, { ...p, id: nid, linkId: nid, skuId: `${nid}1`, itemNo: `${p.itemNo ?? 'JM'}-C`, status: 'jmPending', jmSub: '未上架' }];
     pushToast('复制成功：已生成新的待售商品');
   }
 };
@@ -369,8 +368,12 @@ const countOf = (key: string) => {
   const def = (jm ? JM_CHIPS : SG_CHIPS).find((c) => c.key === key)!;
   return (jm ? jmList.value : sgProducts[tab.value]).filter((p) => def.match(p.status) && (jm || !removedIds.value.has(p.id))).length;
 };
-/* 状态页签：京麦用商品列表子菜单口径，其余平台用通用口径 */
-const chipsDef = computed(() => (tab.value === '京麦' ? JM_CHIPS : SG_CHIPS));
+/* 状态页签：京麦用商品列表子菜单口径，其余平台用通用口径；得物无审核相关内容，隐藏审核类页签 */
+const chipsDef = computed(() => {
+  if (tab.value === '京麦') return JM_CHIPS;
+  if (tab.value === '得物') return SG_CHIPS.filter((c) => c.key !== 'auditing' && c.key !== 'pending');
+  return SG_CHIPS;
+});
 
 /* 批量调价除淘宝外各 TAB 提供，且仅「销售中」状态商品可勾选调价；京麦走自己的批量改价/改库存 */
 const canPrice = computed(() => tab.value !== '淘宝' && tab.value !== '京麦');
@@ -750,10 +753,7 @@ const onTab = (t: SgTab) => {
                     <span class="sg-dot" :style="{ background: SG_STATUS_META[p.status].dot }" />
                     <span :style="{ color: SG_STATUS_META[p.status].color }">{{ SG_STATUS_META[p.status].label }}</span>
                   </div>
-                  <div v-if="p.jmReject" class="sg-failtag" :title="p.jmReject">
-                    审核驳回 <i class="sg-fail-i" :title="p.jmReject">i</i>
-                  </div>
-                  <div v-else-if="p.jmSub" class="sg-offtag normal">{{ p.jmSub }}</div>
+                  <div v-if="p.jmSub" class="sg-offtag normal">{{ p.jmSub }}</div>
                 </td>
               </template>
               <td :class="cfJm.stickCls('actions')" :style="cfJm.stickStyle('actions')">

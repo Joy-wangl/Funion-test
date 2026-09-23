@@ -1,7 +1,7 @@
 /** 店铺商品模块数据：列表行 + 状态元信息 + 详情素材 */
 import { ecMain } from './data';
 
-export type SgStatus = 'selling' | 'auditing' | 'auditFail' | 'offSystem' | 'offManual' | 'offDeposit' | 'offBrand' | 'offBan' | 'draft' | 'jmOnsale' | 'jmPending' | 'jmAudit' | 'jmReject' | 'jmRecycle';
+export type SgStatus = 'selling' | 'auditing' | 'auditFail' | 'offSystem' | 'offManual' | 'offDeposit' | 'offBrand' | 'offBan' | 'draft' | 'jmOnsale' | 'jmPending' | 'jmRecycle';
 
 /** 下架类型（已下架 tab 下的筛选维度） */
 export type SgOffType = '自主下架' | '平台下架' | '保证金违规下架' | '品牌到期下架' | '封禁下架' | '库存不足自动下架' | '长期无动销下架';
@@ -95,10 +95,8 @@ export interface SgProduct {
   jdPrice?: string;
   stockAvail?: string;
   catPath?: string;
-  /** 京麦待售子状态（待售商品管理：未上架/自主下架/系统下架/系统下架待审核） */
-  jmSub?: '未上架' | '自主下架' | '系统下架' | '系统下架待审核';
-  /** 京麦审核驳回原因 */
-  jmReject?: string;
+  /** 京麦待售子状态（待售商品管理：未上架/自主下架/系统下架） */
+  jmSub?: '未上架' | '自主下架' | '系统下架';
 }
 
 export const SG_STATUS_META: Record<SgStatus, { label: string; dot: string; color: string }> = {
@@ -111,11 +109,9 @@ export const SG_STATUS_META: Record<SgStatus, { label: string; dot: string; colo
   offBrand: { label: '已下架', dot: '#b3bac6', color: '#3d4657' },
   offBan: { label: '已下架', dot: '#b3bac6', color: '#3d4657' },
   draft: { label: '草稿', dot: '#f6a54c', color: '#8a92a1' },
-  /* 京麦（京东 POP）商品列表状态：在售/待售/审核中/审核驳回/回收站 */
+  /* 京麦（京东 POP）商品列表状态：在售/待售/回收站 */
   jmOnsale: { label: '在售', dot: '#22c07b', color: '#3d4657' },
   jmPending: { label: '待售', dot: '#f6a54c', color: '#3d4657' },
-  jmAudit: { label: '审核中', dot: '#4f7cff', color: '#3d4657' },
-  jmReject: { label: '审核驳回', dot: '#f05b5e', color: '#3d4657' },
   jmRecycle: { label: '回收站', dot: '#b3bac6', color: '#8a92a1' },
 };
 
@@ -140,10 +136,6 @@ export function sgRowActions(status: SgStatus): string[] {
       return ['修改', '复制', '下架', '删除'];
     case 'jmPending':
       return ['修改', '复制', '上架', '删除'];
-    case 'jmAudit':
-      return ['催审', '复制'];
-    case 'jmReject':
-      return ['修改', '复制', '删除'];
     case 'jmRecycle':
       return ['还原', '彻底删除'];
   }
@@ -173,13 +165,11 @@ export const SG_CHIPS: { key: string; label: string; match: (s: SgStatus) => boo
   { key: 'draft', label: '草稿箱', match: (s) => s === 'draft' },
 ];
 
-/** 京麦商品列表状态页签（对齐京麦 11.0 商品列表子菜单：全部商品=在售+待售聚合，审核中/审核驳回/回收站独立页签） */
+/** 京麦商品列表状态页签（对齐京麦 11.0 商品列表子菜单：全部商品=在售+待售聚合，回收站独立页签） */
 export const JM_CHIPS: { key: string; label: string; match: (s: SgStatus) => boolean }[] = [
   { key: 'all', label: '全部商品', match: (s) => s === 'jmOnsale' || s === 'jmPending' },
   { key: 'onsale', label: '在售', match: (s) => s === 'jmOnsale' },
   { key: 'pending', label: '待售', match: (s) => s === 'jmPending' },
-  { key: 'audit', label: '审核中', match: (s) => s === 'jmAudit' },
-  { key: 'reject', label: '审核驳回', match: (s) => s === 'jmReject' },
   { key: 'recycle', label: '回收站', match: (s) => s === 'jmRecycle' },
 ];
 
@@ -324,12 +314,12 @@ const sgProductBase: Record<'视频号' | '淘宝', Omit<SgProduct, 'seriesCode'
 };
 
 export type SgTab = '视频号' | '淘宝' | '京喜' | '得物' | '京麦';
-/* 京喜/得物 内容与视频号保持一致；京麦为京东 POP 平台独立数据 */
+/* 京喜 内容与视频号保持一致；得物与视频号一致但不含审核相关商品；京麦为京东 POP 平台独立数据 */
 export const sgProducts: Record<SgTab, SgProduct[]> = {
   视频号: addSeriesCode(sgProductBase.视频号),
   淘宝: addSeriesCode(sgProductBase.淘宝),
   京喜: addSeriesCode(sgProductBase.视频号),
-  得物: addSeriesCode(sgProductBase.视频号),
+  得物: addSeriesCode(sgProductBase.视频号.filter((r) => r.status !== 'auditing' && r.status !== 'auditFail')),
   京麦: addSeriesCode([
     /* 在售：上架销售中，可修改/复制/下架/删除 */
     {
@@ -368,7 +358,7 @@ export const sgProducts: Record<SgTab, SgProduct[]> = {
       skuId: '1000123456811', itemNo: 'JM-2202', brand: 'Funion', jdPrice: '39.90', stockAvail: '0', catPath: '居家用品/厨房用具/刀具',
       jmSub: '自主下架', offReason: '库存不足，人工手动下架',
     },
-    /* 待售·系统下架待审核：滞销/风控下架后修改提交，审核通过转自主下架 */
+    /* 待售·系统下架：滞销/风控下架后入待售，可自行上架 */
     {
       id: '100012345685', title: T_SERUM, img: '/products/serum.png', linkId: '100012345685',
       status: 'jmPending', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
@@ -376,26 +366,7 @@ export const sgProducts: Record<SgTab, SgProduct[]> = {
       version: '7887998736868', operator: '李四', category: ['美妆个护', '面部护理', '精华液'],
       publishTime: '2026-04-02 09:00:00', offTime: '2026-08-25 03:00:00',
       skuId: '1000123456851', itemNo: 'JM-2205', brand: 'PERDORA', jdPrice: '129.00', stockAvail: '46', catPath: '美妆护肤/面部护肤/精华液',
-      jmSub: '系统下架待审核', offReason: '商品 90 天无动销，系统自动下架',
-    },
-    /* 审核中：新品/编辑提交待审，可一键催审 */
-    {
-      id: '100012345679', title: T_SERUM, img: '/products/serum.png', linkId: '100012345679',
-      status: 'jmAudit', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
-      publisher: '李四', store: '京东Funion旗舰店', storePlatform: '京麦', source: '链接商品库',
-      version: '7887998736862', operator: '李四', category: ['美妆个护', '面部护理', '精华液'],
-      publishTime: '2026-08-16 09:30:00', submitTime: '2026-08-16 09:30:00',
-      skuId: '1000123456791', itemNo: 'JM-2206', brand: 'PERDORA', jdPrice: '129.00', stockAvail: '200', catPath: '美妆护肤/面部护肤/精华液',
-    },
-    /* 审核驳回：修改后可重新提交审核 */
-    {
-      id: '100012345680', title: T_SERUM, img: '/products/serum.png', linkId: '100012345680',
-      status: 'jmReject', strategy: '未关联', sales: '-', reviews: '-', sold30: '0', exposure: '0',
-      publisher: '李四', store: '京东Funion旗舰店', storePlatform: '京麦', source: '链接商品库',
-      version: '7887998736863', operator: '李四', category: ['美妆个护', '面部护理', '精华液'],
-      publishTime: '2026-05-12 12:00:00', submitTime: '2026-08-28 16:20:00',
-      skuId: '1000123456801', itemNo: 'JM-2207', brand: 'PERDORA', jdPrice: '129.00', stockAvail: '150', catPath: '美妆护肤/面部护肤/精华液',
-      jmReject: '主图存在营销文案牛皮癣，不符合京东商品发布规范，请更换纯商品图后重新提交',
+      jmSub: '系统下架', offReason: '商品 90 天无动销，系统自动下架',
     },
     /* 回收站：待售删除后保留 45 天，可还原/彻底删除 */
     {

@@ -8,7 +8,7 @@ import ImgSizeCrop from './ImgSizeCrop.vue';
 import MaterialCenter from './MaterialCenter.vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 
-const props = defineProps<{ row: CreateRow; /** 仅查看（竞对商机等）：隐藏编辑/关联发布/去水印入口 */ readonly?: boolean; /** 视频号（微信小店）规格交互：规格维度×规格值，SKU 笛卡尔积联动 */ video?: boolean }>();
+const props = defineProps<{ row: CreateRow; /** 仅查看（竞对商机等）：隐藏编辑/关联发布/去水印入口 */ readonly?: boolean; /** 视频号（微信小店）：隐藏一键匹配、展示服务保障三选项 */ video?: boolean }>();
 const emit = defineEmits<{ (e: 'back'): void; (e: 'openPub'): void }>();
 
 const SHIP_OPTIONS = ['今日发', '24小时内发货', '48小时内发货', '大于48小时发货'];
@@ -36,60 +36,6 @@ const sevenDay = ref('支持七天无理由');
 /* 详情数据按实例深拷贝：编辑操作（规格增删/拖拽、尺寸替换回写）只影响当前页实例，
    避免污染淘宝/视频号共用的种子对象（曾导致一处删值后另一平台详情规格丢失） */
 const d = reactive(JSON.parse(JSON.stringify(createDetail)) as typeof createDetail);
-
-/* ---------- 视频号（微信小店）规格模型：创建规格=新增维度（规格名＋规格值），删除规格=移除整个维度；
-   规格与 SKU 关系=各维度规格值笛卡尔积：增删规格值即时重算 SKU 行 ---------- */
-interface VSpec { name: string; values: string[] }
-const vSpecs = ref<VSpec[]>(d.specs.map((s) => ({ name: s.name, values: [...s.values] })));
-const vAddVals = ref<string[]>(d.specs.map(() => ''));
-const addVSpec = () => {
-  vSpecs.value.push({ name: `规格${vSpecs.value.length + 1}`, values: [] });
-  vAddVals.value.push('');
-};
-const removeVSpec = (si: number) => {
-  vSpecs.value.splice(si, 1);
-  vAddVals.value.splice(si, 1);
-};
-const addVSpecValue = (si: number) => {
-  const v = (vAddVals.value[si] ?? '').trim();
-  if (!v) return; /* 失焦触发的空内容：静默忽略 */
-  if (vSpecs.value[si].values.includes(v)) { pushToast('该规格值已存在', 'warning'); return; }
-  vSpecs.value[si].values.push(v);
-  vAddVals.value[si] = '';
-};
-const removeVSpecValue = (si: number, v: string) => {
-  vSpecs.value[si].values = vSpecs.value[si].values.filter((x) => x !== v);
-};
-/* SKU 行=各维度规格值笛卡尔积；已知组合沿用静态售价/编码，新增组合给默认值；售价/库存按组合键记忆编辑 */
-const vSkuEdit = ref<Record<string, { price: string; stock: string }>>({});
-/* 空维度（新增规格未填值）不参与笛卡尔积：SKU 不因添加规格清零，对应列暂隐 */
-const vFilledCount = computed(() => vSpecs.value.filter((s) => s.values.length > 0).length);
-const vSkuRows = computed(() => {
-  const lists = vSpecs.value.map((s) => s.values).filter((l) => l.length > 0);
-  if (lists.length === 0) return [];
-  let combos: string[][] = [[]];
-  for (const list of lists) {
-    const next: string[][] = [];
-    for (const c of combos) for (const v of list) next.push([...c, v]);
-    combos = next;
-  }
-  return combos.map((combo, i) => {
-    const key = combo.join(' ');
-    const base = d.skus.find((s) => combo.includes(s.color) && combo.includes(s.style));
-    const ed = vSkuEdit.value[key];
-    return {
-      key,
-      combo,
-      price: ed?.price ?? base?.price ?? d.price,
-      stock: ed?.stock ?? base?.stock ?? '0',
-      code: base?.code ?? `WXSP-${String(i + 1).padStart(3, '0')}`,
-    };
-  });
-});
-const setVSku = (key: string, field: 'price' | 'stock', val: string) => {
-  const cur = vSkuEdit.value[key] ?? { price: '', stock: '' };
-  vSkuEdit.value = { ...vSkuEdit.value, [key]: { ...cur, [field]: val } };
-};
 
 /* ---------- 淘宝规格/SKU 联动模型 ----------
    规格属性值笛卡尔积自动生成 SKU：SKU 名称默认=属性值组合文本（如 黑色 + 小码）；
@@ -197,6 +143,9 @@ const onSpecDragOver = (i: number) => {
 const askRemoveSpec = (si: number) => {
   const sp = d.specs[si];
   askConfirm('删除规格', `删除规格「${sp.name || `规格${si + 1}`}」将同时删除其下全部属性值（${sp.values.length} 个），SKU 列表将按剩余规格重新生成，是否继续？`, () => {
+    const id = specIds.value[si];
+    /* 清理 skuDeleted：移除含该规格维度 key，避免残留过滤新组合 */
+    skuDeleted.value = skuDeleted.value.filter((k) => !k.split(' / ').some((v) => sp.values.includes(v)));
     d.specs.splice(si, 1);
     specIds.value.splice(si, 1);
     specAddVals.value.splice(si, 1);
@@ -231,6 +180,8 @@ const askRemoveSpecValue = (si: number, vi: number) => {
     ? `删除属性值「${v}」后规格「${d.specs[si].name || `规格${si + 1}`}」将无属性值，SKU 列表暂隐该规格列，其余 SKU 保留，是否继续？`
     : `删除属性值「${v}」将同步删除包含该属性值的 ${n} 个 SKU，是否继续？`, () => {
       d.specs[si].values.splice(vi, 1);
+      /* 清理 skuDeleted：移除含该属性值的 key，被删 SKU 若值被重新添加可复活 */
+      skuDeleted.value = skuDeleted.value.filter((k) => !k.includes(v));
       syncSkus();
       pushToast(last ? `属性值「${v}」已删除，规格「${d.specs[si].name || `规格${si + 1}`}」无属性值暂隐于 SKU 列表` : `属性值「${v}」及关联的 ${n} 个 SKU 已删除`);
     });
@@ -245,6 +196,8 @@ const onSpecValChange = (si: number, vi: number, e: Event) => {
   if (d.specs[si].values.includes(nv)) { pushToast('该属性值已存在', 'warning'); input.value = ov; return; }
   d.specs[si].values[vi] = nv;
   const id = specIds.value[si];
+  /* skuDeleted 同步改名：旧 key 替换为新 key，避免删除记录失效导致被删 SKU 复活 */
+  skuDeleted.value = skuDeleted.value.map((k) => k.replace(ov, nv));
   tSkus.value.forEach((s) => {
     if (s.vals[id] !== ov) return;
     s.vals = { ...s.vals, [id]: nv };
@@ -560,23 +513,6 @@ watch(previewList, (v) => {
       </div>
       <div v-if="specOpen" class="sgd-sec-body">
         <template v-if="editing">
-          <!-- 视频号（微信小店）：规格名可改＋删除整维度；规格值芯片增删即时重算 SKU -->
-          <template v-if="video">
-            <div v-for="(sp, si) in vSpecs" :key="`${sp.name}-${si}`" class="cpd-spec-card">
-              <div class="cpd-spec-head">
-                <span class="cpd-drag">⋮</span>
-                <input v-model="sp.name" class="cpd-vspec-name" placeholder="规格名" />
-                <span class="cpd-spec-ics"><i class="danger" title="删除该规格" @click="removeVSpec(si)">🗑</i></span>
-              </div>
-              <div class="cpd-vspec-vals">
-                <span v-for="v in sp.values" :key="v" class="cpd-vspec-chip">{{ v }}<i title="删除该规格值" @click="removeVSpecValue(si, v)">×</i></span>
-                <span v-if="sp.values.length === 0" class="cpd-vsku-empty">—</span>
-                <input class="cpd-val-add" v-model="vAddVals[si]" placeholder="输入规格值，点击空白处保存" @blur="addVSpecValue(si)" @keyup.enter="addVSpecValue(si)" />
-              </div>
-            </div>
-            <button class="cpd-add-spec" @click="addVSpec">⊕ 添加规格</button>
-          </template>
-          <template v-else>
           <div
             v-for="(sp, si) in d.specs"
             :key="specIds[si]"
@@ -619,10 +555,8 @@ watch(previewList, (v) => {
             </div>
           </div>
           <button class="cpd-add-spec" @click="addSpec">⊕ 添加规格</button>
-          </template>
         </template>
-        <template v-else>
-          <!-- 默认态与编辑态统一：同规格卡＋首格规格名＋四等分属性值盒；cpd-spec-view 去输入框化纯文本只读 -->
+        <template v-if="!editing">
           <div v-for="sp in d.specs" :key="sp.name" class="cpd-spec-card cpd-spec-view">
             <div class="cpd-spec-head"><span class="cpd-vspec-name">{{ sp.name }}</span></div>
             <div class="cpd-vspec-vals">
@@ -648,31 +582,8 @@ watch(previewList, (v) => {
       </div>
       <div class="sgd-sec-body">
         <div class="cpd-sku-wrap">
-          <!-- 视频号：SKU 行=各规格维度值笛卡尔积，增删规格/规格值即时重算 -->
-          <table v-if="video" class="sg-table cpd-sku-table cpd-vsku">
-            <thead>
-              <tr>
-                <template v-for="(sp, si) in vSpecs" :key="si"><th v-if="sp.values.length">{{ sp.name || '规格' }}</th></template>
-                <th>售价</th>
-                <th>库存</th>
-                <th>SKU编码</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="s in vSkuRows" :key="s.key">
-                <td v-for="(cv, ci) in s.combo" :key="ci">{{ cv }}</td>
-                <td>
-                  <span v-if="editing" class="cpd-cell-num"><input class="cpd-cell-input" :value="s.price" @input="setVSku(s.key, 'price', ($event.target as HTMLInputElement).value)" /><i>元</i></span>
-                  <template v-else>{{ s.price }} 元</template>
-                </td>
-                <td><input v-if="editing" class="cpd-cell-input" :value="s.stock" @input="setVSku(s.key, 'stock', ($event.target as HTMLInputElement).value)" /><template v-else>{{ s.stock }}</template></td>
-                <td><span class="sgd-code">{{ s.code }}</span></td>
-              </tr>
-              <tr v-if="vSkuRows.length === 0"><td :colspan="vFilledCount + 3" class="cpd-vsku-empty">—</td></tr>
-            </tbody>
-          </table>
-          <!-- 淘宝：SKU 行=规格属性值笛卡尔积自动生成；属性列按绑定关系 rowspan 合并（前置属性值占多行）；删除 SKU 联动删除未被引用的属性值 -->
-          <table v-else :class="['sg-table', 'cpd-sku-table', 'cpd-tsku', skuShow ? 'cpd-tsku-x' : '']">
+          <!-- SKU 行=规格属性值笛卡尔积自动生成；属性列按绑定关系 rowspan 合并；删除 SKU 联动删除未被引用的属性值（淘宝/视频号统一） -->
+          <table :class="['sg-table', 'cpd-sku-table', 'cpd-tsku', skuShow ? 'cpd-tsku-x' : '']">
             <thead>
               <tr>
                 <th>排序</th>
