@@ -1,5 +1,5 @@
 /* 临时验证：关联发布任务抽屉（摘要区上提 + 查询条件 + 排序 + 失败重试） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
@@ -18,7 +18,7 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
 
   /* 商品创建列表：◉ 图标已删 + 列表截图看列间隔 */
   results['list.noIcon'] = !(((await page.locator('.create-table .create-link').first().textContent()) || '').includes('◉'));
-  await page.screenshot({ path: 'd:/Qoder/Funion/vue-verify-cplist.png' });
+  await page.screenshot({ path: 'D:/PM.funion/vue-verify-cplist.png' });
 
   /* 更多菜单 */
   await page.locator('.create-ops a:has-text("更多")').first().click();
@@ -62,7 +62,7 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
   const rowChecks = page.locator('.cp-drawer tbody .ib-check');
   results['check.onlyFailed'] = (await rowChecks.count()) === 2;
   await page.waitForTimeout(300);
-  await page.screenshot({ path: 'd:/Qoder/Funion/vue-verify-cplink.png' });
+  await page.screenshot({ path: 'D:/PM.funion/vue-verify-cplink.png' });
 
   /* 未勾选点重新发布 → 提示 */
   await page.click('.cp-drawer-filter .cp-repub-btn');

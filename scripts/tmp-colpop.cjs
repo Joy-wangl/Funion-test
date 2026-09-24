@@ -1,7 +1,7 @@
 /* 临时验证：运营管理 ▦ 按钮 = 列表字段管理气泡（勾选列显隐） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 
-const OUT = 'd:/Qoder/Funion';
+const OUT = 'D:/PM.funion';
 const BASE = process.argv[2] || 'http://localhost:5173/';
 
 (async () => {

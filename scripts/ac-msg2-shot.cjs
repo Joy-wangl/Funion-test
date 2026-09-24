@@ -1,6 +1,6 @@
 /* 验证：消息中心抽屉化 + 闭环跳转（查看应用/查看反馈） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
-const OUT = 'd:/Qoder/Funion';
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
+const OUT = 'D:/PM.funion';
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });

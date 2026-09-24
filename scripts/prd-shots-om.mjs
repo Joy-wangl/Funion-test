@@ -1,8 +1,8 @@
 ﻿import { createRequire } from 'module';
 import fs from 'fs';
 const require = createRequire(import.meta.url);
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
-const OUT = 'd:/Qoder/Funion/public/prd-shots';
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
+const OUT = 'D:/PM.funion/public/prd-shots';
 fs.mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--no-proxy-server'] });
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });

@@ -1,5 +1,5 @@
 /* 验证：分配成员弹窗 步骤2 改为「先选职位再选人」（组长单选 / 专员·助理多选） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const OUT = 'd:/Qunion/Funion'.replace('Qunion', 'Qoder');
 
 (async () => {

@@ -1,7 +1,7 @@
 /* 临时验证：全局排序表头统一为 SortTh 组件（品控/聚合接待/实时接待/商品创建抽屉） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 
-const OUT = 'd:/Qoder/Funion';
+const OUT = 'D:/PM.funion';
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });

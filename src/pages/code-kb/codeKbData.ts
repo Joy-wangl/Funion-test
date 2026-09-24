@@ -202,6 +202,10 @@ export const materialTypeCountsOfSeries = (seriesId: string): Record<MaterialTyp
 /** 系列下素材总数 */
 export const materialCountOfSeries = (seriesId: string) => materialsOfSeries(seriesId).length;
 
+/** 系列关联ID总销量：其下全部商品ID（各店铺）销量之和 */
+export const totalSalesOfSeries = (seriesId: string) =>
+  productsOfSeries(seriesId).reduce((sum, p) => sum + p.sales, 0);
+
 /** 按类型的销量 TOP N 推荐（仅「生效」素材） */
 export const topMaterialsByType = (seriesId: string, type: MaterialType, n = 10) =>
   materialsOfSeries(seriesId)

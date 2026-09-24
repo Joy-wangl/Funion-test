@@ -1,7 +1,7 @@
 /* 验证：发布到抽屉按路由平台过滤——淘宝/视频号/京麦各只展示本平台策略与店铺 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const OUT = 'D:/PM.funion/screenshots';
 fs.mkdirSync(OUT, { recursive: true });
 
 (async () => {

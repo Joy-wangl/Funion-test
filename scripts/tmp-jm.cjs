@@ -1,7 +1,7 @@
 /* 验证：京麦（京东 POP）平台——商品创建列表/详情 + 店铺商品 Tab/详情（字段映射京麦开放平台商品API） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const OUT = 'D:/PM.funion/screenshots';
 fs.mkdirSync(OUT, { recursive: true });
 
 (async () => {

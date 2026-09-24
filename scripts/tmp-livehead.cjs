@@ -1,6 +1,6 @@
 /* 临时验证：平台订单分流＝操作按钮，置于店铺头部右端 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
-const OUT = 'd:/Qoder/Funion';
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
+const OUT = 'D:/PM.funion';
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });

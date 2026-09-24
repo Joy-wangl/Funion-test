@@ -1,7 +1,7 @@
 /* 临时验证：评论横滑条翻页箭头还原为贴条两侧垂直居中的素 chevron */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 
-const OUT = 'd:/Qoder/Funion';
+const OUT = 'D:/PM.funion';
 const BASE = process.argv[2] || 'http://localhost:5173/';
 
 (async () => {

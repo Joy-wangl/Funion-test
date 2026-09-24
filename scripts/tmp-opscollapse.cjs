@@ -1,5 +1,5 @@
 /* 临时验证：运营中心侧边栏收起状态独立，不影响其他顶部 tab */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });

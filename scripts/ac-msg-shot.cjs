@@ -1,6 +1,6 @@
 /* 验证：消息中心（应用渠道回复 + 系统开发者回复）+ 详情页开发者回复闭环 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
-const OUT = 'd:/Qoder/Funion';
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
+const OUT = 'D:/PM.funion';
 
 const scrollTo = (page, text) => page.evaluate((t) => {
   const main = document.querySelector('.ap-main');

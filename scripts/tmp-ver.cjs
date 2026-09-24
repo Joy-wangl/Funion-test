@@ -1,6 +1,6 @@
 /* 临时验证：上传新创作第二步展示版本号（默认 1.0.0，必填） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
-const OUT = 'd:/Qoder/Funion';
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
+const OUT = 'D:/PM.funion';
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });

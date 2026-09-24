@@ -1,13 +1,13 @@
 /* 出图：项目管理(IT部) LOGO(1:1) + 三张详情图（项目详情/任务详情/迭代详情） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
-const OUT = 'd:/Qoder/Funion/public/pm';
+const OUT = 'D:/PM.funion/public/pm';
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   const page = await browser.newPage({ viewport: { width: 1700, height: 1200 }, deviceScaleFactor: 2 });
-  await page.goto('file:///d:/Qoder/Funion/scripts/pm-mock.html', { waitUntil: 'load' });
+  await page.goto('file:///D:/PM.funion/scripts/pm-mock.html', { waitUntil: 'load' });
   await page.waitForTimeout(300);
 
   /* LOGO 1:1，圆角外透明 */

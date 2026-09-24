@@ -1,6 +1,6 @@
 /* 临时验证：侧边栏「商品创建」改名「个人商品库」 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
-const OUT = 'd:/Qoder/Funion';
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
+const OUT = 'D:/PM.funion';
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });

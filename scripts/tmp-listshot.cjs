@@ -1,5 +1,5 @@
 /* 截图：商品创建列表（平台 LOGO 徽章/侧栏 subnav LOGO/标题链接同宽/详芯片居中） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   const page = await browser.newPage({ viewport: { width: 1800, height: 900 } });
@@ -12,7 +12,7 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
   }
   await page.click('.subnav:text-is("淘宝")');
   await page.waitForSelector('section.page.show .create-table:visible');
-  await page.screenshot({ path: 'd:/Qoder/Funion/screenshots/tmp-listlogo.png' });
+  await page.screenshot({ path: 'D:/PM.funion/screenshots/tmp-listlogo.png' });
   await browser.close();
   console.log('shot ok');
 })().catch((e) => { console.error(e); process.exit(1); });

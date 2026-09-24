@@ -1,7 +1,7 @@
 /* 临时脚本：导出运营中心侧边栏 10 个图标的 默认/选中 双态 SVG */
 const fs = require('fs');
 
-const OUT = 'd:/Qoder/Funion/ops-side-icons';
+const OUT = 'D:/PM.funion/ops-side-icons';
 const DEFAULT = '#667082';
 const ACTIVE = '#ff5f62';
 

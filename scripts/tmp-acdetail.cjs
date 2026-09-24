@@ -1,7 +1,7 @@
 /* 临时验证：详情页删除「最新版更新内容」，更新描述归入「新功能介绍」 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 
-const OUT = 'd:/Qoder/Funion';
+const OUT = 'D:/PM.funion';
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });

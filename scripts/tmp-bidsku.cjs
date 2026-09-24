@@ -1,7 +1,7 @@
 /* 临时验证：竞价商品 子表「SKU名称」列 + 部分SKU「必报」标签 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const OUT = 'D:/PM.funion/screenshots';
 fs.mkdirSync(OUT, { recursive: true });
 
 (async () => {

@@ -1,6 +1,6 @@
 /* 临时：销售中态筛选区截图（验证无下架原因条件） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
+const OUT = 'D:/PM.funion/screenshots';
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   const page = await browser.newPage({ viewport: { width: 1800, height: 900 } });

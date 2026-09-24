@@ -1,7 +1,7 @@
 /* 验证：首页轮播彩蛋图片位 + 点击喝咖啡 toast */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const OUT = 'D:/PM.funion/screenshots';
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });

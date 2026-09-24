@@ -1,7 +1,7 @@
 /* 验证：发布到抽屉离线店铺禁选＋前往登录桥接账号管理（卖家离线账号同源） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const OUT = 'D:/PM.funion/screenshots';
 fs.mkdirSync(OUT, { recursive: true });
 
 (async () => {

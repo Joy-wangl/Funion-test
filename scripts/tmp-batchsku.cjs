@@ -1,7 +1,7 @@
 /* 验证：勾选列表商品 → 列头上方选条「已选 N 条＋编辑商品信息」→ 批量弹窗（商品信息列＋SKU 关键信息）→ 保存回写种子 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const OUT = 'D:/PM.funion/screenshots';
 fs.mkdirSync(OUT, { recursive: true });
 
 (async () => {

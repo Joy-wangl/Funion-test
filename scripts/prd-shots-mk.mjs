@@ -1,5 +1,5 @@
 /* 市场商机模块原型页无头截图，输出到 public/prd-shots/，供语雀 PRD 嵌图使用 */
-import { chromium } from 'file:///D:/Funion/.playwright/package/index.mjs';
+import { chromium } from 'file:///D:/PM.funion/.playwright/package/index.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 

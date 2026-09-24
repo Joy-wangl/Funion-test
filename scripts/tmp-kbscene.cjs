@@ -1,7 +1,7 @@
 /* 验证：知识库侧栏「场景配置」定版 V2——V1 入口/子入口下线，V2 左右结构占位 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const OUT = 'D:/PM.funion/screenshots';
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });

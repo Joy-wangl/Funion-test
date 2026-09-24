@@ -1,7 +1,7 @@
 /* 验证：消息通知闭环（白底顶栏/铃铛角标/两层tab/商品块/已读/跳转定位/外部点击关闭） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const OUT = 'D:/PM.funion/screenshots';
 fs.mkdirSync(OUT, { recursive: true });
 
 (async () => {

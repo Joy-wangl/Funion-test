@@ -1,5 +1,5 @@
 /* 系列编码知识库无头截图验证（列表+抽屉版） */
-const { chromium } = require('D:/Funion/.playwright/package');
+const { chromium } = require('D:/PM.funion/.playwright/package');
 const path = require('path');
 
 const OUT = path.resolve(__dirname, '../.shots-tmp');
@@ -25,27 +25,36 @@ const shots = [
     await page.locator('.cb-ttab', { hasText: '主图' }).first().click();
     await page.waitForTimeout(400);
   } },
-  { name: 'cbk-04-drawer-all', steps: async (page) => {
-    // 切「全部素材」分页视图
-    await page.locator('.cb-ttab', { hasText: '全部' }).first().click();
+  { name: 'cbk-04-drawer-codes', steps: async (page) => {
+    // 下拉切「全部素材」→ 商品ID堆叠卡
+    await page.locator('.cb-viewsel .bselect-trigger').click();
     await page.waitForTimeout(200);
-    await page.locator('.cb-seg button', { hasText: '全部素材' }).click();
+    await page.locator('.bselect-opt', { hasText: '全部素材' }).first().click();
     await page.waitForTimeout(400);
   } },
-  { name: 'cbk-05-drawer-all-p2', steps: async (page) => {
-    // 翻到第 2 页（若存在）
-    const p2 = page.locator('.cb-mini-pager .ib-pagebtn', { hasText: '2' });
-    if (await p2.count()) { await p2.first().click(); await page.waitForTimeout(400); }
+  { name: 'cbk-04b-search', steps: async (page) => {
+    // 点搜索图标展开输入框（隐藏式搜索）
+    await page.locator('.cb-idsearchbtn').first().click();
+    await page.waitForTimeout(300);
   } },
-  { name: 'cbk-06-lineage', steps: async (page) => {
-    await page.locator('.cb-drawer-close').first().click();
+  { name: 'cbk-05-code-materials', steps: async (page) => {
+    // 点单个商品编码豆腐块 → 该编码下ID卡；再点ID卡展开素材
+    await page.locator('.cb-cblock', { hasText: 'TB-5102' }).first().click();
+    await page.waitForTimeout(300);
+    await page.locator('.cb-idcard').first().click();
+    await page.waitForTimeout(400);
+  } },
+  { name: 'cbk-06-preview', steps: async (page) => {
+    // 点第一张素材卡 → 看图浮层（仅大图）
+    await page.locator('.cb-drawer-body .cb-card').first().click();
+    await page.waitForTimeout(400);
+  } },
+  { name: 'cbk-07-close', steps: async (page) => {
+    // 关看图浮层与抽屉，回列表态
+    await page.locator('.cb-pvclose').first().click();
     await page.waitForTimeout(200);
-    await page.locator('.subnav', { hasText: '系列编码血缘图谱' }).first().click();
-    await page.waitForTimeout(800);
-  } },
-  { name: 'cbk-07-lineage-list', steps: async (page) => {
-    await page.locator('.subnav', { hasText: '血缘关系列表' }).first().click();
-    await page.waitForTimeout(600);
+    await page.locator('.cb-drawer-close').first().click();
+    await page.waitForTimeout(400);
   } },
 ];
 

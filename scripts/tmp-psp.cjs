@@ -1,6 +1,6 @@
 /* 临时验证：平台/店铺配置抽屉百店量级交互（默认收起＋搜索过滤＋caret 展开不误勾选） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
+const OUT = 'D:/PM.funion/screenshots';
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });

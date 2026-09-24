@@ -1,5 +1,5 @@
 /* 临时验证：运营中心头部 topbar 已移除 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
@@ -15,7 +15,7 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
   const rightBox = await page.locator('.ops-center .ops-right').boundingBox();
   results['topbar.contentTop'] = !!mainBox && !!rightBox && Math.abs(mainBox.y - rightBox.y) < 4;
   await page.waitForTimeout(300);
-  await page.screenshot({ path: 'd:/Qoder/Funion/ops-topbar-removed.png' });
+  await page.screenshot({ path: 'D:/PM.funion/ops-topbar-removed.png' });
   await browser.close();
   let fail = 0;
   for (const [k, v] of Object.entries(results)) {

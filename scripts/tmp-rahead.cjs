@@ -1,7 +1,7 @@
 /* 验证：评价申诉列表卡删除自创标题条，列头即卡片首行；导出入口移至筛选行按钮组且可点击反馈 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const OUT = 'D:/PM.funion/screenshots';
 fs.mkdirSync(OUT, { recursive: true });
 
 (async () => {

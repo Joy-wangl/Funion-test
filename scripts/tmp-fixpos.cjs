@@ -1,5 +1,5 @@
 /* 临时验证：竞价商品操作行（快速选品+导出左移）& 内部商机移除快速选品 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
@@ -29,7 +29,7 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
   await page.waitForSelector('.toast');
   results['bid.exportToast'] = ((await page.locator('.toast').last().textContent()) || '').includes('勾选');
 
-  await page.screenshot({ path: 'd:/Qoder/Funion/ops-verify-fixpos.png' });
+  await page.screenshot({ path: 'D:/PM.funion/ops-verify-fixpos.png' });
   await browser.close();
   const fail = Object.entries(results).filter(([, v]) => !v);
   console.log(JSON.stringify(results, null, 2));

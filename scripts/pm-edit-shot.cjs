@@ -1,6 +1,6 @@
 /* 验证：部门管理-编辑运营归属弹窗（组长=新建组 / 专员=自动挂靠组长） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
-const OUT = 'd:/Qoder/Funion';
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
+const OUT = 'D:/PM.funion';
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });

@@ -1,7 +1,7 @@
 /* 验证：淘宝/视频号详情编辑态——属性值图标移除 ◉ 圆点、🗑 表情改为规范删除 SVG icon */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const OUT = 'D:/PM.funion/screenshots';
 const P = '.page.show';
 
 (async () => {

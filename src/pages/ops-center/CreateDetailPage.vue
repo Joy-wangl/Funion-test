@@ -180,8 +180,8 @@ const askRemoveSpecValue = (si: number, vi: number) => {
     ? `删除属性值「${v}」后规格「${d.specs[si].name || `规格${si + 1}`}」将无属性值，SKU 列表暂隐该规格列，其余 SKU 保留，是否继续？`
     : `删除属性值「${v}」将同步删除包含该属性值的 ${n} 个 SKU，是否继续？`, () => {
       d.specs[si].values.splice(vi, 1);
-      /* 清理 skuDeleted：移除含该属性值的 key，被删 SKU 若值被重新添加可复活 */
-      skuDeleted.value = skuDeleted.value.filter((k) => !k.includes(v));
+      /* 清理 skuDeleted：精确按段匹配，避免子串误匹配导致被删 SKU 复活 */
+      skuDeleted.value = skuDeleted.value.filter((k) => !k.split(' / ').some((seg) => seg === v));
       syncSkus();
       pushToast(last ? `属性值「${v}」已删除，规格「${d.specs[si].name || `规格${si + 1}`}」无属性值暂隐于 SKU 列表` : `属性值「${v}」及关联的 ${n} 个 SKU 已删除`);
     });
@@ -203,6 +203,8 @@ const onSpecValChange = (si: number, vi: number, e: Event) => {
     s.vals = { ...s.vals, [id]: nv };
     s.key = skuKeyOf(s.vals);
     s.name = skuNameOf(s.vals);
+    /* SKU 名称同步改名：始终跟随自动名，保证与规格值一致 */
+    s.skuName = s.name;
   });
 };
 /* 添加属性值：点击空白处（失焦）即保存，回车同样生效；空内容失焦静默忽略 */

@@ -1,7 +1,7 @@
 /* 临时验证：意见反馈＝对非我的且已添加的应用提交 + 消息中心类型筛选（待回复/已回复下方）+ 回复闭环 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 
-const OUT = 'd:/Qoder/Funion';
+const OUT = 'D:/PM.funion';
 const PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
 (async () => {

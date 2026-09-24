@@ -1,6 +1,6 @@
 /* 临时验证：chevron 展开交互对齐品控系列列表 + 转移入操作列 + 在线状态上下标签 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
-const OUT = 'd:/Qoder/Funion';
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
+const OUT = 'D:/PM.funion';
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });

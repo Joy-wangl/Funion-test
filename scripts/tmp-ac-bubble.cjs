@@ -1,7 +1,7 @@
 /* 临时验证：应用中心微动作气泡（收藏/添加/打开）+ 全局 toast 居中修复 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 
-const OUT = 'd:/Qoder/Funion';
+const OUT = 'D:/PM.funion';
 const BASE = process.argv[2] || 'http://localhost:5173/';
 
 (async () => {

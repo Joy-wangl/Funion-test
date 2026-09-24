@@ -1,5 +1,6 @@
 <script setup lang="ts">
-/** 图集/视频区块（编辑态追加「添加图片/视频」上传位；传 onPreview 时图片可点击预览；传 wmOf 时叠加处理中 loading 环；结果仅失败红框，成功不做额外展示） */
+/** 图集/视频区块（编辑态追加「添加图片/视频」上传位；传 onPreview 时图片可点击预览；传 wmOf 时叠加处理中 loading 环；结果仅失败红框，成功不做额外展示；
+ *  传 kbPick 时上传位后再追加「推荐素材」位，点击回调 onKbPick 打开素材库选用抽屉） */
 export interface CpdWmView { status: 'queued' | 'running' | 'done' | 'fail'; percent: number }
 defineProps<{
   title: string;
@@ -11,6 +12,8 @@ defineProps<{
   addLabel?: string;
   onPreview?: (i: number) => void;
   wmOf?: (i: number) => CpdWmView | undefined;
+  kbPick?: boolean;
+  onKbPick?: () => void;
 }>();
 </script>
 
@@ -36,6 +39,7 @@ defineProps<{
           </span>
         </template>
         <span v-if="editing && addLabel" class="cpd-upload">{{ addLabel }}<i>本地上传</i></span>
+        <span v-if="editing && kbPick" class="cpd-upload cpd-upload-kb" @click="onKbPick?.()">推荐素材<i>素材库选用</i></span>
       </div>
     </div>
   </div>

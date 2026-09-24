@@ -1,7 +1,7 @@
 /* 验证：京麦商品创建详情页（JmCreateDetailPage）——展示形式与淘宝/视频号详情一致 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const OUT = 'D:/PM.funion/screenshots';
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });

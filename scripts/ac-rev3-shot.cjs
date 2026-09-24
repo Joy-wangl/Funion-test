@@ -1,6 +1,6 @@
 /* 验证：评价带版本号 + 每版本限评一次 + 信息网格组织架构 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
-const OUT = 'd:/Qoder/Funion';
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
+const OUT = 'D:/PM.funion';
 
 const scrollTo = (page, text) => page.evaluate((t) => {
   const main = document.querySelector('.ap-main');

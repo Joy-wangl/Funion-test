@@ -1,7 +1,7 @@
 /* 验证：智能运营中心顶栏（铃铛横条）sticky 固定顶部——内容下滚时不消失 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const OUT = 'D:/PM.funion/screenshots';
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });

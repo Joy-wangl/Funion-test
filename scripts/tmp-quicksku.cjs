@@ -1,7 +1,7 @@
 /* 验证：列表「详」字 SKU 快捷编辑弹窗全字段（SKU图片/名称/商品编码/系列编码/成本价/售价/利润/利润率/库存数/操作）——编辑回写、取消丢弃、复制/删除、详情同步 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const OUT = 'D:/PM.funion/screenshots';
 fs.mkdirSync(OUT, { recursive: true });
 
 (async () => {

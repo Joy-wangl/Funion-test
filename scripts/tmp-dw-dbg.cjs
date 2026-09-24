@@ -1,5 +1,5 @@
 /* 临时调试：AI画图 商品图片分组布局 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });

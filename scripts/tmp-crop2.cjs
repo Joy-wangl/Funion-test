@@ -1,7 +1,7 @@
 /* 验证：京麦详情预览 + 素材中心生成图查看器 接入共享 ImgSizeCrop（修改尺寸/自由裁剪） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const OUT = 'D:/PM.funion/screenshots';
 fs.mkdirSync(OUT, { recursive: true });
 
 (async () => {

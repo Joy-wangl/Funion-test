@@ -1,7 +1,7 @@
 /* 临时验证：运营组新逻辑（组长可兼任多组 + 助理可直挂组长） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 
-const OUT = 'd:/Qoder/Funion';
+const OUT = 'D:/PM.funion';
 const BASE = process.argv[2] || 'http://localhost:5173/';
 
 (async () => {

@@ -1,7 +1,7 @@
 /* 验证：商品详情 全屏暗幕预览 + 底部悬浮工具条（翻页/缩放/全屏/一键去水印，无 1:1） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const OUT = 'D:/PM.funion/screenshots';
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });

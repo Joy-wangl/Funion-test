@@ -1,5 +1,5 @@
 /* 验证：策略表单页已删除「宝贝类型」与「其它信息（发货时效）」整区 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });

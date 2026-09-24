@@ -1,6 +1,6 @@
 /* 复现：用户提交评价(21/2132+图)后卡片布局，dump 卡片 HTML 定位空白带 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
-const OUT = 'd:/Qoder/Funion';
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
+const OUT = 'D:/PM.funion';
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });

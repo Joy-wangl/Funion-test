@@ -1,7 +1,7 @@
 /* 临时验证：助理「移动至」— 改挂本组其它专员/组长、跨组挂组长 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 
-const OUT = 'd:/Qoder/Funion';
+const OUT = 'D:/PM.funion';
 const BASE = process.argv[2] || 'http://localhost:5173/';
 
 (async () => {

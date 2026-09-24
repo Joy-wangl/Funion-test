@@ -1,5 +1,5 @@
 /* v11 探针：新建抽屉现状截图（用后即删） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
@@ -13,6 +13,6 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
   await page.locator('.qc2-cfg-toolbar button', { hasText: '新建标签' }).click();
   await page.waitForSelector('.qc2-drawer-edit');
   await page.waitForTimeout(400);
-  await page.locator('.qc2-drawer-edit').screenshot({ path: 'd:/Qoder/Funion/screenshots/qc2-v11-before.png' });
+  await page.locator('.qc2-drawer-edit').screenshot({ path: 'D:/PM.funion/screenshots/qc2-v11-before.png' });
   await browser.close();
 })().catch((e) => { console.error('SCRIPT ERROR', e); process.exit(2); });

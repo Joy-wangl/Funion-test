@@ -1,8 +1,8 @@
 /* 验证：店铺商品 - 京麦 tab（查询条件 / 列表列 / 平铺操作 / 批量改价改库存 / 状态流转 / 详情联动）
  * 一切以京麦 11.0 商品列表调研为准：全部商品=在售+待售聚合；行操作按状态平铺（修改/复制/上架/下架/删除），其余收「更多」 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const OUT = 'D:/PM.funion/screenshots';
 const P = '.page.show';
 
 (async () => {

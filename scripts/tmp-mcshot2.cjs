@@ -1,7 +1,7 @@
 /* 临时截图：素材中心左栏详情图区域 */
 const fs = require('fs');
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
+const OUT = 'D:/PM.funion/screenshots';
 fs.mkdirSync(OUT, { recursive: true });
 (async () => {
   const b = await chromium.launch({ channel: 'chrome', headless: true });

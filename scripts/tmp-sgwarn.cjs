@@ -1,7 +1,7 @@
 /* 验证：店铺商品列表已还原（保留「商品策略」列、无「预警原因」列——预警列表在异常编码预警路由） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const OUT = 'D:/PM.funion/screenshots';
 fs.mkdirSync(OUT, { recursive: true });
 
 (async () => {

@@ -1,7 +1,7 @@
 /* 临时验证：运营驾驶舱 / 运营管理 对照 demo 补缺（筛选、列字段、操作、删除商品） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const OUT = 'D:/PM.funion/screenshots';
 fs.mkdirSync(OUT, { recursive: true });
 
 (async () => {

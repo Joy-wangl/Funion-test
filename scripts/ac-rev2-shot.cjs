@@ -1,6 +1,6 @@
 /* 验证：评分及评论（平均/直方图/卡片/查看全部/提交）+ 信息网格 + 未添加不可评 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
-const OUT = 'd:/Qoder/Funion';
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
+const OUT = 'D:/PM.funion';
 
 const scrollTo = (page, text) => page.evaluate((t) => {
   const main = document.querySelector('.ap-main');

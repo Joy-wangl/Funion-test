@@ -1,9 +1,9 @@
 /* 临时验证：Funion-智能运营中心.html 单文件导出（file:// 离线打开）
    覆盖：渲染 / 品牌logo / 全量图片加载 / 动态平台logo（发布到抽屉）/ 页面切换 / 控制台报错 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const { pathToFileURL } = require('node:url');
 const fs = require('fs');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const OUT = 'D:/PM.funion/screenshots';
 fs.mkdirSync(OUT, { recursive: true });
 
 (async () => {
@@ -14,7 +14,7 @@ fs.mkdirSync(OUT, { recursive: true });
   page.on('pageerror', (e) => errors.push(String(e)));
   const results = {};
 
-  const url = pathToFileURL('d:/Qoder/Funion/Funion-智能运营中心.html').href;
+  const url = pathToFileURL('D:/PM.funion/Funion-智能运营中心.html').href;
   await page.goto(url, { waitUntil: 'load', timeout: 60000 });
   await page.waitForSelector('.ops-center', { timeout: 30000 });
 

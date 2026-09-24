@@ -1,6 +1,6 @@
 /* 验证：聚合接待表格列头单排、去除 分组/客服(外)/值班监控 列与分组级表头 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
-const OUT = 'd:/Qoder/Funion';
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
+const OUT = 'D:/PM.funion';
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });

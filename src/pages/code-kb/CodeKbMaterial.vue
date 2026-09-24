@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
-import { pushToast } from '../../components/toast';
 import {
-  cbSeries, cbProductMap,
-  productsOfSeries, materialsOfSeries,
-  distinctIdCountOfSeries, rawIdCountOfSeries,
+  cbSeries,
+  productsOfSeries, materialsOfProduct, materialsOfSeries,
+  distinctIdCountOfSeries,
   materialTypeCountsOfSeries, materialCountOfSeries,
-  topMaterialsByType, rankInType,
-  materialTypeIcon, statusChipCls, fmtSales, MATERIAL_TYPES,
+  totalSalesOfSeries,
+  materialTypeIcon, fmtSales, MATERIAL_TYPES,
   type CbMaterial, type CbSeries, type MaterialType,
 } from './codeKbData';
 
@@ -33,16 +32,15 @@ const doReset = () => { filter.value = { ...emptyFilter }; applied.value = { ...
 
 interface SeriesRow {
   s: CbSeries;
-  distinctId: number; rawId: number;
+  distinctId: number;
+  totalSales: number;
   counts: Record<MaterialType, number>;
-  matTotal: number;
 }
 const allRows = computed<SeriesRow[]>(() => cbSeries.map((s) => ({
   s,
   distinctId: distinctIdCountOfSeries(s.id),
-  rawId: rawIdCountOfSeries(s.id),
+  totalSales: totalSalesOfSeries(s.id),
   counts: materialTypeCountsOfSeries(s.id),
-  matTotal: materialCountOfSeries(s.id),
 })));
 const rows = computed(() => allRows.value.filter((r) => {
   const f = applied.value;
@@ -65,46 +63,85 @@ watch(totalPages, (t) => { if (page.value > t) page.value = t; });
 const drawer = ref<CbSeries | null>(null);
 const drawerMode = ref<'top' | 'all'>('top');
 const curType = ref<TypeSel>('全部');
-const openDrawer = (s: CbSeries) => { drawer.value = s; drawerMode.value = 'top'; curType.value = '全部'; allPage.value = 1; };
+const openDrawer = (s: CbSeries) => { drawer.value = s; drawerMode.value = 'top'; curType.value = '全部'; curCode.value = '全部'; curId.value = null; idKw.value = ''; idSearchOpen.value = false; idSort.value = 'desc'; };
 const closeDrawer = () => { drawer.value = null; };
 
 const drawerDistinct = computed(() => drawer.value ? distinctIdCountOfSeries(drawer.value.id) : 0);
-const drawerRaw = computed(() => drawer.value ? rawIdCountOfSeries(drawer.value.id) : 0);
 const drawerMatTotal = computed(() => drawer.value ? materialCountOfSeries(drawer.value.id) : 0);
-const drawerCounts = computed(() => drawer.value ? materialTypeCountsOfSeries(drawer.value.id) : null);
 
-/* 按类型 TOP10（销量最高的十张推荐，仅生效素材） */
-const topOf = (t: MaterialType) => drawer.value ? topMaterialsByType(drawer.value.id, t, 10) : [];
-const typesWithData = computed<MaterialType[]>(() =>
-  drawer.value ? MATERIAL_TYPES.filter((t) => (drawerCounts.value?.[t] || 0) > 0) : []);
-
-/* 全部素材（分页） */
-const allList = computed<CbMaterial[]>(() => {
+/* 商品编码豆腐块：全部 / 单编码；顶部选择层，两种模式共用 */
+const idList = computed(() => (drawer.value ? productsOfSeries(drawer.value.id) : []));
+const curCode = ref<string>('全部');
+const codeMaterialsOf = (code: string): CbMaterial[] => {
   if (!drawer.value) return [];
-  let list = materialsOfSeries(drawer.value.id);
-  if (curType.value !== '全部') list = list.filter((m) => m.type === curType.value);
+  const list = code === '全部' ? materialsOfSeries(drawer.value.id) : materialsOfProduct(code);
   return list.slice().sort((a, b) => b.sales - a.sales);
+};
+const codeMaterials = computed<CbMaterial[]>(() => codeMaterialsOf(curCode.value));
+const codeCounts = computed<Record<string, number>>(() => {
+  const c: Record<string, number> = {};
+  for (const m of codeMaterials.value) c[m.type] = (c[m.type] || 0) + 1;
+  return c;
 });
-const allPage = ref(1);
-const allPageSize = 12;
-const allTotalPages = computed(() => Math.max(1, Math.ceil(allList.value.length / allPageSize)));
-const allPaged = computed(() => allList.value.slice((allPage.value - 1) * allPageSize, allPage.value * allPageSize));
-const goAllPage = (n: number) => { allPage.value = Math.min(Math.max(1, n), allTotalPages.value); };
-watch(curType, () => { allPage.value = 1; });
-watch(drawerMode, () => { allPage.value = 1; });
+watch(drawer, () => { curCode.value = '全部'; curId.value = null; });
 
-/* ---------- 素材预览 ---------- */
-const preview = ref<CbMaterial | null>(null);
-const openPreview = (m: CbMaterial) => { preview.value = m; };
-const previewProduct = computed(() => preview.value ? cbProductMap[preview.value.productId] : undefined);
-const previewSeries = computed(() => previewProduct.value ? cbSeries.find((s) => s.id === previewProduct.value!.seriesId) : undefined);
-const previewRank = computed(() => {
-  if (!preview.value || !previewProduct.value) return -1;
-  return rankInType(previewProduct.value.seriesId, preview.value.type, preview.value.id);
+/* 按类型 TOP10（当前编码下销量最高的十张推荐，仅生效素材） */
+const topOf = (t: MaterialType) => codeMaterials.value.filter((m) => m.type === t && m.status === '生效').slice(0, 10);
+const typesWithData = computed<MaterialType[]>(() =>
+  drawer.value ? MATERIAL_TYPES.filter((t) => (codeCounts.value[t] || 0) > 0) : []);
+
+/* 全部素材：编码关联的商品ID（堆叠卡）＋点击展开该ID素材按类型分组 */
+const curId = ref<string | null>(null);
+const idCards = computed(() => {
+  if (!drawer.value) return [];
+  let list = productsOfSeries(drawer.value.id);
+  if (curCode.value !== '全部') list = list.filter((p) => p.id === curCode.value);
+  const kw = idKw.value.trim();
+  if (kw) list = list.filter((p) => p.name.includes(kw));
+  return list.slice().sort((a, b) => (idSort.value === 'desc' ? b.sales - a.sales : a.sales - b.sales));
 });
+const idThumbs = (pid: string) => materialsOfProduct(pid).slice().sort((a, b) => b.sales - a.sales).slice(0, 3);
+const expandSections = computed(() =>
+  !curId.value ? [] : MATERIAL_TYPES.map((t) => ({
+    type: t,
+    list: materialsOfProduct(curId.value!).filter((m) => m.type === t).sort((a, b) => b.sales - a.sales),
+  })).filter((s) => s.list.length > 0));
+const VIEW_OPTIONS = ['按推荐', '全部素材'];
+const onViewChange = (v: string) => { drawerMode.value = v === '按推荐' ? 'top' : 'all'; curId.value = null; };
+/* 全部素材工具：商品名称搜索（隐藏式：默认仅图标，点击展开输入框）＋销量升/降序 */
+const idKw = ref('');
+const idSearchOpen = ref(false);
+const idSearchRef = ref<HTMLInputElement | null>(null);
+const toggleIdSearch = () => {
+  idSearchOpen.value = !idSearchOpen.value;
+  if (idSearchOpen.value) void nextTick(() => idSearchRef.value?.focus());
+  else idKw.value = '';
+};
+const idSort = ref<'desc' | 'asc'>('desc');
+const SORT_OPTIONS = ['销量降序', '销量升序'];
+const onSortChange = (v: string) => { idSort.value = v === '销量升序' ? 'asc' : 'desc'; };
+watch(curCode, () => { curId.value = null; });
 
-/* 引用素材到新发布商品（Demo 模拟） */
-const reuseMaterial = (m: CbMaterial) => pushToast(`已引用素材 ${m.id} 到新发布商品（Demo 模拟）`);
+/* ---------- 素材看图：全屏暗幕查看器（规范同商品创建详情/知识库） ---------- */
+const pvList = ref<CbMaterial[]>([]);
+const pvIdx = ref(0);
+const pvZoom = ref(1);
+const previewOpen = computed(() => pvList.value.length > 0);
+const curPv = computed<CbMaterial | null>(() => pvList.value[pvIdx.value] ?? null);
+const openPreview = (list: CbMaterial[], m: CbMaterial) => { pvList.value = list; pvIdx.value = Math.max(0, list.indexOf(m)); pvZoom.value = 1; };
+const closePreview = () => { pvList.value = []; pvIdx.value = 0; pvZoom.value = 1; };
+const stepPv = (v: number) => { const n = pvList.value.length; pvIdx.value = (pvIdx.value + v + n) % n; pvZoom.value = 1; };
+const pvZoomBy = (d: number) => { pvZoom.value = Math.min(3, Math.max(0.5, +(pvZoom.value + d).toFixed(2))); };
+const onPvKey = (e: KeyboardEvent) => {
+  if (e.key === 'Escape') closePreview();
+  else if (e.key === 'ArrowLeft') stepPv(-1);
+  else if (e.key === 'ArrowRight') stepPv(1);
+};
+watch(previewOpen, (v) => {
+  if (v) document.addEventListener('keydown', onPvKey);
+  else document.removeEventListener('keydown', onPvKey);
+});
+onBeforeUnmount(() => document.removeEventListener('keydown', onPvKey));
 </script>
 
 <template>
@@ -142,31 +179,19 @@ const reuseMaterial = (m: CbMaterial) => pushToast(`已引用素材 ${m.id} 到�
         <table class="sg-table cb-lib-table">
           <thead>
             <tr>
-              <th style="width: 110px">系列编码</th>
-              <th style="min-width: 180px">系列名称</th>
-              <th style="width: 110px">类目</th>
-              <th style="width: 92px">关联ID<em>去重</em></th>
-              <th v-for="t in MATERIAL_TYPES" :key="t" style="width: 62px" class="cb-th-type">
-                <span class="cb-th-ico">{{ materialTypeIcon(t) }}</span>{{ t }}
-              </th>
-              <th style="width: 78px">状态</th>
+              <th style="width: 120px">系列编码</th>
+              <th style="width: 100px">关联ID数量</th>
+              <th style="width: 100px">ID总销量</th>
+              <th v-for="t in MATERIAL_TYPES" :key="t" style="width: 72px" class="cb-th-type">{{ t }}</th>
               <th style="width: 84px">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="r in pagedRows" :key="r.s.id" @click="openDrawer(r.s)">
               <td><span class="cb-code" @click.stop="openDrawer(r.s)">{{ r.s.id }}</span></td>
-              <td>
-                <div class="cb-name">{{ r.s.name }}</div>
-                <div class="cb-sub">负责人 {{ r.s.owner }} · 素材 {{ r.matTotal }}</div>
-              </td>
-              <td>{{ r.s.category }}</td>
-              <td>
-                <b class="cb-idnum">{{ r.distinctId }}</b>
-                <span v-if="r.rawId > r.distinctId" class="cb-iddup" :title="`原始关联 ${r.rawId} 个商品ID，按商品详情去重后 ${r.distinctId} 个`">原{{ r.rawId }}</span>
-              </td>
+              <td class="cb-td-num"><b class="cb-idnum">{{ r.distinctId }}</b></td>
+              <td class="cb-td-num"><b class="cb-salesnum">{{ fmtSales(r.totalSales) }}</b></td>
               <td v-for="t in MATERIAL_TYPES" :key="t" class="cb-td-num" :class="{ zero: !r.counts[t] }">{{ r.counts[t] || '—' }}</td>
-              <td><span class="cb-chip" :class="statusChipCls(r.s.status)">{{ r.s.status }}</span></td>
               <td><a class="sg-link" href="javascript:void(0)" @click.stop="openDrawer(r.s)">查看详情</a></td>
             </tr>
           </tbody>
@@ -192,159 +217,149 @@ const reuseMaterial = (m: CbMaterial) => pushToast(`已引用素材 ${m.id} 到�
         <div class="cb-drawer">
           <div class="cb-drawer-head">
             <div class="cb-dh-title">
-              <b class="cb-code">{{ drawer.id }}</b>
               <span>{{ drawer.name }}</span>
-              <span class="cb-chip" :class="statusChipCls(drawer.status)">{{ drawer.status }}</span>
-              <span class="cb-dh-cat">{{ drawer.category }}</span>
             </div>
             <button class="cb-drawer-close" @click="closeDrawer">×</button>
           </div>
 
           <div class="cb-drawer-summary">
-            <span>关联ID <b>{{ drawerDistinct }}</b>（去重）<i v-if="drawerRaw > drawerDistinct">原 {{ drawerRaw }}</i></span>
+            <span>关联ID <b>{{ drawerDistinct }}</b></span>
             <span class="cb-dot">·</span>
             <span>素材总数 <b>{{ drawerMatTotal }}</b></span>
-            <span class="cb-dot">·</span>
-            <span>负责人 <b>{{ drawer.owner }}</b></span>
-            <div class="cb-seg">
-              <button :class="drawerMode === 'top' ? 'on' : ''" @click="drawerMode = 'top'">类型推荐 TOP10</button>
-              <button :class="drawerMode === 'all' ? 'on' : ''" @click="drawerMode = 'all'">全部素材</button>
-            </div>
           </div>
 
-          <!-- 类型 tab -->
-          <div class="cb-typetabs">
-            <button class="cb-ttab" :class="curType === '全部' ? 'on' : ''" @click="curType = '全部'">全部</button>
-            <button v-for="t in typesWithData" :key="t" class="cb-ttab" :class="curType === t ? 'on' : ''" @click="curType = t">
-              {{ t }}<i>{{ drawerCounts?.[t] }}</i>
+          <!-- 顶部：全部 + 系列下各商品编码豆腐块（两种模式共用选择层） -->
+          <div class="cb-codeblocks">
+            <button class="cb-cblock" :class="curCode === '全部' ? 'on' : ''" @click="curCode = '全部'">
+              <b>全部</b>
+              <span>全部商品编码 · {{ idList.length }}</span>
+            </button>
+            <button v-for="p in idList" :key="p.id" class="cb-cblock" :class="curCode === p.id ? 'on' : ''" @click="curCode = p.id">
+              <b>{{ p.id }}</b>
+              <span>素材 {{ materialsOfProduct(p.id).length }}</span>
             </button>
           </div>
 
           <div class="cb-drawer-body">
+            <!-- 工具行：左＝类型tab（按推荐）/ 搜索+排序（全部素材），右＝查看类型下拉，同一行对齐 -->
+            <div class="cb-toolbar">
+              <div v-if="drawerMode === 'top'" class="cb-typetabs">
+                <button class="cb-ttab" :class="curType === '全部' ? 'on' : ''" @click="curType = '全部'">全部</button>
+                <button v-for="t in typesWithData" :key="t" class="cb-ttab" :class="curType === t ? 'on' : ''" @click="curType = t">{{ t }}</button>
+              </div>
+              <div v-else class="cb-idtools">
+                <!-- 隐藏式搜索：默认仅图标；展开后图标收入输入框内右侧 -->
+                <div v-if="idSearchOpen" class="cb-idsearchwrap">
+                  <input ref="idSearchRef" class="cb-idsearch" :value="idKw" placeholder="搜索商品名称" @input="idKw = ($event.target as HTMLInputElement).value" />
+                  <button type="button" class="cb-idsearchbtn on" title="搜索商品名称" @click="toggleIdSearch">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21" /></svg>
+                  </button>
+                </div>
+                <button v-else type="button" class="cb-idsearchbtn" title="搜索商品名称" @click="toggleIdSearch">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21" /></svg>
+                </button>
+              </div>
+              <!-- 右侧：排序（仅全部素材）＋查看类型，同组靠右 -->
+              <div class="cb-toolright">
+                <BubbleSelect v-if="drawerMode === 'all'" class-name="cb-viewsel" :value="idSort === 'desc' ? '销量降序' : '销量升序'" :options="SORT_OPTIONS" @change="onSortChange" />
+                <BubbleSelect class-name="cb-viewsel" :value="drawerMode === 'top' ? '按推荐' : '全部素材'" :options="VIEW_OPTIONS" @change="onViewChange" />
+              </div>
+            </div>
             <!-- 模式一：按类型 TOP10 推荐 -->
             <template v-if="drawerMode === 'top'">
               <div v-if="curType === '全部'">
                 <div v-for="t in typesWithData" :key="t" class="cb-sec">
-                  <div class="cb-sec-t"><span class="cb-sec-ico">{{ materialTypeIcon(t) }}</span>{{ t }} · 销量 TOP{{ topOf(t).length }}</div>
+                  <div class="cb-sec-t">{{ t }} · 销量 TOP{{ topOf(t).length }}</div>
                   <div v-if="topOf(t).length" class="cb-grid">
-                    <div v-for="(m, i) in topOf(t)" :key="m.id" class="cb-card" @click="openPreview(m)">
+                    <div v-for="(m, i) in topOf(t)" :key="m.id" class="cb-card" @click="openPreview(topOf(t), m)">
                       <span class="cb-rank" :class="i < 3 ? 'hot' : ''">{{ i + 1 }}</span>
+                      <span class="cb-risk" :class="m.status === '违规' ? 'risk' : 'ok'">{{ m.status === '违规' ? '风险' : '正常' }}</span>
                       <div class="cb-thumb"><img v-if="m.thumb" :src="m.thumb" :alt="m.name" /><div v-else class="cb-ph">{{ materialTypeIcon(m.type) }}</div></div>
                       <div class="cb-card-info">
                         <div class="cb-card-name" :title="m.name">{{ m.name }}</div>
-                        <div class="cb-card-meta">销量 {{ fmtSales(m.sales) }} · {{ m.productId }}</div>
+                        <div class="cb-card-meta">销量 {{ fmtSales(m.sales) }}</div>
                       </div>
-                      <button class="cb-use" type="button" @click.stop="reuseMaterial(m)">引用</button>
                     </div>
                   </div>
                   <div v-else class="cb-empty-inline">该类型暂无「生效」素材可推荐</div>
                 </div>
               </div>
               <div v-else class="cb-sec">
-                <div class="cb-sec-t"><span class="cb-sec-ico">{{ materialTypeIcon(curType as MaterialType) }}</span>{{ curType }} · 销量 TOP{{ topOf(curType as MaterialType).length }}</div>
+                <div class="cb-sec-t">{{ curType }} · 销量 TOP{{ topOf(curType as MaterialType).length }}</div>
                 <div v-if="topOf(curType as MaterialType).length" class="cb-grid">
-                  <div v-for="(m, i) in topOf(curType as MaterialType)" :key="m.id" class="cb-card" @click="openPreview(m)">
+                  <div v-for="(m, i) in topOf(curType as MaterialType)" :key="m.id" class="cb-card" @click="openPreview(topOf(curType as MaterialType), m)">
                     <span class="cb-rank" :class="i < 3 ? 'hot' : ''">{{ i + 1 }}</span>
+                    <span class="cb-risk" :class="m.status === '违规' ? 'risk' : 'ok'">{{ m.status === '违规' ? '风险' : '正常' }}</span>
                     <div class="cb-thumb"><img v-if="m.thumb" :src="m.thumb" :alt="m.name" /><div v-else class="cb-ph">{{ materialTypeIcon(m.type) }}</div></div>
                     <div class="cb-card-info">
                       <div class="cb-card-name" :title="m.name">{{ m.name }}</div>
-                      <div class="cb-card-meta">销量 {{ fmtSales(m.sales) }} · {{ m.productId }}</div>
+                      <div class="cb-card-meta">销量 {{ fmtSales(m.sales) }}</div>
                     </div>
-                    <button class="cb-use" type="button" @click.stop="reuseMaterial(m)">引用</button>
                   </div>
                 </div>
                 <div v-else class="cb-empty-inline">该类型暂无「生效」素材可推荐</div>
               </div>
             </template>
 
-            <!-- 模式二：全部素材（分页） -->
+            <!-- 模式二：全部素材＝编码关联的商品ID堆叠卡，点击展开该ID素材 -->
             <template v-else>
-              <div v-if="allList.length" class="cb-grid all">
-                <div v-for="m in allPaged" :key="m.id" class="cb-card" :class="{ 'is-risk': m.status === '违规' }" @click="openPreview(m)">
-                  <span class="cb-state" :class="statusChipCls(m.status)">{{ m.status }}</span>
-                  <div class="cb-thumb"><img v-if="m.thumb" :src="m.thumb" :alt="m.name" /><div v-else class="cb-ph">{{ materialTypeIcon(m.type) }}</div></div>
-                  <div class="cb-card-info">
-                    <div class="cb-card-name" :title="m.name">{{ m.name }}</div>
-                    <div class="cb-card-meta">{{ m.type }} · {{ m.version }} · 销量 {{ fmtSales(m.sales) }}</div>
-                    <div class="cb-card-from">{{ m.productId }}</div>
+              <div class="cb-idgrid">
+                <template v-for="p in idCards" :key="p.id">
+                  <div class="cb-idcard" :class="curId === p.id ? 'on' : ''" @click="curId = curId === p.id ? null : p.id">
+                    <div class="cb-stack">
+                      <img v-for="(m, i) in idThumbs(p.id)" :key="m.id" :class="'s' + i" :src="m.thumb" :alt="m.name" />
+                      <span class="cb-stack-badge">{{ materialsOfProduct(p.id).length }}</span>
+                    </div>
+                    <div class="cb-idcard-id">{{ p.id }}</div>
+                    <div class="cb-idcard-name" :title="p.shop + ' · ' + p.platform">{{ p.shop }} · {{ p.platform }}</div>
+                    <div class="cb-idcard-meta">销量 {{ fmtSales(p.sales) }}</div>
                   </div>
-                  <button class="cb-use" type="button" @click.stop="reuseMaterial(m)">引用</button>
-                </div>
+                  <!-- 展开内联在网格中：占整行并把后续ID卡挤下，不单独开模块 -->
+                  <div v-if="curId === p.id" class="cb-expand">
+                    <div v-for="sec in expandSections" :key="sec.type" class="cb-sec">
+                      <div class="cb-sec-t">{{ sec.type }} · {{ sec.list.length }}</div>
+                      <div class="cb-grid">
+                        <div v-for="m in sec.list" :key="m.id" class="cb-card" @click="openPreview(sec.list, m)">
+                          <span class="cb-risk" :class="m.status === '违规' ? 'risk' : 'ok'">{{ m.status === '违规' ? '风险' : '正常' }}</span>
+                          <div class="cb-thumb"><img v-if="m.thumb" :src="m.thumb" :alt="m.name" /><div v-else class="cb-ph">{{ materialTypeIcon(m.type) }}</div></div>
+                          <div class="cb-card-info">
+                            <div class="cb-card-name" :title="m.name">{{ m.name }}</div>
+                            <div class="cb-card-meta">销量 {{ fmtSales(m.sales) }}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </template>
               </div>
-              <div v-else class="cb-empty-inline">该系列暂无匹配素材</div>
-              <div v-if="allTotalPages > 1" class="cb-mini-pager">
-                <span class="cb-mp-info">共 {{ allList.length }} 个素材</span>
-                <button class="ib-pagebtn nav" :disabled="allPage === 1" @click="goAllPage(allPage - 1)">‹</button>
-                <button v-for="n in allTotalPages" :key="n" class="ib-pagebtn" :class="allPage === n ? 'active' : ''" @click="goAllPage(n)">{{ n }}</button>
-                <button class="ib-pagebtn nav" :disabled="allPage === allTotalPages" @click="goAllPage(allPage + 1)">›</button>
-              </div>
+              <div v-if="!idCards.length" class="cb-empty-inline">该编码下暂无关联商品ID</div>
             </template>
           </div>
         </div>
       </div>
     </Teleport>
 
-    <!-- 素材预览弹窗 -->
+    <!-- 素材看图：全屏暗幕查看器（暗幕＋右上关闭＋底部翻页/缩放工具条，规范同商品创建详情） -->
     <Teleport to="body">
-      <div v-if="preview" class="cb-mask" @click.self="preview = null">
-        <div class="cb-modal">
-          <div class="cb-modal-head">
-            <div class="cb-modal-title">
-              <span class="cb-mt-ico">{{ materialTypeIcon(preview.type) }}</span>
-              <b>{{ preview.name }}</b>
-              <span class="cb-chip" :class="statusChipCls(preview.status)">{{ preview.status }}</span>
-              <span v-if="previewRank > 0" class="cb-chip chip-rank">{{ preview.type }}推荐 NO.{{ previewRank }}</span>
-            </div>
-            <button class="cb-modal-close" @click="preview = null">×</button>
+      <div v-if="previewOpen" class="cb-pvmask">
+        <button type="button" class="cb-pvclose" title="关闭（Esc）" @click="closePreview">✕</button>
+        <div class="cb-pvstage" @click.self="closePreview">
+          <div class="cb-pvwrap" :style="{ transform: `scale(${pvZoom})` }">
+            <img v-if="curPv && curPv.thumb" :src="curPv.thumb" :alt="curPv.name" />
+            <div v-else class="cb-pvph">{{ curPv?.type }}</div>
           </div>
-          <div class="cb-modal-body">
-            <div class="cb-preview">
-              <img v-if="preview.thumb" :src="preview.thumb" :alt="preview.name" />
-              <div v-else class="cb-preview-ph">{{ materialTypeIcon(preview.type) }} {{ preview.type }}</div>
-              <div v-if="preview.status === '违规'" class="cb-preview-risk"><span class="cb-risk-dot" />{{ preview.riskNote }}</div>
-            </div>
-            <div class="cb-side">
-              <div class="cb-sec">
-                <div class="cb-sec-t">素材信息</div>
-                <div class="cb-kv"><span>素材ID</span><b>{{ preview.id }}</b></div>
-                <div class="cb-kv"><span>类型</span><b>{{ preview.type }}</b></div>
-                <div class="cb-kv"><span>版本</span><b>{{ preview.version }}</b></div>
-                <div class="cb-kv"><span>贡献销量</span><b>{{ preview.sales }}</b></div>
-                <div class="cb-kv"><span>上传人</span><b>{{ preview.uploader }}</b></div>
-                <div class="cb-kv"><span>上传时间</span><b>{{ preview.uploadedAt }}</b></div>
-                <div class="cb-kv"><span>合规标签</span><b><span v-for="t in preview.compliance" :key="t" class="cb-tag">{{ t }}</span></b></div>
-              </div>
-              <div class="cb-sec">
-                <div class="cb-sec-t">归属链</div>
-                <div class="cb-chain">
-                  <span class="cb-chain-node series">{{ previewSeries?.id }}</span>
-                  <span class="cb-chain-arrow">→</span>
-                  <span class="cb-chain-node product">{{ previewProduct?.id }}</span>
-                  <span class="cb-chain-arrow">→</span>
-                  <span class="cb-chain-node material">{{ preview.id }}</span>
-                </div>
-                <div class="cb-kv"><span>系列编码</span><b>{{ previewSeries?.name }}</b></div>
-                <div class="cb-kv"><span>商品ID</span><b>{{ previewProduct?.name }}</b></div>
-              </div>
-              <div class="cb-sec">
-                <div class="cb-sec-t">版本历史</div>
-                <div class="cb-vers">
-                  <div v-for="(v, i) in preview.versions.slice().reverse()" :key="v.version" class="cb-ver" :class="{ 'is-cur': i === 0 }">
-                    <div class="cb-ver-dot" />
-                    <div class="cb-ver-body">
-                      <div class="cb-ver-line"><b>{{ v.version }}</b><span v-if="i === 0" class="cb-chip chip-ok">当前</span></div>
-                      <div class="cb-ver-meta">{{ v.uploader }} · {{ v.uploadedAt }}</div>
-                      <div class="cb-ver-note">{{ v.note }}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="cb-modal-foot">
-            <button class="sg-btn" @click="preview = null">关闭</button>
-            <button class="sg-btn primary" @click="reuseMaterial(preview); preview = null">引用到新发布商品</button>
-          </div>
+        </div>
+        <div class="cb-pvbar">
+          <button type="button" class="cb-pvbtn" title="上一张" :disabled="pvList.length < 2" @click="stepPv(-1)">‹</button>
+          <span class="cb-pvcount">{{ pvIdx + 1 }} / {{ pvList.length }}</span>
+          <button type="button" class="cb-pvbtn" title="下一张" :disabled="pvList.length < 2" @click="stepPv(1)">›</button>
+          <i class="cb-pvdiv" />
+          <button type="button" class="cb-pvbtn" title="缩小" :disabled="pvZoom <= 0.5" @click="pvZoomBy(-0.25)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21M7.5 10.5h6" /></svg>
+          </button>
+          <button type="button" class="cb-pvbtn" title="放大" :disabled="pvZoom >= 3" @click="pvZoomBy(0.25)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21M7.5 10.5h6M10.5 7.5v6" /></svg>
+          </button>
         </div>
       </div>
     </Teleport>
@@ -365,16 +380,12 @@ const reuseMaterial = (m: CbMaterial) => pushToast(`已引用素材 ${m.id} 到�
 /* 列表 */
 .cb-lib-table tbody tr { cursor: pointer; }
 .cb-lib-table tbody tr:hover { background: #f7f9ff; }
-.cb-th-type { text-align: center; }
-.cb-th-type em { display: block; font-style: normal; font-size: 10px; color: #f0762b; font-weight: 500; }
-.cb-th-ico { margin-right: 2px; }
-.cb-td-num { text-align: center; font-variant-numeric: tabular-nums; color: #202532; }
+.cb-th-type { text-align: left; }
+.cb-td-num { text-align: left; font-variant-numeric: tabular-nums; color: #202532; }
 .cb-td-num.zero { color: #c3c9d6; }
 .cb-code { font-family: 'SF Mono', Consolas, monospace; font-size: 12px; color: #4f7cff; font-weight: 600; cursor: pointer; }
-.cb-name { font-size: 13px; color: #202532; font-weight: 500; }
-.cb-sub { font-size: 11px; color: #8b92a1; margin-top: 2px; }
 .cb-idnum { font-size: 14px; color: #202532; }
-.cb-iddup { display: block; font-size: 10px; color: #f0762b; cursor: help; }
+.cb-salesnum { font-size: 14px; color: #f0762b; }
 
 /* 抽屉 */
 .cb-drawer-mask { position: fixed; inset: 0; background: rgba(31, 35, 41, 0.45); z-index: 1500; }
@@ -382,9 +393,7 @@ const reuseMaterial = (m: CbMaterial) => pushToast(`已引用素材 ${m.id} 到�
 @keyframes cb-dr-in { from { transform: translateX(40px); opacity: .5; } to { transform: none; opacity: 1; } }
 .cb-drawer-head { display: flex; align-items: center; padding: 16px 24px; border-bottom: 1px solid #edf0f5; }
 .cb-dh-title { display: flex; align-items: center; gap: 10px; font-size: 15px; }
-.cb-dh-title .cb-code { font-size: 15px; }
 .cb-dh-title span { color: #202532; font-weight: 500; }
-.cb-dh-cat { font-size: 12px; color: #8b92a1; font-weight: 400; }
 .cb-drawer-close { margin-left: auto; border: 0; background: transparent; font-size: 24px; line-height: 1; color: #8a94a6; cursor: pointer; }
 .cb-drawer-close:hover { color: #232b3a; }
 
@@ -392,85 +401,91 @@ const reuseMaterial = (m: CbMaterial) => pushToast(`已引用素材 ${m.id} 到�
 .cb-drawer-summary b { color: #202532; font-size: 14px; }
 .cb-drawer-summary i { font-style: normal; color: #f0762b; font-size: 11px; margin-left: 2px; }
 .cb-dot { color: #c3c9d6; }
-.cb-seg { margin-left: auto; display: inline-flex; border: 1px solid #e3e7ef; border-radius: 8px; overflow: hidden; }
-.cb-seg button { height: 32px; padding: 0 16px; border: 0; background: #fff; font-size: 13px; color: #5b6478; cursor: pointer; }
-.cb-seg button.on { background: #4f7cff; color: #fff; }
 
-.cb-typetabs { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 24px; border-bottom: 1px solid #f2f4f8; }
-.cb-ttab { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 14px; border: 1px solid #e3e7ef; border-radius: 16px; background: #fff; font-size: 13px; color: #5b6478; cursor: pointer; }
-.cb-ttab i { font-style: normal; font-size: 11px; color: #8b92a1; background: #f0f2f7; border-radius: 8px; padding: 0 6px; }
-.cb-ttab.on { border-color: #4f7cff; background: #eef2ff; color: #4f7cff; font-weight: 500; }
-.cb-ttab.on i { background: #dbe4ff; color: #4f7cff; }
+/* 查看类型/排序下拉：无底色，文字右对齐＋间距＋箭头 */
+.cb-viewsel { min-width: 88px; }
+.cb-viewsel :deep(.bselect-trigger) { justify-content: flex-end; gap: 8px; font-size: 13px; color: #202532; }
+.cb-viewsel :deep(.bselect-text) { flex: none; }
 
-.cb-drawer-body { flex: 1; overflow: auto; padding: 16px 24px 24px; }
-.cb-sec { margin-bottom: 22px; }
-.cb-sec-t { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: #202532; margin-bottom: 12px; }
-.cb-sec-ico { font-size: 14px; }
+/* 工具行：左工具 + 右查看下拉，同一行对齐；下划线 tab 压在行底分隔线上 */
+.cb-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid #edf0f5; margin-bottom: 24px; }
+.cb-idtools { display: flex; align-items: center; gap: 16px; height: 40px; }
+.cb-toolright { display: flex; align-items: center; gap: 16px; }
+.cb-idsearch { width: 220px; height: 32px; padding: 0 34px 0 12px; border: 1px solid #e3e7ef; border-radius: 8px; background: #fff; font-size: 13px; color: #202532; outline: none; }
+.cb-idsearch::placeholder { color: #a6adbc; }
+.cb-idsearch:focus { border-color: #4f7cff; }
+.cb-idsearchwrap { position: relative; }
+.cb-idsearchwrap .cb-idsearchbtn { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); }
+.cb-idsearchwrap .cb-idsearchbtn:hover { background: transparent; }
+.cb-idsearchbtn { width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; color: #596070; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.cb-idsearchbtn:hover { background: #f5f7fb; color: #202532; }
+.cb-idsearchbtn.on { color: #4f7cff; }
 
-.cb-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
-.cb-grid.all { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* 类型 tab：下划线式 */
+.cb-typetabs { display: flex; gap: 32px; }
+.cb-ttab { position: relative; height: 40px; padding: 0 4px; border: 0; background: transparent; font-size: 14px; color: #596070; cursor: pointer; }
+.cb-ttab.on { color: #4f7cff; font-weight: 600; }
+.cb-ttab.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 1px; background: #4f7cff; }
+
+.cb-drawer-body { flex: 1; overflow: auto; padding: 0 24px 32px; scrollbar-gutter: stable; }
+.cb-sec { margin-bottom: 32px; }
+.cb-sec-t { font-size: 14px; font-weight: 600; color: #202532; margin-bottom: 16px; }
+
+.cb-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
 .cb-card { position: relative; background: #fafbfd; border: 1px solid #eef0f5; border-radius: 8px; overflow: hidden; cursor: pointer; transition: transform .15s, box-shadow .15s; }
 .cb-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, .07); }
-.cb-card.is-risk { border-color: #f7c9cb; background: #fffbfb; }
 .cb-rank { position: absolute; left: 6px; top: 6px; z-index: 2; width: 20px; height: 20px; border-radius: 6px; background: #cfd6e4; color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; }
 .cb-rank.hot { background: #f0762b; }
-.cb-state { position: absolute; right: 6px; top: 6px; z-index: 2; }
+.cb-risk { position: absolute; right: 6px; top: 6px; z-index: 2; padding: 1px 8px; border-radius: 10px; font-size: 11px; line-height: 18px; color: #fff; }
+.cb-risk.ok { background: #22a06b; }
+.cb-risk.risk { background: #e5484d; }
 .cb-thumb { aspect-ratio: 1 / 1; background: #eef0f5; display: grid; place-items: center; overflow: hidden; }
 .cb-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .cb-ph { font-size: 24px; }
-.cb-card-info { padding: 8px 10px 10px; }
+.cb-card-info { padding: 10px 12px 12px; }
 .cb-card-name { font-size: 12px; color: #202532; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cb-card-meta { font-size: 11px; color: #8b92a1; margin-top: 2px; }
-.cb-card-from { font-size: 11px; color: #4f7cff; font-family: 'SF Mono', Consolas, monospace; margin-top: 2px; }
-.cb-use { position: absolute; right: 6px; bottom: 6px; border: 0; background: #4f7cff; color: #fff; font-size: 11px; padding: 3px 10px; border-radius: 6px; cursor: pointer; opacity: 0; transition: opacity .15s; }
-.cb-card:hover .cb-use { opacity: 1; }
-.cb-use:hover { background: #3f6ae0; }
-
 .cb-empty-inline { padding: 28px; text-align: center; color: #a6adbc; font-size: 13px; background: #fafbfd; border-radius: 8px; }
 
-.cb-mini-pager { display: flex; align-items: center; gap: 6px; justify-content: flex-end; margin-top: 16px; }
-.cb-mp-info { margin-right: auto; font-size: 12px; color: #8b92a1; }
+/* 全部素材：商品ID堆叠卡（小倾角/居中/副行省略）＋内联展开区 */
+.cb-idgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
+.cb-idcard { text-align: center; cursor: pointer; padding: 12px 6px; border-radius: 10px; transition: background .15s; }
+.cb-idcard:hover { background: #f5f7fb; }
+.cb-idcard.on { background: #eef2ff; }
+.cb-stack { position: relative; width: 124px; height: 86px; margin: 0 auto 10px; }
+.cb-stack img { position: absolute; width: 72px; height: 72px; object-fit: cover; border-radius: 8px; background: #eef0f5; box-shadow: 0 2px 6px rgba(0, 0, 0, .12); }
+.cb-stack img.s0 { z-index: 3; left: 0; top: 8px; transform: rotate(-3deg); border: 2px solid #4f7cff; }
+.cb-stack img.s1 { z-index: 2; left: 24px; top: 3px; transform: rotate(2deg); }
+.cb-stack img.s2 { z-index: 1; left: 44px; top: 0; transform: rotate(5deg); }
+.cb-stack-badge { position: absolute; z-index: 4; right: 0; top: -4px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: #3a4152; color: #fff; font-size: 12px; font-weight: 600; display: grid; place-items: center; }
+.cb-idcard-id { font-family: 'SF Mono', Consolas, monospace; font-size: 13px; color: #4f7cff; font-weight: 600; }
+.cb-idcard-name { font-size: 11px; color: #8b92a1; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cb-idcard-meta { font-size: 11px; color: #8b92a1; margin-top: 2px; }
+.cb-expand { grid-column: 1 / -1; margin-top: 4px; padding: 16px 16px 4px; background: #f7f9fc; border-radius: 10px; }
+.cb-expand .cb-sec { margin-bottom: 20px; }
 
-/* chip / tag */
-.cb-chip { display: inline-block; padding: 1px 8px; font-size: 11px; border-radius: 10px; line-height: 18px; }
-.cb-chip.chip-ok { background: #e8f5ee; color: #16a34a; }
-.cb-chip.chip-warn { background: #fff4e0; color: #d97706; }
-.cb-chip.chip-off { background: #f0f2f7; color: #8b92a1; }
-.cb-chip.chip-risk { background: #fdeced; color: #e5484d; }
-.cb-chip.chip-rank { background: #fff1e6; color: #f0762b; }
-.cb-tag { display: inline-block; padding: 1px 8px; font-size: 11px; background: #f0f2f7; color: #5b6478; border-radius: 10px; margin-right: 4px; }
+/* 顶部商品编码豆腐块：全部 + 各编码，选中蓝底蓝字；副行仅素材数量 */
+.cb-codeblocks { display: flex; gap: 12px; overflow-x: auto; padding: 12px 24px 14px; border-bottom: 1px solid #edf0f5; }
+.cb-cblock { flex: none; min-width: 148px; max-width: 220px; padding: 10px 16px; border: 0; border-radius: 8px; background: #f0f2f7; cursor: pointer; text-align: center; transition: background .15s; }
+.cb-cblock b { display: block; font-size: 13px; color: #202532; font-weight: 600; font-family: 'SF Mono', Consolas, monospace; }
+.cb-cblock span { display: block; font-size: 11px; color: #8b92a1; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cb-cblock:hover { background: #e8ebf3; }
+.cb-cblock.on { background: #eef2ff; }
+.cb-cblock.on b { color: #4f7cff; }
+.cb-cblock.on span { color: #7b96e8; }
 
-/* 预览弹窗 */
-.cb-mask { position: fixed; inset: 0; background: rgba(20, 25, 40, 0.42); display: grid; place-items: center; z-index: 2000; }
-.cb-modal { width: 900px; max-width: 92vw; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.16); }
-.cb-modal-head { display: flex; align-items: center; padding: 14px 20px; border-bottom: 1px solid #eef0f5; }
-.cb-modal-title { display: flex; align-items: center; gap: 8px; font-size: 15px; }
-.cb-mt-ico { font-size: 15px; }
-.cb-modal-close { margin-left: auto; border: 0; background: transparent; font-size: 22px; line-height: 1; color: #8b92a1; cursor: pointer; }
-.cb-modal-body { padding: 16px 20px; display: grid; grid-template-columns: 380px 1fr; gap: 20px; max-height: 70vh; overflow: auto; }
-.cb-modal-foot { padding: 12px 20px; border-top: 1px solid #eef0f5; display: flex; justify-content: flex-end; gap: 8px; background: #fafbfd; }
-.cb-preview { background: #f5f7fb; border-radius: 8px; overflow: hidden; display: grid; place-items: center; min-height: 320px; position: relative; }
-.cb-preview img { max-width: 100%; max-height: 400px; object-fit: contain; }
-.cb-preview-ph { font-size: 14px; color: #8b92a1; }
-.cb-preview-risk { position: absolute; left: 12px; right: 12px; bottom: 12px; background: #fdeced; color: #c93036; border-radius: 6px; padding: 8px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px; }
-.cb-risk-dot { width: 6px; height: 6px; border-radius: 50%; background: #e5484d; display: inline-block; }
-.cb-side { display: flex; flex-direction: column; gap: 14px; }
-.cb-side .cb-sec { border: 1px solid #eef0f5; border-radius: 8px; padding: 12px 14px; margin-bottom: 0; }
-.cb-kv { display: flex; gap: 8px; font-size: 12px; color: #202532; padding: 3px 0; }
-.cb-kv span { color: #8b92a1; flex: none; width: 68px; }
-.cb-kv b { font-weight: 500; flex: 1; word-break: break-all; }
-.cb-chain { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
-.cb-chain-node { font-family: 'SF Mono', Consolas, monospace; font-size: 11px; padding: 2px 8px; border-radius: 6px; }
-.cb-chain-node.series { background: #eef2ff; color: #4f7cff; }
-.cb-chain-node.product { background: #e8f5ee; color: #16a34a; }
-.cb-chain-node.material { background: #fff4e0; color: #d97706; }
-.cb-chain-arrow { color: #a6adbc; font-size: 11px; }
-.cb-vers { position: relative; padding-left: 12px; }
-.cb-vers::before { content: ''; position: absolute; left: 4px; top: 6px; bottom: 6px; width: 1px; background: #e8ebf1; }
-.cb-ver { position: relative; padding: 6px 0 6px 8px; }
-.cb-ver-dot { position: absolute; left: -12px; top: 12px; width: 9px; height: 9px; border-radius: 50%; background: #fff; border: 2px solid #cfd6e4; }
-.cb-ver.is-cur .cb-ver-dot { border-color: #4f7cff; }
-.cb-ver-line { display: flex; align-items: center; gap: 6px; font-size: 12px; }
-.cb-ver-meta { font-size: 11px; color: #8b92a1; margin-top: 2px; }
-.cb-ver-note { font-size: 11px; color: #5b6478; margin-top: 2px; }
+/* 看图查看器：全屏暗幕＋右上关闭＋底部工具条（规范同 cpd-preview） */
+.cb-pvmask { position: fixed; inset: 0; z-index: 2000; background: rgba(16, 17, 20, 0.92); display: flex; align-items: center; justify-content: center; }
+.cb-pvclose { position: absolute; top: 16px; right: 16px; z-index: 2; width: 40px; height: 40px; border: none; border-radius: 6px; background: rgba(90, 94, 102, 0.9); color: #fff; font-size: 16px; line-height: 1; cursor: pointer; }
+.cb-pvclose:hover { background: rgba(122, 127, 136, 0.95); }
+.cb-pvstage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.cb-pvwrap { position: relative; transition: transform 0.15s ease; }
+.cb-pvwrap > img { display: block; width: auto; height: auto; min-width: min(480px, calc(100vw - 240px)); min-height: min(480px, calc(100vh - 280px)); max-width: calc(100vw - 160px); max-height: calc(100vh - 160px); object-fit: contain; }
+.cb-pvph { min-width: 320px; min-height: 320px; display: grid; place-items: center; color: rgba(255, 255, 255, 0.6); font-size: 14px; }
+.cb-pvbar { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 2; display: flex; align-items: center; gap: 4px; padding: 8px 12px; border-radius: 10px; background: rgba(30, 32, 37, 0.92); }
+.cb-pvbtn { width: 32px; height: 32px; border: none; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; background: transparent; color: #fff; font-size: 18px; line-height: 1; cursor: pointer; }
+.cb-pvbtn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.14); }
+.cb-pvbtn:disabled { opacity: 0.35; cursor: not-allowed; }
+.cb-pvcount { min-width: 52px; text-align: center; font-size: 13px; color: rgba(255, 255, 255, 0.92); }
+.cb-pvdiv { width: 1px; height: 18px; background: rgba(255, 255, 255, 0.22); margin: 0 6px; }
 </style>

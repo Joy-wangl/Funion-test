@@ -6,6 +6,8 @@ import { pushToast } from '../../components/toast';
 import CpdMediaSec from './CpdMediaSec.vue';
 import ImgSizeCrop from './ImgSizeCrop.vue';
 import MaterialCenter from './MaterialCenter.vue';
+import KbPickDrawer from '../code-kb/KbPickDrawer.vue';
+import type { CbMaterial, MaterialType } from '../code-kb/codeKbData';
 
 const props = defineProps<{ row: CreateRow; startEdit?: boolean }>();
 const emit = defineEmits<{ (e: 'back'): void; (e: 'openPub'): void }>();
@@ -149,7 +151,7 @@ const askRemoveSpecValue = (si: number, vi: number) => {
     ? `删除属性值「${v}」后规格「${d.saleAttrs[si].name || `规格${si + 1}`}」将无属性值，SKU 列表暂隐该规格列，其余 SKU 保留，是否继续？`
     : `删除属性值「${v}」将同步删除包含该属性值的 ${n} 个 SKU，是否继续？`, () => {
       d.saleAttrs[si].values.splice(vi, 1);
-      skuDeleted.value = skuDeleted.value.filter((k) => !k.includes(v));
+      skuDeleted.value = skuDeleted.value.filter((k) => !k.split(' / ').some((seg) => seg === v));
       syncSkus();
       pushToast(last ? `属性值「${v}」已删除，规格「${d.saleAttrs[si].name || `规格${si + 1}`}」无属性值暂隐于 SKU 列表` : `属性值「${v}」及关联的 ${n} 个 SKU 已删除`);
     });
@@ -170,6 +172,8 @@ const onSpecValChange = (si: number, vi: number, e: Event) => {
     s.vals = { ...s.vals, [id]: nv };
     s.key = skuKeyOf(s.vals);
     s.name = skuNameOf(s.vals);
+    /* SKU 名称同步改名：始终跟随自动名 */
+    s.skuName = s.name;
     s.attrs = specIds.value.map((sid) => {
       const idx = specIds.value.indexOf(sid);
       return `${d.saleAttrs[idx]?.name ?? ''}:${s.vals[sid] ?? ''}`;
@@ -206,6 +210,29 @@ const askRemoveSku = (sku: JmSkuRow) => {
       pushToast(orphans.length ? `SKU「${sku.name}」及属性值${orphanTxt}已删除` : `SKU「${sku.name}」已删除`);
     },
   );
+};
+
+/* ---------- 推荐素材（素材库选用） ---------- */
+/* 演示映射：京麦详情关联素材库商品ID JM-5301（XL-C300 系列下京麦ID），抽屉按其系列展开商品编码与类型素材 */
+const KB_PRODUCT_ID = 'JM-5301';
+type KbTarget = 'mainImgs' | 'rectImgs' | 'detailPc' | 'detailApp' | 'whiteImg' | 'transparentImg' | 'sceneImg' | 'videos';
+const kbPick = ref<{ type: MaterialType; target: KbTarget; title: string } | null>(null);
+const openKbPick = (type: MaterialType, target: KbTarget, title: string) => { kbPick.value = { type, target, title }; };
+/* 确认选用：选中素材回填对应模块（单图位取首张覆盖，图集/视频追加） */
+const onKbConfirm = (list: CbMaterial[]) => {
+  const pick = kbPick.value;
+  kbPick.value = null;
+  if (!pick || !list.length) return;
+  const urls = list.map((m) => m.thumb);
+  if (pick.target === 'whiteImg') d.whiteImg = urls[0];
+  else if (pick.target === 'transparentImg') d.transparentImg = urls[0];
+  else if (pick.target === 'sceneImg') d.sceneImg = urls[0];
+  else if (pick.target === 'mainImgs') d.mainImgs.push(...urls);
+  else if (pick.target === 'rectImgs') d.rectImgs.push(...urls);
+  else if (pick.target === 'detailPc') d.detailPc.push(...urls);
+  else if (pick.target === 'detailApp') d.detailApp.push(...urls);
+  else if (pick.target === 'videos') d.videos.push(...urls);
+  pushToast(`已添加 ${list.length} 个素材至「${pick.title}」`);
 };
 
 /* ---------- 图片预览 ---------- */
@@ -379,10 +406,12 @@ onBeforeUnmount(() => {
     <div class="sgd-sec">
       <div class="sgd-sec-head">
         <div class="sgd-sec-title">商品SKU</div>
-        <label class="sgd-sku-toggle">
-          <input v-model="skuShow" type="checkbox" />
-          展开明细
-        </label>
+        <div class="cpd-sku-acts">
+          <label class="sgd-sku-toggle">
+            <input v-model="skuShow" type="checkbox" />
+            展开明细
+          </label>
+        </div>
       </div>
       <div class="sgd-sec-body">
         <div class="cpd-sku-wrap">
@@ -454,6 +483,8 @@ onBeforeUnmount(() => {
       :editing="editing"
       add-label="添加图片"
       :on-preview="(i) => openPreview(d.mainImgs, i)"
+      kb-pick
+      :on-kb-pick="() => openKbPick('主图', 'mainImgs', '主图（方图）')"
     />
     <CpdMediaSec
       title="长图"
@@ -463,6 +494,8 @@ onBeforeUnmount(() => {
       :editing="editing"
       add-label="添加图片"
       :on-preview="(i) => openPreview(d.rectImgs, i)"
+      kb-pick
+      :on-kb-pick="() => openKbPick('主图', 'rectImgs', '长图')"
     />
     <CpdMediaSec
       title="商品详情（PC端）*"
@@ -471,6 +504,8 @@ onBeforeUnmount(() => {
       :editing="editing"
       add-label="添加图片"
       :on-preview="(i) => openPreview(d.detailPc, i)"
+      kb-pick
+      :on-kb-pick="() => openKbPick('详情图', 'detailPc', '商品详情（PC端）')"
     />
     <CpdMediaSec
       title="商品详情（APP端）(非必填)"
@@ -479,6 +514,8 @@ onBeforeUnmount(() => {
       :editing="editing"
       add-label="添加图片"
       :on-preview="(i) => openPreview(d.detailApp, i)"
+      kb-pick
+      :on-kb-pick="() => openKbPick('详情图', 'detailApp', '商品详情（APP端）')"
     />
     <CpdMediaSec
       title="白底图"
@@ -486,6 +523,8 @@ onBeforeUnmount(() => {
       :imgs="[d.whiteImg]"
       :editing="editing"
       :on-preview="(i) => openPreview([d.whiteImg], i)"
+      kb-pick
+      :on-kb-pick="() => openKbPick('白底图', 'whiteImg', '白底图')"
     />
     <CpdMediaSec
       title="透明图"
@@ -493,6 +532,8 @@ onBeforeUnmount(() => {
       :imgs="[d.transparentImg]"
       :editing="editing"
       :on-preview="(i) => openPreview([d.transparentImg], i)"
+      kb-pick
+      :on-kb-pick="() => openKbPick('白底图', 'transparentImg', '透明图')"
     />
     <CpdMediaSec
       title="场景图(非必填)"
@@ -500,6 +541,8 @@ onBeforeUnmount(() => {
       :imgs="[d.sceneImg]"
       :editing="editing"
       :on-preview="(i) => openPreview([d.sceneImg], i)"
+      kb-pick
+      :on-kb-pick="() => openKbPick('场景图', 'sceneImg', '场景图')"
     />
     <CpdMediaSec
       title="商品视频"
@@ -508,6 +551,8 @@ onBeforeUnmount(() => {
       :video="true"
       :editing="editing"
       add-label="添加视频"
+      kb-pick
+      :on-kb-pick="() => openKbPick('视频', 'videos', '商品视频')"
     />
 
     <!-- 图片预览 -->
@@ -543,6 +588,15 @@ onBeforeUnmount(() => {
         </template>
       </div>
     </div>
+
+    <!-- 推荐素材选用抽屉（素材库） -->
+    <KbPickDrawer
+      :open="!!kbPick"
+      :type="kbPick?.type ?? '主图'"
+      :product-id="KB_PRODUCT_ID"
+      @close="kbPick = null"
+      @confirm="onKbConfirm"
+    />
 
     <!-- 删除规格/属性值/SKU 二次确认 -->
     <Teleport to="body">

@@ -1,5 +1,5 @@
 /* 临时调试：分区定位 tab 几何值 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
@@ -14,7 +14,7 @@ const { chromium } = require('D:/Funion/.playwright/package/index.js');
   await page.click('.cpd-top-acts button:has-text("编辑")');
   await page.click('.cpd-side-btn:has-text("素材")');
   await page.waitForSelector('.mc-page');
-  await page.screenshot({ path: 'd:/Qoder/Funion/screenshots/ops-verify-material-anchor.png' });
+  await page.screenshot({ path: 'D:/PM.funion/screenshots/ops-verify-material-anchor.png' });
 
   const info0 = await page.evaluate(() => {
     const box = document.querySelector('.mc-left');

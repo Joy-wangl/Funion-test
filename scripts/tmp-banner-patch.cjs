@@ -1,9 +1,9 @@
 /* 擦除 banner 左下角轮播指示条/点：用同图下方干净渐变块羽化补片覆盖，其余像素不动 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
 
 const SRC = 'C:/Users/Joywa/.qoder/vibe_images';
-const OUT = 'd:/Qoder/Funion/screenshots';
+const OUT = 'D:/PM.funion/screenshots';
 const JOBS = [
   { in: `${SRC}/pm-banner-1-v2_1788589456.png`, out: `${OUT}/pm-banner-1-clean.png` },
   { in: `${SRC}/pm-banner-2-v2_1788589456.png`, out: `${OUT}/pm-banner-2-clean.png` },

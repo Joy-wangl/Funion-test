@@ -1,6 +1,6 @@
 /* 临时验证：商品创建-发布到 两步抽屉（选择策略 → 选择店铺） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
+const OUT = 'D:/PM.funion/screenshots';
 const fs = require('fs');
 fs.mkdirSync(OUT, { recursive: true });
 

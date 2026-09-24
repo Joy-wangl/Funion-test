@@ -1,6 +1,6 @@
 /* 临时验证：应用中心首页数据恢复（相对日期种子）＋收藏/最近使用持久化＋banner 加高 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
-const OUT = 'd:/Qoder/Funion/screenshots';
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
+const OUT = 'D:/PM.funion/screenshots';
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });

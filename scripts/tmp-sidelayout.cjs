@@ -1,7 +1,7 @@
 /* 临时验证：运营中心侧栏—收起按钮置底、收起态图标同轴居中、悬浮气泡二级路由可点击 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 
-const OUT = 'd:/Qoder/Funion';
+const OUT = 'D:/PM.funion';
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });

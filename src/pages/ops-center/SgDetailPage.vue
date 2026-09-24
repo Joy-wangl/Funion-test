@@ -186,7 +186,7 @@ const askRemoveSpecValue = (si: number, vi: number) => {
     ? `删除属性值「${v}」后规格「${specs[si].name || `规格${si + 1}`}」将无属性值，SKU 列表暂隐该规格列，其余 SKU 保留，是否继续？`
     : `删除属性值「${v}」将同步删除包含该属性值的 ${n} 个 SKU，是否继续？`, () => {
       specs[si].values.splice(vi, 1);
-      skuDeleted.value = skuDeleted.value.filter((k) => !k.includes(v));
+      skuDeleted.value = skuDeleted.value.filter((k) => !k.split(' / ').some((seg) => seg === v));
       syncSkus();
       pushToast(last ? `属性值「${v}」已删除，规格「${specs[si].name || `规格${si + 1}`}」无属性值暂隐于 SKU 列表` : `属性值「${v}」及关联的 ${n} 个 SKU 已删除`);
     });
@@ -207,6 +207,8 @@ const onSpecValChange = (si: number, vi: number, e: Event) => {
     s.vals = { ...s.vals, [id]: nv };
     s.key = skuKeyOf(s.vals);
     s.name = skuNameOf(s.vals);
+    /* SKU 名称同步改名：始终跟随自动名 */
+    s.skuName = s.name;
   });
 };
 const addSpecValue = (si: number) => {
@@ -250,7 +252,7 @@ const askRemoveSku = (sku: SgSku) => {
           <button class="sgd-back" title="返回" @click="emit('back')">←</button>
           <span class="sgd-top-title">商品详情</span>
         </div>
-        <div class="sgd-top-acts">
+        <div class="cpd-top-acts">
           <template v-if="editing">
             <button class="sg-btn" @click="editing = false">取消编辑</button>
             <button class="sg-btn primary" @click="editing = false; pushToast('版本已保存')">保存版本</button>
@@ -372,10 +374,12 @@ const askRemoveSku = (sku: SgSku) => {
     <div class="sgd-sec">
       <div class="sgd-sec-head">
         <div class="sgd-sec-title">商品SKU</div>
-        <label class="sgd-sku-toggle">
-          <input v-model="skuShow" type="checkbox" />
-          展开明细
-        </label>
+        <div class="cpd-sku-acts">
+          <label class="sgd-sku-toggle">
+            <input v-model="skuShow" type="checkbox" />
+            展开明细
+          </label>
+        </div>
       </div>
       <div class="sgd-sec-body">
         <div class="cpd-sku-wrap">

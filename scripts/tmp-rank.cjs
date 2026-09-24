@@ -1,5 +1,5 @@
 /* 临时验证：个人贡献榜按创作数降序、同创作数按使用人次降序 */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });

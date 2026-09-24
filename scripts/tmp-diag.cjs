@@ -1,5 +1,5 @@
 /* 诊断：侧栏 LOGO 可点性 / 详芯片与主图垂直居中 / 批量弹窗横向溢出（多视口） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const VIEWPORTS = [
   { width: 1800, height: 900 },
   { width: 1440, height: 900 },
@@ -50,7 +50,7 @@ const VIEWPORTS = [
         hScroll: body.scrollWidth > body.clientWidth,
       };
     });
-    await page.screenshot({ path: `d:/Qoder/Funion/screenshots/tmp-diag-${vp.width}.png` });
+    await page.screenshot({ path: `D:/PM.funion/screenshots/tmp-diag-${vp.width}.png` });
     out.push({ vp: vp.width, sideClick, centers, overflow });
     await page.close();
   }

@@ -1,9 +1,9 @@
 /* 临时工具：去除图片水印（右上半透明白块反向混合 + 底部文字局部修复） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
 
 const SRC = 'C:/Users/Joywa/AppData/Roaming/Qoder/SharedClientCache/cache/images/task-f1e/pcg1xpt4-72253c6c.png';
-const OUT = 'd:/Qoder/Funion/hairpin-nowm.png';
+const OUT = 'D:/PM.funion/hairpin-nowm.png';
 
 (async () => {
   const b64 = fs.readFileSync(SRC).toString('base64');

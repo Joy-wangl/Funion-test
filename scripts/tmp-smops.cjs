@@ -3,9 +3,9 @@
    2) 侧栏底部旧入口已移除；
    3) 点击跨应用跳转：顶层 tab 激活智能运营中心且 ops-center 挂载。
    截图注意：node 子进程写工作区外会被沙箱虚拟化，先落 .shots-tmp 再 Copy-Item 到 screenshots/ */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 const fs = require('fs');
-const OUT = 'd:/Qoder/Funion/.shots-tmp';
+const OUT = 'D:/PM.funion/.shots-tmp';
 fs.mkdirSync(OUT, { recursive: true });
 
 (async () => {

@@ -1,5 +1,5 @@
 /* 临时探针：值班监控「全部」选项行 + 查询条件清除 icon（用完即删） */
-const { chromium } = require('D:/Funion/.playwright/package/index.js');
+const { chromium } = require('D:/PM.funion/.playwright/package/index.js');
 
 (async () => {
   const b = await chromium.launch({ channel: 'chrome', headless: true });
