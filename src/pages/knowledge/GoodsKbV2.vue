@@ -576,6 +576,19 @@ const knTypes = computed(() => {
 const knTab = ref('');
 const activeKnTab = computed(() => (knTypes.value.includes(knTab.value) ? knTab.value : knTypes.value[0] ?? ''));
 const shownKnowledge = computed(() => (currentCode.value?.knowledge ?? []).filter((k) => k.type === activeKnTab.value));
+const detailBody = ref<HTMLElement | null>(null);
+const openKnowledge = async (product: KbV2Product, code: KbV2Code, entry: KbV2Knowledge) => {
+  v2View.value = 'base';
+  openDetail(product);
+  activeCode.value = code.code;
+  knTab.value = entry.type;
+  await nextTick();
+  const card = Array.from(detailBody.value?.querySelectorAll<HTMLElement>('[data-knowledge-id]') ?? [])
+    .find((element) => element.dataset.knowledgeId === entry.id);
+  card?.scrollIntoView({ block: 'nearest' });
+  card?.querySelector<HTMLButtonElement>('button[title="编辑"]')?.focus({ preventScroll: true });
+};
+defineExpose({ openKnowledge });
 </script>
 
 <template>
@@ -930,7 +943,7 @@ const shownKnowledge = computed(() => (currentCode.value?.knowledge ?? []).filte
           <span class="kb-sku-codes">关联编码：{{ s.codes.length }}</span>
         </div>
       </div>
-      <div class="kb-d-body">
+      <div ref="detailBody" class="kb-d-body">
         <!-- 编码切换卡：系列维度=系列下全部编码平铺；ID 维度=当前 SKU 下关联编码横排（头部已通顶，SKU 选择在左列）；编码卡副行仅写关联系列名（一码只属一系列） -->
         <div v-if="detail.kind === 'item'" class="kb-d-codes">
           <div
@@ -1044,7 +1057,7 @@ const shownKnowledge = computed(() => (currentCode.value?.knowledge ?? []).filte
             <button class="kb-btn primary kb-kn-act" @click="openCreate()">新建商品知识</button>
           </div>
           <div class="kb-kn-list">
-            <div v-for="k in shownKnowledge" :key="k.id" class="kb-kn">
+            <div v-for="k in shownKnowledge" :key="k.id" :data-knowledge-id="k.id" class="kb-kn">
               <div class="kb-kn-head">
                 <span class="kb-kn-type">{{ k.type }}</span>
                 <span v-if="k.scenes.length" class="kb-kn-scenes" :title="k.scenes.join(' / ')">{{ k.scenes.join(' / ') }}</span>

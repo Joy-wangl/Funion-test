@@ -12,6 +12,13 @@
 }
 .sc2-rail-head { display: flex; gap: 8px; padding-bottom: 16px; border-bottom: 1px solid var(--color-border); }
 .sc2-rail-head .kb-input { flex: 1; min-width: 0; }
+/* 新建类型：虚线边框加号瓦片（与关键词＋新增同语言），不占文字宽 */
+.sc2-add-type {
+  flex: none; align-self: stretch; width: 40px; display: grid; place-items: center;
+  border: 1px dashed var(--color-border); border-radius: var(--radius-md);
+  background: #fff; color: var(--color-text-3); font-size: var(--fs-md); line-height: 1; cursor: pointer; transition: 0.15s;
+}
+.sc2-add-type:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .sc2-rail-list {
   flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px;
   padding: 2px; margin: -2px; scrollbar-width: none;
@@ -19,11 +26,12 @@
 .sc2-rail-list::-webkit-scrollbar { display: none; }
 .sc2-type-card {
   display: flex; flex-direction: column; gap: 12px; padding: 16px;
-  background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+  background: radial-gradient(ellipse at top left, var(--color-primary-light) 0%, #fff 70%);
+  border: 1px solid var(--color-border); border-radius: var(--radius-lg);
   cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s;
 }
 .sc2-type-card:hover { border-color: var(--color-primary-hover); }
-.sc2-type-card.active { border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary-light); }
+.sc2-type-card.active { border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary-light); background: radial-gradient(ellipse at top left, var(--color-primary-light) 0%, var(--color-primary-light-2) 70%); }
 .sc2-tc-head { display: flex; align-items: center; gap: 8px; }
 .sc2-tc-head > b {
   flex: 1; min-width: 0; font-size: var(--fs-md); font-weight: 600; color: var(--color-text);
@@ -31,14 +39,6 @@
 }
 .sc2-tc-count { flex: none; font-size: var(--fs-aux); color: var(--color-text-4); }
 .sc2-tc-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.sc2-chip {
-  max-width: 100%; padding: 4px 8px; border: 1px solid var(--color-border-2); border-radius: var(--radius-sm);
-  background: var(--color-fill); color: var(--color-text-2); font-size: var(--fs-aux); line-height: 1.4;
-  cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: 0.15s;
-}
-.sc2-chip:hover { border-color: var(--color-primary); color: var(--color-primary); }
-.sc2-chip.off { opacity: 0.5; }
-.sc2-chip.more { cursor: default; border-style: dashed; background: transparent; color: var(--color-text-4); }
 .sc2-tc-empty { font-size: var(--fs-aux); color: var(--color-text-4); }
 /* 类型卡场景定义摘要：单行省略，title 看全（语义命中依据前置可见） */
 .sc2-tc-def {
@@ -72,11 +72,19 @@
 
 .sc2-sub-card {
   display: flex; flex-direction: column; gap: 12px; padding: 16px;
-  background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+  background: radial-gradient(ellipse at top left, var(--color-primary-light-2) 0%, #fff 70%);
+  border: 1px solid var(--color-border); border-radius: var(--radius-lg);
   transition: border-color 0.2s, box-shadow 0.2s, opacity 0.2s;
 }
-.sc2-sub-card.off { opacity: 0.55; }
-.sc2-sub-card.flash { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-light); }
+.sc2-sub-card:hover { border-color: var(--color-primary-hover); box-shadow: 0 2px 8px var(--color-primary-10); }
+.sc2-sub-card.off {
+  opacity: 0.8;
+  background: radial-gradient(ellipse at top left, var(--color-danger-light) 0%, #fff 70%);
+}
+.sc2-sub-card.off .sc2-sc-qa {
+  background: color-mix(in srgb, var(--color-danger-light) 45%, #fff);
+  border-color: var(--color-danger-light);
+}
 .sc2-sc-head { display: flex; align-items: center; gap: 8px; }
 .sc2-sc-head > b {
   flex: 1; min-width: 0; font-size: var(--fs-md); font-weight: 600; color: var(--color-text);
@@ -103,12 +111,19 @@
 /* 回复摘要已移除（回复内容不前置配置，由处置决定输出）+ 元信息行 */
 .sc2-sc-meta { display: flex; align-items: center; gap: 12px; font-size: var(--fs-aux); color: var(--color-text-4); }
 .sc2-sc-meta i { font-style: normal; }
-/* 场景阶段标：售前/售中/售后 快速定位回显 */
+/* 场景阶段标：左栏类型卡实心、右栏场景卡元信息行空心，按阶段配色区分 */
 .sc2-stage {
-  font-style: normal; padding: 2px 8px; border: 1px solid var(--color-border-2); border-radius: var(--radius-sm);
-  color: var(--color-text-3); background: #fff;
+  font-style: normal; padding: 2px 8px; border-radius: var(--radius-sm); font-size: var(--fs-aux); font-weight: var(--fw-medium);
 }
+.sc2-tc-chips .sc2-stage.售前 { background: var(--color-primary-light); color: var(--color-primary); }
+.sc2-tc-chips .sc2-stage.售中 { background: var(--color-warning-light); color: var(--color-warning); }
+.sc2-tc-chips .sc2-stage.售后 { background: var(--color-success-light); color: var(--color-success); }
+.sc2-tc-chips .sc2-stage.不限 { background: #f9f0ff; color: #722ed1; }
+.sc2-sc-meta .sc2-stage { background: #fff; }
+.sc2-sc-meta .sc2-stage.售前 { border: 1px solid var(--color-primary); color: var(--color-primary); }
+.sc2-sc-meta .sc2-stage.售中 { border: 1px solid var(--color-warning); color: var(--color-warning); }
+.sc2-sc-meta .sc2-stage.售后 { border: 1px solid var(--color-success); color: var(--color-success); }
 .sc2-act {
-  padding: 2px 8px; border-radius: var(--radius-sm); font-weight: 600;
-  background: var(--color-primary-light); color: var(--color-primary);
+  padding: 2px 8px; border-radius: var(--radius-sm); font-weight: var(--fw-medium);
+  background: #fff; border: 1px solid var(--color-primary); color: var(--color-primary);
 }

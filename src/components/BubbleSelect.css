@@ -142,3 +142,11 @@
   background: var(--color-primary); color: #fff; font-size: 12px; cursor: pointer;
 }
 .bselect-rename-form button:hover { background: var(--color-primary-hover); }
+/* 可删除选项：hover 尾部垃圾桶（与改名铅笔同款显隐逻辑；两者同现时铅笔负责右推） */
+.bselect-del {
+  margin-left: auto; display: none; align-items: center;
+  padding: 2px 4px; border-radius: 6px; color: #8b92a1; cursor: pointer;
+}
+.bselect-rename ~ .bselect-del { margin-left: 0; }
+.bselect-opt:hover .bselect-del { display: flex; }
+.bselect-del:hover { color: #e5484d; background: #fdecec; }

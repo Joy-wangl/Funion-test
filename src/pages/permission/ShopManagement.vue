@@ -119,6 +119,8 @@ const filtered = computed(() => {
 });
 /** 店铺行可用成员：子行账号成员并集（去重保序） */
 const shopMembers = (accts: AcctRow[]) => [...new Set(accts.flatMap((a) => a.members))];
+/** 店铺在线状态：账号有一个在线即店铺在线；全部离线才离线 */
+const shopOnline = (accts: AcctRow[]) => accts.some((a) => a.status === 'online');
 /** 店铺行更新时间：子行账号更新时间的最新值（格式定长，字符串序即时间序） */
 const shopUpdated = (accts: AcctRow[]) => accts.reduce((m, a) => (a.updated > m ? a.updated : m), '');
 
@@ -374,6 +376,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
               <!-- 勾选列固定 64px；四个数据列不写宽度，fixed 布局下等分剩余宽度（均分） -->
               <th>店铺信息</th>
               <th>账号数</th>
+              <th>在线状态</th>
               <th>可用成员</th>
               <th>更新时间</th>
               <th :style="{ width: '100px' }">操作</th>
@@ -398,6 +401,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
                   </div>
                 </td>
                 <td>{{ f.accts.length }}</td>
+                <td>
+                  <!-- 店铺在线状态：账号有一个在线即在线（在线绿点/离线灰点，同账号管理状态语言） -->
+                  <span class="sg-status">
+                    <span class="sg-dot" :style="{ background: shopOnline(f.accts) ? '#1eaf72' : '#c3cad4' }" />
+                    <span>{{ shopOnline(f.accts) ? '在线' : '离线' }}</span>
+                  </span>
+                </td>
                 <td>
                   <div v-if="shopMembers(f.accts).length" class="smg-members">
                     <!-- ≤2 人：逐人「头像+姓名」对；>2 人：叠放头像组 + 等N人文案 -->
@@ -425,18 +435,19 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
               </tr>
               <!-- 第二层：账号维度子表（灰底展开行 + 白底子表） -->
               <tr v-if="expanded.has(f.shop.shopId)" class="ib-expand-row smg-expand-row">
-                <td colspan="6">
+                <td colspan="7">
                   <table class="ib-subtable">
                     <thead>
                       <tr>
                         <!-- 固定列宽（配合 table-layout:fixed）：多个展开子表列位逐一对齐，不随内容长短漂移 -->
                         <th :style="{ width: '10%' }">账号ID</th>
-                        <th :style="{ width: '20%' }">登录账号</th>
+                        <th :style="{ width: '18%' }">登录账号</th>
                         <th :style="{ width: '10%' }">账号类型</th>
+                        <th :style="{ width: '10%' }">在线状态</th>
                         <th :style="{ width: '12%' }">账号分组</th>
-                        <th :style="{ width: '20%' }">可用成员</th>
-                        <th :style="{ width: '16%' }">更新时间</th>
-                        <th :style="{ width: '12%' }">操作</th>
+                        <th :style="{ width: '18%' }">可用成员</th>
+                        <th :style="{ width: '12%' }">更新时间</th>
+                        <th :style="{ width: '10%' }">操作</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -444,6 +455,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
                         <td>{{ a.acctId }}</td>
                         <td>{{ a.login }}</td>
                         <td>{{ a.acctType }}</td>
+                        <td>
+                          <span class="sg-status">
+                            <span class="sg-dot" :style="{ background: a.status === 'online' ? '#1eaf72' : '#c3cad4' }" />
+                            <span>{{ a.status === 'online' ? '在线' : '离线' }}</span>
+                          </span>
+                        </td>
                         <td><span v-if="a.group">{{ a.group }}</span><span v-else class="smg-dash">—</span></td>
                         <td>
                           <div v-if="a.members.length" class="smg-members">

@@ -13,7 +13,7 @@ import JmCreateDetailPage from './JmCreateDetailPage.vue';
 import { pushToast } from '../../components/toast';
 import TcStepsCell from './TcStepsCell.vue';
 import QuickSkuModal, { mkVal } from './QuickSkuModal.vue';
-import type { QuickDraftRow, QuickSpec, QuickVal } from './QuickSkuModal.vue';
+import type { QuickDraftRow, QuickSpec } from './QuickSkuModal.vue';
 import { addPublishTask, setPublishResume, setPublishRiskResume } from './publishStore';
 import { pushGMsg, requestShopAcct } from '../../components/globalMsgData';
 import { amOfflineShopNames, amOfflineSellerOfShop } from '../permission/accountData';
@@ -235,31 +235,17 @@ const valsOf = (u: Record<string, string>): Record<string, string> => {
   if (props.jm) return Object.fromEntries((u.attrs ?? '').split(' ').filter(Boolean).map((kv) => { const [k, v] = kv.split(':'); return [k, v]; }));
   return { [quickSpecs.value[0]?.name ?? '颜色分类']: u.color, [quickSpecs.value[1]?.name ?? '款式']: u.style };
 };
-/* 同种子 SKU 在多商品行间共享同一 draft 值对象（淘宝路由各商品共用同一种子）；批量勾选多件同种子商品时按 src 去重只铺一行（不展示商品信息列，重复行无意义） */
-const buildDraft = (list: CreateRow[]): QuickDraftRow[] => {
-  const vals = new Map<Record<string, string>, QuickVal>();
-  const emitted = new Set<Record<string, string>>();
-  const valOf = (s: Record<string, string>, init: () => QuickVal) => {
-    let v = vals.get(s);
-    if (!v) { v = init(); vals.set(s, v); }
-    return v;
-  };
-  const once = (s: Record<string, string>) => {
-    if (emitted.has(s)) return [];
-    emitted.add(s);
-    return [s];
-  };
-  return list.flatMap((row) => (props.jm
-    ? sgJmDetail.skus.flatMap((s) => once(s).map((u): QuickDraftRow => ({ thumb: row.thumb, title: row.title, jm: true, src: u, qcode: u.outerId, val: valOf(u, () => mkVal(u.name, u.outerId, u.series, u.cost, u.jdPrice, u.stock)), vals: valsOf(u) })))
-    : createDetail.skus.flatMap((s) => once(s).map((u): QuickDraftRow => ({ thumb: row.thumb, title: row.title, jm: false, src: u, qcode: u.code, val: valOf(u, () => mkVal(u.name, u.code, u.series, u.cost, u.price, u.stock)), vals: valsOf(u) })))));
-};
+/* 每件商品独立展开一组 SKU 行（批量勾选 N 件即 N 组）：src 指向共享种子对象，val/vals 每行独立克隆互不串改；保存时按 src 去重重建种子 */
+const buildDraft = (list: CreateRow[]): QuickDraftRow[] => list.flatMap((row) => (props.jm
+  ? sgJmDetail.skus.map((u): QuickDraftRow => ({ thumb: row.thumb, title: row.title, jm: true, src: u, qcode: u.outerId, val: mkVal(u.name, u.outerId, u.series, u.cost, u.jdPrice, u.stock), vals: valsOf(u) }))
+  : createDetail.skus.map((u): QuickDraftRow => ({ thumb: row.thumb, title: row.title, jm: false, src: u, qcode: u.code, val: mkVal(u.name, u.code, u.series, u.cost, u.price, u.stock), vals: valsOf(u) }))));
 const openQuickSku = (row: CreateRow) => {
   loadQuickSpecs();
   quickDraft.value = buildDraft([row]);
   quickBatch.value = false;
   quickRow.value = row;
 };
-/* 批量入口：勾选行展开为去重后的 SKU draft，与单件共用弹窗与回写 */
+/* 批量入口：勾选的每件商品各展开一组 SKU 行（弹窗内按商品分组展示），与单件共用弹窗与回写 */
 const batchRows = computed(() => rows.value.filter((r) => selLinks.value.has(r.link)));
 const openBatchSku = () => {
   loadQuickSpecs();
@@ -284,8 +270,13 @@ const saveQuickSku = () => {
     }
     return r.src;
   };
-  if (props.jm) sgJmDetail.skus = quickDraft.value.filter((r) => r.jm).map(write) as typeof sgJmDetail.skus;
-  else createDetail.skus = quickDraft.value.filter((r) => !r.jm).map(write) as typeof createDetail.skus;
+  /* 批量态多组行共享同一种子 src：全部写值后按 src 去重重建种子，避免条目翻倍 */
+  const dedupBySrc = (list: QuickDraftRow[]) => {
+    const seen = new Set<Record<string, string>>();
+    return list.map(write).filter((s) => !seen.has(s) && (seen.add(s), true));
+  };
+  if (props.jm) sgJmDetail.skus = dedupBySrc(quickDraft.value.filter((r) => r.jm)) as typeof sgJmDetail.skus;
+  else createDetail.skus = dedupBySrc(quickDraft.value.filter((r) => !r.jm)) as typeof createDetail.skus;
   /* 属性配置（含新增属性值）回写种子 */
   const specsBack = quickSpecs.value.map((s) => ({ name: s.name, values: [...s.values] }));
   if (props.jm) sgJmDetail.saleAttrs = specsBack as typeof sgJmDetail.saleAttrs;

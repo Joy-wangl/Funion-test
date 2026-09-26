@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/* 配置抽屉（场景配置 V1/V2 共享）：纵向配置流——归属（类型+细分名）→①触发条件（场景阶段单块：三行阶段，每行=阶段三态勾选+该段订单状态叶子直选）
+/* 配置抽屉（场景配置 V1/V2 共享）：纵向配置流——归属（类型+细分名）→①触发条件（订单状态大类四段：售前/发货前/发货后/售后，每行=大类三态勾选+该段订单状态叶子直选）
  * →②客户问法（提示语多条+关键词）→③命中后处置（处置方式+AI 提示语；回复内容不前置配置，由处置决定输出）
  * props：open=显隐；scene=编辑目标（null=新建态）；defaultType=新建态默认归属类型
  * 保存直接落 sceneConfigData 种子（与列表同源），校验拦截口径与 V1 原抽屉一致；Esc/暗幕关闭 emit close */
@@ -7,14 +7,23 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import { pushToast } from '../../components/toast';
 import {
-  FB_ACTS, SC_SCENE_STAGES, SC_SCENE_STAGE_STATES,
+  FB_ACTS, SC_SCENE_STAGES, SC_SCENE_STAGE_STATES, SC_STAGES, SC_STAGE_STATES,
   CUR_USER, todayStr, defaultConds, defaultTypeDef, fbScenes,
   type FbAct, type FbSub, type ScConditions,
 } from './sceneConfigData';
 import './KbForm.css';
 import './SceneCfgDrawer.css';
 
-const props = defineProps<{ open: boolean; scene: FbSub | null; defaultType: string }>();
+/** 新建态预填（会话挖掘一键新增场景等外部入口）：不传时行为与原先完全一致 */
+export interface SceneCfgPrefill {
+  name?: string;
+  type?: string;
+  questions?: string[];
+  kws?: string[];
+  aiPrompt?: string;
+}
+
+const props = defineProps<{ open: boolean; scene: FbSub | null; defaultType: string; prefill?: SceneCfgPrefill | null }>();
 const emit = defineEmits<{ (e: 'close'): void }>();
 
 /* ---------- 标签编辑器工厂（提示语/关键词共用）：回车或逗号添加、✕移除、空值退格删末项、自动去重去空 ---------- */
@@ -70,20 +79,25 @@ const dName = ref('');
 const dAct = ref<FbAct>('智能回复');
 /* AI 回复提示语：处置为智能回复时必填，引导 AI 如何生成回复 */
 const dAiPrompt = ref('');
+/* 回复话术：处置为致歉引导时必填，命中后直接发出的固定话术 */
+const dReplyScript = ref('');
 const dConds = reactive<ScConditions>(defaultConds());
 /* 场景阶段单块（用户 2026-09-19 合并）：一段一行=阶段三态勾选（整段叶子全选/全清，部分=半选）+该段订单状态叶子常显直选；
  * 多选值只存叶子（orderStates），sceneStages 由叶子派生（syncStages），空=不限 */
 const stageLeaves = (st: string) => SC_SCENE_STAGE_STATES[st] ?? [];
 const stageSelCount = (st: string) => stageLeaves(st).filter((c) => dConds.orderStates.includes(c)).length;
-const stageCls = (st: string) => {
-  const n = stageSelCount(st);
-  const all = stageLeaves(st).length;
+const syncStages = () => { dConds.sceneStages = SC_SCENE_STAGES.filter((st) => stageSelCount(st) > 0); };
+/* 触发条件行按订单状态大类四段呈现（售前/发货前/发货后/售后，同源系统枚举）；勾选仍只存叶子 */
+const grpLeaves = (g: string) => SC_STAGE_STATES[g] ?? [];
+const grpSelCount = (g: string) => grpLeaves(g).filter((c) => dConds.orderStates.includes(c)).length;
+const grpCls = (g: string) => {
+  const n = grpSelCount(g);
+  const all = grpLeaves(g).length;
   return { on: all > 0 && n === all, mid: n > 0 && n < all };
 };
-const syncStages = () => { dConds.sceneStages = SC_SCENE_STAGES.filter((st) => stageSelCount(st) > 0); };
-const toggleStage = (st: string) => {
-  const ls = stageLeaves(st);
-  dConds.orderStates = stageSelCount(st) === ls.length
+const toggleGrp = (g: string) => {
+  const ls = grpLeaves(g);
+  dConds.orderStates = grpSelCount(g) === ls.length
     ? dConds.orderStates.filter((v) => !ls.includes(v))
     : [...new Set([...dConds.orderStates, ...ls])];
   syncStages();
@@ -107,8 +121,17 @@ watch(() => props.open, (v) => {
   dName.value = s?.name ?? '';
   dAct.value = s?.act ?? '智能回复';
   dAiPrompt.value = s?.aiPrompt ?? '';
+  dReplyScript.value = s?.replyScript ?? '';
   qTags.set(s?.questions ?? []);
   kwTags.set(s?.kws ?? []);
+  /* 外部入口预填（仅新建态）：挖掘聚类携带的问法/归属/提示语直接落入表单 */
+  if (!s && props.prefill) {
+    if (props.prefill.type) dType.value = props.prefill.type;
+    if (props.prefill.name) dName.value = props.prefill.name;
+    if (props.prefill.aiPrompt) dAiPrompt.value = props.prefill.aiPrompt;
+    if (props.prefill.questions?.length) qTags.set(props.prefill.questions);
+    if (props.prefill.kws?.length) kwTags.set(props.prefill.kws);
+  }
   if (s) Object.assign(dConds, { ...s.conds, sceneStages: [...s.conds.sceneStages], orderStates: [...s.conds.orderStates], autoSend: [...s.conds.autoSend] });
   else Object.assign(dConds, defaultConds());
   /* 旧数据物化：仅勾阶段无叶子=整段生效→补全该段叶子；阶段统一由叶子派生 */
@@ -125,13 +148,15 @@ const submitScene = () => {
   if (!qTags.state.tags.length) { pushToast('请添加提示语', 'warning'); return; }
   const aiPrompt = dAiPrompt.value.trim();
   if (dAct.value === '智能回复' && !aiPrompt) { pushToast('请填写 AI 回复提示语', 'warning'); return; }
+  const replyScript = dReplyScript.value.trim();
+  if (dAct.value === '致歉引导' && !replyScript) { pushToast('请填写回复话术', 'warning'); return; }
   const conds = { ...dConds, sceneStages: [...dConds.sceneStages], orderStates: [...dConds.orderStates], autoSend: [...dConds.autoSend] };
   /* 新建态：落到目标场景类型（不存在则新建类型） */
   if (!editingKey.value) {
     if (fbScenes.some((x) => x.subs.some((y) => y.name === name))) { pushToast(`场景「${name}」已存在`, 'warning'); return; }
     let g = fbScenes.find((x) => x.name === typeName);
     if (!g) { g = { id: `FS${Date.now()}`, name: typeName, condDef: defaultTypeDef(), semDef: '', questions: [], creator: CUR_USER, createdAt: todayStr(), subs: [] }; fbScenes.push(g); }
-    g.subs.push({ id: `FB${Date.now()}`, name, questions: [...qTags.state.tags], kws: [...kwTags.state.tags], conds, act: dAct.value, aiPrompt, hits: 0, enabled: true, creator: CUR_USER, createdAt: todayStr(), refs: 0 });
+    g.subs.push({ id: `FB${Date.now()}`, name, questions: [...qTags.state.tags], kws: [...kwTags.state.tags], conds, act: dAct.value, aiPrompt, replyScript, hits: 0, enabled: true, creator: CUR_USER, createdAt: todayStr(), refs: 0 });
     pushToast(`场景「${name}」已新建`);
     emit('close');
     return;
@@ -147,6 +172,7 @@ const submitScene = () => {
     conds,
     act: dAct.value,
     aiPrompt,
+    replyScript,
   });
   /* 大场景变更：迁移到目标大场景（不存在则新建） */
   if (typeName !== srcG.name) {
@@ -193,19 +219,19 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             </div>
           </div>
 
-          <!-- ① 先配触发条件：场景阶段单块（一段一行=阶段勾选+该段订单状态叶子直选，空=不限） -->
+          <!-- ① 先配触发条件：订单状态大类单块（一段一行=大类勾选+该段状态叶子直选，空=不限） -->
           <div class="sc-block">
             <div class="sc-block-head"><i>1</i><b>触发条件</b></div>
             <div class="sc-cfg-conds">
-              <div v-for="st in SC_SCENE_STAGES" :key="st" class="sc-ck-line">
+              <div v-for="g in SC_STAGES" :key="g" class="sc-ck-line">
                 <label
-                  class="sc-ck" :class="stageCls(st)"
-                  :title="`勾选=整个${st}阶段（含其全部订单状态）`"
-                  @click.prevent="toggleStage(st)"
-                ><i></i><span>{{ st }}</span></label>
+                  class="sc-ck" :class="grpCls(g)"
+                  :title="`勾选=整个${g}阶段（含其全部订单状态）`"
+                  @click.prevent="toggleGrp(g)"
+                ><i></i><span>{{ g }}</span></label>
                 <div class="sc-ck-row">
                   <label
-                    v-for="lv in stageLeaves(st)" :key="lv"
+                    v-for="lv in grpLeaves(g)" :key="lv"
                     class="sc-ck sm" :class="{ on: dConds.orderStates.includes(lv) }"
                     @click.prevent="toggleLeaf(lv)"
                   ><i></i><span :title="lv">{{ lv }}</span></label>
@@ -280,6 +306,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             <template v-if="dAct === '智能回复'">
               <div class="sc-sec-head"><span>AI 回复提示语<i class="sc-req">*</i></span></div>
               <textarea v-model="dAiPrompt" class="qa-textarea sc-ai-prompt" rows="3" maxlength="500" placeholder="如：先安抚等件情绪，再告知订单页查询路径，承诺长时间未更新可代催" />
+            </template>
+            <!-- 致歉引导：命中后直接发出的固定回复话术（必填） -->
+            <template v-else-if="dAct === '致歉引导'">
+              <div class="sc-sec-head"><span>回复话术<i class="sc-req">*</i></span></div>
+              <textarea v-model="dReplyScript" class="qa-textarea sc-ai-prompt" rows="3" maxlength="500" placeholder="如：抱歉，这个问题我还没学习到，有关商品或订单的问题可以随时问我" />
             </template>
           </div>
         </div>

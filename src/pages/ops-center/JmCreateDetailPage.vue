@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, toRaw, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import type { CreateRow } from './data';
 import { sgJmDetail } from './shopGoodsData';
 import { pushToast } from '../../components/toast';
@@ -22,7 +22,7 @@ const skuShow = ref(true);
 const d = reactive(JSON.parse(JSON.stringify(sgJmDetail)) as typeof sgJmDetail);
 
 /* ---------- 规格/SKU 联动模型（与淘宝版一致） ---------- */
-interface JmSkuRow { key: string; vals: Record<string, string>; name: string; skuName: string; attrs: string; jdPrice: string; marketPrice: string; stock: string; outerId: string; series: string; cost: string; upc: string; status: string }
+interface JmSkuRow { key: string; vals: Record<string, string>; name: string; skuName: string; attrs: string; stock: string; outerId: string; series: string; cost: string; upc: string; status: string }
 /* 规格维度稳定 id：拖拽重排不改变 SKU key */
 const specIds = ref<string[]>(d.saleAttrs.map((_, i) => `jsp${i}`));
 let specIdSeed = d.saleAttrs.length;
@@ -59,8 +59,6 @@ const syncSkus = () => {
         key, vals, name: skuNameOf(vals),
         skuName: base?.name ?? skuNameOf(vals),
         attrs,
-        jdPrice: base?.jdPrice ?? '39.90',
-        marketPrice: base?.marketPrice ?? '59.90',
         stock: base?.stock ?? '0',
         outerId: base?.outerId ?? `${d.itemNum}-N${i + 1}`,
         series: base?.series ?? `编码${String.fromCharCode(65 + (i % 26))}`,
@@ -72,6 +70,14 @@ const syncSkus = () => {
     .filter((s) => !deleted.has(s.key));
 };
 syncSkus();
+/* 售价联动：出仓成本 0.7/单位；售价=(成本+0.7)/0.8；出仓总成本、利润、利润率由此派生 */
+const SHIP_FEE = 0.7;
+const num = (v: string) => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
+const saleOf = (s: JmSkuRow) => (num(s.cost) + SHIP_FEE) / 0.8;
+const shipCostOf = (s: JmSkuRow) => (num(s.cost) + SHIP_FEE).toFixed(2);
+const salePriceOf = (s: JmSkuRow) => saleOf(s).toFixed(2);
+const profitOf = (s: JmSkuRow) => (saleOf(s) - num(s.cost) - SHIP_FEE).toFixed(2);
+const profitRateOf = (s: JmSkuRow) => `${(((saleOf(s) - num(s.cost) - SHIP_FEE) / saleOf(s)) * 100).toFixed(1)}%`;
 /* rowspan 合并 */
 const samePrefix = (a: JmSkuRow, b: JmSkuRow, di: number) => {
   for (let k = 0; k <= di; k++) {
@@ -423,13 +429,15 @@ onBeforeUnmount(() => {
                 <template v-for="(sp, di) in d.saleAttrs" :key="specIds[di]"><th v-if="sp.values.length">{{ sp.name || `规格${di + 1}` }}</th></template>
                 <th>组合</th>
                 <th>SKU名称</th>
-                <th>京东价</th>
-                <th>市场价</th>
+                <th>售价</th>
                 <th>库存</th>
                 <th>商品编码</th>
                 <th>系列编码</th>
                 <th>条码</th>
                 <th v-if="skuShow">成本价</th>
+                <th v-if="skuShow">出仓总成本</th>
+                <th v-if="skuShow">利润</th>
+                <th v-if="skuShow">利润率</th>
                 <th>状态</th>
                 <th>操作</th>
               </tr>
@@ -446,11 +454,7 @@ onBeforeUnmount(() => {
                   <input v-if="editing" v-model="s.skuName" class="cpd-cell-input cpd-cell-wide" />
                   <template v-else>{{ s.skuName }}</template>
                 </td>
-                <td>
-                  <span v-if="editing" class="cpd-cell-num"><input v-model="s.jdPrice" class="cpd-cell-input" /><i>元</i></span>
-                  <template v-else>¥{{ s.jdPrice }}</template>
-                </td>
-                <td>¥{{ s.marketPrice }}</td>
+                <td>¥{{ salePriceOf(s) }}</td>
                 <td>
                   <span v-if="editing" class="cpd-cell-num"><input v-model="s.stock" class="cpd-cell-input" /><i>件</i></span>
                   <template v-else>{{ s.stock }}</template>
@@ -458,17 +462,17 @@ onBeforeUnmount(() => {
                 <td><span class="cpd-code-outline">{{ s.outerId }}</span></td>
                 <td><span class="sgd-code">{{ s.series }}</span></td>
                 <td><span class="sgd-code">{{ s.upc }}</span></td>
-                <td v-if="skuShow">
-                  <span v-if="editing" class="cpd-cell-num"><input v-model="s.cost" class="cpd-cell-input" /><i>元</i></span>
-                  <template v-else>{{ s.cost ? `${s.cost} 元` : '0 元' }}</template>
-                </td>
+                <td v-if="skuShow">¥{{ s.cost }}</td>
+                <td v-if="skuShow">¥{{ shipCostOf(s) }}</td>
+                <td v-if="skuShow">¥{{ profitOf(s) }}</td>
+                <td v-if="skuShow">{{ profitRateOf(s) }}</td>
                 <td><span class="sgd-tag" :class="s.status === '上架' ? 'green' : 'gray'">{{ s.status }}</span></td>
                 <td class="cpd-row-ops">
                   <a href="#" @click.prevent>查看</a>
                   <a v-if="editing" class="danger" href="#" @click.prevent="askRemoveSku(s)">删除</a>
                 </td>
               </tr>
-              <tr v-if="jmSkus.length === 0"><td :colspan="(skuShow ? 14 : 13) + filledSpecCount" class="cpd-vsku-empty">—</td></tr>
+              <tr v-if="jmSkus.length === 0"><td :colspan="(skuShow ? 15 : 11) + filledSpecCount" class="cpd-vsku-empty">—</td></tr>
             </tbody>
           </table>
         </div>

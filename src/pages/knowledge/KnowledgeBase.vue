@@ -1,20 +1,45 @@
 <script setup lang="ts">
 /* 知识库：商品资料卡片化沉淀；首个页面「商品知识库」，卡片点击进详情抽屉（内部数据 + 编码素材 + 商品知识） */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import CascadeSelect from '../../components/CascadeSelect.vue';
 import { pushToast } from '../../components/toast';
 import KbCatSelect from './KbCatSelect.vue';
 import GoodsKbV2 from './GoodsKbV2.vue';
 import SceneConfigV2 from './SceneConfigV2.vue';
+import ConversationMining from './ConversationMining.vue';
+import SmartReplyRoute from './SmartReplyRoute.vue';
+import { kbV2Products } from './goodsKbV2Data';
+import { fbScenes } from './sceneConfigData';
+import type { RouteConfigTarget } from './replyRouteTypes';
 import PlatLogo from '../quality/PlatLogo.vue';
 import type { Platform } from '../quality/data';
 import { kbProducts, KB_IMAGE_TYPES, KB_ITEM_STATUS_META, KB_KNOWLEDGE_TYPES, KB_SCENE_GROUPS, KB_VIDEO_TYPES, type KbCode, type KbItem, type KbKnowledgeEntry, type KbMaterial, type KbProduct } from './data';
 import './Knowledge.css';
 
 /* 左侧导航视图切换：商品知识库 V2（商品范畴）/ 场景配置（非商品范畴兜底，已定版 V2 左右结构）；关联ID 为系列行钻取的二级列表页（非导航入口） */
-type KbView = 'base' | 'ids' | 'v2' | 'scene';
+type KbView = 'base' | 'ids' | 'v2' | 'scene' | 'mining' | 'reply-route';
 const kbView = ref<KbView>('v2');
+const goodsView = ref<InstanceType<typeof GoodsKbV2> | null>(null);
+const sceneView = ref<InstanceType<typeof SceneConfigV2> | null>(null);
+const openConfiguration = async (target: RouteConfigTarget) => {
+  if (target.kind === 'scene') {
+    const group = fbScenes.find((item) => item.subs.some((scene) => scene.id === target.id));
+    const scene = group?.subs.find((item) => item.id === target.id);
+    if (!group || !scene) { pushToast('该场景已删除或不可用', 'warning'); return; }
+    kbView.value = 'scene';
+    await nextTick();
+    await sceneView.value?.openScene(group, scene);
+  } else {
+    const product = kbV2Products.find((item) => item.id === target.productId);
+    const code = product?.codes.find((item) => item.code === target.code);
+    const entry = code?.knowledge.find((item) => item.id === target.id);
+    if (!product || !code || !entry) { pushToast('该商品知识已删除或不可用', 'warning'); return; }
+    kbView.value = 'v2';
+    await nextTick();
+    await goodsView.value?.openKnowledge(product, code, entry);
+  }
+};
 
 /* ---------- 条件查询模块：全部条件为草稿、「查询」统一生效；类目为三级级联多选 ---------- */
 const keyword = ref('');
@@ -477,6 +502,14 @@ const shownKnowledge = computed(() => (currentCode.value?.knowledge ?? []).filte
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3" /><path d="M1 14h6M9 8h6M17 16h6" /></svg>
           <span>场景配置</span>
         </div>
+        <div class="kb-nav-item" :class="{ active: kbView === 'mining' }" role="button" tabindex="0" @click="kbView = 'mining'" @keydown.enter="kbView = 'mining'" @keydown.space.prevent="kbView = 'mining'">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /><path d="M11 8v6M8 11h6" /></svg>
+          <span>会话挖掘</span>
+        </div>
+        <div class="kb-nav-item" :class="{ active: kbView === 'reply-route' }" role="button" tabindex="0" @click="kbView = 'reply-route'" @keydown.enter="kbView = 'reply-route'" @keydown.space.prevent="kbView = 'reply-route'">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="6" height="6" rx="1" /><rect x="15" y="15" width="6" height="6" rx="1" /><path d="M9 6h5a4 4 0 0 1 4 4v5M15 12l3 3 3-3M6 9v9h5" /></svg>
+          <span>智能回复路由</span>
+        </div>
       </nav>
     </aside>
 
@@ -779,10 +812,12 @@ const shownKnowledge = computed(() => (currentCode.value?.knowledge ?? []).filte
     </main>
 
     <!-- 商品知识库 V2：同构复刻 + 商品知识条目增补问法匹配三件套（独立数据源，与本页互不影响） -->
-    <GoodsKbV2 v-else-if="kbView === 'v2'" />
+    <GoodsKbV2 v-else-if="kbView === 'v2'" ref="goodsView" />
 
     <!-- 场景配置：非商品范畴咨询的兜底场景库（独立主区，共用左侧导航）；定版 V2 左右结构 -->
-    <SceneConfigV2 v-else-if="kbView === 'scene'" />
+    <SceneConfigV2 v-else-if="kbView === 'scene'" ref="sceneView" />
+    <ConversationMining v-else-if="kbView === 'mining'" />
+    <SmartReplyRoute v-else-if="kbView === 'reply-route'" @configuration="openConfiguration" />
 
     <!-- 详情：右置宽抽屉 + 暗幕（空白处点击 / Esc 关闭） -->
     <template v-if="detail">

@@ -20,7 +20,7 @@ type View = 'table' | 'strategy' | 'live';
 defineProps<{ sidebarCollapsed: boolean }>();
 
 /** 左侧一级菜单（未开放模块点击 toast 文案口径与线上一致） */
-const SIDE_TOP = ['概况', '基础数据', '智能回复'];
+const SIDE_TOP = ['首页', '基础数据', '智能回复'];
 const SIDE_BOTTOM = ['监控中心', '平台数据', '记录查询', '远程登录器', '系统配置', '绩效相关统计'];
 const JUHE_CHILDREN = ['绩效统计', '接待排名', '实时客服接待', '店铺分流统计'];
 

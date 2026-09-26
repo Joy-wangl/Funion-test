@@ -143,7 +143,6 @@ const onSpecDragOver = (i: number) => {
 const askRemoveSpec = (si: number) => {
   const sp = d.specs[si];
   askConfirm('删除规格', `删除规格「${sp.name || `规格${si + 1}`}」将同时删除其下全部属性值（${sp.values.length} 个），SKU 列表将按剩余规格重新生成，是否继续？`, () => {
-    const id = specIds.value[si];
     /* 清理 skuDeleted：移除含该规格维度 key，避免残留过滤新组合 */
     skuDeleted.value = skuDeleted.value.filter((k) => !k.split(' / ').some((v) => sp.values.includes(v)));
     d.specs.splice(si, 1);

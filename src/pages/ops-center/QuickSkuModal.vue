@@ -51,14 +51,16 @@ export const mkVal = (name: string, code: string, series: string, cost: string, 
 <script setup lang="ts">
 /** SKU 快捷编辑共享弹窗（千牛式）：商品创建列表单件/批量、店铺商品详情（视频号）共用；
  *  保留 SKU 全字段（图片/名称/商品编码/系列编码/成本价/售价/利润/利润率/库存数）＋操作（复制/删除）；
- *  属性配置＋属性值＋SKU 关联关系与商品详情保持一致：规格卡增删属性值（删值联动删 SKU 行），
- *  SKU 行按属性维度列展示关联值（BubbleSelect 可改），复制行同克隆关联关系；
+ *  批量态按商品分组展示：每件所选商品组首插商品头行（缩略图＋标题），组内为该商品各自的 SKU 行；
+ *  属性值管理下沉到 SKU 表：属性维度列 BubbleSelect 下拉内可改名/删除属性值（删值联动删 SKU 行，二次确认），
+ *  不再展示顶部属性配置模块；复制按属性勾选创建副本值（勾选数＝属性数−1，单层直接副本）；
  *  系列编码只读芯片（与商品详情 SKU 表同款 sgd-code 样式），编码失焦 mock 回查系列编码与成本价；
  *  保存仅 emit save，回写由父级按各自数据源处理。 */
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import Modal from '../../components/Modal.vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import { pushToast } from '../../components/toast';
+import { useAnchorPop } from '../../hooks/useAnchorPop';
 import { createDetail } from './data';
 import { sgJmDetail } from './shopGoodsData';
 /* 同 SFC 内普通 <script> 块导出的 numOf/sync×3/mkVal 与类型已合并入本作用域，setup 块直接引用无需自导入 */
@@ -72,7 +74,7 @@ const props = defineProps<{
   sub: string;
   /** 京麦口径：商家编码/京东价列名 */
   jm: boolean;
-  /** 属性配置（父级传入草稿态，组件内直接增删属性值）；空＝不展示属性区 */
+  /** 属性配置（父级传入草稿态）：决定属性维度列与下拉选项；组件内可改名/删除属性值；空＝无属性维度列 */
   specs?: QuickSpec[];
   /** 底部主按钮文案（默认「保存」；店铺商品场景为「立即修改」） */
   saveText?: string;
@@ -133,48 +135,139 @@ const codeBlur = (r: QuickDraftRow) => {
     syncPriceVal(r.val);
   });
 };
-/* 操作：复制＝当前行后插入值完全一致的 draft 行（src/vals 独立克隆，保存即新种子 SKU）；删除＝直接从 draft 移除 */
-const copyQuick = (i: number) => {
+/* 属性组合口径：按属性序拼接关联值（批量态混多件商品，需带商品标题隔离，避免跨商品误判重复） */
+const comboOf = (r: QuickDraftRow) => (props.specs ?? []).map((sp) => r.vals[sp.name] ?? '').join(' / ');
+const comboKey = (r: QuickDraftRow) => `${r.title}||${comboOf(r)}`;
+/* 重复组合：同商品下同一属性组合出现多行即冲突（复制行未改归属时必然命中），记录首行号供提示 */
+const dupInfo = computed(() => {
+  const res: { dup: boolean; first: number }[] = props.draft.map(() => ({ dup: false, first: -1 }));
+  if (!props.specs?.length) return res;
+  const seen = new Map<string, number[]>();
+  props.draft.forEach((r, i) => {
+    const arr = seen.get(comboKey(r)) ?? [];
+    arr.push(i);
+    seen.set(comboKey(r), arr);
+  });
+  for (const arr of seen.values()) {
+    if (arr.length < 2) continue;
+    for (const i of arr) res[i] = { dup: true, first: arr[0] };
+  }
+  return res;
+});
+const dupTip = (i: number) => `属性组合与第 ${dupInfo.value[i].first + 1} 行重复，保存前请调整归属`;
+/* 操作：复制按规格层数分流——
+   单层规格直接复制，规格值加「副本」后缀自成新的属性值（并入属性配置）；
+   多层规格（AB级）弹归属气泡勾选要创建副本的属性（勾选数＝属性数−1），副本值同样并入属性配置；
+   无规格直接克隆；新行 1.6s 高亮定位＋toast 回显新组合 */
+const flash = ref(-1);
+let flashTimer: ReturnType<typeof setTimeout> | null = null;
+const spawnCopy = (i: number, vals: Record<string, string>, comboText: string) => {
   const r = props.draft[i];
   if (!r) return;
-  props.draft.splice(i + 1, 0, { ...r, src: { ...r.src }, val: { ...r.val }, vals: { ...r.vals } });
+  props.draft.splice(i + 1, 0, { ...r, src: { ...r.src }, val: { ...r.val }, vals: { ...vals } });
+  flash.value = i + 1;
+  if (flashTimer) clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => { flash.value = -1; }, 1600);
+  pushToast(`已复制 SKU「${comboText}」`);
+};
+/* 副本属性值取名：源值＋「副本」，重名递增加序号 */
+const copyValName = (sp: QuickSpec, v: string) => {
+  let name = `${v}副本`;
+  for (let n = 2; sp.values.includes(name); n++) name = `${v}副本${n}`;
+  return name;
+};
+/* 复制归属气泡（多层规格）：锚定复制按钮；按属性（维度）勾选要创建副本的源值，
+   勾选数＝属性数−1（2 属性选 1、3 属性选 2），未勾维度沿用源值；副本值并入属性配置 */
+const copyPop = ref<{ row: number; dims: string[] } | null>(null);
+const { pos: copyPos, open: openCopyPop, close: closeCopyPop } = useAnchorPop();
+const copyQuick = (i: number, e: MouseEvent) => {
+  const r = props.draft[i];
+  if (!r) return;
+  const sps = props.specs ?? [];
+  if (sps.length === 1) {
+    const sp = sps[0];
+    const nv = copyValName(sp, r.vals[sp.name] ?? '');
+    sp.values.push(nv);
+    spawnCopy(i, { ...r.vals, [sp.name]: nv }, nv);
+    return;
+  }
+  if (!sps.length) {
+    spawnCopy(i, { ...r.vals }, r.val.name);
+    return;
+  }
+  copyPop.value = { row: i, dims: [] };
+  openCopyPop(e.currentTarget as HTMLElement, 260, '.cp-quick-copypop');
+};
+const toggleCopyDim = (name: string) => {
+  const cp = copyPop.value;
+  if (!cp) return;
+  const at = cp.dims.indexOf(name);
+  if (at >= 0) cp.dims.splice(at, 1);
+  else cp.dims.push(name);
+};
+const confirmCopy = () => {
+  const cp = copyPop.value;
+  if (!cp) return;
+  const src = props.draft[cp.row];
+  if (!src) return;
+  const sps = props.specs ?? [];
+  const need = sps.length - 1;
+  if (cp.dims.length !== need) {
+    pushToast(`请选择 ${need} 个属性创建副本`, 'warning');
+    return;
+  }
+  const vals = { ...src.vals };
+  for (const name of cp.dims) {
+    const sp = sps.find((s) => s.name === name);
+    if (!sp) continue;
+    const nv = copyValName(sp, src.vals[name] ?? '');
+    sp.values.push(nv);
+    vals[name] = nv;
+  }
+  closeCopyPop();
+  spawnCopy(cp.row, vals, sps.map((s) => vals[s.name] ?? '').join(' / '));
 };
 const deleteQuick = (i: number) => {
   props.draft.splice(i, 1);
 };
-/* 属性配置（同详情规格卡）：新增属性值（失焦/回车提交）；删除属性值联动删除含该值的 SKU 行 */
-const addVals = ref<Record<number, string>>({});
-const addSpecValue = (si: number) => {
-  const sp = props.specs?.[si];
-  const v = (addVals.value[si] ?? '').trim();
-  addVals.value[si] = '';
-  if (!sp || !v || sp.values.includes(v)) return;
-  sp.values.push(v);
-};
-const removeSpecValue = (si: number, v: string) => {
-  const sp = props.specs?.[si];
-  if (!sp) return;
-  sp.values = sp.values.filter((x) => x !== v);
-  for (let i = props.draft.length - 1; i >= 0; i--) {
-    if (props.draft[i].vals[sp.name] === v) props.draft.splice(i, 1);
+/* 保存守卫：存在重复属性组合时拦截并指明冲突行，避免写出同组合的多条 SKU */
+const onSave = () => {
+  const bad = dupInfo.value.findIndex((d, i) => d.dup && d.first !== i);
+  if (bad >= 0) {
+    pushToast(`第 ${bad + 1} 行与第 ${dupInfo.value[bad].first + 1} 行属性组合重复，请调整后再保存`, 'error');
+    return;
   }
+  emit('save');
+};
+/* 属性值行内改名（SKU 表下拉内铅笔）：同步属性配置与所有 SKU 行的关联值 */
+const renameSpecVal = (sp: QuickSpec, oldV: string, newV: string) => {
+  if (sp.values.includes(newV)) {
+    pushToast(`属性值「${newV}」已存在`, 'error');
+    return;
+  }
+  sp.values = sp.values.map((v) => (v === oldV ? newV : v));
+  for (const r of props.draft) if (r.vals[sp.name] === oldV) r.vals[sp.name] = newV;
+};
+/* 属性值删除（SKU 表下拉内垃圾桶）：二次确认后移除属性值并联动删除含该值的 SKU 行 */
+const delBox = ref<{ sp: QuickSpec; value: string } | null>(null);
+const delRowCount = computed(() => {
+  const b = delBox.value;
+  return b ? props.draft.filter((r) => r.vals[b.sp.name] === b.value).length : 0;
+});
+const doDeleteVal = () => {
+  const b = delBox.value;
+  if (!b) return;
+  b.sp.values = b.sp.values.filter((x) => x !== b.value);
+  for (let i = props.draft.length - 1; i >= 0; i--) {
+    if (props.draft[i].vals[b.sp.name] === b.value) props.draft.splice(i, 1);
+  }
+  delBox.value = null;
 };
 </script>
 
 <template>
   <div class="pm-page pm-host">
     <Modal :title="batch ? '批量编辑商品' : '快捷编辑SKU'" :sub="sub" size="xl" @close="emit('close')">
-      <!-- 属性配置：与商品详情规格卡同构（属性名＋属性值芯片增删）；删属性值联动删含该值的 SKU 行 -->
-      <div v-if="specs?.length" class="cp-quick-specs">
-        <div v-for="(sp, si) in specs" :key="sp.name" class="cpd-spec-card">
-          <div class="cpd-spec-head"><span class="cpd-vspec-name">{{ sp.name }}</span></div>
-          <div class="cpd-vspec-vals">
-            <span v-for="v in sp.values" :key="v" class="cpd-vspec-chip">{{ v }}<i title="删除该属性值" @click="removeSpecValue(si, v)">×</i></span>
-            <span v-if="sp.values.length === 0" class="cpd-vsku-empty">—</span>
-            <input v-model="addVals[si]" class="cpd-val-add" placeholder="输入属性值，点击空白处保存" @blur="addSpecValue(si)" @keyup.enter="addSpecValue(si)" />
-          </div>
-        </div>
-      </div>
       <table class="cp-quick-table">
         <thead>
           <tr>
@@ -212,11 +305,25 @@ const removeSpecValue = (si: number, v: string) => {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(r, i) in draft" :key="i">
+          <template v-for="(r, i) in draft" :key="i">
+            <!-- 批量态按商品分组：组首插入商品头行（缩略图＋标题），组内行为该商品的 SKU -->
+            <tr v-if="batch && (i === 0 || draft[i - 1].title !== r.title || draft[i - 1].thumb !== r.thumb)" class="cp-quick-group" :class="{ 'cp-quick-sep': i > 0 }">
+              <td :colspan="10 + (specs?.length ?? 0)"><span class="cp-quick-group-cell"><img class="cp-quick-img" :src="r.thumb" alt="" /><span class="cp-quick-group-title">{{ r.title }}</span></span></td>
+            </tr>
+            <tr :class="{ 'cp-quick-dup': dupInfo[i].dup, 'cp-quick-flash': flash === i }">
             <td><img class="cp-quick-img" :src="r.thumb" alt="" /></td>
-            <!-- SKU 关联属性值：按属性维度列展示，BubbleSelect 可改（复制后改关联即闭环） -->
-            <td v-for="sp in specs ?? []" :key="sp.name">
-              <BubbleSelect class-name="sg-select" :options="sp.values" :value="r.vals[sp.name] ?? ''" @change="(v: string) => (r.vals[sp.name] = v)" />
+            <!-- SKU 关联属性值：按属性维度列展示；下拉内可改名/删除该属性值（替代顶部属性配置模块）；重复组合红框＋行号提示 -->
+            <td v-for="sp in specs ?? []" :key="sp.name" :class="{ 'cp-quick-dup': dupInfo[i].dup }" :title="dupInfo[i].dup ? dupTip(i) : undefined">
+              <BubbleSelect
+                class-name="sg-select"
+                :options="sp.values"
+                :value="r.vals[sp.name] ?? ''"
+                renamable
+                deletable
+                @change="(v: string) => (r.vals[sp.name] = v)"
+                @rename="(o: string, n: string) => renameSpecVal(sp, o, n)"
+                @delete="(v: string) => (delBox = { sp, value: v })"
+              />
             </td>
             <td><input v-model="r.val.name" class="ib-input" /></td>
             <td><input v-model="r.val.code" class="ib-input" @blur="codeBlur(r)" /></td>
@@ -228,16 +335,52 @@ const removeSpecValue = (si: number, v: string) => {
             <td class="cp-quick-rate"><input v-model="r.val.rate" class="ib-input" @input="syncRateVal(r.val)" /><span class="cp-quick-rate-suf">%</span></td>
             <td><input v-model="r.val.stock" class="ib-input" /></td>
             <td class="cp-quick-ops">
-              <button type="button" class="cp-quick-op" @click="copyQuick(i)">复制</button>
+              <button type="button" class="cp-quick-op" @click="copyQuick(i, $event)">复制</button>
               <button type="button" class="cp-quick-op danger" @click="deleteQuick(i)">删除</button>
             </td>
-          </tr>
+            </tr>
+          </template>
         </tbody>
       </table>
       <template #foot>
         <button class="sg-btn" @click="emit('close')">取消</button>
-        <button class="sg-btn primary" @click="emit('save')">{{ saveText || '保存' }}</button>
+        <button class="sg-btn primary" @click="onSave">{{ saveText || '保存' }}</button>
       </template>
     </Modal>
+    <!-- 复制归属气泡（多层规格）：逐属性勾选要创建副本的源值（勾选数＝属性数−1），副本值预览在芯片内 -->
+    <Teleport to="body">
+      <div
+        v-if="copyPop && copyPos"
+        class="add-pop cp-quick-copypop"
+        :style="{ left: `${copyPos.x}px`, top: `${copyPos.y}px` }"
+        @mousedown.stop
+      >
+        <div v-for="sp in specs ?? []" :key="sp.name" class="cp-quick-poprow">
+          <span class="cp-quick-popname">{{ sp.name }}</span>
+          <button
+            type="button"
+            class="cp-quick-popchip"
+            :class="{ on: copyPop.dims.includes(sp.name) }"
+            @click="toggleCopyDim(sp.name)"
+          >{{ draft[copyPop.row]?.vals[sp.name] }} → {{ copyValName(sp, draft[copyPop.row]?.vals[sp.name] ?? '') }}</button>
+        </div>
+        <div class="cp-quick-popfoot">
+          <button type="button" class="sg-btn primary" @click="confirmCopy">复制</button>
+        </div>
+      </div>
+    </Teleport>
+    <!-- 删除属性值二次确认：联动删除含该值的 SKU 行，属不可逆操作 -->
+    <Teleport to="body">
+      <div v-if="delBox" class="mk-create-mask mk-confirm-mask" @click.self="delBox = null">
+        <div class="mk-confirm-modal">
+          <div class="mk-confirm-head">删除属性值</div>
+          <div class="mk-confirm-body">删除「{{ delBox.value }}」将同时删除 {{ delRowCount }} 个关联 SKU 行，确认删除？</div>
+          <div class="mk-confirm-foot">
+            <button class="sg-btn" @click="delBox = null">取消</button>
+            <button class="sg-btn danger" @click="doDeleteVal">确认删除</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>

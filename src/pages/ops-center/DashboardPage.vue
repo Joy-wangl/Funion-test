@@ -311,15 +311,20 @@ const trendKpi = computed(() => (trendMetric.value ? kpiItems.find((k) => k.metr
 /* 弹窗左侧对比指标选项源：当前可见的 KPI 卡片列表 */
 const visibleKpis = computed(() => kpiItems.filter((k) => selectedMetrics.value.includes(k.metric)).map((k) => ({ metric: k.metric, value: k.value })));
 
-/* ----- 列表模式：平台×店铺维度矩阵（行=平台店铺，列=指标选择） ----- */
-/* 平台×店铺维度行：与亏损/缺货表组合词汇同源（原型口径平台与店铺为独立维度） */
-const DIM_PAIRS: { platform: string; shop: string }[] = [
-  { platform: '淘宝C店', shop: '快乐小店-佰得小站' },
-  { platform: '淘宝C店', shop: '抖音小店-BB丽居佳/健身弹专区' },
-  { platform: '淘宝C店', shop: '拼多多-阿涛弄弄' },
-  { platform: '视频号', shop: '快乐小店-佰得小站' },
-  { platform: '视频号', shop: '快乐小店-歪歪轩' },
-  { platform: '视频号', shop: '拼多多-朝妮优选的小百货' },
+/* ----- 列表模式：维度切换（平台/店铺/主管/组长/运营/助理）× 指标列矩阵 ----- */
+/* 行维度选项卡：店铺=平台×店铺行；平台=平台汇总行（含店铺数）；人维度=人×平台汇总行 */
+const DIM_TABS = ['平台', '店铺', '主管', '组长', '运营', '助理'] as const;
+type DimTab = (typeof DIM_TABS)[number];
+const dimTab = ref<DimTab>('店铺');
+/* 店铺组织关系：平台/店铺 → 主管/组长/运营/助理（人员与筛选下拉选项同源） */
+interface DimOrg { platform: string; shop: string; manager: string; leader: string; operator: string; assistant: string }
+const DIM_ORG: DimOrg[] = [
+  { platform: '淘宝C店', shop: '快乐小店-佰得小站', manager: '黄亚芳', leader: '李四', operator: '陈鑫', assistant: '小陈' },
+  { platform: '淘宝C店', shop: '抖音小店-BB丽居佳/健身弹专区', manager: '黄亚芳', leader: '李四', operator: '小李', assistant: '小吴' },
+  { platform: '淘宝C店', shop: '拼多多-阿涛弄弄', manager: '周梦琪', leader: '王五', operator: '小周', assistant: '小林' },
+  { platform: '视频号', shop: '快乐小店-佰得小站', manager: '周梦琪', leader: '王五', operator: '陈鑫', assistant: '小陈' },
+  { platform: '视频号', shop: '快乐小店-歪歪轩', manager: '张三', leader: '赵六', operator: '小李', assistant: '小吴' },
+  { platform: '视频号', shop: '拼多多-朝妮优选的小百货', manager: '张三', leader: '赵六', operator: '小周', assistant: '小林' },
 ];
 /* 维度单元格取值：按行哈希确定性拆分卡片基准值（率类指标围绕基准浮动） */
 function dimSeed(s: string) {
@@ -327,10 +332,11 @@ function dimSeed(s: string) {
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 997;
   return h;
 }
-const dimValue = (platform: string, shop: string, metric: string, base: number) => {
+/* 单店铺原始值（未格式化）：率类围绕基准浮动，数值类按确定性份额拆分 */
+const dimRawValue = (platform: string, shop: string, metric: string, base: number) => {
   const seed = dimSeed(`${platform}::${shop}::${metric}`);
   const share = isRateMetric(metric) ? 0.75 + (seed % 50) / 100 : 0.18 + (seed % 60) / 100;
-  return formatChartValue(metric, base * share);
+  return base * share;
 };
 /* 列表模式排序：指标列点击 降→升→取消（取消后回维度默认序，同概览页排序语言） */
 const listSort = ref<{ key: string; dir: 'asc' | 'desc' } | null>(null);
@@ -340,23 +346,50 @@ const toggleListSort = (key: string) => {
   else listSort.value = null;
 };
 const listSortState = (key: string): 'none' | 'asc' | 'desc' => (listSort.value?.key === key ? listSort.value.dir : 'none');
-/* 排序量级归一：支持万字单位（如 546.33万） */
-const sortNum = (txt: string) => {
-  const n = parseNumberText(txt);
-  return txt.trim().endsWith('万') ? n * 10000 : n;
-};
-/* 列表模式为店铺行粒度，店铺数恒为 1 无对比意义：按用户要求不展示该列 */
+/* 店铺行粒度时店铺数恒为 1 无对比意义：按用户要求不作为指标列 */
 const dimCols = computed(() => kpiItems.filter((k) => selectedMetrics.value.includes(k.metric) && k.metric !== '店铺数'));
-const dimRows = computed(() =>
-  DIM_PAIRS.map((p) => ({
-    platform: p.platform,
-    shop: p.shop,
-    cells: dimCols.value.map((k) => {
-      const text = dimValue(p.platform, p.shop, k.metric, parseNumberText(k.value));
-      return { metric: k.metric, text, num: sortNum(text) };
-    }),
-  })),
-);
+/* 维度列固定全量（用户定案：切维度不丢字段）：平台/店铺/主管/组长/运营/助理 六列常驻，选项卡只切行粒度 */
+const DIM_FIELDS = [
+  { label: '平台', field: 'platform' },
+  { label: '店铺', field: 'shop' },
+  { label: '主管', field: 'manager' },
+  { label: '组长', field: 'leader' },
+  { label: '运营', field: 'operator' },
+  { label: '助理', field: 'assistant' },
+] as const;
+type DimFieldKey = (typeof DIM_FIELDS)[number]['field'];
+/* 汇总行维度格：组内取值去重以顿号罗列（单值直接显示），不做纯计数 */
+const dimCellText = (members: DimOrg[], field: DimFieldKey) => [...new Set(members.map((m) => m[field]))].join('、');
+/* 汇总行指标：成员店铺数值求和，率类取均值（与店铺行同一取数口径，保证下钻一致；单店铺组求和/均值即其本身） */
+interface DimRow { key: string; dimCells: string[]; cells: { metric: string; text: string; num: number }[] }
+const aggCells = (members: DimOrg[]) =>
+  dimCols.value.map((k) => {
+    const raws = members.map((m) => dimRawValue(m.platform, m.shop, k.metric, parseNumberText(k.value)));
+    const num = raws.reduce((a, b) => a + b, 0) / (isRateMetric(k.metric) ? raws.length : 1);
+    return { metric: k.metric, text: formatChartValue(k.metric, num), num };
+  });
+const dimRows = computed<DimRow[]>(() => {
+  let groups: { gk: string; members: DimOrg[] }[];
+  if (dimTab.value === '店铺') {
+    groups = DIM_ORG.map((o) => ({ gk: `${o.platform}::${o.shop}`, members: [o] }));
+  } else if (dimTab.value === '平台') {
+    groups = [...new Set(DIM_ORG.map((o) => o.platform))].map((p) => ({ gk: p, members: DIM_ORG.filter((o) => o.platform === p) }));
+  } else {
+    const field = (DIM_FIELDS.find((f) => f.label === dimTab.value) as { field: DimFieldKey }).field;
+    const map = new Map<string, DimOrg[]>();
+    for (const o of DIM_ORG) {
+      const gk = `${o[field]}::${o.platform}`;
+      const arr = map.get(gk);
+      if (arr) arr.push(o); else map.set(gk, [o]);
+    }
+    groups = [...map.entries()].map(([gk, members]) => ({ gk, members }));
+  }
+  return groups.map(({ gk, members }) => ({
+    key: gk,
+    dimCells: DIM_FIELDS.map((f) => dimCellText(members, f.field)),
+    cells: aggCells(members),
+  }));
+});
 const visibleDimRows = computed(() => {
   const rows = dimRows.value.slice();
   if (!listSort.value) return rows;
@@ -621,6 +654,19 @@ const visibleDimRows = computed(() => {
           if (v) viewMode = v;
         }"
       />
+      <!-- 维度切换选项卡：平台/店铺/主管/组长/运营/助理，仅列表模式存在，只切行粒度、维度六列常驻 -->
+      <div v-if="viewMode === '列表模式'" class="dash-dim-seg">
+        <button
+          v-for="t in DIM_TABS"
+          :key="t"
+          type="button"
+          class="dash-dim-seg-item"
+          :class="dimTab === t ? 'active' : ''"
+          @click="dimTab = t"
+        >
+          {{ t }}
+        </button>
+      </div>
       <BubbleSelect
         class-name="platformSelect"
         default-value="平台"
@@ -697,21 +743,31 @@ const visibleDimRows = computed(() => {
     </div>
   </div>
 
-  <!-- 列表模式：平台×店铺维度矩阵，列跟随指标选择，指标列可排序 -->
+  <!-- 列表模式：维度六列（常驻不丢字段）× 指标列矩阵，行粒度随选项卡切换，指标列跟随指标选择、可排序 -->
   <div v-else-if="viewMode === '列表模式'" class="list-card">
     <div class="dash-dim-wrap">
       <table class="list-table dash-dim-table">
         <thead>
           <tr>
-            <th class="dim-c-plat">平台</th>
-            <th class="dim-c-shop">店铺</th>
+            <th
+              v-for="f in DIM_FIELDS"
+              :key="f.label"
+              :class="f.label === '平台' ? 'dim-c-plat' : f.label === '店铺' ? 'dim-c-shop' : 'dim-c-org'"
+            >
+              {{ f.label }}
+            </th>
             <SortTh v-for="k in dimCols" :key="k.metric" :label="k.metric" :state="listSortState(k.metric)" @sort="toggleListSort(k.metric)" />
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in visibleDimRows" :key="`${row.platform}::${row.shop}`">
-            <td class="dim-c-plat">{{ row.platform }}</td>
-            <td class="dim-c-shop">{{ row.shop }}</td>
+          <tr v-for="row in visibleDimRows" :key="row.key">
+            <td
+              v-for="(c, i) in row.dimCells"
+              :key="i"
+              :class="DIM_FIELDS[i].label === '平台' ? 'dim-c-plat' : DIM_FIELDS[i].label === '店铺' ? 'dim-c-shop' : 'dim-c-org'"
+            >
+              {{ c }}
+            </td>
             <td v-for="c in row.cells" :key="c.metric">{{ c.text }}</td>
           </tr>
         </tbody>

@@ -29,17 +29,11 @@ const visibleSubs = computed(() => {
   return cur.value.subs.filter((s) => fStage.value === '全部' || !s.conds.sceneStages.length || s.conds.sceneStages.includes(fStage.value));
 });
 
-/* 左卡 chip 点选：切类型 + 右栏卡片滚动定位并闪标 */
-const flashId = ref('');
-let flashTimer: number | undefined;
-const pickSub = (g: FbScene, s: FbSub) => {
-  cur.value = g;
-  flashId.value = s.id;
-  window.clearTimeout(flashTimer);
-  nextTick(() => {
-    document.querySelector(`.sc2-sub-card[data-id="${s.id}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  });
-  flashTimer = window.setTimeout(() => { flashId.value = ''; }, 1200);
+/* 左卡阶段覆盖：聚合类型下全部细分场景的 sceneStages（售前/售中/售后），按规范序输出；无覆盖=不限 */
+const groupStages = (g: FbScene) => {
+  const set = new Set<string>();
+  g.subs.forEach((s) => s.conds.sceneStages.forEach((st) => set.add(st)));
+  return SC_SCENE_STAGES.filter((st) => set.has(st));
 };
 
 /* ---------- 配置抽屉（共享组件）：cfgScene=null 新建态（归属预填当前类型），非空=编辑态 ---------- */
@@ -47,6 +41,20 @@ const cfgOpen = ref(false);
 const cfgScene = ref<FbSub | null>(null);
 const openCreate = () => { cfgScene.value = null; cfgOpen.value = true; };
 const openEdit = (s: FbSub) => { cfgScene.value = s; cfgOpen.value = true; };
+const typeCards = ref<HTMLElement | null>(null);
+const sceneCards = ref<HTMLElement | null>(null);
+const openScene = async (group: FbScene, scene: FbSub) => {
+  fKw.value = '';
+  fStage.value = '全部';
+  cur.value = group;
+  await nextTick();
+  typeCards.value?.querySelector('.sc2-type-card.active')?.scrollIntoView({ block: 'nearest' });
+  const card = Array.from(sceneCards.value?.querySelectorAll<HTMLElement>('[data-scene-id]') ?? [])
+    .find((element) => element.dataset.sceneId === scene.id);
+  card?.scrollIntoView({ block: 'nearest' });
+  card?.querySelector<HTMLAnchorElement>('.sc2-sc-ops .kb-link')?.focus({ preventScroll: true });
+};
+defineExpose({ openScene });
 
 /* ---------- 启停 / 删除：细分场景级；系统默认兜底不可停用/删除 ---------- */
 const toggleScene = (s: FbSub) => {
@@ -93,7 +101,7 @@ const onEsc = (e: KeyboardEvent) => {
   if (confirmBox.value) confirmBox.value = null;
 };
 onMounted(() => window.addEventListener('keydown', onEsc));
-onBeforeUnmount(() => { window.removeEventListener('keydown', onEsc); window.clearTimeout(flashTimer); });
+onBeforeUnmount(() => window.removeEventListener('keydown', onEsc));
 </script>
 
 <template>
@@ -110,9 +118,9 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onEsc); window.cle
       <aside class="sc2-rail">
         <div class="sc2-rail-head">
           <input v-model="fKw" class="kb-input" placeholder="搜索场景类型 / 创建人">
-          <button class="kb-btn" type="button" @click="openTypeCreate">新建类型</button>
+          <button class="sc2-add-type" type="button" title="新建类型" aria-label="新建类型" @click="openTypeCreate">＋</button>
         </div>
-        <div class="sc2-rail-list">
+        <div ref="typeCards" class="sc2-rail-list">
           <div
             v-for="g in visibleTypes" :key="g.id"
             class="sc2-type-card" :class="{ active: cur?.id === g.id }"
@@ -125,12 +133,8 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onEsc); window.cle
             </div>
             <p v-if="g.semDef" class="sc2-tc-def" :title="g.semDef">{{ g.semDef }}</p>
             <div class="sc2-tc-chips">
-              <button
-                v-for="s in g.subs.slice(0, 4)" :key="s.id" type="button"
-                class="sc2-chip" :class="{ off: !s.enabled }" :title="s.name"
-                @click.stop="pickSub(g, s)"
-              >{{ s.name }}</button>
-              <span v-if="g.subs.length > 4" class="sc2-chip more">+{{ g.subs.length - 4 }}</span>
+              <em v-for="st in groupStages(g)" :key="st" class="sc2-stage" :class="st">{{ st }}</em>
+              <span v-if="g.subs.length && !groupStages(g).length" class="sc2-stage 不限">不限</span>
               <span v-if="!g.subs.length" class="sc2-tc-empty">暂无场景</span>
             </div>
           </div>
@@ -162,11 +166,10 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onEsc); window.cle
               @click="fStage = f"
             >{{ f }}</button>
           </div>
-          <div class="sc2-cards">
+          <div ref="sceneCards" class="sc2-cards">
             <section
-              v-for="s in visibleSubs" :key="s.id"
-              class="sc2-sub-card" :class="{ off: !s.enabled, flash: flashId === s.id }"
-              :data-id="s.id"
+              v-for="s in visibleSubs" :key="s.id" :data-scene-id="s.id"
+              class="sc2-sub-card" :class="{ off: !s.enabled }"
             >
               <div class="sc2-sc-head">
                 <b :title="s.name">{{ s.name }}</b>
@@ -184,7 +187,7 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onEsc); window.cle
                 </div>
               </div>
               <div class="sc2-sc-meta">
-                <em v-if="s.conds.sceneStages.length" class="sc2-stage" :title="`场景阶段：${s.conds.sceneStages.join('/')}`">{{ s.conds.sceneStages.join('/') }}</em>
+                <em v-for="st in s.conds.sceneStages" :key="st" class="sc2-stage" :class="st" :title="`场景阶段：${st}`">{{ st }}</em>
                 <span class="sc2-act">{{ s.act }}</span>
                 <i>命中 {{ s.hits }}</i>
                 <i>引用 {{ s.refs }}</i>

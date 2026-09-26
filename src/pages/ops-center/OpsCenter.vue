@@ -28,6 +28,7 @@ import OpsGroupManagement from '../permission/OpsGroupManagement.vue';
 import DataImport from '../permission/DataImport.vue';
 import ReviewAppealPage from './ReviewAppealPage.vue';
 import CodeKbMaterial from '../code-kb/CodeKbMaterial.vue';
+import VideoStudio from '../code-kb/VideoStudio.vue';
 
 type PageKey =
   | 'dashboard'
@@ -54,7 +55,8 @@ type PageKey =
   | 'dataImport'
   | 'aiAssistant'
   | 'reviewAppeal'
-  | 'codeKbMaterial';
+  | 'codeKbMaterial'
+  | 'videoStudio';
 
 /** 智能运营中心外壳：侧边栏 + 页面切换（与 preview.html 行为一致） */
 /* 收起状态仅本模块内生效并独立持久化，不影响其他顶部 tab 的侧边栏 */
@@ -152,7 +154,7 @@ const railMenus: Record<string, { title: string; subs: RailSub[] }> = {
   aiAssistant: { title: 'AI助手', subs: [{ name: 'AI助手', target: 'aiAssistant' }] },
   automation: { title: '自动化中心', subs: [{ name: '视频号自动化', target: 'move' }] },
   appeal: { title: '申诉中心', subs: [{ name: '评价申诉', target: 'reviewAppeal' }] },
-  codeKb: { title: '系列编码知识库', subs: [{ name: '系列编码素材库', target: 'codeKbMaterial' }] },
+  codeKb: { title: '系列编码知识库', subs: [{ name: '系列编码素材库', target: 'codeKbMaterial' }, { name: '素材中心', target: 'videoStudio' }] },
   permission: { title: '设置', subs: permItems.map((p) => ({ name: p.name, target: p.target })) },
 };
 const railPop = ref<{ key: string; x: number; y: number } | null>(null);
@@ -286,8 +288,11 @@ const onMsgJump = (id: string) => {
             <span class="nav-arrow">▶</span>
           </div>
           <div class="subnav-wrap" :class="codeKbOpen ? 'show' : ''">
-            <div class="subnav" :class="active === 'codeKbMaterial' ? 'active' : ''" @click.stop="onSubnav('codeKbMaterial', 'codeKbMaterial')">
+            <div class="subnav" :class="page === 'codeKbMaterial' ? 'active' : ''" @click.stop="onSubnav('codeKbMaterial', 'codeKbMaterial')">
               系列编码素材库
+            </div>
+            <div class="subnav" :class="page === 'videoStudio' ? 'active' : ''" @click.stop="onSubnav('videoStudio', 'videoStudio')">
+              素材中心
             </div>
           </div>
           <div class="nav nav-parent" :class="permissionOpen ? 'open' : ''" @click.stop="toggleGroup('permission')" @mouseenter="railEnter('permission', $event)" @mouseleave="railLeave()">
@@ -424,6 +429,9 @@ const onMsgJump = (id: string) => {
           </section>
           <section :class="pageCls('codeKbMaterial')">
             <CodeKbMaterial />
+          </section>
+          <section :class="pageCls('videoStudio')">
+            <VideoStudio />
           </section>
         </div>
         </main>

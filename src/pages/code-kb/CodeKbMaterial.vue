@@ -107,7 +107,10 @@ const expandSections = computed(() =>
     list: materialsOfProduct(curId.value!).filter((m) => m.type === t).sort((a, b) => b.sales - a.sales),
   })).filter((s) => s.list.length > 0));
 const VIEW_OPTIONS = ['按推荐', '全部素材'];
-const onViewChange = (v: string) => { drawerMode.value = v === '按推荐' ? 'top' : 'all'; curId.value = null; };
+const onViewChange = (v: string) => {
+  drawerMode.value = v === '按推荐' ? 'top' : 'all';
+  curId.value = null;
+};
 /* 全部素材工具：商品名称搜索（隐藏式：默认仅图标，点击展开输入框）＋销量升/降序 */
 const idKw = ref('');
 const idSearchOpen = ref(false);
@@ -133,6 +136,7 @@ const closePreview = () => { pvList.value = []; pvIdx.value = 0; pvZoom.value = 
 const stepPv = (v: number) => { const n = pvList.value.length; pvIdx.value = (pvIdx.value + v + n) % n; pvZoom.value = 1; };
 const pvZoomBy = (d: number) => { pvZoom.value = Math.min(3, Math.max(0.5, +(pvZoom.value + d).toFixed(2))); };
 const onPvKey = (e: KeyboardEvent) => {
+  if (!previewOpen.value) return;
   if (e.key === 'Escape') closePreview();
   else if (e.key === 'ArrowLeft') stepPv(-1);
   else if (e.key === 'ArrowRight') stepPv(1);
@@ -247,7 +251,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onPvKey));
                 <button class="cb-ttab" :class="curType === '全部' ? 'on' : ''" @click="curType = '全部'">全部</button>
                 <button v-for="t in typesWithData" :key="t" class="cb-ttab" :class="curType === t ? 'on' : ''" @click="curType = t">{{ t }}</button>
               </div>
-              <div v-else class="cb-idtools">
+              <div v-else-if="drawerMode === 'all'" class="cb-idtools">
                 <!-- 隐藏式搜索：默认仅图标；展开后图标收入输入框内右侧 -->
                 <div v-if="idSearchOpen" class="cb-idsearchwrap">
                   <input ref="idSearchRef" class="cb-idsearch" :value="idKw" placeholder="搜索商品名称" @input="idKw = ($event.target as HTMLInputElement).value" />
@@ -302,7 +306,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onPvKey));
             </template>
 
             <!-- 模式二：全部素材＝编码关联的商品ID堆叠卡，点击展开该ID素材 -->
-            <template v-else>
+            <template v-else-if="drawerMode === 'all'">
               <div class="cb-idgrid">
                 <template v-for="p in idCards" :key="p.id">
                   <div class="cb-idcard" :class="curId === p.id ? 'on' : ''" @click="curId = curId === p.id ? null : p.id">

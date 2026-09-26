@@ -51,8 +51,10 @@ const props = defineProps<{
   creatable?: boolean;
   /** 可改名：选项 hover 尾部出铅笔，点击切换行内输入行，回车/确认抛 rename(old, new)（同步范围由使用方决定） */
   renamable?: boolean;
+  /** 可删除：选项 hover 尾部出垃圾桶，点击抛 delete(value)（联动范围由使用方决定） */
+  deletable?: boolean;
 }>();
-const emit = defineEmits<{ (e: 'change', value: string): void; (e: 'rename', oldValue: string, newValue: string): void }>();
+const emit = defineEmits<{ (e: 'change', value: string): void; (e: 'rename', oldValue: string, newValue: string): void; (e: 'delete', value: string): void }>();
 
 const norm = (o: string | BubbleOption): BubbleOption =>
   typeof o === 'string' ? { value: o, label: o } : o;
@@ -269,6 +271,9 @@ const onSearchEnter = () => {
             <span class="bselect-label" :style="o.color ? { color: o.color } : undefined">{{ o.label }}</span>
             <span v-if="renamable && !o.disabled" class="bselect-rename" title="修改类型" @click.stop="startRename(o)">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.83 2.83 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
+            </span>
+            <span v-if="deletable && !o.disabled" class="bselect-del" title="删除该选项" @click.stop="emit('delete', o.value)">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
             </span>
           </template>
         </div>

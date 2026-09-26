@@ -79,6 +79,8 @@ export interface FbSub {
   act: FbAct;
   /** AI 回复提示语：处置为智能回复时引导 AI 如何生成回复 */
   aiPrompt: string;
+  /** 回复话术：处置为致歉引导时直接发出的固定话术 */
+  replyScript: string;
   /** 近30日兜底命中次数 */
   hits: number;
   /** 创建人：二级列表字段 */
@@ -141,7 +143,7 @@ export interface FbScene {
 const sub = (
   id: string, name: string, questions: string[], kws: string[],
   act: FbAct, hits: number, opt: Partial<FbSub> = {},
-): FbSub => ({ id, name, questions, kws, conds: defaultConds(), act, hits, enabled: true, creator: '黄亚芳', createdAt: '2026-07-12', refs: 0, aiPrompt: '用亲切自然的语气回答客户，控制在 100 字内', ...opt });
+): FbSub => ({ id, name, questions, kws, conds: defaultConds(), act, hits, enabled: true, creator: '黄亚芳', createdAt: '2026-07-12', refs: 0, aiPrompt: '用亲切自然的语气回答客户，控制在 100 字内', replyScript: '', ...opt });
 
 export const fbScenes = reactive<FbScene[]>([
   {
@@ -174,7 +176,7 @@ export const fbScenes = reactive<FbScene[]>([
   {
     id: 'FS05', name: '通用兜底', condDef: defaultTypeDef(), semDef: '问候寒暄、无关话题及全部未识别咨询的兜底承接', questions: ['你好', '在吗'], creator: '张三', createdAt: '2026-08-02', subs: [
       sub('FB10', '问候寒暄', ['你好', '在吗', '有人吗'], [], '智能回复', 95, { creator: '张三', createdAt: '2026-08-02', refs: 4 }),
-      sub('FB11', '无关话题', ['你们老板是谁', '今天天气真好'], [], '致歉引导', 27, { creator: '张三', createdAt: '2026-08-03' }),
+      sub('FB11', '无关话题', ['你们老板是谁', '今天天气真好'], [], '致歉引导', 27, { creator: '张三', createdAt: '2026-08-03', replyScript: '抱歉，这个问题我还没学习到。有关商品、订单或售后的问题，随时问我哦' }),
       sub('FB12', '未识别兜底', ['（承接全部未识别咨询）'], [], '转人工', 143, { creator: '系统', createdAt: '2026-06-30', refs: 12, system: true }),
     ],
   },
