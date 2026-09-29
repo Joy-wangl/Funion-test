@@ -3,7 +3,7 @@
 export type QuickVal = { name: string; code: string; series: string; cost: string; price: string; stock: string; profit: string; rate: string };
 /** 属性配置维度（与商品详情 specs 同构）：属性名＋属性值清单 */
 export type QuickSpec = { name: string; values: string[] };
-export type QuickDraftRow = { thumb: string; title: string; jm: boolean; src: Record<string, string>; qcode: string; val: QuickVal; /** SKU 关联的属性值（属性名→值） */ vals: Record<string, string> };
+export type QuickDraftRow = { thumb: string; title: string; jm: boolean; src: Record<string, string>; qcode: string; val: QuickVal; /** SKU 关联的属性值（属性名→值） */ vals: Record<string, string>; /** 所属商品详情数据（保存时按它分组回写，与详情页同源） */ own?: Record<string, any> };
 export const numOf = (v: string) => {
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : NaN;
@@ -176,6 +176,12 @@ const copyValName = (sp: QuickSpec, v: string) => {
   for (let n = 2; sp.values.includes(name); n++) name = `${v}副本${n}`;
   return name;
 };
+/* 副本值插在源值之后：详情 SKU 表按属性值序生成组合，副本行紧跟被复制的那条 */
+const insertCopyVal = (sp: QuickSpec, srcVal: string, nv: string) => {
+  const at = sp.values.indexOf(srcVal);
+  if (at >= 0) sp.values.splice(at + 1, 0, nv);
+  else sp.values.push(nv);
+};
 /* 复制归属气泡（多层规格）：锚定复制按钮；按属性（维度）勾选要创建副本的源值，
    勾选数＝属性数−1（2 属性选 1、3 属性选 2），未勾维度沿用源值；副本值并入属性配置 */
 const copyPop = ref<{ row: number; dims: string[] } | null>(null);
@@ -186,8 +192,9 @@ const copyQuick = (i: number, e: MouseEvent) => {
   const sps = props.specs ?? [];
   if (sps.length === 1) {
     const sp = sps[0];
-    const nv = copyValName(sp, r.vals[sp.name] ?? '');
-    sp.values.push(nv);
+    const sv = r.vals[sp.name] ?? '';
+    const nv = copyValName(sp, sv);
+    insertCopyVal(sp, sv, nv);
     spawnCopy(i, { ...r.vals, [sp.name]: nv }, nv);
     return;
   }
@@ -220,8 +227,9 @@ const confirmCopy = () => {
   for (const name of cp.dims) {
     const sp = sps.find((s) => s.name === name);
     if (!sp) continue;
-    const nv = copyValName(sp, src.vals[name] ?? '');
-    sp.values.push(nv);
+    const sv = src.vals[name] ?? '';
+    const nv = copyValName(sp, sv);
+    insertCopyVal(sp, sv, nv);
     vals[name] = nv;
   }
   closeCopyPop();

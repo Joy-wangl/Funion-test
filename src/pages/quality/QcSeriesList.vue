@@ -16,6 +16,18 @@ export type SeriesFilter = {
   tags: string[];
   tagHealth: string;
   tagJudge: string;
+  /** 线上壳：组别 / 运维人员归属筛选 */
+  group: string;
+  operator: string;
+  /** 线上壳：数值区间（空串 = 不限），订单量/退款率(%)/售后单/聊天风险 */
+  ordersMin: string;
+  ordersMax: string;
+  rateMin: string;
+  rateMax: string;
+  asMin: string;
+  asMax: string;
+  crMin: string;
+  crMax: string;
 };
 
 export const DEFAULT_SERIES_FILTER: SeriesFilter = {
@@ -29,6 +41,16 @@ export const DEFAULT_SERIES_FILTER: SeriesFilter = {
   tags: [],
   tagHealth: '全部等级',
   tagJudge: '全部方式',
+  group: '全部组别',
+  operator: '全部运维',
+  ordersMin: '',
+  ordersMax: '',
+  rateMin: '',
+  rateMax: '',
+  asMin: '',
+  asMax: '',
+  crMin: '',
+  crMax: '',
 };
 </script>
 
@@ -36,6 +58,7 @@ export const DEFAULT_SERIES_FILTER: SeriesFilter = {
 /* ---------- 系列编码列表 ---------- */
 import { computed, ref, watch } from 'vue';
 import {
+  PROBLEM_DEPT,
   QC_DEPTS,
   QC_PLATFORMS,
   QC_PROBLEM_TYPES,
@@ -45,6 +68,8 @@ import {
   type QcCenterSeries,
 } from './qcCenterData';
 import { JUDGE_LABEL, QC2_CATS, qc2Labels } from '../quality2/qc2Data';
+import { ONLINE_GROUPS, ONLINE_OPERATORS } from './qcOnlineData';
+import { pushToast } from '../../components/toast';
 import type { Platform, PlatformStat } from './data';
 import type { OptTask } from './qcOptData';
 import BubbleSelect from '../../components/BubbleSelect.vue';
@@ -72,6 +97,8 @@ const props = defineProps<{
   onCreateOpt: (s: QcCenterSeries) => void;
   /** 品控-线上壳：无标签筛选/标签列，列序对齐线上，启用分页 */
   online?: boolean;
+  /** 品控-线上：已生效的问题涉及部门；命中类型/部门列按该部门收敛展示 */
+  scopeDept?: string;
 }>();
 
 const expanded = ref<Set<string>>(new Set());
@@ -84,6 +111,17 @@ const toggle = (key: string) => {
 
 const sortState = (key: SortKey): 'none' | 'desc' | 'asc' =>
   props.sortKey !== key ? 'none' : props.sortDesc ? 'desc' : 'asc';
+
+/* 问题涉及部门联动（线上壳）：问题类型下拉仅列该部门负责类型，行命中类型/部门列按该部门收敛 */
+const typesOfDept = (d: string) => QC_PROBLEM_TYPES.filter((t) => PROBLEM_DEPT[t] === d);
+const typeOptions = computed(() => (!props.online || props.draft.dept === '全部部门'
+  ? ['全部类型', ...QC_PROBLEM_TYPES]
+  : ['全部类型', ...typesOfDept(props.draft.dept)]));
+const onDeptChange = (v: string) => {
+  const stale = props.online && v !== '全部部门' && props.draft.type !== '全部类型' && !typesOfDept(v).includes(props.draft.type);
+  props.onDraft(stale ? { dept: v, type: '全部类型' } : { dept: v });
+};
+const rowScope = computed(() => (props.online && props.scopeDept && props.scopeDept !== '全部部门' ? props.scopeDept : undefined));
 
 /* 标签级联多选选项：一级 = 大类（可勾选），二级 = 启用中标签（可单独勾选） */
 const tagGroups = computed(() => QC2_CATS.map((cat) => ({
@@ -161,15 +199,55 @@ watch(page, (v) => { jumpVal.value = String(v); });
       </div>
       <div class="sg-field">
         <label>问题类型</label>
-        <BubbleSelect class-name="sg-select" :value="draft.type" :options="['全部类型', ...QC_PROBLEM_TYPES]" @change="(v: string) => props.onDraft({ type: v })" />
+        <BubbleSelect class-name="sg-select" :value="draft.type" :options="typeOptions" @change="(v: string) => props.onDraft({ type: v })" />
       </div>
       <div class="sg-field">
         <label>问题涉及部门</label>
-        <BubbleSelect class-name="sg-select" :value="draft.dept" :options="['全部部门', ...QC_DEPTS]" @change="(v: string) => props.onDraft({ dept: v })" />
+        <BubbleSelect class-name="sg-select" :value="draft.dept" :options="['全部部门', ...QC_DEPTS]" @change="onDeptChange" />
       </div>
       <div class="sg-field">
         <label>责任部门</label>
         <BubbleSelect class-name="sg-select" :value="draft.duty" :options="['全部部门', ...QC_DEPTS]" @change="(v: string) => props.onDraft({ duty: v })" />
+      </div>
+      <div v-if="online" class="sg-field">
+        <label>组别</label>
+        <BubbleSelect class-name="sg-select" :value="draft.group" :options="['全部组别', ...ONLINE_GROUPS]" @change="(v: string) => props.onDraft({ group: v })" />
+      </div>
+      <div v-if="online" class="sg-field">
+        <label>运维人员</label>
+        <BubbleSelect class-name="sg-select" :value="draft.operator" :options="['全部运维', ...ONLINE_OPERATORS]" @change="(v: string) => props.onDraft({ operator: v })" />
+      </div>
+      <div v-if="online" class="sg-field">
+        <label>订单量</label>
+        <span class="qc-numpair">
+          <input class="sg-input" placeholder="最小" :value="draft.ordersMin" @input="props.onDraft({ ordersMin: ($event.target as HTMLInputElement).value })">
+          <i>~</i>
+          <input class="sg-input" placeholder="最大" :value="draft.ordersMax" @input="props.onDraft({ ordersMax: ($event.target as HTMLInputElement).value })">
+        </span>
+      </div>
+      <div v-if="online" class="sg-field">
+        <label>退款率（%）</label>
+        <span class="qc-numpair">
+          <input class="sg-input" placeholder="最小" :value="draft.rateMin" @input="props.onDraft({ rateMin: ($event.target as HTMLInputElement).value })">
+          <i>~</i>
+          <input class="sg-input" placeholder="最大" :value="draft.rateMax" @input="props.onDraft({ rateMax: ($event.target as HTMLInputElement).value })">
+        </span>
+      </div>
+      <div v-if="online" class="sg-field">
+        <label>售后单</label>
+        <span class="qc-numpair">
+          <input class="sg-input" placeholder="最小" :value="draft.asMin" @input="props.onDraft({ asMin: ($event.target as HTMLInputElement).value })">
+          <i>~</i>
+          <input class="sg-input" placeholder="最大" :value="draft.asMax" @input="props.onDraft({ asMax: ($event.target as HTMLInputElement).value })">
+        </span>
+      </div>
+      <div v-if="online" class="sg-field">
+        <label>聊天风险</label>
+        <span class="qc-numpair">
+          <input class="sg-input" placeholder="最小" :value="draft.crMin" @input="props.onDraft({ crMin: ($event.target as HTMLInputElement).value })">
+          <i>~</i>
+          <input class="sg-input" placeholder="最大" :value="draft.crMax" @input="props.onDraft({ crMax: ($event.target as HTMLInputElement).value })">
+        </span>
       </div>
       <div class="sg-field">
         <label>时间范围</label>
@@ -185,6 +263,12 @@ watch(page, (v) => { jumpVal.value = String(v); });
         <QcDateRangePicker :custom="draft.custom" :on-change="(d) => props.onDraft({ custom: d })" />
       </div>
       <div class="sg-field-actions">
+        <button v-if="online" class="sg-btn" @click="pushToast('已下载导入模板，上传后自动解析')">
+          导入
+        </button>
+        <button v-if="online" class="sg-btn" @click="pushToast(`已导出 ${props.series.length} 条系列数据`)">
+          导出
+        </button>
         <button class="sg-btn" @click="props.onReset">
           重置
         </button>
@@ -200,6 +284,8 @@ watch(page, (v) => { jumpVal.value = String(v); });
         <tr>
           <th style="width: 40px" />
           <th>系列编码</th>
+          <th v-if="online">组别</th>
+          <th v-if="online">运维人员</th>
           <SortTh label="订单量" align="right" :state="sortState('orders')" @sort="props.onToggleSort('orders')" />
           <SortTh label="退款率" :state="sortState('refundRate')" @sort="props.onToggleSort('refundRate')" />
           <SortTh label="售后单" :state="sortState('afterSales')" @sort="props.onToggleSort('afterSales')" />
@@ -232,6 +318,7 @@ watch(page, (v) => { jumpVal.value = String(v); });
             :opt-count="optTasks.filter((t) => t.seriesCode === s.seriesCode).length"
             :on-create-opt="() => props.onCreateOpt(s)"
             :online="online"
+            :scope-dept="rowScope"
           />
         </template>
         <tr v-if="rows.length === 0">

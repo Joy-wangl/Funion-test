@@ -1,3 +1,5 @@
+import { reactive } from 'vue';
+
 /**
  * 编码知识库 Demo 种子数据（重构版）
  * 血缘方向：系列编码 → 关联商品ID → 商品ID 下的素材（主图/详情图/SKU图/白底图/视频）
@@ -172,6 +174,9 @@ export const cbSeriesMap: Record<string, CbSeries> = Object.fromEntries(cbSeries
 export const cbProductMap: Record<string, CbProduct> = Object.fromEntries(cbProducts.map((p) => [p.id, p]));
 export const cbMaterialMap: Record<string, CbMaterial> = Object.fromEntries(cbMaterials.map((m) => [m.id, m]));
 
+/* 不再推荐：人工剔除出销量 TOP 推荐池（素材库推荐视图与发布选用 TOP 榜共用口径） */
+export const cbNotRec = reactive(new Set<string>());
+
 export const productsOfSeries = (seriesId: string) => cbProducts.filter((p) => p.seriesId === seriesId);
 export const materialsOfProduct = (productId: string) => cbMaterials.filter((m) => m.productId === productId);
 /* 系列编码聚合素材：其下所有商品的素材 */
@@ -181,7 +186,7 @@ export const materialsOfSeries = (seriesId: string) =>
 /** 发布推荐：系列编码下按素材贡献销量 TOP N（仅推荐「生效」素材） */
 export const topMaterialsOfSeries = (seriesId: string, n = 10) =>
   materialsOfSeries(seriesId)
-    .filter((m) => m.status === '生效')
+    .filter((m) => m.status === '生效' && !cbNotRec.has(m.id))
     .sort((a, b) => b.sales - a.sales)
     .slice(0, n);
 
@@ -209,7 +214,7 @@ export const totalSalesOfSeries = (seriesId: string) =>
 /** 按类型的销量 TOP N 推荐（仅「生效」素材） */
 export const topMaterialsByType = (seriesId: string, type: MaterialType, n = 10) =>
   materialsOfSeries(seriesId)
-    .filter((m) => m.status === '生效' && m.type === type)
+    .filter((m) => m.status === '生效' && m.type === type && !cbNotRec.has(m.id))
     .sort((a, b) => b.sales - a.sales)
     .slice(0, n);
 

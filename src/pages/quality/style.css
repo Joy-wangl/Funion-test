@@ -53,9 +53,18 @@
 .qc-page .qc-nav.active { background: #eef3ff; color: #4f7cff; font-weight: 700; }
 .qc-page .qc-nav-ico { width: 18px; flex: 0 0 18px; text-align: center; }
 .qc-page .qc-nav-text { flex: 1; min-width: 0; }
-/* 品控-线上壳：侧栏菜单无图标 · 文本居中（还原线上版形态） */
-.qc-page .qc-side.qcon-side .qc-nav { justify-content: center; }
-.qc-page .qc-side.qcon-side .qc-nav-text { flex: 0 0 auto; }
+/* 品控-线上壳：侧栏图标化 + 权限管理分组（父级+子导航） */
+.qc-page .qcon-side .qc-nav-ico { width: 16px; flex: 0 0 16px; display: inline-flex; align-items: center; justify-content: center; }
+.qc-page .qcon-side .qc-nav-ico svg { display: block; }
+.qc-page .qc-nav-parent.child { background: transparent; color: #4f7cff; }
+.qc-page .qc-nav-parent.child .qc-nav-ico,
+.qc-page .qc-nav-parent.child .qc-nav-arrow { color: #4f7cff; }
+.qc-page .qc-nav-arrow { margin-left: auto; display: inline-flex; color: #9aa1ae; transition: transform .18s; }
+.qc-page .qc-nav-arrow.open { transform: rotate(90deg); }
+.qc-page .qc-subnav-wrap { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 6px; }
+.qc-page .qc-nav.qc-subnav { min-height: 40px; padding: 10px 12px; border-radius: 8px; font-size: 13.5px; color: #6b7280; margin: 0; justify-content: center; }
+.qc-page .qc-nav.qc-subnav .qc-nav-text { flex: 0 0 auto; }
+.qc-page .qc-nav.qc-subnav.active { background: #eef3ff; color: #4f7cff; font-weight: 500; }
 .qc-page .qc-badge {
   min-width: 20px;
   padding: 0 6px;
@@ -709,6 +718,24 @@
 .qc-page .b-toggle { margin-bottom: 8px; }
 .qc-page .b-toggle a { font-size: 12px; color: var(--primary); cursor: pointer; }
 .qc-page .b-toggle a:hover { opacity: .8; }
+/* 会话子问题下钻 chips：全部 + 各子问题（带命中数），点选过滤气泡 */
+.qc-page .b-subs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.qc-page .b-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #f2f3f5;
+  color: #445066;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.qc-page .b-sub b { font-weight: 600; color: #8b92a1; }
+.qc-page .b-sub:hover { background: #e8eaee; }
+.qc-page .b-sub.on { background: #eef4ff; color: #4f7cff; }
+.qc-page .b-sub.on b { color: #4f7cff; }
 /* 长会话内部滚动，避免擑爆页面 */
 .qc-page .b-list { max-height: 340px; overflow-y: auto; padding-right: 4px; }
 

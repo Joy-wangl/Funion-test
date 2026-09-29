@@ -5,6 +5,7 @@ import DateRangePicker from '../../components/DateRangePicker.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
 import Modal from '../../components/Modal.vue';
 import MoreActions from '../../components/MoreActions.vue';
+import SortTh from '../../components/SortTh.vue';
 import { pushToast } from '../../components/toast';
 import { MV_KINDS, MV_METHODS, MV_STATUSES, mvRunSummary, mvShopOf, mvShops, mvStatusDot, type MvTask, type MvTaskStatus } from './moveData';
 import ColFieldPop from './ColFieldPop.vue';
@@ -40,17 +41,34 @@ const applied = ref({ ...emptyFilter });
 const doSearch = () => { applied.value = { ...filter.value } };
 const doReset = () => { filter.value = { ...emptyFilter }; applied.value = { ...emptyFilter } };
 
-const rows = computed(() => props.tasks.filter((t) => {
-  if (chip.value !== '全部' && t.status !== chip.value) return false;
-  if (applied.value.name && !t.name.includes(applied.value.name) && !t.id.includes(applied.value.name)) return false;
-  if (applied.value.kind !== '全部' && t.kind !== applied.value.kind) return false;
-  if (applied.value.method !== '全部' && t.method !== applied.value.method) return false;
-  if (applied.value.shop !== '全部' && ![...t.shopIds, ...(t.targetShopIds ?? [])].some((id) => mvShopOf(id)?.name === applied.value.shop)) return false;
-  if (applied.value.creator && !t.creator.includes(applied.value.creator)) return false;
-  if (applied.value.dateFrom && t.createdAt < applied.value.dateFrom) return false;
-  if (applied.value.dateTo && t.createdAt > applied.value.dateTo + ' 23:59:59') return false;
-  return true;
-}));
+const rows = computed(() => {
+  const out = props.tasks.filter((t) => {
+    if (chip.value !== '全部' && t.status !== chip.value) return false;
+    if (applied.value.name && !t.name.includes(applied.value.name) && !t.id.includes(applied.value.name)) return false;
+    if (applied.value.kind !== '全部' && t.kind !== applied.value.kind) return false;
+    if (applied.value.method !== '全部' && t.method !== applied.value.method) return false;
+    if (applied.value.shop !== '全部' && ![...t.shopIds, ...(t.targetShopIds ?? [])].some((id) => mvShopOf(id)?.name === applied.value.shop)) return false;
+    if (applied.value.creator && !t.creator.includes(applied.value.creator)) return false;
+    if (applied.value.dateFrom && t.createdAt < applied.value.dateFrom) return false;
+    if (applied.value.dateTo && t.createdAt > applied.value.dateTo + ' 23:59:59') return false;
+    return true;
+  });
+  /* 创建信息列按创建时间排序（点击循环 降序 → 升序 → 取消） */
+  if (sortDir.value !== 'none') {
+    const dir = sortDir.value === 'asc' ? 1 : -1;
+    return [...out].sort((a, b) => a.createdAt.localeCompare(b.createdAt) * dir);
+  }
+  return out;
+});
+
+/* 排序状态：单列（创建时间）激活，点击循环 desc → asc → 取消 */
+const sortDir = ref<'none' | 'asc' | 'desc'>('none');
+const onSort = () => {
+  if (sortDir.value === 'none') sortDir.value = 'desc';
+  else if (sortDir.value === 'desc') sortDir.value = 'asc';
+  else sortDir.value = 'none';
+};
+const sortState = () => sortDir.value;
 
 /* 徽章口径：方式 3 形态 / 状态 4 态；任务类型改纯文字入「任务类型」列 */
 const methodBadge = (m: MvTask['method']) => (m === '循环' ? 'badge-gray' : m === '条件触发' ? 'badge-orange' : 'badge-green');
@@ -138,7 +156,8 @@ const confirmDel = () => {
           <thead>
             <tr>
               <template v-for="c in midCols" :key="c.key">
-                <th :style="{ width: `${c.width}px` }">{{ c.label }}</th>
+                <SortTh v-if="c.key === 'created'" :label="c.label" :width="`${c.width}px`" :state="sortState()" @sort="onSort" />
+                <th v-else :style="{ width: `${c.width}px` }">{{ c.label }}</th>
               </template>
               <th :style="{ width: '130px' }">操作</th>
             </tr>

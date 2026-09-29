@@ -173,6 +173,7 @@ const noneText = computed(() => (selCode.value
             :orders="AFTER_SALES_ORDERS.filter((o) => o.sessionId === s.id).map((o) => o.id)"
             :on-full-screen="() => (fullId = s.id)"
             :on-update-hits="props.onUpdateHits"
+            :show-sub="online"
           />
         </div>
       </template>
@@ -228,5 +229,6 @@ const noneText = computed(() => (selCode.value
     :on-nav="(id: string) => (fullId = id)"
     :on-close="() => (fullId = null)"
     :on-update-hits="props.onUpdateHits"
+    :show-sub="online"
   />
 </template>

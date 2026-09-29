@@ -136,6 +136,8 @@
   transition: border-color 0.15s;
 }
 .ops-center .mv-cond-val:focus-within { border-color: #a9bcff; }
+/* 最大数量值控件：复用 mv-cond-val 规格的定宽短盒 */
+.ops-center .mv-maxqty { flex: none; width: 160px; }
 .ops-center .mv-cond-val input {
   flex: 1;
   min-width: 0;

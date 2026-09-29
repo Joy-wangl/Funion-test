@@ -12,6 +12,8 @@ const props = defineProps<{
   /** 提供时全屏交给父级（支持同编码会话切换 / 命中修改闭环） */
   onFullScreen?: () => void;
   onUpdateHits?: (id: string, hits: ChatHit[]) => void;
+  /** 品控-线上：气泡展示二级子问题下钻 */
+  showSub?: boolean;
 }>();
 
 const open = ref(false);
@@ -42,7 +44,7 @@ const cur = computed<ChatSession>(() => (props.onUpdateHits ? props.s : { ...pro
         <span class="s-expand" @click.stop="onFullScreen ? onFullScreen() : (full = true)">全屏查看 ↗</span>
       </span>
     </div>
-    <SessionBubbles v-if="open" :s="cur" />
+    <SessionBubbles v-if="open" :s="cur" :show-sub="showSub" />
     <ChatFullModal
       v-if="full && !onFullScreen"
       :sessions="[cur]"
@@ -50,6 +52,7 @@ const cur = computed<ChatSession>(() => (props.onUpdateHits ? props.s : { ...pro
       :on-nav="() => {}"
       :on-close="() => (full = false)"
       :on-update-hits="(_id: string, h: ChatHit[]) => (localHits = h)"
+      :show-sub="showSub"
     />
   </div>
 </template>

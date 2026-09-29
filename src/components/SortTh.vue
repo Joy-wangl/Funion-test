@@ -2,7 +2,7 @@
 /** 全局列表排序表头：点击切换升/降序，激活方向三角高亮（所有列表排序统一使用） */
 withDefaults(
   defineProps<{
-    label: string;
+    label?: string;
     state?: 'none' | 'asc' | 'desc';
     align?: 'left' | 'right' | 'center';
     width?: string;
@@ -10,7 +10,7 @@ withDefaults(
     /** 渲染标签：默认 th 独立成列；span 用于合并列内嵌排序头 */
     as?: 'th' | 'span';
   }>(),
-  { state: 'none', align: 'left', tip: '点击排序', as: 'th' },
+  { label: '', state: 'none', align: 'left', tip: '点击排序', as: 'th' },
 );
 defineEmits<{ (e: 'sort'): void }>();
 </script>

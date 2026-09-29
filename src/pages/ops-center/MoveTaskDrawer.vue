@@ -21,6 +21,13 @@ const METHOD_LABELS = MV_METHODS.map((md) => METHOD_LABEL[md]);
 const name = ref(m?.name ?? '');
 const kind = ref<MvKind>(m?.kind ?? '自动搬家');
 const source = ref<MvSource>(m?.source ?? '内部商机');
+/* 最大数量（仅自动发品）：0-999，输入实时夹取，清空失焦回落 0 */
+const maxQty = ref(String(m?.maxQty ?? 999));
+const setMaxQtyInput = (v: string) => {
+  const digits = v.replace(/\D/g, '');
+  maxQty.value = digits === '' ? '' : String(Math.min(999, Number(digits)));
+};
+const blurMaxQty = () => { if (maxQty.value === '' || !Number.isFinite(Number(maxQty.value))) maxQty.value = '0'; };
 const method = ref<MvMethod>(m?.method ?? '循环');
 const setMethod = (v: string) => { method.value = MV_METHODS.find((md) => METHOD_LABEL[md] === v) ?? '循环'; };
 /* 循环配置动态结构：每天=几点；每周=周几+几点；每月=几号+几点 */
@@ -214,9 +221,9 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocDown));
 /* 选店铺纯任务维度，置于任务类型与执行方式之间：自动搬家=被搬店铺、自动下架=关联店铺，统一芯片回显+加号弹窗多选 */
 const shopIds = ref<string[]>(m ? [...m.shopIds] : []);
 const removeShop = (id: string) => { shopIds.value = shopIds.value.filter((x) => x !== id); };
-/* 自动搬家第二步：先下拉选发布策略（复用商品策略枚举），再选发布店铺（多选，芯片回显+弹窗选择） */
-const MV_STRATEGY_OPTIONS = PUB_STRATEGIES.map((s) => s.name);
-const strategy = ref(m?.strategy ?? MV_STRATEGY_OPTIONS[0]);
+/* 自动搬家第二步：先下拉选发布策略（复用商品策略枚举，「不使用策略发布」置顶供免策略直发），再选发布店铺（多选，芯片回显+弹窗选择） */
+const MV_STRATEGY_OPTIONS = ['不使用策略发布', ...PUB_STRATEGIES.map((s) => s.name)];
+const strategy = ref(m?.strategy ?? PUB_STRATEGIES[0].name);
 const targetIds = ref<string[]>(m?.targetShopIds ? [...m.targetShopIds] : []);
 const removeTarget = (id: string) => { targetIds.value = targetIds.value.filter((x) => x !== id); };
 /* 选店弹窗（被搬/目标共用）：多选暂存 + 搜索，确认后落回芯片行；第一版仅视频号 */
@@ -264,6 +271,10 @@ const validConfig = (needShops: boolean) => {
   if (!name.value.trim()) { pushToast('请输入任务名称', 'error'); return false; }
   if (method.value === '循环' && !cycleTime.value.trim()) { pushToast('请填写循环执行时间', 'error'); return false; }
   if (method.value === '一次性' && !execTimeValid.value) { pushToast('请选择执行时间', 'error'); return false; }
+  if (kind.value === '自动发品') {
+    const q = Number(maxQty.value);
+    if (maxQty.value.trim() === '' || !Number.isFinite(q) || q < 0 || q > 999) { pushToast('最大数量需在 0-999 之间', 'error'); return false; }
+  }
   if (!condValid.value) { pushToast('请完整填写条件配置（阈值与日期范围均需填写）', 'error'); return false; }
   if (needShops && kind.value !== '自动发品' && shopIds.value.length === 0) { pushToast(kind.value === '自动搬家' ? '请至少选择一个被搬店铺' : '请至少选择一个关联店铺', 'error'); return false; }
   return true;
@@ -305,6 +316,7 @@ const save = () => {
     method: method.value,
     strategy: kind.value === '自动搬家' ? strategy.value : undefined,
     source: kind.value === '自动发品' ? source.value : undefined,
+    maxQty: kind.value === '自动发品' ? Number(maxQty.value) : undefined,
     cycle: method.value === '循环' ? cycle.value : undefined,
     cycleDay: method.value === '循环' && cycle.value !== '每天' ? cycleDay.value : undefined,
     cycleTime: method.value === '循环' ? cycleTime.value.trim() : undefined,
@@ -422,6 +434,14 @@ const save = () => {
               </div>
             </template>
           </template>
+          <!-- 最大数量：仅自动发品，单次发品上限 0-999 -->
+          <div v-if="kind === '自动发品'" class="sg-field">
+            <label>最大数量<span class="mv-req">*</span></label>
+            <div class="mv-cond-val mv-maxqty">
+              <input :value="maxQty" inputmode="numeric" placeholder="0-999" @input="setMaxQtyInput(($event.target as HTMLInputElement).value)" @blur="blurMaxQty" />
+              <span class="mv-cond-unit">件</span>
+            </div>
+          </div>
           <div class="sg-field">
             <label>条件配置<span class="mv-req">*</span></label>
             <div class="mv-cond-rows">

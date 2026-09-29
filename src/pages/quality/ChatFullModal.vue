@@ -12,6 +12,8 @@ const props = defineProps<{
   onNav: (id: string) => void;
   onClose: () => void;
   onUpdateHits: (id: string, hits: ChatHit[]) => void;
+  /** 品控-线上：会话气泡展示二级子问题下钻 */
+  showSub?: boolean;
 }>();
 
 const s = computed(() => props.sessions.find((x) => x.id === props.currentId));
@@ -82,7 +84,7 @@ const addable = computed(() => QC_PROBLEM_TYPES.filter((t) => !types.value.inclu
         </span>
       </div>
       <div class="chat-modal-body">
-        <SessionBubbles :s="s" />
+        <SessionBubbles :s="s" :show-sub="showSub" />
       </div>
       <div class="chat-modal-foot">
         <div class="cm-nav">

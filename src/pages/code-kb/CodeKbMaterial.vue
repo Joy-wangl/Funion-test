@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
+import SortTh from '../../components/SortTh.vue';
+import { pushToast } from '../../components/toast';
 import {
   cbSeries,
+  cbNotRec,
   productsOfSeries, materialsOfProduct, materialsOfSeries,
   distinctIdCountOfSeries,
   materialTypeCountsOfSeries, materialCountOfSeries,
@@ -42,13 +45,41 @@ const allRows = computed<SeriesRow[]>(() => cbSeries.map((s) => ({
   totalSales: totalSalesOfSeries(s.id),
   counts: materialTypeCountsOfSeries(s.id),
 })));
-const rows = computed(() => allRows.value.filter((r) => {
-  const f = applied.value;
-  if (f.kw) { const k = f.kw.trim().toLowerCase(); if (!(r.s.id.toLowerCase().includes(k) || r.s.name.toLowerCase().includes(k))) return false; }
-  if (f.category && r.s.category !== f.category) return false;
-  if (f.status && r.s.status !== f.status) return false;
-  return true;
-}));
+const rows = computed(() => {
+  const out = allRows.value.filter((r) => {
+    const f = applied.value;
+    if (f.kw) { const k = f.kw.trim().toLowerCase(); if (!(r.s.id.toLowerCase().includes(k) || r.s.name.toLowerCase().includes(k))) return false; }
+    if (f.category && r.s.category !== f.category) return false;
+    if (f.status && r.s.status !== f.status) return false;
+    return true;
+  });
+  /* 列头排序：关联ID数量 / ID总销量 / 各素材类型计数（数值比较） */
+  const k = sortKey.value;
+  if (k && sortDir.value !== 'none') {
+    const dir = sortDir.value === 'asc' ? 1 : -1;
+    const val = (r: SeriesRow) => (k === 'distinctId' ? r.distinctId : k === 'totalSales' ? r.totalSales : r.counts[k as MaterialType] || 0);
+    return [...out].sort((a, b) => (val(a) - val(b)) * dir);
+  }
+  return out;
+});
+
+/* 排序状态：单列激活（含动态素材类型列），点击循环 desc → asc → 取消 */
+const sortKey = ref<string>('');
+const sortDir = ref<'none' | 'asc' | 'desc'>('none');
+const onSort = (k: string) => {
+  if (sortKey.value !== k) {
+    sortKey.value = k;
+    sortDir.value = 'desc';
+  } else if (sortDir.value === 'desc') {
+    sortDir.value = 'asc';
+  } else if (sortDir.value === 'asc') {
+    sortKey.value = '';
+    sortDir.value = 'none';
+  } else {
+    sortDir.value = 'desc';
+  }
+};
+const sortState = (k: string) => (sortKey.value === k ? sortDir.value : 'none');
 
 /* ---------- 列表分页 ---------- */
 const page = ref(1);
@@ -85,10 +116,24 @@ const codeCounts = computed<Record<string, number>>(() => {
 });
 watch(drawer, () => { curCode.value = '全部'; curId.value = null; });
 
-/* 按类型 TOP10（当前编码下销量最高的十张推荐，仅生效素材） */
-const topOf = (t: MaterialType) => codeMaterials.value.filter((m) => m.type === t && m.status === '生效').slice(0, 10);
+/* 按类型 TOP10（当前编码下销量最高的十张推荐，仅生效且未被「不再推荐」剔除的素材） */
+const topOf = (t: MaterialType) => codeMaterials.value.filter((m) => m.type === t && m.status === '生效' && !cbNotRec.has(m.id)).slice(0, 10);
 const typesWithData = computed<MaterialType[]>(() =>
   drawer.value ? MATERIAL_TYPES.filter((t) => (codeCounts.value[t] || 0) > 0) : []);
+
+/* 不再推荐：移除类操作，悬浮气泡点击后先二次确认，确认后剔除出销量 TOP 推荐池 */
+const confirmBox = ref<{ title: string; message: string; onOk: () => void } | null>(null);
+const doConfirm = () => { confirmBox.value?.onOk(); confirmBox.value = null; };
+const askNoRec = (m: CbMaterial) => {
+  confirmBox.value = {
+    title: '不再推荐',
+    message: `确认不再推荐「${m.name}」？确认后该素材将从销量 TOP 推荐中移除`,
+    onOk: () => {
+      cbNotRec.add(m.id);
+      pushToast(`已不再推荐「${m.name}」`);
+    },
+  };
+};
 
 /* 全部素材：编码关联的商品ID（堆叠卡）＋点击展开该ID素材按类型分组 */
 const curId = ref<string | null>(null);
@@ -184,9 +229,9 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onPvKey));
           <thead>
             <tr>
               <th style="width: 120px">系列编码</th>
-              <th style="width: 100px">关联ID数量</th>
-              <th style="width: 100px">ID总销量</th>
-              <th v-for="t in MATERIAL_TYPES" :key="t" style="width: 72px" class="cb-th-type">{{ t }}</th>
+              <SortTh label="关联ID数量" width="100px" :state="sortState('distinctId')" @sort="onSort('distinctId')" />
+              <SortTh label="ID总销量" width="100px" :state="sortState('totalSales')" @sort="onSort('totalSales')" />
+              <SortTh v-for="t in MATERIAL_TYPES" :key="t" class="cb-th-type" :label="t" width="72px" :state="sortState(t)" @sort="onSort(t)" />
               <th style="width: 84px">操作</th>
             </tr>
           </thead>
@@ -278,7 +323,10 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onPvKey));
                     <div v-for="(m, i) in topOf(t)" :key="m.id" class="cb-card" @click="openPreview(topOf(t), m)">
                       <span class="cb-rank" :class="i < 3 ? 'hot' : ''">{{ i + 1 }}</span>
                       <span class="cb-risk" :class="m.status === '违规' ? 'risk' : 'ok'">{{ m.status === '违规' ? '风险' : '正常' }}</span>
-                      <div class="cb-thumb"><img v-if="m.thumb" :src="m.thumb" :alt="m.name" /><div v-else class="cb-ph">{{ materialTypeIcon(m.type) }}</div></div>
+                      <div class="cb-thumb">
+                        <img v-if="m.thumb" :src="m.thumb" :alt="m.name" /><div v-else class="cb-ph">{{ materialTypeIcon(m.type) }}</div>
+                        <span class="cb-norec-pop"><button type="button" @click.stop="askNoRec(m)">不再推荐</button></span>
+                      </div>
                       <div class="cb-card-info">
                         <div class="cb-card-name" :title="m.name">{{ m.name }}</div>
                         <div class="cb-card-meta">销量 {{ fmtSales(m.sales) }}</div>
@@ -294,7 +342,10 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onPvKey));
                   <div v-for="(m, i) in topOf(curType as MaterialType)" :key="m.id" class="cb-card" @click="openPreview(topOf(curType as MaterialType), m)">
                     <span class="cb-rank" :class="i < 3 ? 'hot' : ''">{{ i + 1 }}</span>
                     <span class="cb-risk" :class="m.status === '违规' ? 'risk' : 'ok'">{{ m.status === '违规' ? '风险' : '正常' }}</span>
-                    <div class="cb-thumb"><img v-if="m.thumb" :src="m.thumb" :alt="m.name" /><div v-else class="cb-ph">{{ materialTypeIcon(m.type) }}</div></div>
+                    <div class="cb-thumb">
+                      <img v-if="m.thumb" :src="m.thumb" :alt="m.name" /><div v-else class="cb-ph">{{ materialTypeIcon(m.type) }}</div>
+                      <span class="cb-norec-pop"><button type="button" @click.stop="askNoRec(m)">不再推荐</button></span>
+                    </div>
                     <div class="cb-card-info">
                       <div class="cb-card-name" :title="m.name">{{ m.name }}</div>
                       <div class="cb-card-meta">销量 {{ fmtSales(m.sales) }}</div>
@@ -364,6 +415,20 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onPvKey));
           <button type="button" class="cb-pvbtn" title="放大" :disabled="pvZoom >= 3" @click="pvZoomBy(0.25)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21M7.5 10.5h6M10.5 7.5v6" /></svg>
           </button>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- 不再推荐二次确认：移除类操作禁止单击直接生效（确认按钮危险红） -->
+    <Teleport to="body">
+      <div v-if="confirmBox" class="mk-create-mask mk-confirm-mask" @click.self="confirmBox = null">
+        <div class="mk-confirm-modal">
+          <div class="mk-confirm-head">{{ confirmBox.title }}</div>
+          <div class="mk-confirm-body">{{ confirmBox.message }}</div>
+          <div class="mk-confirm-foot">
+            <button class="sg-btn" @click="confirmBox = null">取消</button>
+            <button class="sg-btn danger" @click="doConfirm">确认</button>
+          </div>
         </div>
       </div>
     </Teleport>
@@ -443,9 +508,14 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onPvKey));
 .cb-risk { position: absolute; right: 6px; top: 6px; z-index: 2; padding: 1px 8px; border-radius: 10px; font-size: 11px; line-height: 18px; color: #fff; }
 .cb-risk.ok { background: #22a06b; }
 .cb-risk.risk { background: #e5484d; }
-.cb-thumb { aspect-ratio: 1 / 1; background: #eef0f5; display: grid; place-items: center; overflow: hidden; }
+.cb-thumb { position: relative; aspect-ratio: 1 / 1; background: #eef0f5; display: grid; place-items: center; overflow: hidden; }
 .cb-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .cb-ph { font-size: 24px; }
+/* 不再推荐：缩略图内嵌底部白色气泡（.add-pop 规范：白底＋细边＋shadow-lg＋radius-lg＋padding 6px），仅 hover 卡片出现；移除类项 hover 危险色 */
+.cb-norec-pop { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); z-index: 3; display: none; padding: 6px; background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); }
+.cb-card:hover .cb-norec-pop { display: block; }
+.cb-norec-pop button { border: 0; background: transparent; padding: 7px 12px; border-radius: var(--radius-md); font-size: 12px; color: #445066; cursor: pointer; white-space: nowrap; }
+.cb-norec-pop button:hover { background: var(--color-danger-light); color: var(--color-danger); }
 .cb-card-info { padding: 10px 12px 12px; }
 .cb-card-name { font-size: 12px; color: #202532; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cb-card-meta { font-size: 11px; color: #8b92a1; margin-top: 2px; }
@@ -484,7 +554,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onPvKey));
 .cb-pvclose:hover { background: rgba(122, 127, 136, 0.95); }
 .cb-pvstage { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
 .cb-pvwrap { position: relative; transition: transform 0.15s ease; }
-.cb-pvwrap > img { display: block; width: auto; height: auto; min-width: min(480px, calc(100vw - 240px)); min-height: min(480px, calc(100vh - 280px)); max-width: calc(100vw - 160px); max-height: calc(100vh - 160px); object-fit: contain; }
+.cb-pvwrap > img { display: block; width: auto; height: auto; min-width: min(480px, calc(100vw - 240px)); min-height: min(480px, calc(100vh - 280px)); max-width: calc(100vw - 160px); max-height: calc(100vh - 160px); object-fit: contain; background: #fff; }
 .cb-pvph { min-width: 320px; min-height: 320px; display: grid; place-items: center; color: rgba(255, 255, 255, 0.6); font-size: 14px; }
 .cb-pvbar { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 2; display: flex; align-items: center; gap: 4px; padding: 8px 12px; border-radius: 10px; background: rgba(30, 32, 37, 0.92); }
 .cb-pvbtn { width: 32px; height: 32px; border: none; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; background: transparent; color: #fff; font-size: 18px; line-height: 1; cursor: pointer; }

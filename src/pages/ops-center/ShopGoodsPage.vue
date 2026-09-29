@@ -8,7 +8,7 @@ import MoreActions from '../../components/MoreActions.vue';
 import Modal from '../../components/Modal.vue';
 import { pushToast } from '../../components/toast';
 import { PLATFORM_LOGO } from './data';
-import { sgProducts, SG_CHIPS, JM_CHIPS, SG_STATUS_META, sgRowActions, SG_OFF_FAIL_TYPES, SG_OFF_GROUP, SG_OFF_GROUPS, sgWarnType, sgSales7, sgPrev7Avg, sgDetail } from './shopGoodsData';
+import { sgProducts, SG_CHIPS, JM_CHIPS, SG_STATUS_META, sgRowActions, SG_OFF_FAIL_TYPES, SG_OFF_GROUP, SG_OFF_GROUPS, sgWarnType, sgSales7, sgPrev7Avg, getSgDetail } from './shopGoodsData';
 import type { SgProduct, SgTab } from './shopGoodsData';
 import QuickSkuModal, { mkVal } from './QuickSkuModal.vue';
 import type { QuickDraftRow, QuickSpec } from './QuickSkuModal.vue';
@@ -54,20 +54,25 @@ const moreOps = (p: SgProduct) => sgOps(p).slice(3).map((o) => ({ label: o.label
 
 const tab = ref<SgTab>('视频号');
 
-/* 快捷编辑 SKU（仅视频号平台）：列表商品信息列「详」芯片开弹窗，draft 由 sgDetail.skus 构建，保存回写种子；底部主按钮文案「立即修改」 */
+/* 快捷编辑 SKU（仅视频号平台）：列表商品信息列「详」芯片开弹窗，draft 由该商品的详情数据构建，保存回写同一份数据；底部主按钮文案「立即修改」 */
 const sgQuickRow = ref<SgProduct | null>(null);
 const sgQuickDraft = ref<QuickDraftRow[]>([]);
 /* 属性配置草稿（与详情规格同构，维度名同详情 SKU 表列头）：弹窗内增删属性值，保存回写 colors/styles */
 const sgQuickSpecs = ref<QuickSpec[]>([]);
+/* 弹窗与商品详情页共用同一份按商品缓存的详情数据：弹窗里复制的一条 SKU 就是详情表格里的一行，详情改的值弹窗再开也在 */
+const sgQuickOwn = ref<ReturnType<typeof getSgDetail> | null>(null);
 const openSgQuick = (p: SgProduct) => {
+  const own = getSgDetail(p.linkId);
+  sgQuickOwn.value = own;
   sgQuickSpecs.value = [
-    { name: '颜色分类', values: [...sgDetail.colors] },
-    { name: '款式', values: [...sgDetail.styles] },
+    { name: '颜色分类', values: [...own.colors] },
+    { name: '款式', values: [...own.styles] },
   ];
-  sgQuickDraft.value = sgDetail.skus.map((s): QuickDraftRow => ({
+  sgQuickDraft.value = own.skus.map((s): QuickDraftRow => ({
     thumb: p.img,
     title: p.title,
     jm: false,
+    own: own as unknown as Record<string, any>,
     src: s as unknown as Record<string, string>,
     qcode: s.code,
     val: mkVal(s.name, s.code, s.series, s.cost, s.price, s.stock),
@@ -77,17 +82,27 @@ const openSgQuick = (p: SgProduct) => {
 };
 const closeSgQuick = () => {
   sgQuickRow.value = null;
+  sgQuickOwn.value = null;
 };
 const saveSgQuick = () => {
+  const own = sgQuickOwn.value;
+  if (!own) return;
+  /* 复制出的行 src 为克隆对象：按去重后的行重建 skus，弹窗里几条详情就几条 */
+  const seen = new Set<Record<string, string>>();
+  const skus: (typeof own.skus)[number][] = [];
   for (const r of sgQuickDraft.value) {
     Object.assign(r.src, { name: r.val.name, code: r.val.code, series: r.val.series, cost: r.val.cost, price: r.val.price, stock: r.val.stock });
     /* 属性关联回写：按维度写回 color/style */
     r.src.color = r.vals[sgQuickSpecs.value[0]?.name ?? ''] ?? '';
     r.src.style = r.vals[sgQuickSpecs.value[1]?.name ?? ''] ?? '';
+    if (seen.has(r.src)) continue;
+    seen.add(r.src);
+    skus.push(r.src as unknown as (typeof own.skus)[number]);
   }
-  /* 属性配置（含新增属性值）回写种子 */
-  sgDetail.colors = [...(sgQuickSpecs.value[0]?.values ?? [])];
-  sgDetail.styles = [...(sgQuickSpecs.value[1]?.values ?? [])];
+  own.skus = skus;
+  /* 属性配置（含新增属性值）回写 */
+  own.colors = [...(sgQuickSpecs.value[0]?.values ?? [])];
+  own.styles = [...(sgQuickSpecs.value[1]?.values ?? [])];
   pushToast('SKU 信息已保存');
   closeSgQuick();
 };
@@ -197,7 +212,7 @@ const rows = computed(() => {
   /* 京麦：独立查询口径（状态页签 + 商品名/商品ID/SKU ID/货号/品牌/类目） */
   if (tab.value === '京麦') {
     const jmChip = JM_CHIPS.find((c) => c.key === chip.value) ?? JM_CHIPS[0];
-    return jmList.value.filter((p) => {
+    const out = jmList.value.filter((p) => {
       if (!jmChip.match(p.status)) return false;
       const a = jmApplied.value;
       if (a.title && !p.title.includes(a.title)) return false;
@@ -208,6 +223,14 @@ const rows = computed(() => {
       if (a.cat && !(p.catPath ?? '').includes(a.cat)) return false;
       return true;
     });
+    /* 京东价 / 可用库存 列头排序（数值比较） */
+    const jk = jmSortKey.value;
+    if (jk && jmSortDir.value !== 'none') {
+      const dir = jmSortDir.value === 'asc' ? 1 : -1;
+      const val = (p: SgProduct) => numOf(jk === 'jdPrice' ? p.jdPrice ?? '' : p.stockAvail ?? '');
+      return [...out].sort((a, b) => (val(a) - val(b)) * dir);
+    }
+    return out;
   }
   const chipDef = SG_CHIPS.find((c) => c.key === chip.value) ?? SG_CHIPS[0];
   const list = sgProducts[tab.value].filter((p) => {
@@ -253,6 +276,17 @@ const toggleSort = (k: SgSortKey) => {
   else { sortKey.value = null; sortDir.value = 'desc'; }
 };
 const sortIco = (k: SgSortKey): 'none' | 'asc' | 'desc' => (sortKey.value === k ? sortDir.value : 'none');
+/* 京麦表列头排序（京东价 / 可用库存）：单列激活，点击循环 desc → asc → 取消 */
+type JmSortKey = 'jdPrice' | 'stock';
+const jmSortKey = ref<JmSortKey | null>(null);
+const jmSortDir = ref<'none' | 'asc' | 'desc'>('none');
+const toggleJmSort = (k: JmSortKey) => {
+  if (jmSortKey.value !== k) { jmSortKey.value = k; jmSortDir.value = 'desc'; }
+  else if (jmSortDir.value === 'desc') jmSortDir.value = 'asc';
+  else if (jmSortDir.value === 'asc') { jmSortKey.value = null; jmSortDir.value = 'none'; }
+  else jmSortDir.value = 'desc';
+};
+const jmSortIco = (k: JmSortKey): 'none' | 'asc' | 'desc' => (jmSortKey.value === k ? jmSortDir.value : 'none');
 const numOf = (s: string) => Number(s.replace(/,/g, '')) || 0;
 /* 销量数据块：无数据展示 0（对齐微信小店经营概览） */
 const zero = (v: string) => (v === '-' ? '0' : v);
@@ -716,7 +750,8 @@ const onTab = (t: SgTab) => {
               <th :class="cfJm.stickCls('check')" :style="{ width: '44px', ...cfJm.stickStyle('check') }"><input type="checkbox" :checked="jmAllChecked" @change="toggleAllJm" /></th>
               <th :class="cfJm.stickCls('product')" :style="{ width: '420px', ...cfJm.stickStyle('product') }">商品信息</th>
               <template v-for="c in jmMid" :key="c.key">
-                <th :class="cfJm.stickCls(c.key)" :style="{ width: `${c.width}px`, ...cfJm.stickStyle(c.key) }">{{ c.label }}</th>
+                <SortTh v-if="c.key === 'jdPrice' || c.key === 'stock'" :class="cfJm.stickCls(c.key)" :style="cfJm.stickStyle(c.key)" :label="c.label" :width="`${c.width}px`" :state="jmSortIco(c.key as JmSortKey)" @sort="toggleJmSort(c.key as JmSortKey)" />
+                <th v-else :class="cfJm.stickCls(c.key)" :style="{ width: `${c.width}px`, ...cfJm.stickStyle(c.key) }">{{ c.label }}</th>
               </template>
               <th :class="cfJm.stickCls('actions')" :style="{ width: '220px', ...cfJm.stickStyle('actions') }">操作</th>
             </tr>

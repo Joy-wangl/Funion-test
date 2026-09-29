@@ -65,8 +65,9 @@
 }
 .sc2-fchip:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .sc2-fchip.active {
-  border-color: var(--color-primary); background: var(--color-primary-light);
-  color: var(--color-primary); font-weight: 600;
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  color: var(--color-primary); font-weight: var(--fw-medium);
 }
 .sc2-cards { display: flex; flex-direction: column; gap: 14px; }
 

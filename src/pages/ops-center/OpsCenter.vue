@@ -26,6 +26,7 @@ import DepartmentManagement from '../permission/DepartmentManagement.vue';
 import RolePermission from '../permission/RolePermission.vue';
 import OpsGroupManagement from '../permission/OpsGroupManagement.vue';
 import DataImport from '../permission/DataImport.vue';
+import BlacklistPage from '../permission/BlacklistPage.vue';
 import ReviewAppealPage from './ReviewAppealPage.vue';
 import CodeKbMaterial from '../code-kb/CodeKbMaterial.vue';
 import VideoStudio from '../code-kb/VideoStudio.vue';
@@ -53,6 +54,7 @@ type PageKey =
   | 'permRole'
   | 'permOpsGroup'
   | 'dataImport'
+  | 'blacklist'
   | 'aiAssistant'
   | 'reviewAppeal'
   | 'codeKbMaterial'
@@ -139,6 +141,7 @@ const permItems: { name: string; target?: PageKey }[] = [
   { name: '角色管理', target: 'permRole' },
   { name: '运营组管理', target: 'permOpsGroup' },
   { name: '数据导入', target: 'dataImport' },
+  { name: '黑品库', target: 'blacklist' },
 ];
 
 /* 收起态路由图标悬浮气泡：展示路由名称，有二级路由则展示，点击跳转对应页面 */
@@ -423,6 +426,9 @@ const onMsgJump = (id: string) => {
           </section>
           <section :class="pageCls('dataImport')">
             <DataImport />
+          </section>
+          <section :class="pageCls('blacklist')">
+            <BlacklistPage />
           </section>
           <section :class="pageCls('reviewAppeal')">
             <ReviewAppealPage />

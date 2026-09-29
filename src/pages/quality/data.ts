@@ -373,6 +373,8 @@ export interface ChatHit {
   type: string;
   /** 会话原文中需高亮的问题短语 */
   phrase: string;
+  /** 命中的二级子问题（品控-线上详情下钻展示） */
+  sub?: string;
 }
 
 export interface ChatSession {

@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { parentTasks, type ParentTask } from './data';
 import BubbleSelect from '../../components/BubbleSelect.vue';
+import SortTh from '../../components/SortTh.vue';
 import TcRange from './TcRange.vue';
 import ColFieldPop from './ColFieldPop.vue';
 import { useColField } from './colFields';
@@ -97,16 +98,44 @@ const onReset = () => {
   applied.value = { ...defaultListFilter };
 };
 
-const visible = computed(() => parentTasks.filter((p) => {
-  const okTab = applied.value.tab === 'all' || p.status === applied.value.tab;
-  const okPlatform = applied.value.platform === '全部' || p.subs.some((s) => s.shops.some((x) => x.platform === applied.value.platform));
-  const okChannel = applied.value.channel === '全部' || p.channel === applied.value.channel;
-  const okCreator = !applied.value.creator || p.creator.indexOf(applied.value.creator) > -1;
-  const okType = applied.value.type === '全部' || p.type === applied.value.type;
-  const okShop = !applied.value.shop || p.subs.some((s) => s.shops.some((x) => x.shop.indexOf(applied.value.shop) > -1));
-  const okPubWay = applied.value.pubWay === '全部' || p.pubWay === applied.value.pubWay;
-  return okTab && okPlatform && okChannel && okCreator && okType && okShop && okPubWay;
-}));
+/* 排序状态：单列激活，点击循环 desc → asc → 取消 */
+const sortKey = ref<'creator' | 'execTime' | ''>('');
+const sortDir = ref<'none' | 'asc' | 'desc'>('none');
+const onSort = (k: 'creator' | 'execTime') => {
+  if (sortKey.value !== k) {
+    sortKey.value = k;
+    sortDir.value = 'desc';
+  } else if (sortDir.value === 'desc') {
+    sortDir.value = 'asc';
+  } else if (sortDir.value === 'asc') {
+    sortKey.value = '';
+    sortDir.value = 'none';
+  } else {
+    sortDir.value = 'desc';
+  }
+};
+const sortState = (k: string) => (sortKey.value === k ? sortDir.value : 'none');
+
+const visible = computed(() => {
+  const rows = parentTasks.filter((p) => {
+    const okTab = applied.value.tab === 'all' || p.status === applied.value.tab;
+    const okPlatform = applied.value.platform === '全部' || p.subs.some((s) => s.shops.some((x) => x.platform === applied.value.platform));
+    const okChannel = applied.value.channel === '全部' || p.channel === applied.value.channel;
+    const okCreator = !applied.value.creator || p.creator.indexOf(applied.value.creator) > -1;
+    const okType = applied.value.type === '全部' || p.type === applied.value.type;
+    const okShop = !applied.value.shop || p.subs.some((s) => s.shops.some((x) => x.shop.indexOf(applied.value.shop) > -1));
+    const okPubWay = applied.value.pubWay === '全部' || p.pubWay === applied.value.pubWay;
+    return okTab && okPlatform && okChannel && okCreator && okType && okShop && okPubWay;
+  });
+  /* 创建人列按创建时间排序；执行起止时间列按开始时间排序 */
+  const k = sortKey.value;
+  if (k && sortDir.value !== 'none') {
+    const dir = sortDir.value === 'asc' ? 1 : -1;
+    const val = (p: ParentTask) => (k === 'creator' ? p.createTime : p.startTime);
+    return [...rows].sort((a, b) => val(a).localeCompare(val(b)) * dir);
+  }
+  return rows;
+});
 </script>
 
 <template>
@@ -166,9 +195,7 @@ const visible = computed(() => parentTasks.filter((p) => {
           <tr>
             <th :style="{ width: '64px' }">序号</th>
             <template v-for="c in midCols" :key="c.key">
-              <th v-if="c.key === 'creator' || c.key === 'execTime'">
-                {{ c.label }} <span class="tc-sort">⇅</span>
-              </th>
+              <SortTh v-if="c.key === 'creator' || c.key === 'execTime'" :label="c.label" :state="sortState(c.key)" @sort="onSort(c.key as 'creator' | 'execTime')" />
               <th v-else>{{ c.label }}</th>
             </template>
             <th>操作</th>

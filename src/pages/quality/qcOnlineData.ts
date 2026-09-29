@@ -135,6 +135,13 @@ const buildSeries = (
 ): QcCenterSeries => {
   /* 两级精确拆分（系列→编码→平台）：各平台 stat 汇总恒等于系列级种子值，
      经 applySeriesView（全量口径 ratio=1）重聚合后展示数字与线上截图一致 */
+  /* 同类型命中合并，避免类型命中条出现重复行 */
+  const mergedHits = hits.reduce((m, [t, c]) => {
+    const e = m.find((x) => x[0] === t);
+    if (e) e[1] += c;
+    else m.push([t, c]);
+    return m;
+  }, [] as [string, number][]);
   const ordersByCode = splitInt(orders, codeCount);
   const asByCode = splitInt(afterSales, codeCount);
   const chatByCode = splitInt(chatRiskHits, codeCount);
@@ -147,7 +154,7 @@ const buildSeries = (
       code: `SP-${seriesCode.slice(3)}${i + 1}`,
       name: `${name}${SPEC_POOL[i % SPEC_POOL.length] || ' 标准款'}`,
       platforms: platforms.map((pl, j) => mkStat(pl, oByPlat[j], refundRate, aByPlat[j], cByPlat[j])),
-      problemHits: hits.map(([type, count]) => ({ type, count: splitInt(count, codeCount)[i] })),
+      problemHits: mergedHits.map(([type, count]) => ({ type, count: splitInt(count, codeCount)[i] })),
     });
   }
   return {
@@ -160,7 +167,7 @@ const buildSeries = (
     refundRate,
     afterSales,
     chatRiskHits,
-    problemHits: hits.map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count),
+    problemHits: mergedHits.map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count),
   };
 };
 
@@ -280,6 +287,9 @@ const CHAT_REPLIES = [
 
 const sessionCache = new Map<string, ChatSession[]>();
 
+/** 会话命中的二级子问题（与命中问题管理同源清单），供详情下钻按子问题过滤 */
+const subsOfType = (t: string): string[] => onlineHitCats().find((c) => c.name === t)?.subs.map((x) => x.name) ?? [];
+
 /** 系列聊天会话（抽屉/平台聊天弹窗同源）：命中包按问题类型占比拆分聊天风险次数，再打包为 ≤12 个会话 */
 export const onlineSessionsOf = (s: QcCenterSeries): ChatSession[] => {
   const cached = sessionCache.get(s.seriesCode);
@@ -328,7 +338,10 @@ export const onlineSessionsOf = (s: QcCenterSeries): ChatSession[] => {
           { role: 'buyer', time: tAt(9), text: phrases.length > 1 ? `${phrases[1]}，尽快给我个说法。` : '照片和订单号都发了，尽快处理。' },
           { role: 'support', time: tAt(15), text: CHAT_REPLIES[i % CHAT_REPLIES.length] },
         ],
-        hits: types.map((t, k) => ({ type: t, phrase: phrases[k] })),
+        hits: types.map((t, k) => {
+          const ss = subsOfType(t);
+          return { type: t, phrase: phrases[k], sub: ss.length ? ss[(k + i) % ss.length] : undefined };
+        }),
       });
     }
   }
@@ -354,3 +367,210 @@ export const onlineSeriesOfCode = (code: string): QcCenterSeries | null => {
   }
   return codeIndex.get(code) ?? null;
 };
+
+/* ---------- 组别 / 运维人员归属（监控列表、售后列表、问题商品共用口径） ---------- */
+
+export const ONLINE_GROUPS = ['运维一组', '运维二组', '运维三组'];
+export const ONLINE_OPERATORS = ['李强', '王芳'];
+
+/** 首页固定归属（与线上截图一致；null = 未分配显示 —） */
+const PAGE1_OWNER: ({ group: string; operator: string } | null)[] = [
+  { group: '运维一组', operator: '李强' }, null, null,
+  { group: '运维三组', operator: '李强' }, { group: '运维三组', operator: '李强' }, { group: '运维一组', operator: '李强' },
+];
+
+/** 系列归属组别/运维：确定性生成，约四成未分配 */
+export const onlineOwnerOf = (seriesCode: string): { group: string; operator: string } | null => {
+  const n = Number(seriesCode.replace(/\D/g, ''));
+  const fixed = PAGE1_OWNER[n - 1001];
+  if (fixed !== undefined) return fixed;
+  const rnd = mulberry32(n * 31 + 7);
+  if (rnd() < 0.4) return null;
+  return { group: ONLINE_GROUPS[Math.floor(rnd() * ONLINE_GROUPS.length)], operator: ONLINE_OPERATORS[Math.floor(rnd() * ONLINE_OPERATORS.length)] };
+};
+
+/* ---------- 售后列表：系列维度售后单 / 售后率 ---------- */
+
+export interface OnlineAfterRow { seriesCode: string; name: string; group: string; operator: string; afterSales: number; rate: number; }
+
+export const onlineAfterRows = (): OnlineAfterRow[] => onlineSeries().map((s) => {
+  const o = onlineOwnerOf(s.seriesCode);
+  return { seriesCode: s.seriesCode, name: s.name, group: o?.group ?? '—', operator: o?.operator ?? '—', afterSales: s.afterSales, rate: s.orders ? s.afterSales / s.orders : 0 };
+});
+
+/* ---------- 问题商品：编码维度垃圾品清单（按退款率 / 聊天风险率双序） ---------- */
+
+export interface OnlineProblemCode { code: string; codeName: string; seriesCode: string; group: string; operator: string; orders: number; refundRate: number; afterSales: number; chatRate: number; status: string; }
+
+let problemCache: OnlineProblemCode[] | null = null;
+
+/** 问题商品全量（退款率 45%~52% 垃圾品口径，确定性生成 480 条） */
+export const onlineProblemCodes = (): OnlineProblemCode[] => {
+  if (problemCache) return problemCache;
+  const rnd = mulberry32(8801);
+  const rows: OnlineProblemCode[] = [];
+  for (let i = 0; i < 480; i++) {
+    const base = 1000 + Math.floor(rnd() * 240000);
+    const code = `SP-${base}`;
+    const seriesCode = `XL-${1001 + (base % (ONLINE_TOTAL - 1))}`;
+    const refundRate = Math.round((0.52 - (i / 480) * 0.07 - rnd() * 0.002) * 1000) / 1000;
+    const orders = 300 + Math.floor(rnd() * 1500);
+    const afterSales = Math.max(3, Math.round(orders * (0.02 + rnd() * 0.03)));
+    const o = onlineOwnerOf(seriesCode);
+    rows.push({
+      code,
+      codeName: `${NAME_POOL[Math.floor(rnd() * NAME_POOL.length)]}${SPEC_POOL[Math.floor(rnd() * SPEC_POOL.length)] || ' 标准款'}`,
+      seriesCode,
+      group: o?.group ?? '—',
+      operator: o?.operator ?? '—',
+      orders,
+      refundRate,
+      afterSales,
+      chatRate: 0.002 + rnd() * 0.02,
+      status: '垃圾品',
+    });
+  }
+  rows.sort((a, b) => b.refundRate - a.refundRate);
+  problemCache = rows;
+  return problemCache;
+};
+
+/* ---------- 命中问题管理：12 大类 / 31 小类（二级清单同步自《命中问题分类-维护表》） ---------- */
+
+export interface OnlineHitSub { id: string; name: string; desc: string; keywords: string[]; dept: string; on: boolean; adder: string; addedAt: string; hits: number; }
+export interface OnlineHitCat { name: string; subs: OnlineHitSub[]; }
+
+const HIT_CAT_DEF: { name: string; dept: string; subs: string[] }[] = [
+  { name: '少发', dept: '仓库', subs: ['数量不足', '缺件漏发'] },
+  { name: '错发', dept: '仓库', subs: ['型号错发', '颜色错发'] },
+  { name: '包装破损', dept: '快递', subs: ['外箱破损', '内物污损', '缓冲缺失'] },
+  { name: '质量问题', dept: '品质', subs: ['功能故障', '材质不符', '做工瑕疵', '异味问题', '尺寸偏差', '耐用性差'] },
+  { name: '描述/宣传不符', dept: '运营', subs: ['功能宣传不符', '尺寸标注不符', '材质宣传不符'] },
+  { name: '物流问题', dept: '快递', subs: ['时效超时', '轨迹不更新', '签收未收到'] },
+  { name: '价格/活动类问题', dept: '运营', subs: ['活动价争议', '保价退差'] },
+  { name: '服务类问题', dept: '客服', subs: ['响应超时', '推诿未处理', '态度敷衍'] },
+  { name: '退换货类问题', dept: '客服', subs: ['退货拒收', '换货超时'] },
+  { name: '安装/使用指导类问题', dept: '客服', subs: ['安装指导缺失', '使用说明不清'] },
+  { name: '发票类问题', dept: '客服', subs: ['发票开具超时'] },
+  { name: '快递指定/代收类问题', dept: '快递', subs: ['指定快递未履约', '代收点误签'] },
+];
+
+const HIT_KW: Record<string, string[]> = {
+  少发类_数量不足: ['数量不够', '数量不足', '不够数', '数量少了', '没发够', '短少', '还差', '不够', '少了一件', '数目不对', '缺数量', '补数量'],
+  少发类_缺件漏发: ['漏发', '少发', '缺件', '少件', '缺货', '只收到', '只有', '实际收到', '没发全', '差一件', '漏了', '缺配件'],
+};
+
+const HIT_ADDERS = ['系统同步', '王五', '李四', '赵六'];
+
+let hitCache: OnlineHitCat[] | null = null;
+
+/** 命中问题分类清单（大类下小类带关键词 / 责任部门 / 启停 / 添加信息） */
+export const onlineHitCats = (): OnlineHitCat[] => {
+  if (hitCache) return hitCache;
+  const catCounts = { ...ONLINE_TYPE_COUNTS } as Record<string, number>;
+  hitCache = HIT_CAT_DEF.map((c, ci) => {
+    const total = catCounts[c.name] ?? 600 + ci * 37;
+    const rnd = mulberry32(4300 + ci);
+    const weights = c.subs.map(() => 0.5 + rnd());
+    const wSum = weights.reduce((s, x) => s + x, 0);
+    const subs: OnlineHitSub[] = c.subs.map((sub, si) => {
+      const key = `${c.name}类_${sub}`;
+      const kws = HIT_KW[key] ?? [sub, `${sub}怎么办`, `遇到${sub}`, sub.slice(0, 2), `${sub}处理`, sub.slice(-2), '要求处理', '投诉' + sub];
+      return {
+        id: `HS-${ci + 1}-${si + 1}`,
+        name: `${c.name}类-${sub}`,
+        desc: `识别会话中客户描述与图片凭证，匹配「${c.name}类-${sub}」特征即判定命中`,
+        keywords: kws,
+        dept: c.dept,
+        on: (ci + si) % 7 !== 1,
+        adder: HIT_ADDERS[(ci + si) % HIT_ADDERS.length],
+        addedAt: `2026/${String(1 + ((ci + si) % 8)).padStart(2, '0')}/${String(1 + ((ci * 3 + si * 5) % 27)).padStart(2, '0')} ${String(9 + ((ci + si) % 9)).padStart(2, '0')}:${String((si * 17 + ci * 7) % 60).padStart(2, '0')}:00`,
+        hits: si === c.subs.length - 1 ? 0 : Math.round((weights[si] / wSum) * total),
+      };
+    });
+    subs[subs.length - 1].hits = total - subs.reduce((s, x) => s + x.hits, 0);
+    return { name: c.name, subs };
+  });
+  return hitCache;
+};
+
+/* ---------- 权限管理：组织树 + 成员 ---------- */
+
+export interface OnlineMember { name: string; status: '正常' | '冻结' | '未添加'; dept: string; roles: string[]; addedAt: string; }
+
+export const ONLINE_ORG = [
+  { name: '一级组织A', children: [{ name: '二级组织', children: ['三级组织'] }] },
+  { name: '一级组织B', children: [{ name: '二级组织B', children: [] as string[] }] },
+];
+
+export const ONLINE_MEMBERS: OnlineMember[] = [
+  { name: '张三', status: '正常', dept: '一级部门/二级部门', roles: ['组长', '角色C'], addedAt: '2026-02-18 12:00:00' },
+  { name: '李四', status: '冻结', dept: '一级部门/二级部门', roles: ['专员'], addedAt: '2026-02-18 12:00:00' },
+  { name: '王五', status: '未添加', dept: '-', roles: [], addedAt: '-' },
+  { name: '赵六', status: '正常', dept: '二级部门/三级部门', roles: ['超级管理员'], addedAt: '2026-02-17 09:30:00' },
+  { name: '黄亚芳', status: '正常', dept: '视频号/黄亚芳大组', roles: ['组长', '角色A'], addedAt: '2026-02-16 15:20:00' },
+  { name: '孙倩', status: '正常', dept: '淘宝/绿佳华大组', roles: ['专员'], addedAt: '2026-02-15 11:10:00' },
+  { name: '周杰', status: '冻结', dept: '拼多多/推广模版', roles: ['角色B'], addedAt: '2026-02-14 18:45:00' },
+  { name: '吴敏', status: '正常', dept: '一级部门/二级部门', roles: ['只读成员'], addedAt: '2026-02-13 08:00:00' },
+  { name: '徐佳华', status: '正常', dept: '江西南昌分公司/运营组', roles: ['组长'], addedAt: '2026-02-12 10:00:00' },
+  { name: '郑婷', status: '正常', dept: '江西南昌分公司/运营组', roles: ['专员'], addedAt: '2026-02-12 09:30:00' },
+  { name: '刘洋', status: '正常', dept: '江西南昌分公司/客服组', roles: ['专员'], addedAt: '2026-02-11 16:40:00' },
+  { name: '陈晓', status: '正常', dept: '浙江杭州分公司', roles: [], addedAt: '2026-02-11 11:20:00' },
+  { name: '杨帆', status: '正常', dept: '湖南长沙分公司/直播组', roles: ['专员'], addedAt: '2026-02-10 15:20:00' },
+  { name: '何静', status: '正常', dept: '默认部门/子部门A', roles: [], addedAt: '2026-02-10 10:10:00' },
+  { name: '罗彬', status: '正常', dept: '江西南昌分公司/客服组', roles: [], addedAt: '2026-02-09 14:25:00' },
+  { name: '高翔', status: '正常', dept: '浙江杭州分公司', roles: [], addedAt: '2026-02-09 09:00:00' },
+];
+
+/* ---------- 权限管理 · 部门管理（线上版子页） ---------- */
+
+export interface QcDeptMember { name: string; roles: string[]; adder: string; at: string; }
+
+export const QC_PERM_DEPTS: { name: string; members: QcDeptMember[] }[] = [
+  {
+    name: '运维一组',
+    members: [
+      { name: '张三', roles: ['角色A', '角色B', '角色C', '角色D'], adder: '张三', at: '2026/02/18 12:00:00' },
+      { name: '李四', roles: ['角色A', '角色B'], adder: '管理员', at: '2026/02/18 12:00:00' },
+      { name: '李四', roles: ['角色A', '角色B'], adder: '管理员', at: '2026/02/18 12:00:00' },
+      { name: '张三', roles: ['角色A', '角色B', '角色C', '角色D'], adder: '管理员', at: '2026/02/18 12:00:00' },
+    ],
+  },
+  {
+    name: '运维二组',
+    members: [
+      { name: '王五', roles: ['角色B'], adder: '张三', at: '2026/02/17 09:30:00' },
+      { name: '赵六', roles: ['角色C'], adder: '管理员', at: '2026/02/17 09:30:00' },
+    ],
+  },
+];
+
+/* ---------- 权限管理 · 角色管理（线上版子页） ---------- */
+
+export const QC_ROLE_GROUPS = ['运维一组', '运维二组', '运维三组'];
+export const QC_ROLE_NAMES = ['超级管理员', '组长', '专员'];
+
+export interface QcRoleMember { name: string; dept: string; adder: string; at: string; }
+
+export const QC_ROLE_MEMBERS: QcRoleMember[] = [
+  { name: '张三', dept: '浙江杭州分公司-IT部-项目组-产品组', adder: '18733748895', at: '2026/07/13 12:00:00' },
+  { name: '李四', dept: '江西南昌分公司-运营组', adder: '18733748895', at: '2026/07/13 12:00:00' },
+  { name: '王五', dept: '湖南长沙分公司-直播组', adder: '18733748895', at: '2026/07/13 12:00:00' },
+];
+
+/* ---------- 权限管理 · 权限配置矩阵（线上版子页） ---------- */
+
+export const QC_PERM_OPTS = ['全部数据', '本级及下级部门', '本部门', '仅自己'];
+
+export interface QcPermMenuRow { name: string; sub?: string; view: number | null; manage: number | null; funcs: string[]; }
+
+export const QC_PERM_MENU: QcPermMenuRow[] = [
+  { name: '数据概览', view: 0, manage: 0, funcs: [] },
+  { name: '监控列表', view: 0, manage: 0, funcs: ['导出列表', '责任部门编辑', '创建优化任务'] },
+  { name: '问题商品', view: 0, manage: 0, funcs: ['导出列表'] },
+  { name: '优化任务', view: 0, manage: 0, funcs: ['新建任务', '编辑任务', '删除任务', '任务状态流转'] },
+  { name: '标签配置', view: 0, manage: 0, funcs: ['新建标签', '编辑标签', '删除标签'] },
+  { name: '权限管理', sub: '成员管理', view: 0, manage: 0, funcs: ['添加成员', '移除成员', '钉钉同步'] },
+  { name: '权限管理', sub: '部门管理', view: 0, manage: 0, funcs: ['新建根部门', '添加下级部门', '编辑部门信息', '删除部门', '添加部门成员'] },
+  { name: '权限管理', sub: '角色管理', view: null, manage: null, funcs: ['全部权限'] },
+];

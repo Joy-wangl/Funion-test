@@ -28,6 +28,7 @@ import {
   ONLINE_DEPT_COUNTS,
   ONLINE_OV,
   ONLINE_TYPE_COUNTS,
+  onlineHitCats,
   onlineOrderTrend,
   onlineTopCodes,
   onlineTrend,
@@ -44,6 +45,8 @@ const props = defineProps<{
   onOpenOptStatus: (s: OptStatus) => void;
   onOpenCode: (seriesCode: string, code: string) => void;
   onPickType: (type: string) => void;
+  /** 品控-线上：部门卡点击跳转监控列表并预设责任部门 */
+  onPickDept?: (dept: string) => void;
 }>();
 
 const rangeOv = ref<RangeKey>('custom');
@@ -89,6 +92,17 @@ const deptItems = computed(() => QC_DEPTS.map((d) => ({
 })));
 const deptTotal = computed(() => deptItems.value.reduce((s, i) => s + i.value, 0));
 const shareTotal = computed(() => shareItems.value.reduce((s, i) => s + i.value, 0));
+
+/* 问题类型占比下钻（品控-线上）：点击饼图扇区/图例进入该类型的二级子问题环形图，返回回到全部问题类型 */
+const SUB_COLORS = ['#e5484d', '#f76b15', '#7c3aed', '#4f7cff', '#12a594', '#e93d82', '#d46b08', '#1f9d55'];
+const drillType = ref<string | null>(null);
+const drillItems = computed(() => {
+  if (!props.online || !drillType.value) return null;
+  const cat = onlineHitCats().find((c) => c.name === drillType.value);
+  if (!cat) return null;
+  return cat.subs.map((s, i) => ({ label: s.name, value: s.hits, color: SUB_COLORS[i % SUB_COLORS.length] }));
+});
+const pieItems = computed(() => drillItems.value ?? shareItems.value);
 const trendSeries = computed(() => trend.value.series.map((s) => ({ ...s, color: PROBLEM_TYPE_COLOR[s.type] || '#4f7cff' })));
 
 /* 优化数据概览：周期内各状态任务分布，点击跳转优化任务列表对应状态 */
@@ -151,13 +165,34 @@ const optTotal = computed(() => optInWin.value.length);
         </div>
       </div>
       <div class="qc-share-pie">
-        <PieChart :items="shareItems" :total-orders="shareTotals.orders" />
+        <button v-if="drillType" type="button" class="qc-pie-back" @click="drillType = null">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6" /></svg>
+          返回
+        </button>
+        <PieChart
+          :items="pieItems"
+          :total-orders="shareTotals.orders"
+          :drillable="!!online && !drillType"
+          :on-drill="(l: string) => (drillType = l)"
+        />
+        <div v-if="drillType" class="qc-pie-crumb">
+          <a @click.prevent="drillType = null">全部问题类型</a>
+          <i>/</i>
+          <b>{{ drillType }}</b>
+        </div>
       </div>
     </div>
     <div class="qc-ov-divider" />
     <div class="qc-sec-head"><div class="qc-sec-title">问题涉及部门占比</div></div>
     <div class="qc-flat-grid cols-6">
-      <div v-for="i in deptItems" :key="i.label" class="flat-card dept-card">
+      <div
+        v-for="i in deptItems"
+        :key="i.label"
+        class="flat-card dept-card"
+        :class="{ clickable: !!props.onPickDept }"
+        :title="props.onPickDept ? `查看「${i.label}」相关系列编码` : undefined"
+        @click="props.onPickDept?.(i.label)"
+      >
         <div class="k"><i class="type-dot" :style="{ background: i.color }" />{{ i.label }}</div>
         <div class="v">
           {{ i.value }}

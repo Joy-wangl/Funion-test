@@ -4,21 +4,16 @@ import type { Ref } from 'vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import DateRangePicker from '../../components/DateRangePicker.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
-import SgDetailPage from './SgDetailPage.vue';
 import SortTh from '../../components/SortTh.vue';
 import { pushToast } from '../../components/toast';
 import { SM_TASK_STATUS_META, genTaskId, nowTime, smRecordsSeed, smTasksSeed } from '../shunmai/data';
 import type { SmTask, SmTaskStatus } from '../shunmai/data';
 import { PLATFORM_LOGO, ecMain } from './data';
-import type { SgProduct } from './shopGoodsData';
 import ColFieldPop from './ColFieldPop.vue';
 import { useColField } from './colFields';
 
-type CrawlStatus = '待完善' | '已完善' | '已导入';
 interface MkRow {
   id: string;
-  /** 商品ID（详情展示） */
-  pid: string;
   name: string;
   img: string;
   plat: string;
@@ -26,7 +21,6 @@ interface MkRow {
   sales: number;
   crawler: string;
   time: string;
-  status: CrawlStatus;
 }
 
 /* 市场商机：顶 tab 淘宝顺买 / 视频号商机；视频号商机聚合小店商机＋推荐商机两模块，下方子 tab 切换 */
@@ -53,10 +47,9 @@ const cf = useColField('market', {
   get fields() {
     return isXd.value
       ? [
-          { key: 'product', label: '商品信息', pct: 40 },
+          { key: 'product', label: '商品信息', pct: 50 },
           { key: 'sales', label: '销量', pct: 13 },
           { key: 'time', label: '创建人/创建时间', pct: 21 },
-          { key: 'grab', label: '抓取状态', pct: 10 },
         ]
       : [
           { key: 'product', label: '商品信息', pct: 50 },
@@ -84,13 +77,13 @@ const { midCols } = cf;
 const { midCols: vhMid } = cfVh;
 
 const taobaoRows: MkRow[] = [
-  { id: 't1', pid: '726184905531', name: '【10A抗菌】桂枫3.0Pro玻尿酸凉感深睡重力被 夏凉被', img: ecMain(0), plat: '淘宝', shop: '白屿家居小铺', sales: 1286, crawler: '李昀川', time: '2026-08-23 18:42:10', status: '待完善' },
-  { id: 't2', pid: '718493026674', name: '免打孔置物架卫生间浴室壁挂收纳架厨房杂物架', img: ecMain(1), plat: '淘宝', shop: '乐居家品旗舰店', sales: 3542, crawler: '王思远', time: '2026-08-23 16:21:33', status: '已完善' },
-  { id: 't3', pid: '709261483355', name: '316不锈钢保温杯大容量车载水杯男女便携直饮', img: ecMain(2), plat: '淘宝', shop: '臻品厨具专营店', sales: 867, crawler: '王思远', time: '2026-08-23 11:35:20', status: '已导入' },
+  { id: 't1', name: '【10A抗菌】桂枫3.0Pro玻尿酸凉感深睡重力被 夏凉被', img: ecMain(0), plat: '淘宝', shop: '白屿家居小铺', sales: 1286, crawler: '李昀川', time: '2026-08-23 18:42:10' },
+  { id: 't2', name: '免打孔置物架卫生间浴室壁挂收纳架厨房杂物架', img: ecMain(1), plat: '淘宝', shop: '乐居家品旗舰店', sales: 3542, crawler: '王思远', time: '2026-08-23 16:21:33' },
+  { id: 't3', name: '316不锈钢保温杯大容量车载水杯男女便携直饮', img: ecMain(2), plat: '淘宝', shop: '臻品厨具专营店', sales: 867, crawler: '王思远', time: '2026-08-23 11:35:20' },
 ];
 const xiaodianRows: MkRow[] = [
-  { id: 'x1', pid: '731650298842', name: '致奇（送辅助液）明星同款叶黄素艾草蒸汽眼罩20贴', img: ecMain(3), plat: '视频号', shop: '朵拉优选日用', sales: 2173, crawler: '李昀川', time: '2026-08-23 18:40:55', status: '待完善' },
-  { id: 'x2', pid: '715908362247', name: '智能感应夜灯人体感应小夜灯卧室床头起夜灯', img: ecMain(4), plat: '视频号', shop: '暖光照明工厂店', sales: 489, crawler: '陈晓', time: '2026-08-23 15:07:48', status: '待完善' },
+  { id: 'x1', name: '致奇（送辅助液）明星同款叶黄素艾草蒸汽眼罩20贴', img: ecMain(3), plat: '视频号', shop: '朵拉优选日用', sales: 2173, crawler: '李昀川', time: '2026-08-23 18:40:55' },
+  { id: 'x2', name: '智能感应夜灯人体感应小夜灯卧室床头起夜灯', img: ecMain(4), plat: '视频号', shop: '暖光照明工厂店', sales: 489, crawler: '陈晓', time: '2026-08-23 15:07:48' },
 ];
 
 /* 视频号推荐商机：热度指数为近30日区间值（如 51-55）；top 为同类目近期推荐排名，null 未上榜 */
@@ -199,25 +192,6 @@ const list = computed(() => {
   if (timeSort.value !== 'none') arr.sort((a, b) => (a.time < b.time ? -1 : 1) * (timeSort.value === 'asc' ? 1 : -1));
   return arr;
 });
-
-const statusCls = (s: CrawlStatus) => (s === '已完善' ? 'green' : s === '已导入' ? 'blue' : 'orange');
-
-/* 详情：复用内部商机同款店铺商品详情（仅查看）；商机行缺失字段以 '-' 占位 */
-const detail = ref<MkRow | null>(null);
-const toSg = (r: MkRow): SgProduct => ({
-  id: r.pid, title: r.name, img: r.img, linkId: r.pid, seriesCode: '-',
-  status: 'selling', strategy: '未关联', sales: String(r.sales), reviews: '-',
-  publisher: '-', store: r.shop, storePlatform: r.plat, source: '市场商机',
-  version: r.pid, operator: r.crawler, sold30: '-', exposure: '-',
-  category: ['-', '-', '-'],
-  publishTime: r.time, createTime: r.time,
-});
-
-/* 导入到：与竞价商品同款 add-pop 气泡（淘宝 / 视频号） */
-const addTip = ref<{ x: number; y: number } | null>(null);
-const openAddTip = (e: MouseEvent) => {
-  addTip.value = { x: e.clientX + 4, y: e.clientY + 4 };
-};
 
 /* 创建任务弹窗 */
 const createModal = ref(false);
@@ -355,11 +329,43 @@ const resetTaskFilter = () => {
   taskKw.value = ''; taskStatus.value = 'all';
   appliedKw.value = ''; appliedStatus.value = 'all';
 };
-const filteredTasks = computed(() => tasks.value.filter((t) => {
-  if (appliedStatus.value !== 'all' && t.status !== appliedStatus.value) return false;
-  if (appliedKw.value && !t.name.includes(appliedKw.value) && !t.topic.includes(appliedKw.value)) return false;
-  return true;
-}));
+const filteredTasks = computed(() => {
+  const out = tasks.value.filter((t) => {
+    if (appliedStatus.value !== 'all' && t.status !== appliedStatus.value) return false;
+    if (appliedKw.value && !t.name.includes(appliedKw.value) && !t.topic.includes(appliedKw.value)) return false;
+    return true;
+  });
+  /* 创建时间 / 执行时间 列头排序（时间串 localeCompare，执行时间为空排末尾） */
+  const k = taskSortKey.value;
+  if (k && taskSortDir.value !== 'none') {
+    const dir = taskSortDir.value === 'asc' ? 1 : -1;
+    const val = (t: SmTask) => (k === 'created' ? t.createdAt : t.startedAt || '');
+    return [...out].sort((a, b) => {
+      const va = val(a);
+      const vb = val(b);
+      if (!va || !vb) return (va ? -1 : vb ? 1 : 0) * dir;
+      return va.localeCompare(vb) * dir;
+    });
+  }
+  return out;
+});
+/* 任务表排序状态：单列激活，点击循环 desc → asc → 取消 */
+const taskSortKey = ref<'created' | 'exec' | ''>('');
+const taskSortDir = ref<'none' | 'asc' | 'desc'>('none');
+const onTaskSort = (k: 'created' | 'exec') => {
+  if (taskSortKey.value !== k) {
+    taskSortKey.value = k;
+    taskSortDir.value = 'desc';
+  } else if (taskSortDir.value === 'desc') {
+    taskSortDir.value = 'asc';
+  } else if (taskSortDir.value === 'asc') {
+    taskSortKey.value = '';
+    taskSortDir.value = 'none';
+  } else {
+    taskSortDir.value = 'desc';
+  }
+};
+const taskSortState = (k: string) => (taskSortKey.value === k ? taskSortDir.value : 'none');
 /* 重点操作二次确认（终止/删除不可逆，统一走确认弹窗） */
 const confirmBox = ref<{ title: string; message: string; onOk: () => void } | null>(null);
 const askConfirm = (title: string, message: string, onOk: () => void) => { confirmBox.value = { title, message, onOk }; };
@@ -413,14 +419,7 @@ const goApp = inject<(key: string) => void>('goApp');
 </script>
 
 <template>
-  <SgDetailPage
-    v-if="detail"
-    :product="toSg(detail)"
-    hide-edit
-    :foot="[{ text: '添加到淘宝', cls: 'primary' }, { text: '添加到视频号', cls: 'primary' }]"
-    @back="detail = null"
-  />
-  <div v-else class="sg-page mk-page">
+  <div class="sg-page mk-page">
     <div class="mk2-top" :class="{ solo: tab !== 'shunmai' }">
       <div class="mk2-seg">
         <div v-for="t in TABS" :key="t.key" class="mk2-tab" :class="{ active: tab === t.key }" @click="switchTab(t.key)">{{ t.label }}</div>
@@ -530,12 +529,9 @@ const goApp = inject<(key: string) => void>('goApp');
                   <div class="mk-ct">{{ r.crawler }}</div>
                   <div class="mk-ct-t">{{ r.time }}</div>
                 </td>
-                <td v-else-if="c.key === 'grab'"><span class="sgd-tag" :class="statusCls(r.status)">{{ r.status }}</span></td>
               </template>
               <td class="actions-col">
-                <a href="#" @click.prevent="detail = r">详情</a>
                 <a href="#" @click.prevent="opsGo?.('search')">全网搜索</a>
-                <a href="#" @click.prevent.stop="openAddTip">导入到</a>
               </td>
             </tr>
           </tbody>
@@ -720,8 +716,8 @@ const goApp = inject<(key: string) => void>('goApp');
                     <th :style="{ width: '15%' }">搜索主题</th>
                     <th :style="{ width: '8%' }">状态</th>
                     <th :style="{ width: '22%' }">进度</th>
-                    <th :style="{ width: '13%' }">创建时间</th>
-                    <th :style="{ width: '17%' }">执行时间</th>
+                    <SortTh label="创建时间" width="13%" :state="taskSortState('created')" @sort="onTaskSort('created')" />
+                    <SortTh label="执行时间" width="17%" :state="taskSortState('exec')" @sort="onTaskSort('exec')" />
                     <th :style="{ width: '10%' }">操作</th>
                   </tr>
                 </thead>
@@ -806,19 +802,6 @@ const goApp = inject<(key: string) => void>('goApp');
             <button class="sg-btn" @click="confirmBox = null">取消</button>
             <button class="sg-btn primary" @click="doConfirm">确认</button>
           </div>
-        </div>
-      </div>
-    </Teleport>
-
-    <Teleport to="body">
-      <div
-        v-if="addTip"
-        class="add-pop"
-        :style="{ left: `${addTip.x}px`, top: `${addTip.y}px` }"
-        @mousedown.stop
-      >
-        <div v-for="t in ['淘宝', '视频号']" :key="t" class="add-pop-item" @click="addTip = null; pushToast(`已导入到${t}`)">
-          {{ t }}
         </div>
       </div>
     </Teleport>

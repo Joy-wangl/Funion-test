@@ -8,6 +8,7 @@ import CreateDetailPage from './CreateDetailPage.vue';
 import { pushToast } from '../../components/toast';
 import { useAnchorPop } from '../../hooks/useAnchorPop';
 import ColFieldPop from './ColFieldPop.vue';
+import SortTh from '../../components/SortTh.vue';
 import { useColField } from './colFields';
 
 /** 商机中心-竞价商品：筛选 + 列表 */
@@ -65,8 +66,26 @@ const bidStatus = (r: BiddingRow) => {
   return '已结束';
 };
 
-const list = computed(() =>
-  rows.value.filter((r) => {
+/* 排序状态：单列激活，点击循环 desc → asc → 取消 */
+const sortKey = ref<'imported' | ''>('');
+const sortDir = ref<'none' | 'asc' | 'desc'>('none');
+const onSort = (k: 'imported') => {
+  if (sortKey.value !== k) {
+    sortKey.value = k;
+    sortDir.value = 'desc';
+  } else if (sortDir.value === 'desc') {
+    sortDir.value = 'asc';
+  } else if (sortDir.value === 'asc') {
+    sortKey.value = '';
+    sortDir.value = 'none';
+  } else {
+    sortDir.value = 'desc';
+  }
+};
+const sortState = (k: string) => (sortKey.value === k ? sortDir.value : 'none');
+
+const list = computed(() => {
+  const out = rows.value.filter((r) => {
     const a = applied.value;
     if (a.status !== '全部' && bidStatus(r) !== a.status) return false;
     if (a.bidType !== '全部' && r.bidType !== a.bidType) return false;
@@ -95,8 +114,14 @@ const list = computed(() =>
     if (a.aStart && r.actEnd.slice(0, 10) < a.aStart) return false;
     if (a.aEnd && r.actStart.slice(0, 10) > a.aEnd) return false;
     return true;
-  }),
-);
+  });
+  /* 导入时间：时间串 localeCompare */
+  if (sortKey.value === 'imported' && sortDir.value !== 'none') {
+    const dir = sortDir.value === 'asc' ? 1 : -1;
+    out.sort((a, b) => a.imported.localeCompare(b.imported) * dir);
+  }
+  return out;
+});
 
 /* 商品抓取状态：列表行数据本地响应式（抓取操作就地转已抓取） */
 const rows = ref<BiddingRow[]>(biddingRows);
@@ -270,7 +295,8 @@ const toCreateRow = (r: BiddingRow): CreateRow => ({
                 <input type="checkbox" class="ib-check" :checked="allChecked" @change="toggleAll" />
               </th>
               <template v-for="c in midCols" :key="c.key">
-                <th>{{ c.label }}</th>
+                <SortTh v-if="c.key === 'imported'" :label="c.label" :state="sortState('imported')" @sort="onSort('imported')" />
+                <th v-else>{{ c.label }}</th>
               </template>
               <th>操作</th>
             </tr>

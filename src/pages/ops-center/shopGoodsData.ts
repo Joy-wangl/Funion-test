@@ -401,6 +401,15 @@ export const sgDetail = {
   sceneImg: '/products/serum.png',
 };
 
+/* 视频号详情数据按商品持久化（key = 商品 linkId）：详情页与列表「详」快捷编辑弹窗共用同一份，
+   弹窗里复制/改的 SKU 就是详情页表格里的那一条，详情页改的值弹窗再开也在 */
+export const sgDetailStore: Record<string, typeof sgDetail> = {};
+export const getSgDetail = (key: string) => {
+  const k = key || '__default__';
+  if (!sgDetailStore[k]) sgDetailStore[k] = JSON.parse(JSON.stringify(sgDetail));
+  return sgDetailStore[k];
+};
+
 /** 京麦（京东 POP）详情静态素材：字段映射京麦开放平台 SP-API 商品接口
  *  主图=material.mainImages；长图=rectangleImages；透明图=transparentImages；白底图=whiteBackGroundImages；
  *  场景图=SKU素材 sku-materials；详情图=productDetailDesc.desc(PC)/mobileDesc(APP)；SKU=skuList */
@@ -433,6 +442,46 @@ export const sgJmDetail = {
   afterService: '7天无理由退货，整机保修1年',
   weight: '0.85',
   dims: '120 × 90 × 60',
+};
+
+/* 京麦商品创建：按行独立详情种子（不同商品规格维度数不同：0/1/2），key = row.link */
+export const jmDetailSeeds: Record<string, typeof sgJmDetail> = {
+  'https://item.jd.com/100012345601.html?template=JM20260815-01': sgJmDetail,
+  'https://item.jd.com/100012345602.html?template=JM20260815-02': {
+    ...sgJmDetail,
+    productId: '100012345679',
+    itemNum: 'JM-2202',
+    saleAttrs: [{ name: '颜色', values: ['黑色', '白色', '蓝色'] }],
+    skus: [
+      { name: '黑色', attrs: '颜色:黑色', jdPrice: '129.00', marketPrice: '199.00', stock: '56', outerId: 'JM-2202-BK', series: '编码A', cost: '78.00', upc: '6901234567900', status: '上架' },
+      { name: '白色', attrs: '颜色:白色', jdPrice: '129.00', marketPrice: '199.00', stock: '32', outerId: 'JM-2202-WH', series: '编码B', cost: '78.00', upc: '6901234567901', status: '上架' },
+      { name: '蓝色', attrs: '颜色:蓝色', jdPrice: '139.00', marketPrice: '209.00', stock: '18', outerId: 'JM-2202-BL', series: '编码C', cost: '82.00', upc: '6901234567902', status: '上架' },
+    ],
+  },
+  'https://item.jd.com/100012345603.html?template=JM20260815-03': {
+    ...sgJmDetail,
+    productId: '100012345680',
+    itemNum: 'JM-2203',
+    saleAttrs: [],
+    skus: [
+      { name: 'PERDORA 玻尿酸修护精华液 30ml', attrs: '', jdPrice: '89.00', marketPrice: '139.00', stock: '200', outerId: 'JM-2203-30', series: '编码A', cost: '42.00', upc: '6901234567910', status: '上架' },
+    ],
+  },
+  'https://item.jd.com/100012345604.html?template=JM20260815-04': {
+    ...sgJmDetail,
+    productId: '100012345681',
+    itemNum: 'JM-2204',
+    saleAttrs: [
+      { name: '颜色', values: ['透明', '白色'] },
+      { name: '承重', values: ['5kg', '10kg'] },
+    ],
+    skus: [
+      { name: '透明 5kg', attrs: '颜色:透明 承重:5kg', jdPrice: '9.90', marketPrice: '19.90', stock: '500', outerId: 'JM-2204-T5', series: '编码A', cost: '3.50', upc: '6901234567920', status: '上架' },
+      { name: '透明 10kg', attrs: '颜色:透明 承重:10kg', jdPrice: '14.90', marketPrice: '24.90', stock: '320', outerId: 'JM-2204-T10', series: '编码B', cost: '5.20', upc: '6901234567921', status: '上架' },
+      { name: '白色 5kg', attrs: '颜色:白色 承重:5kg', jdPrice: '9.90', marketPrice: '19.90', stock: '0', outerId: 'JM-2204-W5', series: '编码C', cost: '3.50', upc: '6901234567922', status: '下架' },
+      { name: '白色 10kg', attrs: '颜色:白色 承重:10kg', jdPrice: '14.90', marketPrice: '24.90', stock: '180', outerId: 'JM-2204-W10', series: '编码D', cost: '5.20', upc: '6901234567923', status: '上架' },
+    ],
+  },
 };
 
 /* ================= 商品操作日志（全流程） =================

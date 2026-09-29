@@ -102,6 +102,8 @@ export interface MvTask {
   strategy?: string;
   /** 商品来源（仅自动发品：内部商机/店铺商品） */
   source?: MvSource;
+  /** 最大数量（仅自动发品：单次发品上限，0-999） */
+  maxQty?: number;
   creator: string;
   status: MvTaskStatus;
   createdAt: string;
@@ -221,6 +223,7 @@ export const mvTasks: MvTask[] = [
     ],
     shopIds: [],
     source: '内部商机',
+    maxQty: 30,
     creator: '七妮妮', status: '已启用', createdAt: '2026-09-10 09:00',
   },
 ];

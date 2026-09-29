@@ -20,6 +20,7 @@ import MmInputModal from './MmInputModal.vue';
 import MmAssignRoleModal from './MmAssignRoleModal.vue';
 import MmMoveDeptModal from './MmMoveDeptModal.vue';
 import MmEditMemberModal from './MmEditMemberModal.vue';
+import SortTh from '../../components/SortTh.vue';
 
 /* ---------- 弹窗状态（msg 为结构化富文本：pre + <b>bold</b> + post） ---------- */
 type ConfirmMsg = { pre: string; bold?: string; post?: string };
@@ -148,7 +149,24 @@ const handleOrgCtxAct = (act: string) => {
 };
 
 /* ---------- 表格派生 ---------- */
-const list = computed(() => members.value);
+/* 排序状态：单列激活，点击循环 desc → asc → 取消 */
+const sortKey = ref<'addAt' | ''>('');
+const sortDir = ref<'none' | 'asc' | 'desc'>('none');
+const onSort = (k: 'addAt') => {
+  if (sortKey.value !== k) { sortKey.value = k; sortDir.value = 'desc'; }
+  else if (sortDir.value === 'desc') sortDir.value = 'asc';
+  else if (sortDir.value === 'asc') { sortKey.value = ''; sortDir.value = 'none'; }
+  else sortDir.value = 'desc';
+};
+const sortState = (k: string) => (sortKey.value === k ? sortDir.value : 'none');
+const list = computed(() => {
+  const rows = members.value;
+  if (sortKey.value === 'addAt' && sortDir.value !== 'none') {
+    const dir = sortDir.value === 'asc' ? 1 : -1;
+    return [...rows].sort((a, b) => (a.addAt ?? '').localeCompare(b.addAt ?? '') * dir);
+  }
+  return rows;
+});
 const drawerMember = computed(() => drawerId.value ? members.value.find((m) => m.id === drawerId.value) : null);
 
 /* 确认弹窗确定 / 抽屉底部快捷入口 */
@@ -237,7 +255,7 @@ const drawerEdit = () => {
               <th>部门</th>
               <th>角色</th>
               <th>添加人</th>
-              <th>添加时间</th>
+              <SortTh label="添加时间" :state="sortState('addAt')" @sort="onSort('addAt')" />
               <th class="th-150">操作</th>
             </tr>
           </thead>

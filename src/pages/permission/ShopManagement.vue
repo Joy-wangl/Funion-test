@@ -7,6 +7,7 @@ import { PLATFORM_LOGO } from '../ops-center/data';
 import MemberPickPanel from './MemberPickPanel.vue';
 import OgPickedSide from './OgPickedSide.vue';
 import { INITIAL_MEMBERS, avaColor } from './data';
+import SortTh from '../../components/SortTh.vue';
 import './style.css';
 
 /* =========================================================
@@ -38,7 +39,7 @@ interface ShopRow {
   group: string;
   accts: AcctRow[];
   /** 店铺配置（运费险/换货/7天无理由/运费模板；未设置时取默认值） */
-  settings?: { shippingInsurance: 'yes' | 'no'; fakeComp: 'yes' | 'no'; noReason7d: 'yes' };
+  settings?: { shippingInsurance: 'yes' | 'no'; fakeComp: 'yes' | 'no'; noReason7d: 'yes'; brand?: string };
 }
 
 /* 静态行（还原源系统首屏；同店铺ID聚合为店铺行，账号为其子行） */
@@ -96,11 +97,22 @@ const GROUP_OPTS = computed(() => groups.value.map((g) => g.name));
 const pool = INITIAL_MEMBERS.filter((m) => m.status !== 'pending');
 const MEMBER_OPTS = [...new Set(pool.map((m) => m.name))];
 
+/* 排序状态：单列激活，点击循环 desc → asc → 取消（作用于主表店铺行） */
+const sortKey = ref<'accts' | 'updated' | ''>('');
+const sortDir = ref<'none' | 'asc' | 'desc'>('none');
+const onSort = (k: 'accts' | 'updated') => {
+  if (sortKey.value !== k) { sortKey.value = k; sortDir.value = 'desc'; }
+  else if (sortDir.value === 'desc') sortDir.value = 'asc';
+  else if (sortDir.value === 'asc') { sortKey.value = ''; sortDir.value = 'none'; }
+  else sortDir.value = 'desc';
+};
+const sortState = (k: string) => (sortKey.value === k ? sortDir.value : 'none');
+
 /* 两层筛选：账号类型/可用成员/状态 tab 过滤账号子行，平台/店铺分组过滤店铺行；
    关键词命中店铺则展示其全部账号，仅命中账号则只展示该账号；无匹配账号的店铺不展示 */
 const filtered = computed(() => {
   const kw = fKw.value.trim().toLowerCase();
-  return rows.value.map((s) => {
+  const rowsOut = rows.value.map((s) => {
     const shopKw = !kw || [s.name, s.shopId].some((v) => v.toLowerCase().includes(kw));
     const accts = s.accts.filter((a) => {
       if (tab.value !== 'all' && a.status !== tab.value) return false;
@@ -116,6 +128,14 @@ const filtered = computed(() => {
     if (fGroup.value && shop.group !== fGroup.value) return false;
     return true;
   });
+  if (sortKey.value && sortDir.value !== 'none') {
+    const dir = sortDir.value === 'asc' ? 1 : -1;
+    if (sortKey.value === 'accts') {
+      return [...rowsOut].sort((a, b) => (a.accts.length - b.accts.length) * dir);
+    }
+    return [...rowsOut].sort((a, b) => shopUpdated(a.accts).localeCompare(shopUpdated(b.accts)) * dir);
+  }
+  return rowsOut;
 });
 /** 店铺行可用成员：子行账号成员并集（去重保序） */
 const shopMembers = (accts: AcctRow[]) => [...new Set(accts.flatMap((a) => a.members))];
@@ -279,12 +299,16 @@ const shopSettingsOpen = ref(false);
 const shopSettingsId = ref<string | null>(null);
 const draftInsurance = ref<'yes' | 'no'>('no');
 const draftFakeComp = ref<'yes' | 'no'>('no');
+/* 品牌：仅下拉选择（不支持自定义），默认无品牌、不可为空 */
+const BRAND_OPTS = ['无品牌', '環球甄选', '一点就到', '悦勤家居', '泰有钱', '义乌日用', '天天有', '雅集臻品'];
+const draftBrand = ref('无品牌');
 const shopSettingsRow = computed(() => rows.value.find((s) => s.shopId === shopSettingsId.value) ?? null);
 const openShopSettings = (s: ShopRow) => {
   shopSettingsId.value = s.shopId;
   const st = s.settings;
   draftInsurance.value = st?.shippingInsurance ?? 'no';
   draftFakeComp.value = st?.fakeComp ?? 'no';
+  draftBrand.value = st?.brand || '无品牌';
   shopSettingsOpen.value = true;
 };
 const shopSettingsConfirm = ref(false);
@@ -292,7 +316,7 @@ const confirmSaveShopSettings = () => { shopSettingsConfirm.value = true; };
 const doSaveShopSettings = () => {
   if (!shopSettingsId.value) return;
   rows.value = rows.value.map((s) => (s.shopId === shopSettingsId.value
-    ? { ...s, settings: { shippingInsurance: draftInsurance.value, fakeComp: draftFakeComp.value, noReason7d: 'yes' } }
+    ? { ...s, settings: { shippingInsurance: draftInsurance.value, fakeComp: draftFakeComp.value, noReason7d: 'yes', brand: draftBrand.value } }
     : s));
   pushToast('已保存店铺配置');
   shopSettingsOpen.value = false;
@@ -375,10 +399,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
               </th>
               <!-- 勾选列固定 64px；四个数据列不写宽度，fixed 布局下等分剩余宽度（均分） -->
               <th>店铺信息</th>
-              <th>账号数</th>
+              <SortTh label="账号数" :state="sortState('accts')" @sort="onSort('accts')" />
               <th>在线状态</th>
               <th>可用成员</th>
-              <th>更新时间</th>
+              <SortTh label="更新时间" :state="sortState('updated')" @sort="onSort('updated')" />
               <th :style="{ width: '100px' }">操作</th>
             </tr>
           </thead>
@@ -717,6 +741,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             <div class="smg-radios">
               <label class="smg-radio"><input type="radio" name="ss-7d" checked disabled /><span>支持</span></label>
             </div>
+          </div>
+          <div class="smg-dr-field">
+            <div class="smg-dr-label">品牌</div>
+            <BubbleSelect class-name="smg-dr-select" :value="draftBrand" :options="BRAND_OPTS" @change="(v: string) => (draftBrand = v)" />
           </div>
         </div>
         <div class="smg-dr-foot">

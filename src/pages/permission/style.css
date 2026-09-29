@@ -1209,6 +1209,8 @@
 .smg-req { font-style: normal; color: var(--color-danger); margin-right: 4px; }
 .smg-dr-input { width: 100%; height: 36px; border: 1px solid var(--color-border); border-radius: 8px; padding: 0 12px; font-size: var(--fs-base); color: var(--color-text); background: #fff; }
 .smg-dr-input:disabled { border-color: transparent; background: var(--color-fill-2); color: var(--color-text-3); cursor: not-allowed; }
+/* 抽屉内气泡下拉：外框与 .smg-dr-input 同规格，触发器透明内嵌 */
+.smg-dr-select { width: 100%; height: 36px; border: 1px solid var(--color-border); border-radius: 8px; padding: 0 12px; color: var(--color-text); background: #fff; }
 .smg-dr-grow { display: flex; align-items: center; gap: 8px; }
 .ops-center .smg-dr-grow .sg-select { flex: 1; min-width: 0; width: auto; }
 .smg-dr-gear { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex: none; border: none; background: transparent; border-radius: 8px; color: var(--color-primary); cursor: pointer; }
@@ -1377,3 +1379,19 @@
 .smg-radio input[type="radio"] { accent-color: var(--color-primary); width: 16px; height: 16px; cursor: pointer; }
 .smg-radio input[type="radio"]:disabled { cursor: not-allowed; opacity: 0.5; }
 .smg-radio span { user-select: none; }
+
+/* ---------- 黑品库（设置 › 黑品库） ---------- */
+/* 类型芯片：三类各一色，浅底深字 */
+.ops-center .bl-type { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 6px; font-size: var(--fs-aux); font-weight: var(--fw-medium); }
+.ops-center .bl-type.t-code { background: var(--primary-light-2); color: var(--primary); }
+.ops-center .bl-type.t-series { background: #f3eefe; color: #7a5af8; }
+.ops-center .bl-type.t-opp { background: #fff3e8; color: #d4761a; }
+
+/* 列表列宽：六列固定布局，编码列与名称列加宽 */
+.ops-center .bl-table { table-layout: fixed; }
+.ops-center .bl-table th:nth-child(1) { width: 12%; }
+.ops-center .bl-table th:nth-child(2) { width: 20%; }
+.ops-center .bl-table th:nth-child(3) { width: 30%; }
+.ops-center .bl-table th:nth-child(4) { width: 10%; }
+.ops-center .bl-table th:nth-child(5) { width: 16%; }
+.ops-center .bl-table th:nth-child(6) { width: 12%; }

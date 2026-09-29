@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, provide, reactive, ref, watch } from 'vue';
 import { createTaobaoRows, createJmRows, createImgsOf, parentTasks, retrySub, PUB_NO_STRATEGY, PUB_STRATEGIES, PUB_SHOPS, PUB_ROUTE_PLATFORMS, PLATFORM_LOGO, createDetail } from './data';
+import { blFailReason, matchBlacklist } from './blacklistData';
+import type { BlType } from './blacklistData';
 import type { CreateRow, SubTask, PubShop } from './data';
-import { sgJmDetail } from './shopGoodsData';
+import { sgJmDetail, jmDetailSeeds } from './shopGoodsData';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import DateRangePicker from '../../components/DateRangePicker.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
@@ -24,6 +26,20 @@ import { useColField } from './colFields';
 const props = defineProps<{ jm?: boolean; video?: boolean }>();
 const rows = ref<CreateRow[]>(props.jm ? createJmRows : createTaobaoRows);
 
+/* 创建表列头排序：按创建时间，单列点击循环 desc → asc → 取消 */
+const createSortDir = ref<'none' | 'asc' | 'desc'>('none');
+const onCreateSort = () => {
+  if (createSortDir.value === 'none') createSortDir.value = 'desc';
+  else if (createSortDir.value === 'desc') createSortDir.value = 'asc';
+  else createSortDir.value = 'none';
+};
+const createSortState = () => createSortDir.value;
+const sortedRows = computed(() => {
+  if (createSortDir.value === 'none') return rows.value;
+  const dir = createSortDir.value === 'asc' ? 1 : -1;
+  return [...rows.value].sort((a, b) => a.time.localeCompare(b.time) * dir);
+});
+
 /* 列表字段管理：三平台实例列结构同源共用 scope；百分比宽表不横向溢出，sticky=false 钉住仅置顶/置尾 */
 const cf = useColField('create', {
   fixedLeft: [{ key: 'check' }],
@@ -39,6 +55,23 @@ const cf = useColField('create', {
 const { midCols } = cf;
 /* 详情态：复用内部商机/店铺商品详情样式 */
 const detail = ref<CreateRow | null>(null);
+/* 京麦详情数据按行持久化：每行独立存储，返回列表后再进详情仍保留编辑态 */
+const jmDetailStore = reactive<Record<string, any>>({});
+const getJmDetail = (link: string) => {
+  if (!jmDetailStore[link]) {
+    const seed = jmDetailSeeds[link] ?? sgJmDetail;
+    jmDetailStore[link] = JSON.parse(JSON.stringify(seed));
+  }
+  return jmDetailStore[link];
+};
+provide('getJmDetail', getJmDetail);
+/* 淘宝/视频号详情数据按行持久化（同上） */
+const tbDetailStore = reactive<Record<string, any>>({});
+const getTbDetail = (link: string) => {
+  if (!tbDetailStore[link]) tbDetailStore[link] = JSON.parse(JSON.stringify(createDetail));
+  return tbDetailStore[link];
+};
+provide('getTbDetail', getTbDetail);
 /* 创建时间范围筛选 */
 const createDateFrom = ref('');
 const createDateTo = ref('');
@@ -227,20 +260,28 @@ const quickBatch = ref(false);
 const quickDraft = ref<QuickDraftRow[]>([]);
 /* 属性配置草稿（与详情 specs/saleAttrs 同构）：弹窗内增删属性值，保存回写种子 */
 const quickSpecs = ref<QuickSpec[]>([]);
-const loadQuickSpecs = () => {
-  quickSpecs.value = (props.jm ? sgJmDetail.saleAttrs : createDetail.specs).map((s) => ({ name: s.name, values: [...s.values] }));
+/* 弹窗与详情页共用同一份按行缓存的详情数据：弹窗复制/改值落到该商品自己的 skus，详情页读到的就是同一批对象 */
+const detailOf = (link: string) => (props.jm ? getJmDetail(link) : getTbDetail(link));
+const loadQuickSpecs = (link: string) => {
+  const dd = detailOf(link);
+  const dims: { name: string; values: string[] }[] = (props.jm ? dd.saleAttrs : dd.specs) ?? [];
+  quickSpecs.value = dims.map((s) => ({ name: s.name, values: [...s.values] }));
 };
 /* 种子 SKU → 属性关联：非京麦按 specs 维度序取 color/style；京麦解析 attrs 串（颜色:黑 规格:标准） */
 const valsOf = (u: Record<string, string>): Record<string, string> => {
   if (props.jm) return Object.fromEntries((u.attrs ?? '').split(' ').filter(Boolean).map((kv) => { const [k, v] = kv.split(':'); return [k, v]; }));
   return { [quickSpecs.value[0]?.name ?? '颜色分类']: u.color, [quickSpecs.value[1]?.name ?? '款式']: u.style };
 };
-/* 每件商品独立展开一组 SKU 行（批量勾选 N 件即 N 组）：src 指向共享种子对象，val/vals 每行独立克隆互不串改；保存时按 src 去重重建种子 */
-const buildDraft = (list: CreateRow[]): QuickDraftRow[] => list.flatMap((row) => (props.jm
-  ? sgJmDetail.skus.map((u): QuickDraftRow => ({ thumb: row.thumb, title: row.title, jm: true, src: u, qcode: u.outerId, val: mkVal(u.name, u.outerId, u.series, u.cost, u.jdPrice, u.stock), vals: valsOf(u) }))
-  : createDetail.skus.map((u): QuickDraftRow => ({ thumb: row.thumb, title: row.title, jm: false, src: u, qcode: u.code, val: mkVal(u.name, u.code, u.series, u.cost, u.price, u.stock), vals: valsOf(u) }))));
+/* 每件商品独立展开一组 SKU 行（批量勾选 N 件即 N 组）：src 指向该商品详情缓存里的种子对象，val/vals 每行独立克隆互不串改；保存时按 own 分组、按 src 去重重建 */
+const buildDraft = (list: CreateRow[]): QuickDraftRow[] => list.flatMap((row) => {
+  const own = detailOf(row.link);
+  const skus: Record<string, string>[] = own?.skus ?? [];
+  return skus.map((u): QuickDraftRow => (props.jm
+    ? { thumb: row.thumb, title: row.title, jm: true, own, src: u, qcode: u.outerId, val: mkVal(u.name, u.outerId, u.series, u.cost, u.jdPrice, u.stock), vals: valsOf(u) }
+    : { thumb: row.thumb, title: row.title, jm: false, own, src: u, qcode: u.code, val: mkVal(u.name, u.code, u.series, u.cost, u.price, u.stock), vals: valsOf(u) }));
+});
 const openQuickSku = (row: CreateRow) => {
-  loadQuickSpecs();
+  loadQuickSpecs(row.link);
   quickDraft.value = buildDraft([row]);
   quickBatch.value = false;
   quickRow.value = row;
@@ -248,7 +289,7 @@ const openQuickSku = (row: CreateRow) => {
 /* 批量入口：勾选的每件商品各展开一组 SKU 行（弹窗内按商品分组展示），与单件共用弹窗与回写 */
 const batchRows = computed(() => rows.value.filter((r) => selLinks.value.has(r.link)));
 const openBatchSku = () => {
-  loadQuickSpecs();
+  loadQuickSpecs(batchRows.value[0]?.link ?? '');
   quickDraft.value = buildDraft(batchRows.value);
   quickBatch.value = true;
   quickRow.value = null;
@@ -262,25 +303,39 @@ const saveQuickSku = () => {
     Object.assign(r.src, r.jm
       ? { name: r.val.name, outerId: r.val.code, series: r.val.series, cost: r.val.cost, jdPrice: r.val.price, stock: r.val.stock }
       : { name: r.val.name, code: r.val.code, series: r.val.series, cost: r.val.cost, price: r.val.price, stock: r.val.stock });
-    /* 属性关联回写：京麦重拼 attrs 串；非京麦按 specs 维度序写回 color/style */
-    if (r.jm) r.src.attrs = quickSpecs.value.map((sp) => `${sp.name}:${r.vals[sp.name] ?? ''}`).join(' ');
+    /* 属性关联回写：京麦重拼 attrs 串（空值维度不落，避免详情页解析出空属性）；非京麦按 specs 维度序写回 color/style */
+    if (r.jm) r.src.attrs = quickSpecs.value.filter((sp) => r.vals[sp.name]).map((sp) => `${sp.name}:${r.vals[sp.name]}`).join(' ');
     else {
       r.src.color = r.vals[quickSpecs.value[0]?.name ?? ''] ?? '';
       r.src.style = r.vals[quickSpecs.value[1]?.name ?? ''] ?? '';
     }
     return r.src;
   };
-  /* 批量态多组行共享同一种子 src：全部写值后按 src 去重重建种子，避免条目翻倍 */
+  /* 多组行可能共享同一 src：全部写值后按 src 去重重建，避免条目翻倍 */
   const dedupBySrc = (list: QuickDraftRow[]) => {
     const seen = new Set<Record<string, string>>();
     return list.map(write).filter((s) => !seen.has(s) && (seen.add(s), true));
   };
-  if (props.jm) sgJmDetail.skus = dedupBySrc(quickDraft.value.filter((r) => r.jm)) as typeof sgJmDetail.skus;
-  else createDetail.skus = dedupBySrc(quickDraft.value.filter((r) => !r.jm)) as typeof createDetail.skus;
-  /* 属性配置（含新增属性值）回写种子 */
-  const specsBack = quickSpecs.value.map((s) => ({ name: s.name, values: [...s.values] }));
-  if (props.jm) sgJmDetail.saleAttrs = specsBack as typeof sgJmDetail.saleAttrs;
-  else createDetail.specs = specsBack as typeof createDetail.specs;
+  /* 按所属商品详情分组回写：各自重建 skus；规格仅在维度数一致时回写（批量勾选到异构商品时不误改） */
+  const groups = new Map<Record<string, any>, QuickDraftRow[]>();
+  for (const r of quickDraft.value) {
+    const own = r.own ?? (props.jm ? (sgJmDetail as Record<string, any>) : (createDetail as Record<string, any>));
+    const g = groups.get(own);
+    if (g) g.push(r);
+    else groups.set(own, [r]);
+  }
+  groups.forEach((list, own) => {
+    const specsBack = quickSpecs.value.map((s) => ({ name: s.name, values: [...s.values] }));
+    const dims = props.jm ? own.saleAttrs : own.specs;
+    const sameDims = Array.isArray(dims) && dims.length === specsBack.length;
+    if (props.jm) {
+      own.skus = dedupBySrc(list.filter((r) => r.jm));
+      if (sameDims) own.saleAttrs = specsBack;
+    } else {
+      own.skus = dedupBySrc(list.filter((r) => !r.jm));
+      if (sameDims) own.specs = specsBack;
+    }
+  });
   pushToast(quickBatch.value ? `SKU 信息已保存（${batchRows.value.length} 件商品）` : 'SKU 信息已保存');
   closeQuick();
 };
@@ -334,7 +389,7 @@ const pubNextEnabled = computed(() => pubSel.value.length > 0 && pubSel.value.ev
 const pubSubmitEnabled = computed(() => pubSel.value.length > 0 && pubSel.value.every((g) => g.shops.length > 0));
 const pubFootInfo = computed(() => `${pubSel.value.length} 个策略 · 共 ${pubSel.value.reduce((n, g) => n + g.shops.length, 0)} 个店铺`);
 /* 创建发布任务并模拟异步处理（商品×策略组粒度，逐店随机成功/失败） */
-const startPublishTask = (productName: string, shopIds: number[]) => {
+const startPublishTask = (productName: string, shopIds: number[], blHit: BlType | null = null) => {
   /* 创建新任务（store 单例，跨组件/跨关闭累积多任务）；返回值为响应式引用 */
   const liveTask = addPublishTask(productName, shopIds.map((shopId, idx) => {
     const shop = PUB_SHOPS.find((s) => s.id === shopId);
@@ -345,6 +400,12 @@ const startPublishTask = (productName: string, shopIds: number[]) => {
       status: 'pending' as const,
     };
   }));
+  /* 黑品库命中：整单直接失败，逐店写失败原因，不再进入随机推进 */
+  if (blHit) {
+    const reason = blFailReason(blHit);
+    liveTask.items.forEach((it) => { it.status = 'failed'; it.reason = reason; });
+    return;
+  }
   let idx = 0;
   /* 风控命中演示：任务创建时命中公司风险项——垃圾品管控直接取消执行；风险管控商品暂停待二次确认 */
   const riskRoll = Math.random();
@@ -436,7 +497,16 @@ const submitPub = () => {
   const products = pubProducts.value;
   const sels = pubSel.value;
   pubOpen.value = false;
-  products.forEach((p) => sels.forEach((g) => startPublishTask(p.title, g.shops)));
+  products.forEach((p) => {
+    /* 黑品库匹配标识：SKU 商品编码 / 系列编码 / 链接商品ID（link 中 id= 段） */
+    const d = props.jm ? getJmDetail(p.link) : getTbDetail(p.link);
+    const skus: Record<string, any>[] = d?.skus ?? [];
+    const codes = skus.map((u) => String(props.jm ? u.outerId ?? '' : u.code ?? '')).filter(Boolean);
+    const series = skus.map((u) => String(u.series ?? '')).filter(Boolean);
+    const linkId = /[?&]id=(\d+)/.exec(p.link)?.[1] ?? '';
+    const hit = matchBlacklist(codes, series, linkId);
+    sels.forEach((g) => startPublishTask(p.title, g.shops, hit));
+  });
   pushToast(`已创建 ${products.length * sels.length} 个发布任务`);
 };
 const pubLogo = (p: string) => PLATFORM_LOGO[p] ?? '/logos/taobao.png';
@@ -664,13 +734,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
                 />
               </th>
               <template v-for="c in midCols" :key="c.key">
-                <th>{{ c.label }}</th>
+                <SortTh v-if="c.key === 'created'" :label="c.label" :state="createSortState()" @sort="onCreateSort" />
+                <th v-else>{{ c.label }}</th>
               </template>
               <th>操作</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(row, i) in rows" :key="row.link">
+            <tr v-for="(row, i) in sortedRows" :key="row.link">
               <td>
                 <input
                   type="checkbox"

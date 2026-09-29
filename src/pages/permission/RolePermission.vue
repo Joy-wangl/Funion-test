@@ -7,6 +7,7 @@ import {
 } from './data';
 import type { Member, RoleGroupNode, RoleMember } from './data';
 import Modal from '../../components/Modal.vue';
+import SortTh from '../../components/SortTh.vue';
 import { pushToast } from '../../components/toast';
 import './style.css';
 import { IconSearch, IconWarn } from './permIcons';
@@ -42,6 +43,19 @@ const curRoleId = ref('r2');
 const collapsed = ref<Set<string>>(new Set());
 const tab = ref<'member' | 'perm'>('member');
 const roleMembers = ref<RoleMember[]>(INITIAL_ROLE_MEMBERS);
+/* 成员表添加时间列头排序：单列点击循环 desc → asc → 取消（时间串 localeCompare） */
+const sortDir = ref<'none' | 'asc' | 'desc'>('none');
+const onSort = () => {
+  if (sortDir.value === 'none') sortDir.value = 'desc';
+  else if (sortDir.value === 'desc') sortDir.value = 'asc';
+  else sortDir.value = 'none';
+};
+const sortState = () => sortDir.value;
+const sortedMembers = computed(() => {
+  if (sortDir.value === 'none') return roleMembers.value;
+  const dir = sortDir.value === 'asc' ? 1 : -1;
+  return [...roleMembers.value].sort((a, b) => a.at.localeCompare(b.at) * dir);
+});
 const ctx = ref<{ x: number; y: number; type: 'role' | 'group'; id: string; name: string } | null>(null);
 const modal = ref<ModalState | null>(null);
 
@@ -182,9 +196,9 @@ const onMemberPickerConfirm = (added: Member[]) => {
 
       <div v-if="tab === 'member'" class="content-body">
         <table class="table">
-          <thead><tr><th>姓名</th><th>部门</th><th>添加人</th><th>添加时间</th><th class="th-op">操作</th></tr></thead>
+          <thead><tr><th>姓名</th><th>部门</th><th>添加人</th><SortTh label="添加时间" :state="sortState()" @sort="onSort" /><th class="th-op">操作</th></tr></thead>
           <tbody>
-            <tr v-for="(r, i) in roleMembers" :key="i">
+            <tr v-for="(r, i) in sortedMembers" :key="i">
               <td class="col-name">{{ r.name }}</td>
               <td>{{ r.dept }}</td>
               <td>{{ r.adder }}</td>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import type { CbMaterial, MaterialType } from './codeKbData';
-import { cbProductMap, materialsOfProduct, productsOfSeries } from './codeKbData';
+import { cbProductMap, cbNotRec, materialsOfProduct, productsOfSeries } from './codeKbData';
 
 /** 推荐素材选用抽屉（商品创建编辑态各上传位共用）：
  *  展示当前ID所属系列下全部商品编码豆腐块＋该编码下当前类型的素材；
@@ -29,7 +29,7 @@ const list = computed(() => {
     .filter((m) => m.type === props.type)
     .slice()
     .sort((a, b) => b.sales - a.sales);
-  return view.value === 'top' ? all.filter((m) => m.status === '生效').slice(0, 10) : all;
+  return view.value === 'top' ? all.filter((m) => m.status === '生效' && !cbNotRec.has(m.id)).slice(0, 10) : all;
 });
 
 const isSel = (m: CbMaterial) => sel.value.some((s) => s.id === m.id);

@@ -5,6 +5,7 @@ import BubbleSelect from '../../components/BubbleSelect.vue';
 import DateRangePicker from '../../components/DateRangePicker.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
 import Modal from '../../components/Modal.vue';
+import SortTh from '../../components/SortTh.vue';
 import { pushToast } from '../../components/toast';
 import { raReviews, type RaReview, type RaVisibility, type RaAppealStatus, type RaAuditStatus } from './reviewAppealData';
 import ColFieldPop from './ColFieldPop.vue';
@@ -72,7 +73,7 @@ const reasonDescription = (title?: string) => appealReasonOptions.find((reason) 
 
 const filtered = computed(() => {
   const f = appliedFilters.value;
-  return raReviews.filter((r) => {
+  const out = raReviews.filter((r) => {
     /* 仅抓取差评，固定只展示「不够好」 */
     if (r.rating !== '不够好') return false;
     if (f.visibility !== '全部' && r.visibility !== f.visibility) return false;
@@ -87,7 +88,38 @@ const filtered = computed(() => {
     }
     return true;
   });
+  /* 评价时间 / 申诉时间 列头排序（时间串 localeCompare，申诉时间为空排末尾） */
+  const k = sortKey.value;
+  if (k && sortDir.value !== 'none') {
+    const dir = sortDir.value === 'asc' ? 1 : -1;
+    const val = (r: RaReview) => (k === 'ratedAt' ? r.ratedAt : r.appealTime || '');
+    return [...out].sort((a, b) => {
+      const va = val(a);
+      const vb = val(b);
+      if (!va || !vb) return (va ? -1 : vb ? 1 : 0) * dir;
+      return va.localeCompare(vb) * dir;
+    });
+  }
+  return out;
 });
+
+/* 排序状态：单列激活，点击循环 desc → asc → 取消 */
+const sortKey = ref<'ratedAt' | 'appealTime' | ''>('');
+const sortDir = ref<'none' | 'asc' | 'desc'>('none');
+const onSort = (k: 'ratedAt' | 'appealTime') => {
+  if (sortKey.value !== k) {
+    sortKey.value = k;
+    sortDir.value = 'desc';
+  } else if (sortDir.value === 'desc') {
+    sortDir.value = 'asc';
+  } else if (sortDir.value === 'asc') {
+    sortKey.value = '';
+    sortDir.value = 'none';
+  } else {
+    sortDir.value = 'desc';
+  }
+};
+const sortState = (k: string) => (sortKey.value === k ? sortDir.value : 'none');
 
 const doFilter = () => {
   appliedFilters.value = {
@@ -258,8 +290,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
               <th v-else-if="c.key === 'shop'" class="ra-th-shop">{{ c.label }}</th>
               <th v-else-if="c.key === 'user'" class="ra-th-user">{{ c.label }}</th>
               <th v-else-if="c.key === 'content'" class="ra-th-content">{{ c.label }}</th>
-              <th v-else-if="c.key === 'ratedAt'" class="ra-th-time">{{ c.label }}</th>
-              <th v-else-if="c.key === 'appealTime'" class="ra-th-appeal-time">{{ c.label }}</th>
+              <SortTh v-else-if="c.key === 'ratedAt'" class="ra-th-time" :label="c.label" :state="sortState('ratedAt')" @sort="onSort('ratedAt')" />
+              <SortTh v-else-if="c.key === 'appealTime'" class="ra-th-appeal-time" :label="c.label" :state="sortState('appealTime')" @sort="onSort('appealTime')" />
               <th v-else-if="c.key === 'appealStatus'" class="ra-th-status">{{ c.label }}</th>
               <th v-else-if="c.key === 'auditStatus'" class="ra-th-audit">{{ c.label }}</th>
             </template>

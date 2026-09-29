@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
+import SortTh from '../../components/SortTh.vue';
 import { pushToast } from '../../components/toast';
 import { PLATFORM_LOGO } from '../ops-center/data';
 import { shopAcctReq } from '../../components/globalMsgData';
@@ -35,14 +36,31 @@ const fAcctType = ref('');
 const PLATFORM_OPTS = ['淘宝', '京东', '拼多多', '1688', '抖音'];
 const ACCT_OPTS = ['买家账号', '卖家账号'];
 
-const filtered = computed(() => rows.value.filter((r) => {
-  if (tab.value !== 'all' && r.status !== tab.value) return false;
-  if (fPlatform.value && r.platform !== fPlatform.value) return false;
-  if (fAcctType.value && r.acctType !== fAcctType.value) return false;
-  const kw = fKw.value.trim().toLowerCase();
-  if (kw && ![r.name, r.login, r.acctId, r.shopId].some((v) => v.toLowerCase().includes(kw))) return false;
-  return true;
-}));
+const filtered = computed(() => {
+  const out = rows.value.filter((r) => {
+    if (tab.value !== 'all' && r.status !== tab.value) return false;
+    if (fPlatform.value && r.platform !== fPlatform.value) return false;
+    if (fAcctType.value && r.acctType !== fAcctType.value) return false;
+    const kw = fKw.value.trim().toLowerCase();
+    if (kw && ![r.name, r.login, r.acctId, r.shopId].some((v) => v.toLowerCase().includes(kw))) return false;
+    return true;
+  });
+  /* 账号更新时间 列头排序（时间串 localeCompare） */
+  if (sortDir.value !== 'none') {
+    const dir = sortDir.value === 'asc' ? 1 : -1;
+    return [...out].sort((a, b) => a.updatedAt.localeCompare(b.updatedAt) * dir);
+  }
+  return out;
+});
+
+/* 排序状态：单列（账号更新时间）激活，点击循环 desc → asc → 取消 */
+const sortDir = ref<'none' | 'asc' | 'desc'>('none');
+const onSort = () => {
+  if (sortDir.value === 'none') sortDir.value = 'desc';
+  else if (sortDir.value === 'desc') sortDir.value = 'asc';
+  else sortDir.value = 'none';
+};
+const sortState = () => sortDir.value;
 
 /* ---------- 添加买家账号：主按钮 + 平台气泡菜单；点选平台即直达添加流程（一步完成） ---------- */
 const menuOpen = ref(false);
@@ -151,7 +169,7 @@ onBeforeUnmount(() => {
               <th :style="{ width: '200px' }">账号ID</th>
               <th :style="{ width: '110px' }">账号类型</th>
               <th :style="{ width: '110px' }">在线状态</th>
-              <th :style="{ width: '170px' }">账号更新时间</th>
+              <SortTh label="账号更新时间" width="170px" :state="sortState()" @sort="onSort" />
               <th :style="{ width: '120px' }">操作</th>
             </tr>
           </thead>

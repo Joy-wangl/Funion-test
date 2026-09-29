@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { kpiItems, lossRows, metricNames, stockRows } from './data';
+import type { LossRow, StockRow } from './data';
 import { formatChartValue, isRateMetric, parseNumberText } from './trendChart';
 import { SG_STATUS_META } from './shopGoodsData';
 import type { SgStatus } from './shopGoodsData';
@@ -59,23 +60,54 @@ const trendMetric = ref<string | null>(null);
 /* 亏损/缺货合并单卡：下划线 tab 切换，批量按钮与表格跟随 tab */
 const listTab = ref<'loss' | 'stock'>('loss');
 const lossList = ref(lossRows.map((r) => ({ ...r })));
-const stockList = ref(stockRows.map((r) => ({ ...r })));
-const lossSel = ref<Set<number>>(new Set());
-const stockSel = ref<Set<number>>(new Set());
-const toggleLossCheck = (i: number) => {
+/* 缺货商品仅展示内仓或外仓至少一个为 0 的商品 */
+const stockList = ref(stockRows.filter((r) => Number(r.inner) === 0 || Number(r.outer) === 0).map((r) => ({ ...r })));
+const lossSel = ref<Set<LossRow>>(new Set());
+const stockSel = ref<Set<StockRow>>(new Set());
+/* 勾选按行对象记录（而非下标），排序后选中项不随行序错位 */
+const toggleLossCheck = (row: LossRow) => {
   const n = new Set(lossSel.value);
-  if (n.has(i)) n.delete(i); else n.add(i);
+  if (n.has(row)) n.delete(row); else n.add(row);
   lossSel.value = n;
 };
-const lossAllChecked = computed(() => lossList.value.length > 0 && lossList.value.every((_, i) => lossSel.value.has(i)));
-const toggleLossAll = () => { lossSel.value = lossAllChecked.value ? new Set() : new Set(lossList.value.map((_, i) => i)); };
-const toggleStockCheck = (i: number) => {
+const lossAllChecked = computed(() => lossView.value.length > 0 && lossView.value.every((r) => lossSel.value.has(r)));
+const toggleLossAll = () => { lossSel.value = lossAllChecked.value ? new Set() : new Set(lossView.value); };
+const toggleStockCheck = (row: StockRow) => {
   const n = new Set(stockSel.value);
-  if (n.has(i)) n.delete(i); else n.add(i);
+  if (n.has(row)) n.delete(row); else n.add(row);
   stockSel.value = n;
 };
-const stockAllChecked = computed(() => stockList.value.length > 0 && stockList.value.every((_, i) => stockSel.value.has(i)));
-const toggleStockAll = () => { stockSel.value = stockAllChecked.value ? new Set() : new Set(stockList.value.map((_, i) => i)); };
+const stockAllChecked = computed(() => stockView.value.length > 0 && stockView.value.every((r) => stockSel.value.has(r)));
+const toggleStockAll = () => { stockSel.value = stockAllChecked.value ? new Set() : new Set(stockView.value); };
+
+/* 亏损/缺货列头排序：单列激活，点击循环 降序 → 升序 → 取消 */
+const lossSortKey = ref<'' | 'amount' | 'profit' | 'rate'>('');
+const lossSortDir = ref<'none' | 'asc' | 'desc'>('none');
+const stockSortKey = ref<'' | 'yesterday' | 'week7' | 'stock'>('');
+const stockSortDir = ref<'none' | 'asc' | 'desc'>('none');
+const cycleSort = <K extends string>(key: K, k: { value: K | '' }, d: { value: 'none' | 'asc' | 'desc' }) => {
+  if (k.value !== key) { k.value = key; d.value = 'desc'; }
+  else if (d.value === 'desc') d.value = 'asc';
+  else if (d.value === 'asc') { k.value = '' as K | ''; d.value = 'none'; }
+  else d.value = 'desc';
+};
+const onLossSort = (k: 'amount' | 'profit' | 'rate') => cycleSort(k, lossSortKey, lossSortDir);
+const onStockSort = (k: 'yesterday' | 'week7' | 'stock') => cycleSort(k, stockSortKey, stockSortDir);
+const lossSortState = (k: string) => (lossSortKey.value === k ? lossSortDir.value : 'none');
+const stockSortState = (k: string) => (stockSortKey.value === k ? stockSortDir.value : 'none');
+const lossView = computed(() => {
+  const k = lossSortKey.value;
+  if (!k || lossSortDir.value === 'none') return lossList.value;
+  const dir = lossSortDir.value === 'asc' ? 1 : -1;
+  return [...lossList.value].sort((a, b) => (parseNumberText(a[k]) - parseNumberText(b[k])) * dir);
+});
+const stockView = computed(() => {
+  const k = stockSortKey.value;
+  if (!k || stockSortDir.value === 'none') return stockList.value;
+  const dir = stockSortDir.value === 'asc' ? 1 : -1;
+  const val = (r: StockRow) => (k === 'stock' ? Number(r.inner) + Number(r.outer) : parseNumberText(r[k]));
+  return [...stockList.value].sort((a, b) => (val(a) - val(b)) * dir);
+});
 
 /* 上下架状态流转（与店铺商品同源枚举）：销售中→下架；其余→上架 */
 const shelfLabel = (s: SgStatus) => (s === 'selling' ? '下架' : '上架');
@@ -92,7 +124,7 @@ const applyShelf = (row: { goodsStatus: SgStatus }) => {
 const batchOffLoss = () => {
   const n = lossSel.value.size;
   if (!n) return;
-  for (const i of lossSel.value) lossList.value[i].goodsStatus = 'offManual';
+  for (const row of lossSel.value) row.goodsStatus = 'offManual';
   lossSel.value = new Set();
   pushToast(`批量下架成功：已下架 ${n} 件商品`);
 };
@@ -812,16 +844,16 @@ const visibleDimRows = computed(() => {
             <th>商品信息</th>
             <th>店铺</th>
             <th>平台</th>
-            <th>销售金额</th>
-            <th>新毛六利润</th>
-            <th>新毛六利润率</th>
+            <SortTh label="销售金额" :state="lossSortState('amount')" @sort="onLossSort('amount')" />
+            <SortTh label="新毛六利润" :state="lossSortState('profit')" @sort="onLossSort('profit')" />
+            <SortTh label="新毛六利润率" :state="lossSortState('rate')" @sort="onLossSort('rate')" />
             <th>商品状态</th>
             <th :style="{ width: '110px' }">操作</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, i) in lossList" :key="i">
-            <td><input type="checkbox" :checked="lossSel.has(i)" @change="toggleLossCheck(i)" /></td>
+          <tr v-for="(row, i) in lossView" :key="i">
+            <td><input type="checkbox" :checked="lossSel.has(row)" @change="toggleLossCheck(row)" /></td>
             <td>{{ i + 1 }}</td>
             <td class="item-info">
               <div class="item-title">{{ row.title }}</div>
@@ -865,16 +897,16 @@ const visibleDimRows = computed(() => {
             <th>商品信息</th>
             <th>店铺</th>
             <th>平台</th>
-            <th>昨日销量</th>
-            <th>近7日销量</th>
-            <th>库存数</th>
+            <SortTh label="昨日销量" :state="stockSortState('yesterday')" @sort="onStockSort('yesterday')" />
+            <SortTh label="近7日销量" :state="stockSortState('week7')" @sort="onStockSort('week7')" />
+            <SortTh label="库存数" :state="stockSortState('stock')" @sort="onStockSort('stock')" />
             <th>商品状态</th>
             <th :style="{ width: '110px' }">操作</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, i) in stockList" :key="i">
-            <td><input type="checkbox" :checked="stockSel.has(i)" @change="toggleStockCheck(i)" /></td>
+          <tr v-for="(row, i) in stockView" :key="i">
+            <td><input type="checkbox" :checked="stockSel.has(row)" @change="toggleStockCheck(row)" /></td>
             <td>{{ i + 1 }}</td>
             <td class="item-info">
               <div class="item-title">{{ row.title }}</div>
@@ -889,7 +921,10 @@ const visibleDimRows = computed(() => {
             <td>{{ row.yesterday }}</td>
             <td>{{ row.week7 }}</td>
             <td>
-              <span :class="row.stockCls">{{ row.stock }}</span>
+              <div class="stock-cell">
+                <div class="stock-line"><span class="stock-k">内仓：</span>{{ row.inner }}</div>
+                <div class="stock-line"><span class="stock-k">外仓：</span>{{ row.outer }}</div>
+              </div>
             </td>
             <td>
               <div class="sg-status">

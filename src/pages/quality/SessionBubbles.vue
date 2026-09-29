@@ -3,12 +3,23 @@
 import { computed, ref } from 'vue';
 import type { ChatSession } from './data';
 
-const props = defineProps<{ s: ChatSession }>();
+const props = defineProps<{ s: ChatSession; showSub?: boolean }>();
 
 const hitsOnly = ref(false);
-const phrases = computed(() => props.s.hits.map((h) => h.phrase).filter(Boolean));
-const hitMsgs = computed(() => props.s.messages.filter((m) => phrases.value.some((p) => m.text.includes(p))));
-const msgs = computed(() => (hitsOnly.value ? hitMsgs.value : props.s.messages));
+/* 二级子问题下钻（品控-线上）：按命中子问题过滤会话气泡 */
+const subSel = ref<string | null>(null);
+const subChips = computed(() => {
+  const m = new Map<string, number>();
+  props.s.hits.forEach((h) => { if (h.sub) m.set(h.sub, (m.get(h.sub) ?? 0) + 1); });
+  return [...m.entries()].map(([name, count]) => ({ name, count }));
+});
+const activeHits = computed(() => (subSel.value ? props.s.hits.filter((h) => h.sub === subSel.value) : props.s.hits));
+const phrases = computed(() => activeHits.value.map((h) => h.phrase).filter(Boolean));
+const baseMsgs = computed(() => (subSel.value
+  ? props.s.messages.filter((m) => phrases.value.some((p) => m.text.includes(p)))
+  : props.s.messages));
+const hitMsgs = computed(() => baseMsgs.value.filter((m) => phrases.value.some((p) => m.text.includes(p))));
+const msgs = computed(() => (hitsOnly.value ? hitMsgs.value : baseMsgs.value));
 
 /* 命中短语高亮切分（与 React highlight 等价：长短语优先，逐段首处替换） */
 type Part = { text: string; mark: boolean };
@@ -31,9 +42,19 @@ const highlightParts = (text: string, phs: string[]): Part[] => {
 
 <template>
   <div class="session-bubbles">
+    <div v-if="showSub && subChips.length" class="b-subs">
+      <span class="b-sub" :class="{ on: !subSel }" @click="subSel = null; hitsOnly = false">全部</span>
+      <span
+        v-for="c in subChips"
+        :key="c.name"
+        class="b-sub"
+        :class="{ on: subSel === c.name }"
+        @click="subSel = subSel === c.name ? null : c.name; hitsOnly = false"
+      >{{ c.name }}<b>{{ c.count }}</b></span>
+    </div>
     <div v-if="s.hits.length > 0" class="b-toggle">
       <a @click.prevent="hitsOnly = !hitsOnly">
-        {{ hitsOnly ? `查看完整会话（${s.messages.length} 条）` : `只看命中（${hitMsgs.length} 条）` }}
+        {{ hitsOnly ? `查看完整会话（${baseMsgs.length} 条）` : `只看命中（${hitMsgs.length} 条）` }}
       </a>
     </div>
     <div class="b-list">

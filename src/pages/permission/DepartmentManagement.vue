@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { DP_TREE, DP_MEMBERS, INITIAL_MEMBERS, findDpNode, renameDpNode, roleById } from './data';
 import type { DpTreeNode, Member } from './data';
 import Modal from '../../components/Modal.vue';
+import SortTh from '../../components/SortTh.vue';
 import { pushToast } from '../../components/toast';
 import './style.css';
 import { IconSearch, IconWarn } from './permIcons';
@@ -61,6 +62,20 @@ const modal = ref<ModalState | null>(null);
 /* 部门成员列表（本地维护，添加成员时从 SOURCE_MEMBERS 选择）
    注：本地行 id 用 dm* 命名空间，避免与全局成员 id（m*）冲撞导致归属串改 */
 const deptMembers = ref<DeptMember[]>(DP_MEMBERS.map((m, i) => ({ ...m, id: `dm${i + 1}` })));
+
+/* 添加时间列头排序：单列点击循环 desc → asc → 取消（时间串 localeCompare） */
+const sortDir = ref<'none' | 'asc' | 'desc'>('none');
+const onSort = () => {
+  if (sortDir.value === 'none') sortDir.value = 'desc';
+  else if (sortDir.value === 'desc') sortDir.value = 'asc';
+  else sortDir.value = 'none';
+};
+const sortState = () => sortDir.value;
+const sortedMembers = computed(() => {
+  if (sortDir.value === 'none') return deptMembers.value;
+  const dir = sortDir.value === 'asc' ? 1 : -1;
+  return [...deptMembers.value].sort((a, b) => a.at.localeCompare(b.at) * dir);
+});
 
 /* 运营组数据（作为全局状态提升，后续可抽离到上层 context） */
 const opsGroups = ref<OpsChannelGroups>(INITIAL_OPS_GROUPS);
@@ -209,12 +224,12 @@ const pickNode = (id: string) => { curDeptId.value = id; };
               <th>角色</th>
               <th>运营归属</th>
               <th>添加人</th>
-              <th>添加时间</th>
+              <SortTh label="添加时间" :state="sortState()" @sort="onSort" />
               <th class="th-op">操作</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="m in deptMembers" :key="m.id">
+            <tr v-for="m in sortedMembers" :key="m.id">
               <td class="col-name">{{ m.name }}</td>
               <td>
                 <div v-if="m.roles.length" class="role-tags">

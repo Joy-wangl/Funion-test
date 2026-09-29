@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
 import Modal from '../../components/Modal.vue';
+import SortTh from '../../components/SortTh.vue';
 import { pushToast } from '../../components/toast';
 import './style.css';
 
@@ -37,7 +38,23 @@ const types = ref<string[]>(['日报数据']);
 /* ---------- 筛选（即效，无查询按钮） ---------- */
 const fType = ref('全部');
 const filterOpts = computed(() => ['全部', ...types.value]);
-const filtered = computed(() => rows.value.filter((r) => fType.value === '全部' || r.type === fType.value));
+const filtered = computed(() => {
+  const out = rows.value.filter((r) => fType.value === '全部' || r.type === fType.value);
+  /* 上传时间列头排序（时间串 localeCompare） */
+  if (sortDir.value !== 'none') {
+    const dir = sortDir.value === 'asc' ? 1 : -1;
+    return [...out].sort((a, b) => a.time.localeCompare(b.time) * dir);
+  }
+  return out;
+});
+/* 排序状态：单列（上传时间）激活，点击循环 desc → asc → 取消 */
+const sortDir = ref<'none' | 'asc' | 'desc'>('none');
+const onSort = () => {
+  if (sortDir.value === 'none') sortDir.value = 'desc';
+  else if (sortDir.value === 'desc') sortDir.value = 'asc';
+  else sortDir.value = 'none';
+};
+const sortState = () => sortDir.value;
 
 /* ---------- 新建上传弹窗 ---------- */
 const createOpen = ref(false);
@@ -129,7 +146,7 @@ const onReUpChange = (e: Event) => {
         <table class="sg-table di-table">
           <thead>
             <tr>
-              <th>上传时间</th>
+              <SortTh label="上传时间" :state="sortState()" @sort="onSort" />
               <th>上传文件</th>
               <th>上传人</th>
               <th>上传文件类型</th>

@@ -2,6 +2,7 @@
 import { computed, inject, ref } from 'vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import DateRangePicker from '../../components/DateRangePicker.vue';
+import SortTh from '../../components/SortTh.vue';
 import { pushToast } from '../../components/toast';
 import { stStrategies, type StStrategy } from './strategyData';
 import ColFieldPop from './ColFieldPop.vue';
@@ -43,16 +44,33 @@ const cf = useColField('strategy', {
 });
 const { midCols } = cf;
 
-const rows = computed(() => list.value.filter((s) => {
-  if (applied.value.name && !s.name.includes(applied.value.name)) return false;
-  if (applied.value.type && s.type !== applied.value.type) return false;
-  if (applied.value.creator && !s.creator.includes(applied.value.creator)) return false;
-  if (applied.value.status && s.status !== applied.value.status) return false;
-  if (applied.value.activityType && s.activityType !== applied.value.activityType) return false;
-  if (applied.value.mode && s.mode !== applied.value.mode) return false;
-  if (applied.value.promoted && s.promoted !== applied.value.promoted) return false;
-  return true;
-}));
+const rows = computed(() => {
+  const out = list.value.filter((s) => {
+    if (applied.value.name && !s.name.includes(applied.value.name)) return false;
+    if (applied.value.type && s.type !== applied.value.type) return false;
+    if (applied.value.creator && !s.creator.includes(applied.value.creator)) return false;
+    if (applied.value.status && s.status !== applied.value.status) return false;
+    if (applied.value.activityType && s.activityType !== applied.value.activityType) return false;
+    if (applied.value.mode && s.mode !== applied.value.mode) return false;
+    if (applied.value.promoted && s.promoted !== applied.value.promoted) return false;
+    return true;
+  });
+  /* 创建信息列按创建时间排序（点击循环 降序 → 升序 → 取消） */
+  if (sortDir.value !== 'none') {
+    const dir = sortDir.value === 'asc' ? 1 : -1;
+    return [...out].sort((a, b) => a.createdAt.localeCompare(b.createdAt) * dir);
+  }
+  return out;
+});
+
+/* 排序状态：单列（创建时间）激活，点击循环 desc → asc → 取消 */
+const sortDir = ref<'none' | 'asc' | 'desc'>('none');
+const onSort = () => {
+  if (sortDir.value === 'none') sortDir.value = 'desc';
+  else if (sortDir.value === 'desc') sortDir.value = 'asc';
+  else sortDir.value = 'none';
+};
+const sortState = () => sortDir.value;
 
 const toggleStatus = (s: StStrategy) => {
   s.status = s.status === '启用中' ? '停用' : '启用中';
@@ -123,7 +141,8 @@ const removeRow = (s: StStrategy) => {
           <thead>
             <tr>
               <template v-for="c in midCols" :key="c.key">
-                <th :style="{ width: `${c.pct}%` }">{{ c.label }}</th>
+                <SortTh v-if="c.key === 'created'" :label="c.label" :width="`${c.pct}%`" :state="sortState()" @sort="onSort" />
+                <th v-else :style="{ width: `${c.pct}%` }">{{ c.label }}</th>
               </template>
               <th :style="{ width: '16%' }">操作</th>
             </tr>

@@ -94,6 +94,11 @@ export const gmsgs = ref<GlobalMsg[]>([
 export const shopAcctReq = ref<{ acct: string; nonce: number } | null>(null);
 export const requestShopAcct = (acct: string) => { shopAcctReq.value = { acct, nonce: Date.now() }; };
 
+/* 商品详情「Ai作图」跨组件桥：详情发起 → 素材中心切生图态并预填商品全部主图（带商品身份，与卡内「选择商品」同模型展示） */
+export interface VsImgMeta { id: string; name: string; platform: '淘宝' | '视频号' | '京麦'; shop: string }
+export const vsImgHandoff = ref<{ urls: string[]; meta: VsImgMeta | null; nonce: number } | null>(null);
+export const requestVsImg = (urls: string[], meta: VsImgMeta | null = null) => { vsImgHandoff.value = { urls, meta, nonce: Date.now() }; };
+
 export const gUnreadCount = computed(() => gmsgs.value.filter((m) => !m.read).length);
 
 export const gMarkAll = () => { gmsgs.value.forEach((m) => { m.read = true; }); };

@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, toRaw } from 'vue';
 import Modal from '../../components/Modal.vue';
 import { PLATFORM_LOGO } from './data';
-import { sgDetail, sgOpsLogCls, sgOpsLogOf, sgOpsSalesOf } from './shopGoodsData';
+import { getSgDetail, sgDetail, sgOpsLogCls, sgOpsLogOf, sgOpsSalesOf } from './shopGoodsData';
 import type { SgProduct } from './shopGoodsData';
 import { pushToast } from '../../components/toast';
+import CpdMediaSec from './CpdMediaSec.vue';
+import KbPickDrawer from '../code-kb/KbPickDrawer.vue';
+import SkuMatchView from './SkuMatchView.vue';
+import type { SkmSku } from './SkuMatchView.vue';
+import type { CbMaterial, MaterialType } from '../code-kb/codeKbData';
 
 const props = defineProps<{
   product: SgProduct;
@@ -60,25 +65,79 @@ const logTab = ref<'detail' | 'sales'>('detail');
 const logs = computed(() => sgOpsLogOf(p.value));
 const salesNodes = computed(() => sgOpsSalesOf(p.value));
 
-/* ---------- 规格/SKU 联动模型（与淘宝版一致） ---------- */
+/* 详情数据按商品持久化（key = linkId）：与列表「详」快捷编辑弹窗共用同一份种子，改一处两边同步 */
+const d = reactive(getSgDetail(p.value.linkId));
+
+/* SKU「查看」→ 商品匹配视图（聚水潭/竞品/条件三 tab） */
+const matchSku = ref<SkmSku | null>(null);
+const openMatch = (s: SgSku) => { matchSku.value = { code: s.src.code, series: s.src.series, name: s.src.name, cost: s.src.cost, price: s.src.price }; };
+
+/* ---------- 推荐素材（素材库选用） ---------- */
+/* 演示映射：店铺商品详情关联素材库商品ID TB-5101（XL-C300 系列下淘宝ID），抽屉按其系列展开商品编码与类型素材 */
+const KB_PRODUCT_ID = 'TB-5101';
+type KbTarget = 'mainImgs' | 'detailImgs' | 'videos' | 'whiteImg' | 'sceneImg';
+const kbPick = ref<{ type: MaterialType; target: KbTarget; title: string } | null>(null);
+const openKbPick = (type: MaterialType, target: KbTarget, title: string) => { kbPick.value = { type, target, title }; };
+/* 确认选用：选中素材回填对应模块（单图位取首张覆盖，图集/视频追加） */
+const onKbConfirm = (list: CbMaterial[]) => {
+  const pick = kbPick.value;
+  kbPick.value = null;
+  if (!pick || !list.length) return;
+  const urls = list.map((m) => m.thumb);
+  if (pick.target === 'whiteImg') d.whiteImg = urls[0];
+  else if (pick.target === 'sceneImg') d.sceneImg = urls[0];
+  else if (pick.target === 'mainImgs') d.mainImgs.push(...urls);
+  else if (pick.target === 'detailImgs') d.detailImgs.push(...urls);
+  else if (pick.target === 'videos') d.videos.push(...urls);
+  pushToast(`已添加 ${list.length} 个素材至「${pick.title}」`);
+};
+/* ---------- 规格/SKU 联动模型：SKU 行＝种子（d.skus）投影，字段编辑直写种子 ----------
+   快捷弹窗里复制/新增只落一条种子，详情表格里就只有一行；详情改的值写回种子，弹窗再开即同步 */
 interface SgSpec { name: string; values: string[] }
-interface SgSku { key: string; vals: Record<string, string>; name: string; skuName: string; code: string; series: string; cost: string; price: string; stock: string }
-/* 深拷贝防污染共用种子 */
-const d = reactive(JSON.parse(JSON.stringify(sgDetail)) as typeof sgDetail);
-/* 将 colors/styles 转为统一 specs 格式 */
+type SgSeed = (typeof d.skus)[number];
+interface SgSku { key: string; vals: Record<string, string>; name: string; src: SgSeed }
+/* 颜色分类/款式两维取自种子 colors/styles；维度与字段的对应按稳定 id 建档，规格拖拽重排不会对调 */
 const specs = reactive<SgSpec[]>([
   { name: '颜色分类', values: [...d.colors] },
   { name: '款式', values: [...d.styles] },
 ]);
 const specIds = ref<string[]>(specs.map((_, i) => `sgp${i}`));
 let specIdSeed = specs.length;
-const skuDeleted = ref<string[]>([]);
+const dimField = new Map<string, 'color' | 'style'>();
+specIds.value.forEach((id, si) => { if (si === 0) dimField.set(id, 'color'); else if (si === 1) dimField.set(id, 'style'); });
+/* 第三维起种子无对应字段，属性值记在侧表（key＝种子原对象） */
+const extraVals = new WeakMap<object, Record<string, string>>();
 const tSkus = ref<SgSku[]>([]);
 const skuKeyOf = (vals: Record<string, string>) => [...specIds.value].sort().map((id) => vals[id]).filter(Boolean).join(' / ');
-const skuNameOf = (vals: Record<string, string>) => specIds.value.map((id) => vals[id]).filter(Boolean).join(' + ');
+const comboOf = (vals: Record<string, string>) => specIds.value.map((id) => vals[id]).filter(Boolean).join(' + ');
 const filledSpecCount = computed(() => specs.filter((s) => s.values.length > 0).length);
-const syncSkus = () => {
-  if (filledSpecCount.value === 0) { tSkus.value = []; return; }
+const seedVals = (s: SgSeed): Record<string, string> => {
+  const vals: Record<string, string> = { ...(extraVals.get(toRaw(s)) ?? {}) };
+  for (const id of specIds.value) {
+    const f = dimField.get(id);
+    if (f) vals[id] = s[f] ?? '';
+  }
+  return vals;
+};
+const writeSeedVals = (s: SgSeed, vals: Record<string, string>) => {
+  const extra: Record<string, string> = {};
+  for (const id of specIds.value) {
+    const f = dimField.get(id);
+    if (f) (s as Record<string, string>)[f] = vals[id] ?? '';
+    else if (vals[id]) extra[id] = vals[id];
+  }
+  extraVals.set(toRaw(s), extra);
+};
+/* 维度增删改后把两维属性值写回种子 colors/styles，快捷弹窗与详情读到同一批值 */
+const writeDims = () => {
+  const next: Record<'color' | 'style', string[]> = { color: [], style: [] };
+  specIds.value.forEach((id, si) => { const f = dimField.get(id); if (f) next[f] = [...specs[si].values]; });
+  d.colors = next.color;
+  d.styles = next.style;
+};
+/* 结构变更（改名/删值/删维度）前先快照种子与其属性值，改完按快照写回，剔除已失效的维度与属性值 */
+const snapSeeds = () => d.skus.map((s) => ({ s, vals: seedVals(s) }));
+const allCombos = (): Record<string, string>[] => {
   let combos: Record<string, string>[] = [{}];
   specs.forEach((s, si) => {
     if (s.values.length === 0) return;
@@ -87,26 +146,42 @@ const syncSkus = () => {
     for (const c of combos) for (const v of s.values) next.push({ ...c, [id]: v });
     combos = next;
   });
-  const old = new Map(tSkus.value.map((s) => [s.key, s]));
-  const deleted = new Set(skuDeleted.value);
-  tSkus.value = combos
-    .map((vals, i) => {
-      const key = skuKeyOf(vals);
-      const prev = old.get(key);
-      if (prev) return { ...prev, vals, key, name: skuNameOf(vals) };
-      const texts = Object.values(vals);
-      const base = d.skus.find((s) => texts.includes(s.color) && texts.includes(s.style));
-      return {
-        key, vals, name: skuNameOf(vals),
-        skuName: base?.name ?? skuNameOf(vals),
-        code: base?.code ?? `SKU-${String(i + 1).padStart(3, '0')}`,
-        series: base?.series ?? `编码${String.fromCharCode(65 + (i % 26))}`,
-        cost: base?.cost ?? '0', price: base?.price ?? d.price, stock: base?.stock ?? '0',
-      };
+  return combos;
+};
+const findSeed = (vals: Record<string, string>) => {
+  const texts = Object.values(vals).filter(Boolean);
+  return d.skus.find((s) => {
+    const sv = Object.values(seedVals(s)).filter(Boolean);
+    return sv.length === texts.length && texts.every((t) => sv.includes(t));
+  });
+};
+const syncSkus = () => {
+  if (filledSpecCount.value === 0) { tSkus.value = []; return; }
+  /* 仅有种子支撑的组合出行：不再按笛卡尔积补空行 */
+  tSkus.value = allCombos()
+    .map((vals) => {
+      const src = findSeed(vals);
+      return src ? { key: skuKeyOf(vals), vals, name: comboOf(vals), src } : null;
     })
-    .filter((s) => !deleted.has(s.key));
+    .filter((r): r is SgSku => r !== null);
 };
 syncSkus();
+/* 新增属性值：为含该值的新组合补建种子 SKU（默认值可继续编辑），保留「加值即出行」的创建流程 */
+const mkSeed = (vals: Record<string, string>): SgSeed => {
+  const n = d.skus.length;
+  return {
+    color: '', style: '', name: comboOf(vals), code: `SKU-${String(n + 1).padStart(3, '0')}`,
+    series: `编码${String.fromCharCode(65 + (n % 26))}`, cost: '0', price: d.price, stock: '0',
+  };
+};
+const materialize = (id?: string, val?: string) => {
+  for (const vals of allCombos()) {
+    if (id && vals[id] !== val) continue;
+    if (findSeed(vals)) continue;
+    d.skus.push(mkSeed(vals));
+    writeSeedVals(d.skus[d.skus.length - 1], vals);
+  }
+};
 /* rowspan 合并 */
 const samePrefix = (a: SgSku, b: SgSku, di: number) => {
   for (let k = 0; k <= di; k++) {
@@ -151,10 +226,26 @@ const onSpecDragOver = (i: number) => {
 const askRemoveSpec = (si: number) => {
   const sp = specs[si];
   askConfirm('删除规格', `删除规格「${sp.name || `规格${si + 1}`}」将同时删除其下全部属性值（${sp.values.length} 个），SKU 列表将按剩余规格重新生成，是否继续？`, () => {
-    skuDeleted.value = skuDeleted.value.filter((k) => !k.split(' / ').some((v) => sp.values.includes(v)));
+    const snap = snapSeeds();
+    const dropId = specIds.value[si];
+    snap.forEach(({ vals }) => { delete vals[dropId]; });
     specs.splice(si, 1);
     specIds.value.splice(si, 1);
     specAddVals.value.splice(si, 1);
+    /* 剩余规格下属性值完全相同的种子合并为一条，避免删维度后出现重复 SKU */
+    const seen = new Set<string>();
+    const keep = snap.filter(({ vals }) => {
+      const k = skuKeyOf(vals);
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    keep.forEach(({ s, vals }) => {
+      writeSeedVals(s, vals);
+      s.name = comboOf(vals) || s.name;
+    });
+    d.skus = keep.map(({ s }) => s);
+    writeDims();
     syncSkus();
     pushToast('规格已删除，SKU 已按剩余规格重新生成');
   });
@@ -181,17 +272,25 @@ const askRemoveSpecValue = (si: number, vi: number) => {
   const v = specs[si].values[vi];
   const id = specIds.value[si];
   const last = specs[si].values.length === 1;
-  const n = tSkus.value.filter((s) => s.vals[id] === v).length;
+  const snap = snapSeeds();
+  const n = snap.filter(({ vals }) => vals[id] === v).length;
   askConfirm('删除属性值', last
     ? `删除属性值「${v}」后规格「${specs[si].name || `规格${si + 1}`}」将无属性值，SKU 列表暂隐该规格列，其余 SKU 保留，是否继续？`
     : `删除属性值「${v}」将同步删除包含该属性值的 ${n} 个 SKU，是否继续？`, () => {
       specs[si].values.splice(vi, 1);
-      skuDeleted.value = skuDeleted.value.filter((k) => !k.split(' / ').some((seg) => seg === v));
+      /* 非末值：连带删除引用该值的种子 SKU；末值：保留 SKU，仅摘掉该维度的属性值 */
+      const keep = last ? snap : snap.filter(({ vals }) => vals[id] !== v);
+      keep.forEach(({ s, vals }) => {
+        if (vals[id] === v) delete vals[id];
+        writeSeedVals(s, vals);
+      });
+      d.skus = keep.map(({ s }) => s);
+      writeDims();
       syncSkus();
       pushToast(last ? `属性值「${v}」已删除，规格「${specs[si].name || `规格${si + 1}`}」无属性值暂隐于 SKU 列表` : `属性值「${v}」及关联的 ${n} 个 SKU 已删除`);
     });
 };
-/* 属性值改名 */
+/* 属性值改名：写回种子 color/style，SKU 名称跟随自动组合名 */
 const onSpecValChange = (si: number, vi: number, e: Event) => {
   const input = e.target as HTMLInputElement;
   const nv = input.value.trim();
@@ -199,17 +298,17 @@ const onSpecValChange = (si: number, vi: number, e: Event) => {
   if (nv === ov) { input.value = ov; return; }
   if (!nv) { pushToast('属性值不能为空', 'warning'); input.value = ov; return; }
   if (specs[si].values.includes(nv)) { pushToast('该属性值已存在', 'warning'); input.value = ov; return; }
-  specs[si].values[vi] = nv;
   const id = specIds.value[si];
-  skuDeleted.value = skuDeleted.value.map((k) => k.replace(ov, nv));
-  tSkus.value.forEach((s) => {
-    if (s.vals[id] !== ov) return;
-    s.vals = { ...s.vals, [id]: nv };
-    s.key = skuKeyOf(s.vals);
-    s.name = skuNameOf(s.vals);
-    /* SKU 名称同步改名：始终跟随自动名 */
-    s.skuName = s.name;
+  const snap = snapSeeds();
+  specs[si].values[vi] = nv;
+  snap.forEach(({ s, vals }) => {
+    if (vals[id] !== ov) return;
+    vals[id] = nv;
+    writeSeedVals(s, vals);
+    s.name = comboOf(vals) || s.name;
   });
+  writeDims();
+  syncSkus();
 };
 const addSpecValue = (si: number) => {
   const v = (specAddVals.value[si] ?? '').trim();
@@ -217,14 +316,17 @@ const addSpecValue = (si: number) => {
   if (specs[si].values.includes(v)) { pushToast('该属性值已存在', 'warning'); return; }
   specs[si].values.push(v);
   specAddVals.value[si] = '';
+  /* 新值对应的组合在种子里落地为真实 SKU 行（可继续编辑），与快捷弹窗口径一致 */
+  writeDims();
+  materialize(specIds.value[si], v);
   syncSkus();
 };
-/* 删除 SKU：孤立属性值联动删除 */
+/* 删除 SKU：删种子行，孤立属性值联动删除 */
 const askRemoveSku = (sku: SgSku) => {
   const others = tSkus.value.filter((s) => s.key !== sku.key);
   const orphans = specIds.value
     .map((id, si) => ({ si, id, v: sku.vals[id] }))
-    .filter(({ id, v }) => !others.some((s) => s.vals[id] === v));
+    .filter(({ id, v }) => v && !others.some((s) => s.vals[id] === v));
   const orphanTxt = orphans.map((o) => `「${o.v}」`).join('、');
   askConfirm(
     '删除 SKU',
@@ -232,11 +334,19 @@ const askRemoveSku = (sku: SgSku) => {
       ? `删除 SKU「${sku.name}」后，属性值${orphanTxt}未被其它 SKU 引用，将一并删除，是否继续？`
       : `确认删除 SKU「${sku.name}」？其属性值仍被其它 SKU 引用，将予以保留。`,
     () => {
-      skuDeleted.value.push(sku.key);
+      const at = d.skus.indexOf(sku.src);
+      const snap = snapSeeds();
+      const keep = snap.filter((_, i) => i !== at);
       orphans.forEach(({ si, v }) => {
         const idx = specs[si].values.indexOf(v);
         if (idx >= 0) specs[si].values.splice(idx, 1);
       });
+      keep.forEach(({ s, vals }) => {
+        orphans.forEach(({ id }) => { if (vals[id]) delete vals[id]; });
+        writeSeedVals(s, vals);
+      });
+      d.skus = keep.map(({ s }) => s);
+      writeDims();
       syncSkus();
       pushToast(orphans.length ? `SKU「${sku.name}」及属性值${orphanTxt}已删除` : `SKU「${sku.name}」已删除`);
     },
@@ -399,7 +509,7 @@ const askRemoveSku = (sku: SgSku) => {
                   <th>成本价</th>
                 </template>
                 <th>售价</th>
-                <th>操作</th>
+                <th v-if="editing">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -412,28 +522,28 @@ const askRemoveSku = (sku: SgSku) => {
                 </template>
                 <td>{{ s.name }}</td>
                 <td>
-                  <input v-if="editing" v-model="s.skuName" class="cpd-cell-input cpd-cell-wide" />
-                  <template v-else>{{ s.skuName }}</template>
+                  <input v-if="editing" v-model="s.src.name" class="cpd-cell-input cpd-cell-wide" />
+                  <template v-else>{{ s.src.name }}</template>
                 </td>
-                <td><span class="cpd-code-outline">{{ s.code }}</span></td>
-                <td><span v-if="s.series" class="sgd-code">{{ s.series }}</span><template v-else>0</template></td>
+                <td><span class="cpd-code-outline">{{ s.src.code }}</span></td>
+                <td><span v-if="s.src.series" class="sgd-code">{{ s.src.series }}</span><template v-else>0</template></td>
                 <td>
-                  <span v-if="editing" class="cpd-cell-num"><input v-model="s.stock" class="cpd-cell-input" /><i>件</i></span>
-                  <template v-else>{{ s.stock }}</template>
+                  <span v-if="editing" class="cpd-cell-num"><input v-model="s.src.stock" class="cpd-cell-input" /><i>件</i></span>
+                  <template v-else>{{ s.src.stock }}</template>
                 </td>
                 <template v-if="skuShow">
-                  <td>{{ s.cost ? `${s.cost} 元` : '0 元' }}</td>
+                  <td>{{ s.src.cost ? `${s.src.cost} 元` : '0 元' }}</td>
                 </template>
                 <td>
-                  <span v-if="editing" class="cpd-cell-num"><input v-model="s.price" class="cpd-cell-input" /><i>元</i></span>
-                  <template v-else>{{ s.price }} 元</template>
+                  <span v-if="editing" class="cpd-cell-num"><input v-model="s.src.price" class="cpd-cell-input" /><i>元</i></span>
+                  <template v-else>{{ s.src.price }} 元</template>
                 </td>
-                <td class="cpd-row-ops">
-                  <a href="#" @click.prevent>查看</a>
-                  <a v-if="editing" class="danger" href="#" @click.prevent="askRemoveSku(s)">删除</a>
+                <td v-if="editing" class="cpd-row-ops">
+                  <a href="#" @click.prevent="openMatch(s)">查看</a>
+                  <a class="danger" href="#" @click.prevent="askRemoveSku(s)">删除</a>
                 </td>
               </tr>
-              <tr v-if="tSkus.length === 0"><td :colspan="(skuShow ? 11 : 10) + filledSpecCount" class="cpd-vsku-empty">—</td></tr>
+              <tr v-if="tSkus.length === 0"><td :colspan="(skuShow ? 11 : 10) + filledSpecCount - (editing ? 0 : 1)" class="cpd-vsku-empty">—</td></tr>
             </tbody>
           </table>
         </div>
@@ -445,47 +555,52 @@ const askRemoveSku = (sku: SgSku) => {
       </div>
     </div>
 
-    <div class="sgd-sec">
-      <div class="sgd-sec-head"><div class="sgd-sec-title">3:4主图</div></div>
-      <div class="sgd-sec-body">
-        <div class="sgd-note">最多上传5张图片，支持最小尺寸750*1000，固定宽高比例为3:4，大小20M以内</div>
-        <div class="sgd-imgs ratio34"><img v-for="(m, i) in sgDetail.mainImgs" :key="i" :src="m" alt="" /></div>
-      </div>
-    </div>
+    <CpdMediaSec
+      title="3:4主图"
+      note="最多上传5张图片，支持最小尺寸750*1000，固定宽高比例为3:4，大小20M以内"
+      :imgs="d.mainImgs"
+      :ratio34="true"
+      :editing="editing"
+      kb-pick
+      :on-kb-pick="() => openKbPick('主图', 'mainImgs', '3:4主图')"
+    />
 
-    <div class="sgd-sec">
-      <div class="sgd-sec-head"><div class="sgd-sec-title">商品详情</div></div>
-      <div class="sgd-sec-body">
-        <div class="sgd-note">宝贝详情图【高度≤2】，超出将被裁剪，建议宽度≥1440像素以确保清晰，拖动模块可排序</div>
-        <div class="sgd-imgs"><img v-for="(m, i) in sgDetail.detailImgs" :key="i" :src="m" alt="" /></div>
-      </div>
-    </div>
+    <CpdMediaSec
+      title="商品详情"
+      note="宝贝详情图【高度≤2】，超出将被裁剪，建议宽度≥1440像素以确保清晰，拖动模块可排序"
+      :imgs="d.detailImgs"
+      :editing="editing"
+      kb-pick
+      :on-kb-pick="() => openKbPick('详情图', 'detailImgs', '商品详情')"
+    />
 
-    <div class="sgd-sec">
-      <div class="sgd-sec-head"><div class="sgd-sec-title">商品视频</div></div>
-      <div class="sgd-sec-body">
-        <div class="sgd-note">视频要求：时长5秒~5分钟；宽高比支持1:1、3:4、9:16（9:16视频商品详情页不展示，可在首页推荐、微详情等展示）最多可上传5个</div>
-        <div class="sgd-imgs">
-          <span v-for="(m, i) in sgDetail.videos" :key="i" class="sgd-video"><img :src="m" alt="" /><i class="sgd-play">▶</i></span>
-        </div>
-      </div>
-    </div>
+    <CpdMediaSec
+      title="商品视频"
+      note="视频要求：时长5秒~5分钟；宽高比支持1:1、3:4、9:16（9:16视频商品详情页不展示，可在首页推荐、微详情等展示）最多可上传5个"
+      :imgs="d.videos"
+      :video="true"
+      :editing="editing"
+      kb-pick
+      :on-kb-pick="() => openKbPick('视频', 'videos', '商品视频')"
+    />
 
-    <div class="sgd-sec">
-      <div class="sgd-sec-head"><div class="sgd-sec-title">通用商品白底图</div></div>
-      <div class="sgd-sec-body">
-        <div class="sgd-note">宽高800*800，所报名商品台的白底图，纯白边，图片饱满（上下贴边或左右贴边），将作为个性化素材展示</div>
-        <div class="sgd-imgs"><img :src="sgDetail.whiteImg" alt="" /></div>
-      </div>
-    </div>
+    <CpdMediaSec
+      title="通用商品白底图"
+      note="宽高800*800，所报名商品台的白底图，纯白边，图片饱满（上下贴边或左右贴边），将作为个性化素材展示"
+      :imgs="[d.whiteImg]"
+      :editing="editing"
+      kb-pick
+      :on-kb-pick="() => openKbPick('白底图', 'whiteImg', '通用商品白底图')"
+    />
 
-    <div class="sgd-sec">
-      <div class="sgd-sec-head"><div class="sgd-sec-title">通用商品场景图(非必填)</div></div>
-      <div class="sgd-sec-body">
-        <div class="sgd-note">基本要求：带有背景，无牛皮癣，主体清晰完整不变形、不拼图、不含图、不留白边，建议主体突出与背景和谐。背景不宜过于复杂，色调自然。格式要求：800*800px，JPG/JPEG、小于3M</div>
-        <div class="sgd-imgs"><img :src="sgDetail.sceneImg" alt="" /></div>
-      </div>
-    </div>
+    <CpdMediaSec
+      title="通用商品场景图(非必填)"
+      note="基本要求：带有背景，无牛皮癣，主体清晰完整不变形、不拼图、不含图、不留白边，建议主体突出与背景和谐。背景不宜过于复杂，色调自然。格式要求：800*800px，JPG/JPEG、小于3M"
+      :imgs="[d.sceneImg]"
+      :editing="editing"
+      kb-pick
+      :on-kb-pick="() => openKbPick('场景图', 'sceneImg', '通用商品场景图')"
+    />
 
     <div class="sgd-foot">
       <button v-for="f in foot" :key="f.text" class="sgd-foot-btn" :class="f.cls">{{ f.text }}</button>
@@ -553,5 +668,23 @@ const askRemoveSku = (sku: SgSku) => {
         </div>
       </div>
     </Teleport>
+
+    <!-- SKU 商品匹配视图（编辑态「查看」入口） -->
+    <SkuMatchView
+      :open="!!matchSku"
+      :sku="matchSku"
+      :product="{ title: p.title, thumb: p.img, category: p.category.join('/'), price: d.skus[0]?.price ?? '' }"
+      @close="matchSku = null"
+      @saved="matchSku = null"
+    />
+
+    <!-- 推荐素材选用抽屉（素材库） -->
+    <KbPickDrawer
+      :open="!!kbPick"
+      :type="kbPick?.type ?? '主图'"
+      :product-id="KB_PRODUCT_ID"
+      @close="kbPick = null"
+      @confirm="onKbConfirm"
+    />
   </div>
 </template>

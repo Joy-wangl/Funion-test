@@ -126,6 +126,9 @@ export interface StockRow {
   week7: string;
   stock: string;
   stockCls: 'badge-red' | 'badge-orange' | 'badge-green';
+  /** 库存数拆分：内仓 / 外仓 */
+  inner: string;
+  outer: string;
   risk: string;
   status: string;
   statusCls: 'badge-red' | 'badge-orange' | 'badge-green';
@@ -142,6 +145,8 @@ export const stockRows: StockRow[] = [
     week7: '10438',
     stock: '0',
     stockCls: 'badge-red',
+    inner: '0',
+    outer: '0',
     risk: '库存已清零，建议立即补货',
     status: '缺货',
     statusCls: 'badge-red',
@@ -156,6 +161,8 @@ export const stockRows: StockRow[] = [
     week7: '9515',
     stock: '8',
     stockCls: 'badge-orange',
+    inner: '0',
+    outer: '8',
     risk: '库存偏低，预计 1 天内售罄',
     status: '库存紧张',
     statusCls: 'badge-orange',
@@ -170,6 +177,8 @@ export const stockRows: StockRow[] = [
     week7: '10307',
     stock: '12',
     stockCls: 'badge-orange',
+    inner: '12',
+    outer: '0',
     risk: '销量增长明显，库存不足',
     status: '待补货',
     statusCls: 'badge-orange',
@@ -451,7 +460,7 @@ export const createTaobaoRows: CreateRow[] = reactive([
 ]);
 
 /* ---------- 商品创建（京麦） ---------- */
-export const createJmRows: CreateRow[] = [
+export const createJmRows: CreateRow[] = reactive([
   {
     thumb: ecMain(0),
     platformBadge: '京麦',
@@ -488,7 +497,7 @@ export const createJmRows: CreateRow[] = [
     person: '陈鑫',
     time: '2026-08-15 10:23:47',
   },
-];
+]);
 
 /* ---------- 商品创建-图片管理：真实素材池（花瓣网「平面」频道保存于 public/materials）；每商品顺取 3 张；rh=高宽比供最短列分布估算 ---------- */
 export interface CreateImg { key: string; src: string; title: string; rh: number; }
@@ -1187,7 +1196,7 @@ export function retrySub(sub: SubTask): void {
 export const createDetail = {
   category: ['一级类目', '二级类目', '三级类目'],
   checkStatus: '待审核',
-  thumbs: ['/products/main.png', '/products/main.png', '/products/main.png', '/products/main.png', '/products/main.png', '/products/main.png'],
+  thumbs: [ecMain(0), ecMain(1), ecMain(2), ecMain(3), ecMain(4), ecMain(5)],
   specs: [
     { name: '颜色分类', values: ['黑色', '白色'] },
     { name: '款式', values: ['a款', 'b款'] },
@@ -1199,14 +1208,11 @@ export const createDetail = {
     { color: '白色', style: 'b款', name: '白b款', code: 'JSUZJDAO-003*2', series: '编码D', cost: '99.00', other: '20', price: '2026.00', stock: '64', profit: '', rate: '10', cloudRatio: '83.11%', wageRatio: '4', promoRate: '5', taxRatio: '2' },
   ],
   price: '2026',
-  mainImgs: ['/products/serum.png', '/products/main.png', '/products/serum.png', '/products/main.png'],
-  detailImgs: [
-    '/products/serum.png', '/products/main.png', '/products/serum.png', '/products/main.png',
-    '/products/serum.png', '/products/main.png', '/products/serum.png', '/products/main.png',
-  ],
+  mainImgs: ['/products/serum.png'],
+  detailImgs: [ecMain(8), ecMain(9), ecMain(10), ecMain(11), ecMain(12), ecMain(13), ecMain(14), ecMain(15)],
   videos: ['/products/serum.png', '/products/main.png', '/products/serum.png'],
-  whiteImg: '/products/serum.png',
-  sceneImg: '/products/serum.png',
+  whiteImg: ecMain(16),
+  sceneImg: ecMain(17),
 };
 
 /* ================= 选择版本（详情页版本选择全屏页静态素材） ================= */

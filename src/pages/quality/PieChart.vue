@@ -10,7 +10,13 @@ export interface ShareItem {
 /* ---------- 问题类型占比：环形饼图（中心问题总数；图例点击显隐；悬浮色块气泡展示类型/占比/订单风险率） ---------- */
 import { computed, ref } from 'vue';
 
-const props = defineProps<{ items: ShareItem[]; totalOrders?: number }>();
+const props = defineProps<{
+  items: ShareItem[];
+  totalOrders?: number;
+  /** 可下钻态：点击扇区/图例进入下级（子问题），否则为显隐切换 */
+  drillable?: boolean;
+  onDrill?: (label: string) => void;
+}>();
 
 const hidden = ref<Set<string>>(new Set());
 const tip = ref<{ label: string; x: number; y: number } | null>(null);
@@ -21,6 +27,12 @@ const toggle = (label: string) => {
   if (next.has(label)) next.delete(label);
   else next.add(label);
   hidden.value = next;
+};
+const pick = (label: string) => {
+  if (props.drillable && props.onDrill) {
+    hidden.value = new Set();
+    props.onDrill(label);
+  } else toggle(label);
 };
 const moveTip = (label: string) => (e: MouseEvent) => {
   const rect = wrapRef.value?.getBoundingClientRect();
@@ -71,7 +83,7 @@ const tipItem = computed(() => {
         :r="R"
         :fill="slices[0].color"
         class="pie-slice"
-        @click="toggle(slices[0].label)"
+        @click="pick(slices[0].label)"
         @mousemove="moveTip(slices[0].label)"
         @mouseleave="tip = null"
       />
@@ -82,7 +94,7 @@ const tipItem = computed(() => {
           :d="wedge(s.a0, s.a1)"
           :fill="s.color"
           class="pie-slice"
-          @click="toggle(s.label)"
+          @click="pick(s.label)"
           @mousemove="moveTip(s.label)"
           @mouseleave="tip = null"
         />
@@ -105,8 +117,8 @@ const tipItem = computed(() => {
         :key="i.label"
         class="pie-leg"
         :class="{ off: hidden.has(i.label) }"
-        :title="hidden.has(i.label) ? `显示「${i.label}」` : `隐藏「${i.label}」`"
-        @click="toggle(i.label)"
+        :title="drillable ? `查看「${i.label}」子问题` : hidden.has(i.label) ? `显示「${i.label}」` : `隐藏「${i.label}」`"
+        @click="pick(i.label)"
       >
         <i :style="{ background: hidden.has(i.label) ? '#d5d9e0' : i.color }" />
         {{ i.label }}

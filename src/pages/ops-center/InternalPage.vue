@@ -62,6 +62,36 @@ const cf = useColField('internal', {
 });
 /* 顶层解构：模板自动解包 ref 后传给 ProductTable */
 const { hidden: cfHidden, midCols: cfMidCols, pinL: cfPinL, pinR: cfPinR } = cf;
+
+/* 数值/时间列表头排序（点击循环 降序→升序→取消，与运营管理页一致） */
+const SORT_KEYS = ['yesterday', 'week7', 'refund', 'refundAfter', 'created'];
+const sortKey = ref<string | null>(null);
+const sortDir = ref<'asc' | 'desc'>('desc');
+const toggleSort = (k: string) => {
+  if (sortKey.value !== k) { sortKey.value = k; sortDir.value = 'desc'; }
+  else if (sortDir.value === 'desc') sortDir.value = 'asc';
+  else { sortKey.value = null; sortDir.value = 'desc'; }
+};
+const sortState = computed(() => (sortKey.value ? { key: sortKey.value, dir: sortDir.value } : null));
+/* 比较：销量数字相减、退款率 parseFloat、创建时间 localeCompare；无数据（NaN）排最后 */
+const numVal = (row: ProductRow, key: string): number => {
+  const s = key === 'yesterday' ? row.yesterday
+    : key === 'week7' ? row.week7
+      : key === 'refund' ? row.refundRate
+        : row.refundAfter;
+  const n = Number(String(s).replace(/[%,\s]/g, ''));
+  return Number.isFinite(n) ? n : -Infinity;
+};
+const cmpVal = (a: ProductRow, b: ProductRow, key: string): number => {
+  if (key === 'created') return a.created.localeCompare(b.created);
+  return numVal(a, key) - numVal(b, key);
+};
+const sortedRows = computed(() => {
+  const k = sortKey.value;
+  if (!k) return rows.value;
+  const d = sortDir.value === 'desc' ? -1 : 1;
+  return [...rows.value].sort((a, b) => d * cmpVal(a, b, k));
+});
 </script>
 
 <template>
@@ -154,15 +184,18 @@ const { hidden: cfHidden, midCols: cfMidCols, pinL: cfPinL, pinR: cfPinR } = cf;
     </div>
 
     <ProductTable
-      :rows="rows"
+      :rows="sortedRows"
       :check-width="48"
       :index-width="52"
       :hidden="cfHidden"
       :col-order="cfMidCols"
       :pinned="cfPinL"
       :pinned-right="cfPinR"
+      :sort-keys="SORT_KEYS"
+      :sort-state="sortState"
       :on-detail="(row: ProductRow) => (detail = row)"
       :manage-denied="manageDenied"
+      @sort="toggleSort"
       @action="onAction"
     />
   </template>

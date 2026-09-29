@@ -2,6 +2,7 @@
 /* ---------- 监控列表行（展开各平台数据 + 责任部门编辑气泡） ---------- */
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import {
+  PROBLEM_DEPT,
   PROBLEM_TYPE_COLOR,
   QC_DEPTS,
   deptsOfTypes,
@@ -19,6 +20,7 @@ import {
   seriesTagBrief,
   type TagBrief,
 } from '../quality2/qc2Data';
+import { onlineOwnerOf } from './qcOnlineData';
 import type { Platform, PlatformStat } from './data';
 import PlatLogo from './PlatLogo.vue';
 import PlatformMatrix from './PlatformMatrix.vue';
@@ -39,6 +41,8 @@ const props = defineProps<{
   onCreateOpt: () => void;
   /** 品控-线上壳：列序对齐线上（关联优化任务数前置）、无健康等级/命中标签列 */
   online?: boolean;
+  /** 品控-线上：已生效的问题涉及部门，命中类型/部门列/矩阵命中按该部门收敛 */
+  scopeDept?: string;
 }>();
 
 const codeTab = ref<string>('all');
@@ -64,7 +68,21 @@ onBeforeUnmount(() => {
 });
 
 const selCode = computed(() => (codeTab.value === 'all' ? null : props.series.codes.find((c) => c.code === codeTab.value) ?? null));
-const hits = computed(() => platformProblemHits(selCode.value ? [selCode.value] : props.series.codes));
+const owner = computed(() => onlineOwnerOf(props.series.seriesCode));
+/* 问题涉及部门生效时：命中类型 / 涉及部门 / 平台矩阵命中仅保留该部门负责类型的数据 */
+const shownHits = computed(() => (props.scopeDept
+  ? props.series.problemHits.filter((h) => PROBLEM_DEPT[h.type] === props.scopeDept)
+  : props.series.problemHits));
+const shownDepts = computed(() => deptsOfTypes(shownHits.value.map((h) => h.type)));
+const hits = computed(() => {
+  const all = platformProblemHits(selCode.value ? [selCode.value] : props.series.codes);
+  if (!props.scopeDept) return all;
+  const out: Partial<Record<Platform, [string, number][]>> = {};
+  (Object.keys(all) as Platform[]).forEach((p) => {
+    out[p] = (all[p] ?? []).filter(([t]) => PROBLEM_DEPT[t] === props.scopeDept);
+  });
+  return out;
+});
 
 /* 标签合并口径：系列维度聚合；展开区按「该平台在售编码」聚合后并入平台矩阵列 */
 const tag = computed(() => seriesTagBrief(props.series.seriesCode));
@@ -92,6 +110,8 @@ const menuItems = computed(() => [
       <div>{{ series.seriesCode }}</div>
       <div style="color: var(--text-3); font-size: 12px">{{ series.name }}</div>
     </td>
+    <td v-if="online">{{ owner?.group ?? '—' }}</td>
+    <td v-if="online">{{ owner?.operator ?? '—' }}</td>
     <td class="td-num-right">{{ series.orders.toLocaleString() }}</td>
     <td><span class="rate" :class="rateCls(series.refundRate)">{{ pct(series.refundRate) }}</span></td>
     <td>{{ series.afterSales }}</td>
@@ -109,7 +129,7 @@ const menuItems = computed(() => [
     <td>
       <div class="prob-tags">
         <span
-          v-for="h in series.problemHits"
+          v-for="h in shownHits"
           :key="h.type"
           class="tag"
           :style="{ background: `${PROBLEM_TYPE_COLOR[h.type] || '#4f7cff'}1a`, color: PROBLEM_TYPE_COLOR[h.type] || '#4f7cff' }"
@@ -151,7 +171,7 @@ const menuItems = computed(() => [
     </td>
     <td>
       <div class="prob-tags">
-        <span v-for="d in deptsOfTypes(series.problemHits.map((h) => h.type))" :key="d" class="tag">{{ d }}</span>
+        <span v-for="d in shownDepts" :key="d" class="tag">{{ d }}</span>
       </div>
     </td>
     <td>

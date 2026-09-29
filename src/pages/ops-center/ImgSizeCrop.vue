@@ -113,6 +113,8 @@ const enterAdjust = (w: number, h: number) => {
   img.onerror = () => pushToast('图片加载失败，无法裁剪', 'error');
   img.src = props.src;
 };
+/* 固定比例编辑语境（如 3:4 主图）：供父级直接进入锁定比例的裁剪选区 */
+defineExpose({ enterAdjust });
 /* 缩放：锚点不动（滚轮=指针处，按钮=裁剪框中心），倍率限 [s0, 8×s0] */
 const zoomAt = (px: number, py: number, factor: number) => {
   const { s, tx, ty } = adj.value;

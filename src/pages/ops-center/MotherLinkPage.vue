@@ -42,11 +42,29 @@ const toggleSelAll = (on: boolean) => {
   selLinks.value = on ? new Set(rows.value.map((r) => r.link)) : new Set();
 };
 const selRows = computed(() => rows.value.filter((r) => selLinks.value.has(r.link)));
-/* 销量排序（三态循环）：升/降序切换，无排序保持导入序 */
-const salesSort = ref<'none' | 'asc' | 'desc'>('none');
+/* 列头排序（销量 / 创建时间）：单列激活，点击循环 desc → asc → 取消 */
+const sortKey = ref<'sales' | 'created' | ''>('');
+const sortDir = ref<'none' | 'asc' | 'desc'>('none');
+const onSort = (k: 'sales' | 'created') => {
+  if (sortKey.value !== k) {
+    sortKey.value = k;
+    sortDir.value = 'desc';
+  } else if (sortDir.value === 'desc') {
+    sortDir.value = 'asc';
+  } else if (sortDir.value === 'asc') {
+    sortKey.value = '';
+    sortDir.value = 'none';
+  } else {
+    sortDir.value = 'desc';
+  }
+};
+const sortState = (k: string) => (sortKey.value === k ? sortDir.value : 'none');
 const viewRows = computed(() => {
-  if (salesSort.value === 'none') return rows.value;
-  return [...rows.value].sort((a, b) => ((a.sales ?? 0) - (b.sales ?? 0)) * (salesSort.value === 'asc' ? 1 : -1));
+  const k = sortKey.value;
+  if (!k || sortDir.value === 'none') return rows.value;
+  const dir = sortDir.value === 'asc' ? 1 : -1;
+  return [...rows.value].sort((a, b) =>
+    k === 'sales' ? ((a.sales ?? 0) - (b.sales ?? 0)) * dir : a.time.localeCompare(b.time) * dir);
 });
 /* 导入到商品创建：原位写入淘宝创建列表（淘宝/视频号页同源联动）；重复导入提示并跳过 */
 const IMPORT_PLATS = ['淘宝', '视频号'];
@@ -140,7 +158,8 @@ const confirmDelete = () => {
               </th>
               <!-- 列宽占比均衡（fixed 布局合计 100%，余宽会被首列吸收） -->
               <template v-for="c in midCols" :key="c.key">
-                <SortTh v-if="c.key === 'sales'" label="销量" width="14%" :state="salesSort" @sort="salesSort = salesSort === 'asc' ? 'desc' : 'asc'" />
+                <SortTh v-if="c.key === 'sales'" label="销量" width="14%" :state="sortState('sales')" @sort="onSort('sales')" />
+                <SortTh v-else-if="c.key === 'created'" :label="c.label" width="20%" :state="sortState('created')" @sort="onSort('created')" />
                 <th v-else :style="{ width: `${c.pct}%` }">{{ c.label }}</th>
               </template>
               <th :style="{ width: '16%' }">操作</th>
