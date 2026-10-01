@@ -20,11 +20,10 @@ import {
   seriesTagBrief,
   type TagBrief,
 } from '../quality2/qc2Data';
-import { onlineOwnerOf } from './qcOnlineData';
+import { onlineChatBrief, onlineOwnerOf, onlineSessionsOf } from './qcOnlineData';
 import type { Platform, PlatformStat } from './data';
 import PlatLogo from './PlatLogo.vue';
 import PlatformMatrix from './PlatformMatrix.vue';
-import MoreActions from '../../components/MoreActions.vue';
 
 const props = defineProps<{
   series: QcCenterSeries;
@@ -37,12 +36,14 @@ const props = defineProps<{
   duty: string;
   hasOverride: boolean;
   onDuty: (code: string, dept: string | null) => void;
-  optCount: number;
-  onCreateOpt: () => void;
-  /** 品控-线上壳：列序对齐线上（关联优化任务数前置）、无健康等级/命中标签列 */
+  /** 品控-线上壳：列序对齐线上、无健康等级/命中标签列 */
   online?: boolean;
   /** 品控-线上：已生效的问题涉及部门，命中类型/部门列/矩阵命中按该部门收敛 */
   scopeDept?: string;
+  /** 点击命中类型标签：打开详情抽屉并选中该类型 */
+  onPickType?: (type: string) => void;
+  /** 点击问题涉及部门标签：打开详情抽屉并选中该部门关联的全部问题类型 */
+  onPickDept?: (dept: string) => void;
 }>();
 
 const codeTab = ref<string>('all');
@@ -69,6 +70,34 @@ onBeforeUnmount(() => {
 
 const selCode = computed(() => (codeTab.value === 'all' ? null : props.series.codes.find((c) => c.code === codeTab.value) ?? null));
 const owner = computed(() => onlineOwnerOf(props.series.seriesCode));
+/* 售后率口径与售后列表一致：售后单 / 订单量 */
+const afterRate = computed(() => (props.series.orders ? props.series.afterSales / props.series.orders : 0));
+/* 退款订单数：系列仅存退款率，单数按 订单量 × 退款率 还原（与平台矩阵口径一致） */
+const refundCount = computed(() => Math.round(props.series.orders * props.series.refundRate));
+/* 聊天数据三口径（会话总数/风险会话/风险率），与抽屉会话同源 */
+const chatBrief = computed(() => onlineChatBrief(props.series));
+/* 线上壳矩阵聊天风险与行内「聊天数据」同口径：各平台风险会话合计=行风险会话，
+   会话总数按订单占比最大余数法精确拆分，风险率=风险会话/该平台会话总数 */
+const chatMatrix = computed(() => {
+  const stats = selCode.value ? selCode.value.platforms : props.series.merged;
+  const scopeOrders = stats.reduce((s, p) => s + p.orders, 0) || 1;
+  const scopeTotal = selCode.value
+    ? Math.round((chatBrief.value.total * scopeOrders) / (props.series.orders || 1))
+    : chatBrief.value.total;
+  const risk = new Map<string, number>();
+  onlineSessionsOf(props.series)
+    .filter((s) => (!selCode.value || s.code === selCode.value.code) && s.hits.length)
+    .forEach((s) => risk.set(s.platform, (risk.get(s.platform) ?? 0) + 1));
+  const raw = stats.map((p) => (scopeTotal * p.orders) / scopeOrders);
+  const share = raw.map((v) => Math.floor(v));
+  let rem = scopeTotal - share.reduce((s, v) => s + v, 0);
+  const byFrac = raw.map((v, i) => [v - Math.floor(v), i] as const).sort((a, b) => b[0] - a[0]);
+  for (let k = 0; k < rem; k++) share[byFrac[k % byFrac.length][1]] += 1;
+  const totals: Partial<Record<Platform, number>> = {};
+  stats.forEach((p, i) => { totals[p.platform] = share[i]; });
+  return { stats: stats.map((p) => ({ ...p, chatRisks: risk.get(p.platform) ?? 0 })), totals };
+});
+const afterRateCls = (v: number) => (v < 0.03 ? 'ok' : v < 0.05 ? 'warn' : 'bad');
 /* 问题涉及部门生效时：命中类型 / 涉及部门 / 平台矩阵命中仅保留该部门负责类型的数据 */
 const shownHits = computed(() => (props.scopeDept
   ? props.series.problemHits.filter((h) => PROBLEM_DEPT[h.type] === props.scopeDept)
@@ -92,11 +121,7 @@ const platTagBrief = (pl: Platform): TagBrief | null => {
   return codes.length ? briefOf(codes) : null;
 };
 
-/* 操作列菜单：责任部门列两壳均保留，修改入口一致 */
-const menuItems = computed(() => [
-  { label: '创建优化任务', onClick: props.onCreateOpt },
-  { label: '修改责任部门', onClick: () => (dutyOpen.value = true) },
-]);
+/* 操作列仅三个动作，直接平铺不收纳（修改责任部门入口触发气泡） */
 </script>
 
 <template>
@@ -108,16 +133,29 @@ const menuItems = computed(() => [
     </td>
     <td class="col-name">
       <div>{{ series.seriesCode }}</div>
-      <div style="color: var(--text-3); font-size: 12px">{{ series.name }}</div>
+      <!-- 线上壳名称为生成占位（无效字段），改示关联商品编码数 -->
+      <div v-if="online">关联ID数：{{ series.codes.length }}</div>
+      <div v-else>{{ series.name }}</div>
     </td>
-    <td v-if="online">{{ owner?.group ?? '—' }}</td>
-    <td v-if="online">{{ owner?.operator ?? '—' }}</td>
-    <td class="td-num-right">{{ series.orders.toLocaleString() }}</td>
-    <td><span class="rate" :class="rateCls(series.refundRate)">{{ pct(series.refundRate) }}</span></td>
-    <td>{{ series.afterSales }}</td>
-    <td><span v-if="series.chatRiskHits" class="rate bad">{{ series.chatRiskHits }}</span><template v-else>0</template></td>
-    <td>{{ series.orders ? pct(series.chatRiskHits / series.orders) : '0.0%' }}</td>
-    <td v-if="online"><span v-if="optCount > 0" class="opt-cnt">{{ optCount }}</span><span v-else style="color: var(--text-4)">0</span></td>
+    <td v-if="online" class="col-name qc-order-data">
+      <div><span class="qc-cd-lb">订单总数：</span><span class="qc-cd-v">{{ series.orders.toLocaleString() }}</span></div>
+      <div><span class="qc-cd-lb">退款订单：</span><span class="qc-cd-v">{{ refundCount.toLocaleString() }}</span><span class="rate" :class="rateCls(series.refundRate)">{{ pct(series.refundRate) }}</span></div>
+      <div><span class="qc-cd-lb">售后订单：</span><span class="qc-cd-v">{{ series.afterSales.toLocaleString() }}</span><span class="rate" :class="afterRateCls(afterRate)">{{ pct(afterRate) }}</span></div>
+    </td>
+    <template v-else>
+      <td>{{ series.orders.toLocaleString() }}</td>
+      <td><span class="rate" :class="rateCls(series.refundRate)">{{ pct(series.refundRate) }}</span></td>
+      <td>{{ series.afterSales }}</td>
+    </template>
+    <td v-if="online" class="col-name qc-chat-data">
+      <div><span class="qc-cd-lb">会话总数：</span><span class="qc-cd-v">{{ chatBrief.total.toLocaleString() }}</span></div>
+      <div><span class="qc-cd-lb">风险会话：</span><span class="qc-cd-v"><span :class="chatBrief.risk ? 'rate bad' : ''">{{ chatBrief.risk }}</span></span></div>
+      <div><span class="qc-cd-lb">风险率：</span><span class="qc-cd-v"><span class="rate" :class="afterRateCls(chatBrief.rate)">{{ pct(chatBrief.rate) }}</span></span></div>
+    </td>
+    <template v-else>
+      <td><span v-if="series.chatRiskHits" class="rate bad">{{ series.chatRiskHits }}</span><template v-else>0</template></td>
+      <td>{{ series.orders ? pct(series.chatRiskHits / series.orders) : '0.0%' }}</td>
+    </template>
     <td>
       <div class="plat-chips">
         <span v-for="p in series.platforms" :key="p" class="plat-chip">
@@ -127,16 +165,20 @@ const menuItems = computed(() => [
       </div>
     </td>
     <td>
-      <div class="prob-tags">
+      <div v-if="shownHits.length" class="prob-tags">
         <span
           v-for="h in shownHits"
           :key="h.type"
           class="tag"
+          :class="{ pick: !!props.onPickType }"
+          :title="props.onPickType ? `查看「${h.type}」命中详情` : undefined"
           :style="{ background: `${PROBLEM_TYPE_COLOR[h.type] || '#4f7cff'}1a`, color: PROBLEM_TYPE_COLOR[h.type] || '#4f7cff' }"
+          @click="props.onPickType?.(h.type)"
         >
           {{ h.type }} {{ h.count }}
         </span>
       </div>
+      <span v-else class="tag rv">无命中</span>
     </td>
     <td v-if="!online">
       <span
@@ -171,20 +213,35 @@ const menuItems = computed(() => [
     </td>
     <td>
       <div class="prob-tags">
-        <span v-for="d in shownDepts" :key="d" class="tag">{{ d }}</span>
+        <span
+          v-for="d in shownDepts"
+          :key="d"
+          class="tag"
+          :class="{ pick: !!props.onPickDept }"
+          :title="props.onPickDept ? `查看「${d}」关联问题命中详情` : undefined"
+          @click="props.onPickDept?.(d)"
+        >{{ d }}</span>
       </div>
     </td>
     <td>
-      <div class="prob-tags">
+      <!-- 无任何命中且未手动绑定时不给默认责任部门，灰色无命中标签代替 -->
+      <div v-if="hasOverride || series.problemHits.length" class="prob-tags">
         <span class="tag duty-tag" :title="hasOverride ? '已手动绑定' : '默认责任部门（问题数最多部门）'">{{ duty }}</span>
       </div>
+      <span v-else class="tag rv">无命中</span>
     </td>
-    <td v-if="!online"><span v-if="optCount > 0" class="opt-cnt">{{ optCount }}</span><span v-else style="color: var(--text-4)">0</span></td>
+    <td v-if="online" class="col-name">
+      <template v-if="owner">
+        <div>{{ owner.operator }}</div>
+        <div>{{ owner.group }}</div>
+      </template>
+      <span v-else class="tag rv">无归属</span>
+    </td>
     <td>
       <div class="qc-op-col">
         <a @click="props.onDetail">查看详情</a>
         <a @click="props.onTrend">趋势图</a>
-        <MoreActions :items="menuItems" />
+        <a @click="dutyOpen = !dutyOpen">修改责任部门</a>
         <div ref="dutyRef" class="duty-edit">
           <div v-if="dutyOpen" class="duty-pop">
             <span
@@ -203,7 +260,7 @@ const menuItems = computed(() => [
     </td>
   </tr>
   <tr v-if="open" class="expand-row">
-    <td :colspan="online ? 13 : 15">
+    <td :colspan="online ? 10 : 14">
       <div class="qc-range-toggle qc-code-tabs">
         <button type="button" :class="codeTab === 'all' ? 'active' : ''" @click="codeTab = 'all'">全部</button>
         <button
@@ -217,9 +274,10 @@ const menuItems = computed(() => [
         </button>
       </div>
       <PlatformMatrix
-        :stats="selCode ? selCode.platforms : series.merged"
+        :stats="online ? chatMatrix.stats : (selCode ? selCode.platforms : series.merged)"
         :threshold="0.25"
         :problem-hits="hits"
+        :chat-totals="online ? chatMatrix.totals : undefined"
         :show-last-order="false"
         :tag-brief="online ? undefined : platTagBrief"
         :on-chat="(p: Platform) => props.onChat(

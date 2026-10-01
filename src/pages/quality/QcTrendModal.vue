@@ -1,9 +1,11 @@
 <script setup lang="ts">
-/* ---------- 趋势图弹层：周期内订单量/退款率/售后单/聊天风险数/聊天风险占比（昨日/前3日/前7日/自定义） ---------- */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+/* ---------- 趋势图弹层：总览维度（五指标）/ 售后 / 评价 / 聊天风险维度（大类问题类型趋势）· 昨日/前3日/前7日/自定义 ---------- */
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
   DEFAULT_CUSTOM_RANGE,
+  PROBLEM_TYPE_COLOR,
   TREND_RANGE_LABELS,
+  countTrend,
   metricTrend,
   pct,
   type DateRange,
@@ -11,7 +13,7 @@ import {
   type ScopeTotals,
   type TrendRangeKey,
 } from './qcCenterData';
-import { OPT_STATUS_LABELS, type OptTask } from './qcOptData';
+import { onlineAfterOrdersOf, onlineReviewsOf, onlineSeries, onlineSessionsOf } from './qcOnlineData';
 import Modal from '../../components/Modal.vue';
 import MetricTrendChart from './MetricTrendChart.vue';
 import QcDateRangePicker from './QcDateRangePicker.vue';
@@ -24,14 +26,25 @@ const METRIC_PANELS: { key: MetricKey; name: string; color: string; rate?: boole
   { key: 'chatRatio', name: '聊天风险占比', color: '#722ed1', rate: true },
 ];
 
+/** 维度：总览=五指标；其余三维度展示该场景命中大类的问题类型趋势 */
+const DIMS = [
+  { key: 'overview', label: '总览' },
+  { key: 'after', label: '售后' },
+  { key: 'review', label: '评价' },
+  { key: 'chat', label: '聊天风险' },
+] as const;
+type DimKey = (typeof DIMS)[number]['key'];
+
 const props = defineProps<{
   title: string;
   totals: ScopeTotals;
-  /** 当前系列的优化任务（用于优化效果趋势：优化中 → 优化完成区间带） */
-  optTasks: OptTask[];
   onClose: () => void;
+  /** 品控-线上：提供系列编码时展示维度切换 */
+  seriesCode?: string;
+  online?: boolean;
 }>();
 
+const dim = ref<DimKey>('overview');
 const range = ref<TrendRangeKey>('d7');
 const custom = ref<DateRange>(DEFAULT_CUSTOM_RANGE);
 /** 隐藏维度（图例点击切换显隐） */
@@ -43,6 +56,7 @@ const toggle = (key: string) => {
   else next.add(key);
   hidden.value = next;
 };
+watch(dim, () => { hidden.value = new Set(); });
 const fmtOf = (m: { rate?: boolean }) => (m.rate ? pct : (v: number) => Math.round(v).toLocaleString());
 /* 鼠标滚轮切换时间范围（昨日/前3日/前7日 循环；自定义仅手动点选） */
 const bodyRef = ref<HTMLDivElement | null>(null);
@@ -59,15 +73,28 @@ const onWheel = (e: WheelEvent) => {
 };
 onMounted(() => bodyRef.value?.addEventListener('wheel', onWheel, { passive: false }));
 onBeforeUnmount(() => bodyRef.value?.removeEventListener('wheel', onWheel));
-/* 优化过程记录：进入优化中即有起点，提交审核/完结后有终点；区间带叠加在各指标趋势上展示优化效果 */
-const optRecords = computed(() => props.optTasks.filter((t) => t.optStartAt));
-const bands = computed(() => optRecords.value.map((t) => ({
-  start: t.optStartAt as string,
-  end: t.optEndAt,
-  label: t.optDirection,
-  color: OPT_STATUS_LABELS.find((s) => s.key === t.status)?.color ?? '#4f7cff',
+
+/* ---------- 维度序列：总览=五指标；售后/评价/聊天风险=该场景命中大类计数趋势 ---------- */
+const series = computed(() => (props.online && props.seriesCode ? onlineSeries().find((s) => s.seriesCode === props.seriesCode) ?? null : null));
+const typeCounts = computed(() => {
+  const s = series.value;
+  if (!s || dim.value === 'overview') return [] as { type: string; count: number }[];
+  const m = new Map<string, number>();
+  if (dim.value === 'chat') onlineSessionsOf(s).forEach((x) => x.hits.forEach((h) => m.set(h.type, (m.get(h.type) ?? 0) + 1)));
+  else if (dim.value === 'after') onlineAfterOrdersOf(s).forEach((o) => m.set(o.ptype, (m.get(o.ptype) ?? 0) + 1));
+  else onlineReviewsOf(s).forEach((r) => m.set(r.ptype, (m.get(r.ptype) ?? 0) + 1));
+  return [...m.entries()].map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count);
+});
+const seedOf = (name: string) => [...name].reduce((a, c) => a + c.charCodeAt(0), 0) % 7;
+const typeSeries = computed(() => typeCounts.value.map((t) => ({
+  key: t.type,
+  name: t.type,
+  color: PROBLEM_TYPE_COLOR[t.type] || '#4f7cff',
+  points: countTrend(t.count, range.value, custom.value, seedOf(t.type)).points,
+  format: (v: number) => Math.round(v).toLocaleString(),
+  axis: 'left' as const,
 })));
-const chartSeries = computed(() => METRIC_PANELS.map((m) => ({
+const metricSeries = computed(() => METRIC_PANELS.map((m) => ({
   key: m.key,
   name: m.name,
   color: m.color,
@@ -75,7 +102,14 @@ const chartSeries = computed(() => METRIC_PANELS.map((m) => ({
   format: fmtOf(m),
   axis: m.rate ? ('right' as const) : ('left' as const),
 })));
-const fmtDay = (d: string) => d.slice(5).replace('-', '/');
+const activeSeries = computed(() => (dim.value === 'overview' ? metricSeries.value : typeSeries.value));
+const legendChips = computed(() => activeSeries.value.map((s) => ({
+  key: s.key,
+  name: s.name,
+  color: s.color,
+  fmt: s.format,
+  sum: s.points.reduce((a, b) => a + b, 0),
+})));
 </script>
 
 <template>
@@ -86,21 +120,15 @@ const fmtDay = (d: string) => d.slice(5).replace('-', '/');
     @close="props.onClose"
   >
     <div ref="bodyRef">
-      <div class="mt-head">
-        <div class="mt-legend">
+      <div class="mt-sub-bar">
+        <div v-if="series" class="qc-range-toggle mt-dim-tabs">
           <button
-            v-for="m in METRIC_PANELS"
-            :key="m.key"
+            v-for="d in DIMS"
+            :key="d.key"
             type="button"
-            class="mt-chip"
-            :class="hidden.has(m.key) ? 'off' : ''"
-            :title="hidden.has(m.key) ? `显示「${m.name}」` : `隐藏「${m.name}」`"
-            @click="toggle(m.key)"
-          >
-            <i :style="{ background: hidden.has(m.key) ? '#d5d9e0' : m.color }" />
-            {{ m.name }}
-            <b>{{ fmtOf(m)(data.sums[m.key]) }}</b>
-          </button>
+            :class="dim === d.key ? 'active' : ''"
+            @click="dim = d.key"
+          >{{ d.label }}</button>
         </div>
         <div class="mt-range">
           <span class="mt-wheel-tip">滚轮切换时间范围</span>
@@ -118,22 +146,29 @@ const fmtDay = (d: string) => d.slice(5).replace('-', '/');
           <QcDateRangePicker v-if="range === 'custom'" :custom="custom" :on-change="(d) => (custom = d)" />
         </div>
       </div>
+      <div class="mt-head">
+        <div class="mt-legend">
+          <button
+            v-for="c in legendChips"
+            :key="c.key"
+            type="button"
+            class="mt-chip"
+            :class="hidden.has(c.key) ? 'off' : ''"
+            :title="hidden.has(c.key) ? `显示「${c.name}」` : `隐藏「${c.name}」`"
+            @click="toggle(c.key)"
+          >
+            <i :style="{ background: hidden.has(c.key) ? '#d5d9e0' : c.color }" />
+            {{ c.name }}
+            <b>{{ c.fmt(c.sum) }}</b>
+          </button>
+        </div>
+      </div>
       <div class="mt-chart-card">
         <MetricTrendChart
           :labels="data.labels"
-          :series="chartSeries"
+          :series="activeSeries"
           :hidden="hidden"
-          :bands="bands"
         />
-        <div v-if="optRecords.length > 0" class="mt-opt-list">
-          <div v-for="t in optRecords" :key="t.id" class="mt-opt-item">
-            <i class="type-dot" :style="{ background: OPT_STATUS_LABELS.find((s) => s.key === t.status)?.color }" />
-            <span class="dir">{{ t.optDirection }}</span>
-            <span class="typ">{{ t.optType }}</span>
-            <span class="period">{{ fmtDay(t.optStartAt as string) }} → {{ t.optEndAt ? fmtDay(t.optEndAt) : '进行中' }}</span>
-            <span class="st">{{ OPT_STATUS_LABELS.find((s) => s.key === t.status)?.label }}</span>
-          </div>
-        </div>
       </div>
     </div>
     <template #foot>

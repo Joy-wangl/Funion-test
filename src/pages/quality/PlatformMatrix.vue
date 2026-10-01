@@ -11,6 +11,8 @@ const props = withDefaults(defineProps<{
   threshold: number;
   /** 各平台命中问题类型（类型 + 次数，降序） */
   problemHits?: Partial<Record<Platform, [string, number][]>>;
+  /** 各平台会话总数：提供时聊天风险率=聊天风险/会话总数（与列表行口径一致），缺省按订单量计 */
+  chatTotals?: Partial<Record<Platform, number>>;
   /** 是否展示最近订单列 */
   showLastOrder?: boolean;
   /** 提供时追加健康等级 / 命中标签两列（按平台在售编码聚合） */
@@ -30,16 +32,16 @@ const tb = (pl: Platform) => props.tagBrief?.(pl) ?? null;
     <thead>
       <tr>
         <th>平台</th>
-        <th style="width: 90px">订单量</th>
-        <th style="width: 90px">退款率</th>
-        <th style="width: 90px">售后单</th>
-        <th style="width: 100px">聊天风险</th>
-        <th style="width: 90px">聊天风险率</th>
+        <th>订单量</th>
+        <th>退款率</th>
+        <th>售后单</th>
+        <th>聊天风险</th>
+        <th>聊天风险率</th>
         <th>命中问题类型</th>
-        <th v-if="tagBrief" style="width: 90px">健康等级</th>
+        <th v-if="tagBrief">健康等级</th>
         <th v-if="tagBrief">命中标签</th>
         <th v-if="showLastOrder">最近订单</th>
-        <th v-if="onChat || onTrend" style="width: 90px">操作</th>
+        <th v-if="onChat || onTrend">操作</th>
       </tr>
     </thead>
     <tbody>
@@ -63,7 +65,7 @@ const tb = (pl: Platform) => props.tagBrief?.(pl) ?? null;
           </template>
           <template v-else>—</template>
         </td>
-        <td>{{ map.get(pl) ? (map.get(pl)!.orders ? pct(map.get(pl)!.chatRisks / map.get(pl)!.orders) : '0.0%') : '—' }}</td>
+        <td>{{ map.get(pl) ? (props.chatTotals?.[pl] ? pct(map.get(pl)!.chatRisks / props.chatTotals[pl]!) : (map.get(pl)!.orders ? pct(map.get(pl)!.chatRisks / map.get(pl)!.orders) : '0.0%')) : '—' }}</td>
         <td>
           <ProbTags v-if="map.get(pl) && problemHits?.[pl]?.length" :hits="problemHits![pl]!" />
           <template v-else>—</template>

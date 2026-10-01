@@ -72,7 +72,7 @@ const props = defineProps<{
   batch: boolean;
   /** 标题副行（单件=商品标题，批量=已选 N 件商品） */
   sub: string;
-  /** 京麦口径：商家编码/京东价列名 */
+  /** 京麦口径：商家编码列名（售价列统一叫「售价」） */
   jm: boolean;
   /** 属性配置（父级传入草稿态）：决定属性维度列与下拉选项；组件内可改名/删除属性值；空＝无属性维度列 */
   specs?: QuickSpec[];
@@ -164,7 +164,9 @@ let flashTimer: ReturnType<typeof setTimeout> | null = null;
 const spawnCopy = (i: number, vals: Record<string, string>, comboText: string) => {
   const r = props.draft[i];
   if (!r) return;
-  props.draft.splice(i + 1, 0, { ...r, src: { ...r.src }, val: { ...r.val }, vals: { ...vals } });
+  const row: QuickDraftRow = { ...r, src: { ...r.src }, val: { ...r.val }, vals: { ...vals } };
+  if (props.specs?.length) row.val.name = autoName(row);
+  props.draft.splice(i + 1, 0, row);
   flash.value = i + 1;
   if (flashTimer) clearTimeout(flashTimer);
   flashTimer = setTimeout(() => { flash.value = -1; }, 1600);
@@ -247,6 +249,9 @@ const onSave = () => {
   }
   emit('save');
 };
+/* SKU 名称随属性关联自动拼接：口径与详情一致（京麦空格分隔，淘宝/视频号「 + 」），改属性值/复制/改名后名称即跟随 */
+const autoName = (r: QuickDraftRow) =>
+  (props.specs ?? []).map((sp) => r.vals[sp.name] ?? '').filter(Boolean).join(props.jm ? ' ' : ' + ');
 /* 属性值行内改名（SKU 表下拉内铅笔）：同步属性配置与所有 SKU 行的关联值 */
 const renameSpecVal = (sp: QuickSpec, oldV: string, newV: string) => {
   if (sp.values.includes(newV)) {
@@ -254,20 +259,43 @@ const renameSpecVal = (sp: QuickSpec, oldV: string, newV: string) => {
     return;
   }
   sp.values = sp.values.map((v) => (v === oldV ? newV : v));
-  for (const r of props.draft) if (r.vals[sp.name] === oldV) r.vals[sp.name] = newV;
+  for (const r of props.draft) {
+    if (r.vals[sp.name] !== oldV) continue;
+    r.vals[sp.name] = newV;
+    r.val.name = autoName(r);
+  }
 };
-/* 属性值删除（SKU 表下拉内垃圾桶）：二次确认后移除属性值并联动删除含该值的 SKU 行 */
+/* 属性值删除（SKU 表下拉内垃圾桶）：二次确认后移除属性值；
+   删非末值＝联动删除含该值的 SKU 行；删末值＝该规格转空，SKU 行保留仅去掉该维度（与详情页同语义，避免误删全部 SKU） */
 const delBox = ref<{ sp: QuickSpec; value: string } | null>(null);
+const delIsLast = computed(() => !!delBox.value && delBox.value.sp.values.length === 1);
 const delRowCount = computed(() => {
   const b = delBox.value;
-  return b ? props.draft.filter((r) => r.vals[b.sp.name] === b.value).length : 0;
+  if (!b || delIsLast.value) return 0;
+  return props.draft.filter((r) => r.vals[b.sp.name] === b.value).length;
+});
+const delConfirmText = computed(() => {
+  const b = delBox.value;
+  if (!b) return '';
+  return delIsLast.value
+    ? `删除「${b.value}」后规格「${b.sp.name}」将无属性值，SKU 行保留、仅去掉该规格列，确认删除？`
+    : `删除「${b.value}」将同时删除 ${delRowCount.value} 个关联 SKU 行，确认删除？`;
 });
 const doDeleteVal = () => {
   const b = delBox.value;
   if (!b) return;
+  const last = delIsLast.value;
   b.sp.values = b.sp.values.filter((x) => x !== b.value);
-  for (let i = props.draft.length - 1; i >= 0; i--) {
-    if (props.draft[i].vals[b.sp.name] === b.value) props.draft.splice(i, 1);
+  if (last) {
+    for (const r of props.draft) {
+      if (r.vals[b.sp.name] !== b.value) continue;
+      delete r.vals[b.sp.name];
+      r.val.name = autoName(r);
+    }
+  } else {
+    for (let i = props.draft.length - 1; i >= 0; i--) {
+      if (props.draft[i].vals[b.sp.name] === b.value) props.draft.splice(i, 1);
+    }
   }
   delBox.value = null;
 };
@@ -275,7 +303,7 @@ const doDeleteVal = () => {
 
 <template>
   <div class="pm-page pm-host">
-    <Modal :title="batch ? '批量编辑商品' : '快捷编辑SKU'" :sub="sub" size="xl" @close="emit('close')">
+    <Modal :title="batch ? '批量编辑商品' : '快捷编辑SKU'" :sub="sub" size="xxl" @close="emit('close')">
       <table class="cp-quick-table">
         <thead>
           <tr>
@@ -285,7 +313,7 @@ const doDeleteVal = () => {
             <th>{{ jm ? '商家编码' : '商品编码' }}</th>
             <th>系列编码</th>
             <th>成本价</th>
-            <th>{{ jm ? '京东价' : '售价' }}<button type="button" class="cp-quick-col-btn" title="批量修改本列" @click.stop="openColEdit('price')"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M11.4 1.6l3 3-9 9-3.8.8.8-3.8 9-9z" fill="currentColor" /></svg></button>
+            <th>售价<button type="button" class="cp-quick-col-btn" title="批量修改本列" @click.stop="openColEdit('price')"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M11.4 1.6l3 3-9 9-3.8.8.8-3.8 9-9z" fill="currentColor" /></svg></button>
               <div v-if="colEdit?.key === 'price'" class="cp-quick-colpop" @click.stop>
                 <input v-model="colEdit.value" class="ib-input" placeholder="统一值" />
                 <button type="button" class="sg-btn primary" @click="applyColumn">应用</button>
@@ -328,12 +356,12 @@ const doDeleteVal = () => {
                 :value="r.vals[sp.name] ?? ''"
                 renamable
                 deletable
-                @change="(v: string) => (r.vals[sp.name] = v)"
+                @change="(v: string) => { r.vals[sp.name] = v; r.val.name = autoName(r); }"
                 @rename="(o: string, n: string) => renameSpecVal(sp, o, n)"
                 @delete="(v: string) => (delBox = { sp, value: v })"
               />
             </td>
-            <td><input v-model="r.val.name" class="ib-input" /></td>
+            <td><input v-model="r.val.name" class="ib-input cp-quick-name" /></td>
             <td><input v-model="r.val.code" class="ib-input" @blur="codeBlur(r)" /></td>
             <!-- 系列编码只读：与商品详情 SKU 表同款芯片样式统一 -->
             <td><span v-if="r.val.series" class="sgd-code">{{ r.val.series }}</span><template v-else>0</template></td>
@@ -382,7 +410,7 @@ const doDeleteVal = () => {
       <div v-if="delBox" class="mk-create-mask mk-confirm-mask" @click.self="delBox = null">
         <div class="mk-confirm-modal">
           <div class="mk-confirm-head">删除属性值</div>
-          <div class="mk-confirm-body">删除「{{ delBox.value }}」将同时删除 {{ delRowCount }} 个关联 SKU 行，确认删除？</div>
+          <div class="mk-confirm-body">{{ delConfirmText }}</div>
           <div class="mk-confirm-foot">
             <button class="sg-btn" @click="delBox = null">取消</button>
             <button class="sg-btn danger" @click="doDeleteVal">确认删除</button>

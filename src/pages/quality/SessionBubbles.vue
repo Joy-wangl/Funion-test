@@ -3,7 +3,7 @@
 import { computed, ref } from 'vue';
 import type { ChatSession } from './data';
 
-const props = defineProps<{ s: ChatSession; showSub?: boolean }>();
+const props = defineProps<{ s: ChatSession; showSub?: boolean; /** 场景级已选小类：隐藏气泡内小类快选并按其过滤 */ subFilter?: string | null }>();
 
 const hitsOnly = ref(false);
 /* 二级子问题下钻（品控-线上）：按命中子问题过滤会话气泡 */
@@ -13,9 +13,10 @@ const subChips = computed(() => {
   props.s.hits.forEach((h) => { if (h.sub) m.set(h.sub, (m.get(h.sub) ?? 0) + 1); });
   return [...m.entries()].map(([name, count]) => ({ name, count }));
 });
-const activeHits = computed(() => (subSel.value ? props.s.hits.filter((h) => h.sub === subSel.value) : props.s.hits));
+const effSub = computed(() => subSel.value ?? props.subFilter ?? null);
+const activeHits = computed(() => (effSub.value ? props.s.hits.filter((h) => h.sub === effSub.value) : props.s.hits));
 const phrases = computed(() => activeHits.value.map((h) => h.phrase).filter(Boolean));
-const baseMsgs = computed(() => (subSel.value
+const baseMsgs = computed(() => (effSub.value
   ? props.s.messages.filter((m) => phrases.value.some((p) => m.text.includes(p)))
   : props.s.messages));
 const hitMsgs = computed(() => baseMsgs.value.filter((m) => phrases.value.some((p) => m.text.includes(p))));
@@ -42,7 +43,7 @@ const highlightParts = (text: string, phs: string[]): Part[] => {
 
 <template>
   <div class="session-bubbles">
-    <div v-if="showSub && subChips.length" class="b-subs">
+    <div v-if="showSub && subChips.length && !subFilter" class="b-subs">
       <span class="b-sub" :class="{ on: !subSel }" @click="subSel = null; hitsOnly = false">全部</span>
       <span
         v-for="c in subChips"

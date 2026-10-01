@@ -89,15 +89,57 @@ const toggleSelAll = (on: boolean) => {
 };
 /* 图片管理二级页开关：列表页仅保留入口按钮，点击进入二级页批量管理筛选结果下全部商品图片 */
 const imgPage = ref(false);
-/* 图片模式：每商品 3 图；批量操作结果记三个 set（删除/已去水印/已去品牌），对应选择项置灰不可再选 */
+/* 图片模式：每商品 3 图；批量操作结果记删除/已去品牌两个 set，对应选择项置灰不可再选 */
 const imgDeleted = ref<Set<string>>(new Set());
-const wmDone = ref<Set<string>>(new Set());
 const brandDone = ref<Set<string>>(new Set());
+/* 去水印执行中集合：执行先落 busy 延时后转生成记录，批量与单图共用同一状态链 */
+const wmBusy = ref<Set<string>>(new Set());
+/* 生成记录（详情同款）：原图 + 每次去水印生成；去水印不置灰可重复执行，效果不理想可点版本还原 */
+interface ImgWmRec { id: string; kind: 'origin' | 'wm'; label: string }
+const wmRecs = ref<Record<string, ImgWmRec[]>>({});
+const wmActive = ref<Record<string, string>>({});
+const ensureOrigin = (key: string) => {
+  if (wmRecs.value[key]) return;
+  const rec: ImgWmRec = { id: `${key}@0`, kind: 'origin', label: '原图' };
+  wmRecs.value = { ...wmRecs.value, [key]: [rec] };
+  wmActive.value = { ...wmActive.value, [key]: rec.id };
+};
+const pushWmRec = (key: string) => {
+  ensureOrigin(key);
+  const list = wmRecs.value[key];
+  const n = list.filter((r) => r.kind === 'wm').length + 1;
+  const rec: ImgWmRec = { id: `${key}@${n}`, kind: 'wm', label: `生成${n}` };
+  wmRecs.value = { ...wmRecs.value, [key]: [...list, rec] };
+  wmActive.value = { ...wmActive.value, [key]: rec.id };
+};
+/* 点击版本即切换使用（选中哪个展示哪个），与详情生成记录同语义 */
+const selectWmRec = (key: string, id: string) => {
+  if (wmActive.value[key] === id) return;
+  wmActive.value = { ...wmActive.value, [key]: id };
+  const rec = (wmRecs.value[key] ?? []).find((r) => r.id === id);
+  pushToast(rec?.kind === 'origin' ? '已切换使用原图' : `已切换使用「${rec?.label ?? ''}」`);
+};
+const wmRecsOf = (key: string) => wmRecs.value[key] ?? [];
+const wmActiveOf = (key: string) => wmActive.value[key] ?? '';
+const runWm = (keys: string[], doneMsg: string) => {
+  if (!keys.length) return;
+  wmBusy.value = new Set([...wmBusy.value, ...keys]);
+  window.setTimeout(() => {
+    const ks = new Set(keys);
+    wmBusy.value = new Set([...wmBusy.value].filter((k) => !ks.has(k)));
+    keys.forEach(pushWmRec);
+    pushToast(doneMsg);
+  }, 1600);
+};
 /* 图片模式：筛选结果下每商品 3 图全部瀑布流平铺；无收起/叠堆，选择项始终可勾选 */
 const imgs = computed(() => rows.value
   .flatMap((r, ri) => createImgsOf(r, ri))
   .filter((im) => !imgDeleted.value.has(im.key))
-  .map((im) => ({ ...im, wmDone: wmDone.value.has(im.key), brandDone: brandDone.value.has(im.key) })));
+  .map((im) => ({
+    ...im,
+    brandDone: brandDone.value.has(im.key),
+    wmBusy: wmBusy.value.has(im.key),
+  })));
 /* 标签勾选（图片key::wm / ::brand）：选中后支持批量去水印 / 批量去品牌 / 批量删除 */
 const selTags = ref<Set<string>>(new Set());
 const tagId = (key: string, t: 'wm' | 'brand') => `${key}::${t}`;
@@ -108,10 +150,10 @@ const toggleTag = (id: string) => {
   selTags.value = n;
 };
 const clearSel = () => { selTags.value = new Set(); };
-/* 图下文字行与悬浮预览共用的选择操作：每图均支持去水印/去品牌，仅已处理后置灰不可再选 */
+/* 图下文字行与悬浮预览共用的选择操作：去水印可重复执行不置灰（版本还原见生成记录点选），去品牌已处理后置灰 */
 const imgOps = (im: (typeof imgs.value)[number]) => [
-  { t: 'wm' as const, done: im.wmDone, label: im.wmDone ? '已去水印' : '去水印' },
-  { t: 'brand' as const, done: im.brandDone, label: im.brandDone ? '已去品牌' : '去品牌' },
+  { t: 'wm' as const, done: false, busy: im.wmBusy, label: im.wmBusy ? '去水印执行中' : '去水印' },
+  { t: 'brand' as const, done: im.brandDone, busy: false, label: im.brandDone ? '已去品牌' : '去品牌' },
 ];
 /* 瀑布流列数：容器宽按固定列宽 150＋间距 12 折算（ResizeObserver 跟随视口），CSS 多列在瓷砖量少时均衡收敛留右侧空白故改 JS 分列 */
 const COL_W = 150;
@@ -169,9 +211,8 @@ const brandSel = computed(() => [...selTags.value].filter((t) => t.endsWith('::b
 const selImgKeys = computed(() => new Set([...selTags.value].map(tagKey)));
 const batchWm = () => {
   const keys = wmSel.value.map(tagKey);
-  wmDone.value = new Set([...wmDone.value, ...keys]);
   selTags.value = new Set([...selTags.value].filter((t) => !t.endsWith('::wm')));
-  pushToast(`批量去水印完成：共处理 ${keys.length} 张图片`);
+  runWm(keys, `批量去水印完成：共处理 ${keys.length} 张图片`);
 };
 const batchBrand = () => {
   const keys = brandSel.value.map(tagKey);
@@ -185,6 +226,33 @@ const batchDelImgs = () => {
   selTags.value = new Set();
   pushToast(`已删除 ${keys.length} 张图片`);
 };
+/* 点击查看态：瀑布流之上全屏查看层；主区大图＋与瀑布流同源的去水印/去品牌操作，右侧全部图片缩略列 */
+const viewKey = ref<string | null>(null);
+const viewIdx = computed(() => imgs.value.findIndex((im) => im.key === viewKey.value));
+const viewImg = computed(() => (viewIdx.value >= 0 ? imgs.value[viewIdx.value] : null));
+const openView = (im: (typeof imgs.value)[number]) => { viewKey.value = im.key; };
+const stepView = (d: number) => {
+  const n = viewIdx.value + d;
+  if (viewIdx.value < 0 || n < 0 || n >= imgs.value.length) return;
+  viewKey.value = imgs.value[n].key;
+};
+/* 滚轮节流：一次滚轮刻度连发多个 wheel 事件，不节流一刻度会连跳多张 */
+let viewWheelAt = 0;
+const onViewWheel = (e: WheelEvent) => {
+  e.preventDefault();
+  if (Math.abs(e.deltaY) < 4) return;
+  const now = Date.now();
+  if (now - viewWheelAt < 260) return;
+  viewWheelAt = now;
+  stepView(e.deltaY > 0 ? 1 : -1);
+};
+/* 切换时右列当前缩略图滚入可视区 */
+const viewRailRef = ref<HTMLElement | null>(null);
+watch(viewIdx, () => {
+  nextTick(() => {
+    (viewRailRef.value?.querySelector('.cp-view-rail-item.on') as HTMLElement | null)?.scrollIntoView({ block: 'nearest' });
+  });
+});
 /* 发布到：两步向导——第一步多选策略（含不使用策略发布）/ 第二步按策略选店铺，店铺跨策略互斥不可重复 */
 interface PubSel {
   name: string;
@@ -270,7 +338,11 @@ const loadQuickSpecs = (link: string) => {
 /* 种子 SKU → 属性关联：非京麦按 specs 维度序取 color/style；京麦解析 attrs 串（颜色:黑 规格:标准） */
 const valsOf = (u: Record<string, string>): Record<string, string> => {
   if (props.jm) return Object.fromEntries((u.attrs ?? '').split(' ').filter(Boolean).map((kv) => { const [k, v] = kv.split(':'); return [k, v]; }));
-  return { [quickSpecs.value[0]?.name ?? '颜色分类']: u.color, [quickSpecs.value[1]?.name ?? '款式']: u.style };
+  const vals: Record<string, string> = { [quickSpecs.value[0]?.name ?? '颜色分类']: u.color, [quickSpecs.value[1]?.name ?? '款式']: u.style };
+  /* 第三维起取值随种子 extra 持久化，弹窗与详情展示同一批关联值 */
+  const extra = (u as { extra?: Record<string, string> }).extra ?? {};
+  quickSpecs.value.forEach((sp, si) => { if (si > 1) vals[sp.name] = extra[String(si)] ?? ''; });
+  return vals;
 };
 /* 每件商品独立展开一组 SKU 行（批量勾选 N 件即 N 组）：src 指向该商品详情缓存里的种子对象，val/vals 每行独立克隆互不串改；保存时按 own 分组、按 src 去重重建 */
 const buildDraft = (list: CreateRow[]): QuickDraftRow[] => list.flatMap((row) => {
@@ -308,6 +380,9 @@ const saveQuickSku = () => {
     else {
       r.src.color = r.vals[quickSpecs.value[0]?.name ?? ''] ?? '';
       r.src.style = r.vals[quickSpecs.value[1]?.name ?? ''] ?? '';
+      const extra: Record<string, string> = {};
+      quickSpecs.value.forEach((sp, si) => { if (si > 1 && r.vals[sp.name]) extra[String(si)] = r.vals[sp.name]; });
+      (r.src as { extra?: Record<string, string> }).extra = extra;
     }
     return r.src;
   };
@@ -590,6 +665,7 @@ const confirmDelete = () => {
 };
 /* ESC 关闭发布抽屉（遮罩点击同样可关） */
 const onPubKey = (e: KeyboardEvent) => {
+  if (e.key === 'Escape' && viewKey.value) { viewKey.value = null; return; }
   if (e.key === 'Escape' && pubOpen.value) pubOpen.value = false;
 };
 onMounted(() => window.addEventListener('keydown', onPubKey));
@@ -612,11 +688,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
         <button class="lightBtn" :disabled="selTags.size === 0" @click="clearSel">清除选择</button>
       </div>
     </div>
-    <!-- 瀑布流瓷砖：窄列宽＋高度按比例自适应；圆角统一 16px 裁切；图下文字行居中每图均可选去水印/去品牌，仅已处理后置灰 -->
+    <!-- 瀑布流瓷砖：窄列宽＋高度按比例自适应；圆角统一 16px 裁切；图下文字行居中，去水印可重复执行不置灰，去品牌已处理置灰 -->
     <div ref="flatRef" class="cp-img-flat">
       <div v-for="(col, ci) in imgCols" :key="ci" class="cp-img-col">
         <div v-for="im in col" :key="im.key" class="cp-img-card">
-          <div class="cp-img-thumb" @mouseenter="placeZoom">
+          <div class="cp-img-thumb" @mouseenter="placeZoom" @click="openView(im)">
             <img :src="im.src" alt="">
             <!-- 悬浮预览：放大图＋同组选择操作；面板为瓷砖子节点，透明下垫桥接 hover 不移出即不收起 -->
             <div class="cp-img-zoom">
@@ -625,8 +701,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
                 <div class="cp-img-ops">
                   <button
                     v-for="op in imgOps(im)" :key="op.t"
-                    class="cp-img-op" :class="{ off: op.done, on: selTags.has(tagId(im.key, op.t)) }"
-                    :disabled="op.done" @click="toggleTag(tagId(im.key, op.t))"
+                    class="cp-img-op" :class="{ off: op.done, on: selTags.has(tagId(im.key, op.t)), busy: op.busy }"
+                    :disabled="op.done || op.busy" @click.stop="toggleTag(tagId(im.key, op.t))"
                   >
                     <i class="cp-img-ck" />{{ op.label }}
                   </button>
@@ -637,13 +713,51 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
           <div class="cp-img-ops">
             <button
               v-for="op in imgOps(im)" :key="op.t"
-              class="cp-img-op" :class="{ off: op.done, on: selTags.has(tagId(im.key, op.t)) }"
-              :disabled="op.done" @click="toggleTag(tagId(im.key, op.t))"
+              class="cp-img-op" :class="{ off: op.done, on: selTags.has(tagId(im.key, op.t)), busy: op.busy }"
+              :disabled="op.done || op.busy" @click="toggleTag(tagId(im.key, op.t))"
             >
               <i class="cp-img-ck" />{{ op.label }}
             </button>
           </div>
         </div>
+      </div>
+    </div>
+    <!-- 点击查看态：全屏查看层；主区大图＋与瀑布流同源操作行，右侧全部图片缩略列独立滚动；滚轮上下切换、右列点击跳转、ESC 或 × 关闭 -->
+    <div v-if="viewImg" class="cp-view">
+      <div class="cp-view-stage" @wheel="onViewWheel">
+        <button class="cp-view-close" title="关闭" @click="viewKey = null">×</button>
+        <div class="cp-view-pic"><img :src="viewImg.src" alt=""></div>
+        <!-- 查看态两个胶囊钮只做勾选（与瀑布流同一选择集，点击不直接执行），统一由批量栏处理 -->
+        <div class="cp-img-ops">
+          <button
+            v-for="op in imgOps(viewImg)" :key="op.t"
+            class="cp-img-op" :class="{ off: op.done, on: selTags.has(tagId(viewImg.key, op.t)) }"
+            :disabled="op.done" @click="toggleTag(tagId(viewImg.key, op.t))"
+          >
+            <i class="cp-img-ck" />{{ op.label }}
+          </button>
+        </div>
+        <!-- 生成记录（详情同款）：查看态底部操作胶囊上方居中展示，点击任一版本即切换使用，选中版本加角标 -->
+        <div v-if="wmRecsOf(viewImg.key).length > 1" class="cp-img-vers">
+          <button
+            v-for="r in wmRecsOf(viewImg.key)" :key="r.id"
+            type="button" class="cp-img-ver" :class="{ on: wmActiveOf(viewImg.key) === r.id }"
+            @click.stop="selectWmRec(viewImg.key, r.id)"
+          >
+            {{ r.label }}
+            <i v-if="wmActiveOf(viewImg.key) === r.id" class="cp-img-ver-ck">✓</i>
+          </button>
+        </div>
+        <span class="cp-view-idx">{{ viewIdx + 1 }} / {{ imgs.length }}</span>
+      </div>
+      <div ref="viewRailRef" class="cp-view-rail">
+        <button
+          v-for="(im, i) in imgs" :key="im.key"
+          class="cp-view-rail-item" :class="{ on: i === viewIdx }"
+          @click="viewKey = im.key"
+        >
+          <img :src="im.src" alt="">
+        </button>
       </div>
     </div>
   </div>

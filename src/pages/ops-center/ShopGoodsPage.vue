@@ -67,17 +67,23 @@ const openSgQuick = (p: SgProduct) => {
   sgQuickSpecs.value = [
     { name: '颜色分类', values: [...own.colors] },
     { name: '款式', values: [...own.styles] },
+    ...(((own as { extraSpecs?: { name: string; values: string[] }[] }).extraSpecs ?? []).map((s) => ({ name: s.name, values: [...s.values] }))),
   ];
-  sgQuickDraft.value = own.skus.map((s): QuickDraftRow => ({
-    thumb: p.img,
-    title: p.title,
-    jm: false,
-    own: own as unknown as Record<string, any>,
-    src: s as unknown as Record<string, string>,
-    qcode: s.code,
-    val: mkVal(s.name, s.code, s.series, s.cost, s.price, s.stock),
-    vals: { 颜色分类: s.color, 款式: s.style },
-  }));
+  sgQuickDraft.value = own.skus.map((s): QuickDraftRow => {
+    const extra = (s as { extra?: Record<string, string> }).extra ?? {};
+    const vals: Record<string, string> = { 颜色分类: s.color, 款式: s.style };
+    sgQuickSpecs.value.forEach((sp, si) => { if (si > 1) vals[sp.name] = extra[String(si)] ?? ''; });
+    return {
+      thumb: p.img,
+      title: p.title,
+      jm: false,
+      own: own as unknown as Record<string, any>,
+      src: s as unknown as Record<string, string>,
+      qcode: s.code,
+      val: mkVal(s.name, s.code, s.series, s.cost, s.price, s.stock),
+      vals,
+    };
+  });
   sgQuickRow.value = p;
 };
 const closeSgQuick = () => {
@@ -95,6 +101,9 @@ const saveSgQuick = () => {
     /* 属性关联回写：按维度写回 color/style */
     r.src.color = r.vals[sgQuickSpecs.value[0]?.name ?? ''] ?? '';
     r.src.style = r.vals[sgQuickSpecs.value[1]?.name ?? ''] ?? '';
+    const extra: Record<string, string> = {};
+    sgQuickSpecs.value.forEach((sp, si) => { if (si > 1 && r.vals[sp.name]) extra[String(si)] = r.vals[sp.name]; });
+    (r.src as { extra?: Record<string, string> }).extra = extra;
     if (seen.has(r.src)) continue;
     seen.add(r.src);
     skus.push(r.src as unknown as (typeof own.skus)[number]);
@@ -103,6 +112,7 @@ const saveSgQuick = () => {
   /* 属性配置（含新增属性值）回写 */
   own.colors = [...(sgQuickSpecs.value[0]?.values ?? [])];
   own.styles = [...(sgQuickSpecs.value[1]?.values ?? [])];
+  (own as { extraSpecs?: { name: string; values: string[] }[] }).extraSpecs = sgQuickSpecs.value.slice(2).map((s) => ({ name: s.name, values: [...s.values] }));
   pushToast('SKU 信息已保存');
   closeSgQuick();
 };

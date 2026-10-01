@@ -91,23 +91,24 @@ const filledSpecCount = computed(() => d.specs.filter((s) => s.values.length > 0
 const VAL_FIELDS = ['color', 'style'] as const;
 const dimField = new Map<string, 'color' | 'style'>();
 specIds.value.forEach((id, si) => { const f = VAL_FIELDS[si]; if (f) dimField.set(id, f); });
-const extraVals = new WeakMap<object, Record<string, string>>();
+const extraVals = (s: TbSeed): Record<string, string> => ((s as { extra?: Record<string, string> }).extra ?? {});
 const seedVals = (s: TbSeed): Record<string, string> => {
-  const vals: Record<string, string> = { ...(extraVals.get(toRaw(s)) ?? {}) };
-  for (const id of specIds.value) {
+  const vals: Record<string, string> = {};
+  specIds.value.forEach((id, si) => {
     const f = dimField.get(id);
     if (f) vals[id] = s[f] ?? '';
-  }
+    else vals[id] = extraVals(s)[String(si)] ?? '';
+  });
   return vals;
 };
 const writeSeedVals = (s: TbSeed, vals: Record<string, string>) => {
   const extra: Record<string, string> = {};
-  for (const id of specIds.value) {
+  specIds.value.forEach((id, si) => {
     const f = dimField.get(id);
     if (f) (s as Record<string, string>)[f] = vals[id] ?? '';
-    else if (vals[id]) extra[id] = vals[id];
-  }
-  extraVals.set(toRaw(s), extra);
+    else if (vals[id]) extra[String(si)] = vals[id];
+  });
+  (s as { extra?: Record<string, string> }).extra = extra;
 };
 /* 结构变更（改名/删值/删维度）前先快照种子与其属性值，改完按快照写回，剔除已失效的维度与属性值 */
 const snapSeeds = () => d.skus.map((s) => ({ s, vals: seedVals(s) }));
@@ -130,14 +131,23 @@ const findSeed = (vals: Record<string, string>) => {
   });
 };
 const syncSkus = () => {
-  if (filledSpecCount.value === 0) { tSkus.value = []; return; }
-  /* 仅有种子支撑的组合出行：不再按笛卡尔积补空行，弹窗里的一条 SKU 在详情就是一条 */
-  tSkus.value = allCombos()
-    .map((vals) => {
-      const src = findSeed(vals);
-      return src ? { key: skuKeyOf(vals), vals, name: comboOf(vals), src } : null;
-    })
-    .filter((r): r is TSku => r !== null);
+  /* 补列：已填维度下缺属性值的种子补该维首值，表格不留空格（真实电商加维度＝原 SKU 补列口径） */
+  specIds.value.forEach((id, si) => {
+    const first = d.specs[si].values[0];
+    if (!first) return;
+    d.skus.forEach((s) => {
+      if (seedVals(s)[id]) return;
+      const vals = seedVals(s);
+      vals[id] = first;
+      writeSeedVals(s, vals);
+      s.name = comboOf(vals) || s.name;
+    });
+  });
+  /* 一条种子一行：不做笛卡尔投影过滤，弹窗里几条这里就几条 */
+  tSkus.value = d.skus.map((src, i) => {
+    const vals = seedVals(src);
+    return { key: `r${i}`, vals, name: comboOf(vals), src };
+  });
 };
 syncSkus();
 /* 新增属性值：为含该值的新组合补建种子 SKU（默认值可继续编辑），保留「加值即出行」的创建流程 */
@@ -301,10 +311,22 @@ const addSpecValue = (si: number) => {
   const v = (specAddVals.value[si] ?? '').trim();
   if (!v) return;
   if (d.specs[si].values.includes(v)) { pushToast('该属性值已存在', 'warning'); return; }
+  const wasEmpty = d.specs[si].values.length === 0;
   d.specs[si].values.push(v);
   specAddVals.value[si] = '';
-  /* 新值对应的组合在种子里落地为真实 SKU 行（可继续编辑），与快捷弹窗口径一致 */
-  materialize(specIds.value[si], v);
+  const id = specIds.value[si];
+  if (wasEmpty) {
+    /* 维度首个值＝给原 SKU 补一列（真实电商口径）：既有种子挂上该值，不另建重复行，表格不留空格 */
+    snapSeeds().forEach(({ s, vals }) => {
+      if (vals[id]) return;
+      vals[id] = v;
+      writeSeedVals(s, vals);
+      s.name = comboOf(vals) || s.name;
+    });
+  } else {
+    /* 已有值维度加新值：新组合落地为真实 SKU 行（可继续编辑） */
+    materialize(id, v);
+  }
   syncSkus();
 };
 /* 删除 SKU：删种子行，未被其它 SKU 引用的属性值联动删除 */

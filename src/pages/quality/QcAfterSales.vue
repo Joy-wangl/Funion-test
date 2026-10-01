@@ -1,18 +1,21 @@
 <script setup lang="ts">
-/* ---------- 售后列表（品控-线上）：系列维度售后单 / 售后率，详情与趋势复用监控列表弹层 ---------- */
+/* ---------- 售后列表（品控-线上）：逐单售后单明细（查询条件 + 明细表），详情与趋势复用监控列表弹层 ---------- */
 import { computed, ref, watch } from 'vue';
-import { DEFAULT_CUSTOM_RANGE, RANGE_LABELS, type DateRange, type RangeKey, type QcCenterSeries } from './qcCenterData';
-import { ONLINE_GROUPS, ONLINE_OPERATORS, onlineAfterRows, onlineSeries } from './qcOnlineData';
+import type { QcCenterSeries } from './qcCenterData';
+import {
+  AFTER_STATUSES, AFTER_TYPES, AFTER_PLATFORMS, ONLINE_GROUPS, ONLINE_OPERATORS,
+  onlineSeries, scanAfterOrders, sliceAfterOrders, type AfterScan,
+} from './qcOnlineData';
+import PlatLogo from './PlatLogo.vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
-import SortTh from '../../components/SortTh.vue';
-import QcDateRangePicker from './QcDateRangePicker.vue';
+import QcTypeShuttle from './QcTypeShuttle.vue';
 
 const props = defineProps<{
-  onDetail: (s: QcCenterSeries) => void;
+  onOrders: (s: QcCenterSeries) => void;
   onTrend: (s: QcCenterSeries) => void;
 }>();
 
-type SortKey = 'afterSales' | 'rate';
+const ALL = { type: '全部类型', platform: '全部平台', status: '全部状态' };
 const GO_DEFAULT = '全部组别 / 全部运维';
 const GO_OPTIONS = (() => {
   const opts = [GO_DEFAULT];
@@ -22,38 +25,24 @@ const GO_OPTIONS = (() => {
   }
   return opts;
 })();
-const draft = ref({ q: '', go: GO_DEFAULT, range: 'custom' as RangeKey, custom: { ...DEFAULT_CUSTOM_RANGE } });
-const applied = ref({ ...draft.value });
-const sortKey = ref<SortKey>('afterSales');
-const sortDesc = ref(true);
+const blank = () => ({ q: '', go: GO_DEFAULT, type: ALL.type, platform: ALL.platform, status: ALL.status, ptype: null as string | null, sub: null as string | null, from: '', to: '' });
+const draft = ref(blank());
+const applied = ref(blank());
 
-const toggleSort = (k: SortKey) => {
-  if (sortKey.value === k) sortDesc.value = !sortDesc.value;
-  else { sortKey.value = k; sortDesc.value = true; }
-};
-const sortState = (k: SortKey): 'none' | 'desc' | 'asc' => (sortKey.value !== k ? 'none' : sortDesc.value ? 'desc' : 'asc');
-
-const filtered = computed(() => {
-  const f = applied.value;
+const toQuery = (f: ReturnType<typeof blank>) => {
   const [g, o] = f.go.split(' / ');
-  const kw = f.q.trim().toLowerCase();
-  return onlineAfterRows().filter((r) => {
-    if (g !== '全部组别' && r.group !== g) return false;
-    if (o !== '全部运维' && r.operator !== o) return false;
-    if (kw && !r.seriesCode.toLowerCase().includes(kw) && !r.name.toLowerCase().includes(kw)) return false;
-    return true;
-  });
-});
-const sorted = computed(() => [...filtered.value].sort((a, b) => {
-  const diff = sortKey.value === 'afterSales' ? a.afterSales - b.afterSales : a.rate - b.rate;
-  return sortDesc.value ? -diff : diff;
-}));
+  return { kw: f.q, group: g, operator: o, type: f.type, platform: f.platform, status: f.status, ptype: f.ptype, sub: f.sub, from: f.from, to: f.to };
+};
+
+/* 查询生效时全量扫描一次：累计命中数 / 小类计数 / 每系列命中数，分页切片再回生成取行 */
+const scan = ref<AfterScan>(scanAfterOrders(toQuery(applied.value)));
 
 const page = ref(1);
 const pageSize = ref(20);
 const jumpVal = ref('1');
-const pageCount = computed(() => Math.max(1, Math.ceil(sorted.value.length / pageSize.value)));
-const rows = computed(() => sorted.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value));
+watch(applied, (v) => { scan.value = scanAfterOrders(toQuery(v)); page.value = 1; jumpVal.value = '1'; });
+const pageCount = computed(() => Math.max(1, Math.ceil(scan.value.total / pageSize.value)));
+const rows = computed(() => sliceAfterOrders(toQuery(applied.value), scan.value.cum, (page.value - 1) * pageSize.value, page.value * pageSize.value));
 const pageList = computed((): (number | 'gap')[] => {
   const total = pageCount.value;
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
@@ -68,108 +57,140 @@ const onJump = () => {
   if (!Number.isNaN(n)) page.value = Math.min(Math.max(1, n), pageCount.value);
   jumpVal.value = String(page.value);
 };
-watch(sorted, () => { page.value = 1; jumpVal.value = '1'; });
 watch(page, (v) => { jumpVal.value = String(v); });
 
+const onQuery = () => { applied.value = { ...draft.value }; };
+const onReset = () => { draft.value = blank(); applied.value = blank(); };
+
+const statusTag = (s: string) => (s === '已处理' ? 'green' : s === '已拒绝' ? 'red' : 'orange');
 const seriesOf = (code: string) => onlineSeries().find((s) => s.seriesCode === code) ?? null;
-const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
-const rateClass = (v: number) => (v < 0.03 ? 'ok' : v < 0.05 ? 'warn' : 'bad');
 </script>
 
 <template>
   <div class="qc-head">
     <div class="qc-title">
       售后列表
-      <span class="qc-desc">共 {{ filtered.length }} 个系列</span>
+      <span class="qc-desc">共 {{ scan.total.toLocaleString() }} 单 · {{ scan.cum.length.toLocaleString() }} 个系列</span>
     </div>
   </div>
-  <div class="sg-filter">
-    <div class="sg-grid">
-      <div class="sg-field">
-        <label>搜索</label>
-        <input class="sg-input" placeholder="请输入系列编码 / 商品名称" :value="draft.q" @input="draft.q = ($event.target as HTMLInputElement).value">
-      </div>
-      <div class="sg-field">
-        <label>组别 / 运维人员</label>
-        <BubbleSelect class-name="sg-select" :value="draft.go" :options="GO_OPTIONS" @change="(v: string) => (draft.go = v)" />
-      </div>
-      <div class="sg-field">
-        <label>时间范围</label>
-        <BubbleSelect
-          class-name="sg-select"
-          :value="RANGE_LABELS.find((r) => r.key === draft.range)?.label ?? '自定义'"
-          :options="RANGE_LABELS.map((r) => r.label)"
-          @change="(v: string) => (draft.range = RANGE_LABELS.find((r) => r.label === v)?.key ?? 'custom')"
-        />
-      </div>
-      <div v-if="draft.range === 'custom'" class="sg-field">
-        <label>日期区间</label>
-        <QcDateRangePicker :custom="draft.custom" :on-change="(d: DateRange) => (draft.custom = d)" />
-      </div>
-      <div class="sg-field-actions">
-        <button class="sg-btn" @click="draft = { q: '', go: GO_DEFAULT, range: 'custom', custom: draft.custom }">
-          重置
-        </button>
-        <button class="sg-btn primary" @click="applied = { ...draft }">
-          查询
-        </button>
+  <div class="qc-ao-panel qc-as-page">
+    <div class="sg-filter">
+      <div class="sg-grid">
+        <div class="sg-field">
+          <label>搜索</label>
+          <input class="sg-input" placeholder="系列编码 / 商品名称 / 售后单号 / 订单号 / 商品编码" :value="draft.q" @input="draft.q = ($event.target as HTMLInputElement).value">
+        </div>
+        <div class="sg-field">
+          <label>组别 / 运维人员</label>
+          <BubbleSelect class-name="sg-select" :value="draft.go" :options="GO_OPTIONS" @change="(v: string) => (draft.go = v)" />
+        </div>
+        <div class="sg-field">
+          <label>售后类型</label>
+          <BubbleSelect class-name="sg-select" :value="draft.type" :options="[ALL.type, ...AFTER_TYPES]" @change="(v: string) => (draft.type = v)" />
+        </div>
+        <div class="sg-field">
+          <label>问题类型</label>
+          <QcTypeShuttle
+            class-name="sg-select"
+            :ptype="draft.ptype"
+            :sub="draft.sub"
+            @change="(t: string | null, s: string | null) => { draft.ptype = t; draft.sub = s; }"
+          />
+        </div>
+        <div class="sg-field">
+          <label>平台</label>
+          <BubbleSelect class-name="sg-select" :value="draft.platform" :options="[ALL.platform, ...AFTER_PLATFORMS]" @change="(v: string) => (draft.platform = v)" />
+        </div>
+        <div class="sg-field">
+          <label>状态</label>
+          <BubbleSelect class-name="sg-select" :value="draft.status" :options="[ALL.status, ...AFTER_STATUSES]" @change="(v: string) => (draft.status = v)" />
+        </div>
+        <div class="sg-field">
+          <label>申请时间</label>
+          <span class="ao-range">
+            <input type="date" class="ao-date" :value="draft.from" @input="draft.from = ($event.target as HTMLInputElement).value">
+            <i>-</i>
+            <input type="date" class="ao-date" :value="draft.to" @input="draft.to = ($event.target as HTMLInputElement).value">
+          </span>
+        </div>
+        <div class="sg-field-actions">
+          <button type="button" class="sg-btn" @click="onReset">重置</button>
+          <button type="button" class="sg-btn primary" @click="onQuery">查询</button>
+        </div>
       </div>
     </div>
-  </div>
-  <div class="qc-body">
-    <table class="table qc-wide">
-      <thead>
-        <tr>
-          <th>系列编码</th>
-          <th>组别</th>
-          <th>运维人员</th>
-          <SortTh label="售后单" :state="sortState('afterSales')" @sort="toggleSort('afterSales')" />
-          <SortTh label="售后率" :state="sortState('rate')" @sort="toggleSort('rate')" />
-          <th style="width: 140px">操作</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="r in rows" :key="r.seriesCode">
-          <td class="col-name">
-            <div class="qc-mono">{{ r.seriesCode }}</div>
-            <div style="color: var(--text-3); font-size: 12px">{{ r.name }}</div>
-          </td>
-          <td>{{ r.group }}</td>
-          <td>{{ r.operator }}</td>
-          <td>{{ r.afterSales }}</td>
-          <td><span class="rate" :class="rateClass(r.rate)">{{ pct(r.rate) }}</span></td>
-          <td>
-            <div class="qc-op-col">
-              <a @click="seriesOf(r.seriesCode) && props.onDetail(seriesOf(r.seriesCode)!)">查看详情</a>
-              <a @click="seriesOf(r.seriesCode) && props.onTrend(seriesOf(r.seriesCode)!)">趋势图</a>
-            </div>
-          </td>
-        </tr>
-        <tr v-if="!rows.length">
-          <td colspan="6">
-            <div class="sg-empty-wrap">
-              <div class="sg-empty-icon">◌</div>
-              <div>暂无数据，请调整筛选条件</div>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <div class="ib-pagination">
-      <div class="ib-pageinfo">共 {{ sorted.length }} 个系列</div>
-      <BubbleSelect class-name="ib-page-size" :default-value="pageSize + '条/页'" :options="['5条/页', '10条/页', '20条/页']" @change="onPageSize" />
-      <div class="ib-pages">
-        <button class="ib-pagebtn nav" :disabled="page <= 1" @click="page--">‹</button>
-        <template v-for="(p, i) in pageList" :key="i">
-          <span v-if="p === 'gap'" class="ib-pagedots">…</span>
-          <button v-else class="ib-pagebtn" :class="p === page ? 'active' : ''" @click="page = p">{{ p }}</button>
-        </template>
-        <button class="ib-pagebtn nav" :disabled="page >= pageCount" @click="page++">›</button>
-      </div>
-      <div class="ib-jump">
-        <span>前往</span>
-        <input class="ib-jump-input" :value="jumpVal" @input="jumpVal = ($event.target as HTMLInputElement).value" @keyup.enter="onJump">
-        <span>页</span>
+
+    <div class="qc-body">
+      <table class="table ao-table">
+        <thead>
+          <tr>
+            <th>系列编码</th>
+            <th>组别 / 运维人员</th>
+            <th>商品编码</th>
+            <th>订单号</th>
+            <th>售后单号</th>
+            <th>平台</th>
+            <th>售后类型</th>
+            <th>售后原因</th>
+            <th>问题小类</th>
+            <th>金额</th>
+            <th>状态</th>
+            <th>申请时间</th>
+            <th style="width: 120px">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="o in rows" :key="o.afterNo">
+            <td class="col-name">
+              <div class="qc-mono">{{ o.seriesCode }}</div>
+              <div>{{ o.seriesName }}</div>
+            </td>
+            <td>{{ o.group === '—' ? '—' : `${o.group} / ${o.operator}` }}</td>
+            <td>{{ o.code }}</td>
+            <td class="qc-mono ao-wrap">{{ o.orderNo }}</td>
+            <td class="qc-mono">{{ o.afterNo }}</td>
+            <td>
+              <span class="ao-plat"><PlatLogo :platform="o.platform" />{{ o.platform }}</span>
+            </td>
+            <td><span class="tag">{{ o.type }}</span></td>
+            <td>{{ o.reason }}</td>
+            <td><span class="tag">{{ o.psub || o.ptype }}</span></td>
+            <td>¥{{ o.amount }}</td>
+            <td><span class="tag" :class="statusTag(o.status)">{{ o.status }}</span></td>
+            <td class="ao-wrap">{{ o.appliedAt }}</td>
+            <td>
+              <div class="qc-op-col">
+                <a @click="seriesOf(o.seriesCode) && props.onOrders(seriesOf(o.seriesCode)!)">查看详情</a>
+                <a @click="seriesOf(o.seriesCode) && props.onTrend(seriesOf(o.seriesCode)!)">趋势图</a>
+              </div>
+            </td>
+          </tr>
+          <tr v-if="!rows.length">
+            <td colspan="13">
+              <div class="sg-empty-wrap">
+                <div class="sg-empty-icon">◌</div>
+                <div>暂无数据，请调整筛选条件</div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="ib-pagination">
+        <div class="ib-pageinfo">共 {{ scan.total.toLocaleString() }} 单</div>
+        <BubbleSelect class-name="ib-page-size" :default-value="pageSize + '条/页'" :options="['5条/页', '10条/页', '20条/页']" @change="onPageSize" />
+        <div class="ib-pages">
+          <button class="ib-pagebtn nav" :disabled="page <= 1" @click="page--">‹</button>
+          <template v-for="(p, i) in pageList" :key="i">
+            <span v-if="p === 'gap'" class="ib-pagedots">…</span>
+            <button v-else class="ib-pagebtn" :class="p === page ? 'active' : ''" @click="page = p">{{ p }}</button>
+          </template>
+          <button class="ib-pagebtn nav" :disabled="page >= pageCount" @click="page++">›</button>
+        </div>
+        <div class="ib-jump">
+          <span>前往</span>
+          <input class="ib-jump-input" :value="jumpVal" @input="jumpVal = ($event.target as HTMLInputElement).value" @keyup.enter="onJump">
+          <span>页</span>
+        </div>
       </div>
     </div>
   </div>

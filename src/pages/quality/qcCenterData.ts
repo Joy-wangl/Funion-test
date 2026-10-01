@@ -382,18 +382,24 @@ export function problemTypeRanking(): { type: string; count: number; seriesCount
     .sort((a, b) => b.count - a.count);
 }
 
-/** 平台维度：按订单占比分摊聚合各问题类型命中次数（降序） */
+/** 平台维度：按订单占比精确拆分各问题类型命中次数（降序）；各平台之和恒等于编码/系列级命中数 */
 export function platformProblemHits(codes: QcCenterCode[]): Partial<Record<Platform, [string, number][]>> {
   const acc = new Map<Platform, Map<string, number>>();
   for (const c of codes) {
     const total = c.platforms.reduce((s, p) => s + p.orders, 0) || 1;
-    for (const p of c.platforms) {
-      let m = acc.get(p.platform);
-      if (!m) { m = new Map(); acc.set(p.platform, m); }
-      for (const h of c.problemHits) {
-        const add = Math.round((h.count * p.orders) / total);
-        if (add > 0) m.set(h.type, (m.get(h.type) ?? 0) + add);
-      }
+    for (const h of c.problemHits) {
+      /* 最大余数法整数拆分：避免逐平台取整导致平台合计与系列行命中数漂移 */
+      const raw = c.platforms.map((p) => (h.count * p.orders) / total);
+      const share = raw.map((v) => Math.floor(v));
+      let rem = h.count - share.reduce((s, v) => s + v, 0);
+      const byFrac = raw.map((v, i) => [v - Math.floor(v), i] as const).sort((a, b) => b[0] - a[0]);
+      for (let k = 0; k < rem; k++) share[byFrac[k % byFrac.length][1]] += 1;
+      c.platforms.forEach((p, i) => {
+        if (!share[i]) return;
+        let m = acc.get(p.platform);
+        if (!m) { m = new Map(); acc.set(p.platform, m); }
+        m.set(h.type, (m.get(h.type) ?? 0) + share[i]);
+      });
     }
   }
   const out: Partial<Record<Platform, [string, number][]>> = {};
@@ -403,7 +409,7 @@ export function platformProblemHits(codes: QcCenterCode[]): Partial<Record<Platf
 
 /* ---------- 时间范围聚合（今日 / 近7天 / 自定义=近30天） ---------- */
 
-export type RangeKey = 'today' | '7d' | 'custom';
+export type RangeKey = 'today' | '3d' | '7d' | '14d' | '30d' | '90d' | 'custom';
 
 export const RANGE_LABELS: { key: RangeKey; label: string }[] = [
   { key: 'today', label: '今日' },
@@ -431,7 +437,9 @@ export const DEFAULT_CUSTOM_RANGE: DateRange = { start: DATE_AXIS[0], end: DATE_
 /** 范围 → 日期轴下标窗口；自定义区间越界/反序时自动钳制与交换 */
 export function windowOf(range: RangeKey, custom?: DateRange): [number, number] {
   if (range === 'today') return [DATE_AXIS.length - 1, DATE_AXIS.length - 1];
+  if (range === '3d') return [DATE_AXIS.length - 3, DATE_AXIS.length - 1];
   if (range === '7d') return [DATE_AXIS.length - 7, DATE_AXIS.length - 1];
+  if (range === '14d') return [DATE_AXIS.length - 14, DATE_AXIS.length - 1];
   if (!custom) return [0, DATE_AXIS.length - 1];
   let i0 = DATE_AXIS.findIndex((d) => d >= custom.start);
   if (i0 < 0) i0 = 0;
@@ -691,4 +699,33 @@ export function metricTrend(t: ScopeTotals, range: TrendRangeKey, custom?: DateR
     chatRatio: sumO ? sumC / sumO : 0,
   };
   return { labels, series: { orders, refundRate, afterSales, chatRisks, chatRatio }, sums };
+}
+
+/** 计数类趋势：口径计数按窗口天数折算后确定性分布（昨日=逐时），窗口与 metricTrend 同 */
+export function countTrend(total: number, range: TrendRangeKey, custom?: DateRange, seed = 0): { labels: string[]; points: number[] } {
+  const [i0, i1] = trendWindowOf(range, custom);
+  if (i0 === i1) {
+    return {
+      labels: Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, '0')}:00`),
+      points: hourlySplit(Math.round(total / DATE_AXIS.length)),
+    };
+  }
+  const days = i1 - i0 + 1;
+  const winTotal = Math.round((total * days) / DATE_AXIS.length);
+  const ws = shapeWeights(1.3 + seed).slice(i0, i1 + 1);
+  const s = ws.reduce((a, b) => a + b, 0) || 1;
+  /* 累计取整：小计数也能均匀落在窗口内，且各点之和恒等于 winTotal */
+  let acc = 0;
+  let prev = 0;
+  const points = ws.map((v) => {
+    acc += (v / s) * winTotal;
+    const c = Math.floor(acc + 1e-9);
+    const p = c - prev;
+    prev = c;
+    return p;
+  });
+  return {
+    labels: DATE_AXIS.slice(i0, i1 + 1).map((d) => d.slice(5).replace('-', '/')),
+    points,
+  };
 }

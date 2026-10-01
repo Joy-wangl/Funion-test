@@ -19,9 +19,14 @@ defineEmits<{ (e: 'sort'): void }>();
   <component :is="as" class="sort-th" :style="{ textAlign: align, width }" :title="tip" @click="$emit('sort')">
     <span class="sort-th-in">
       {{ label }}
+      <!-- 未排序灰双箭；已排序仅渲染当前方向单箭并垂直居中，避免双箭只亮一半造成图标视觉偏移 -->
       <svg class="sort-th-ico" width="12" height="14" viewBox="0 0 12 14" aria-hidden="true">
-        <path d="M6 1.2l3.4 4H2.6l3.4-4z" :fill="state === 'asc' ? 'var(--color-primary)' : '#c3c9d4'" />
-        <path d="M6 12.8l-3.4-4h6.8l-3.4 4z" :fill="state === 'desc' ? 'var(--color-primary)' : '#c3c9d4'" />
+        <template v-if="state === 'none'">
+          <path d="M6 1.2l3.4 4H2.6l3.4-4z" fill="#c3c9d4" />
+          <path d="M6 12.8l-3.4-4h6.8l-3.4 4z" fill="#c3c9d4" />
+        </template>
+        <path v-else-if="state === 'asc'" d="M6 4.2l4.2 5.2H1.8L6 4.2z" fill="var(--color-primary)" />
+        <path v-else d="M6 9.8L1.8 4.6h8.4L6 9.8z" fill="var(--color-primary)" />
       </svg>
       <!-- 列头附加内容（如筛选漏斗）；插槽内自行 @click.stop 防触发排序 -->
       <slot />

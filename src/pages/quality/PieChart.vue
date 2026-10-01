@@ -16,6 +16,12 @@ const props = defineProps<{
   /** 可下钻态：点击扇区/图例进入下级（子问题），否则为显隐切换 */
   drillable?: boolean;
   onDrill?: (label: string) => void;
+  /** 单选态：点击扇区/图例回调外部切换选中项，选中外的扇区置淡 */
+  selectable?: boolean;
+  selected?: string | null;
+  onSelect?: (label: string) => void;
+  /** 图例追加「次数 · 占比」数值列 */
+  showValue?: boolean;
 }>();
 
 const hidden = ref<Set<string>>(new Set());
@@ -29,6 +35,10 @@ const toggle = (label: string) => {
   hidden.value = next;
 };
 const pick = (label: string) => {
+  if (props.selectable && props.onSelect) {
+    props.onSelect(label);
+    return;
+  }
   if (props.drillable && props.onDrill) {
     hidden.value = new Set();
     props.onDrill(label);
@@ -94,6 +104,7 @@ const tipItem = computed(() => {
           :d="wedge(s.a0, s.a1)"
           :fill="s.color"
           class="pie-slice"
+          :class="{ dim: selectable && selected && selected !== s.label }"
           @click="pick(s.label)"
           @mousemove="moveTip(s.label)"
           @mouseleave="tip = null"
@@ -116,12 +127,13 @@ const tipItem = computed(() => {
         v-for="i in items"
         :key="i.label"
         class="pie-leg"
-        :class="{ off: hidden.has(i.label) }"
-        :title="drillable ? `查看「${i.label}」子问题` : hidden.has(i.label) ? `显示「${i.label}」` : `隐藏「${i.label}」`"
+        :class="{ off: hidden.has(i.label), on: selectable && selected === i.label }"
+        :title="selectable ? (selected === i.label ? `取消选择「${i.label}」` : `切换至「${i.label}」`) : drillable ? `查看「${i.label}」子问题` : hidden.has(i.label) ? `显示「${i.label}」` : `隐藏「${i.label}」`"
         @click="pick(i.label)"
       >
         <i :style="{ background: hidden.has(i.label) ? '#d5d9e0' : i.color }" />
         {{ i.label }}
+        <span v-if="showValue" class="pie-leg-v">{{ i.value }} 次 · {{ sharePct(i.value) }}</span>
       </span>
     </div>
   </div>

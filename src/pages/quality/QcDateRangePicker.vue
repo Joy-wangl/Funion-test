@@ -6,6 +6,9 @@ import { DEFAULT_CUSTOM_RANGE, type DateRange } from './qcCenterData';
 const props = defineProps<{
   custom: DateRange;
   onChange: (d: DateRange) => void;
+  /** 可选日期边界（缺省近30天轴；系列详情抽屉按证据数据跨度传入） */
+  min?: string;
+  max?: string;
 }>();
 
 const open = ref(false);
@@ -42,8 +45,8 @@ onBeforeUnmount(() => {
         type="date"
         class="sg-input"
         :value="custom.start"
-        :min="DEFAULT_CUSTOM_RANGE.start"
-        :max="DEFAULT_CUSTOM_RANGE.end"
+        :min="min ?? DEFAULT_CUSTOM_RANGE.start"
+        :max="max ?? DEFAULT_CUSTOM_RANGE.end"
         @change="props.onChange({ ...custom, start: ($event.target as HTMLInputElement).value })"
       >
       <span>→</span>
@@ -51,8 +54,8 @@ onBeforeUnmount(() => {
         type="date"
         class="sg-input"
         :value="custom.end"
-        :min="DEFAULT_CUSTOM_RANGE.start"
-        :max="DEFAULT_CUSTOM_RANGE.end"
+        :min="min ?? DEFAULT_CUSTOM_RANGE.start"
+        :max="max ?? DEFAULT_CUSTOM_RANGE.end"
         @change="props.onChange({ ...custom, end: ($event.target as HTMLInputElement).value })"
       >
     </div>

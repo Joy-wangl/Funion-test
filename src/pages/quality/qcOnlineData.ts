@@ -4,8 +4,8 @@
    - 数据口径复刻线上截图：共 21,584 个系列 · 优化任务 0 条
    - 看板为固定口径（不随时间范围变化）；监控列表首页与线上截图一致，其余页确定性生成
    ========================================================= */
-import { DATE_AXIS, QC_PLATFORMS, QC_PROBLEM_TYPES, type QcCenterCode, type QcCenterSeries, type QcPlatformStat } from './qcCenterData';
-import type { ChatHit, ChatSession, Platform } from './data';
+import { DATE_AXIS, QC_PLATFORMS, QC_PROBLEM_TYPES, type DateRange, type QcCenterCode, type QcCenterSeries, type QcPlatformStat, type RangeKey } from './qcCenterData';
+import { type ChatHit, type ChatMessage, type ChatSession, type Platform } from './data';
 
 /** 监控系列编码数（= 系列总数） */
 export const ONLINE_TOTAL = 21584;
@@ -287,8 +287,33 @@ const CHAT_REPLIES = [
 
 const sessionCache = new Map<string, ChatSession[]>();
 
-/** 会话命中的二级子问题（与命中问题管理同源清单），供详情下钻按子问题过滤 */
-const subsOfType = (t: string): string[] => onlineHitCats().find((c) => c.name === t)?.subs.map((x) => x.name) ?? [];
+/** 大类下二级子问题清单（与命中问题管理同源），供详情下钻按子问题过滤 */
+export const subsOfType = (t: string): string[] => onlineHitCats().find((c) => c.name === t)?.subs.map((x) => x.name) ?? [];
+
+const BUYER_TAILS = ['，要求处理！', '，麻烦尽快核实。', '，这个问题一直没解决。', '，再不处理就投诉了。'];
+/** 会话消息由命中逐条生成：每个命中必有一条含其短语的买家消息作为证据，杜绝「有命中无证据」 */
+const buildSessionMessages = (hits: ChatHit[], startedAt: string, seed: number): ChatMessage[] => {
+  const [day, hm] = startedAt.split(' ');
+  const [h0, m0] = hm.split(':').map(Number);
+  const at = (add: number) => {
+    const tot = m0 + add;
+    return `${day} ${String(h0 + Math.floor(tot / 60)).padStart(2, '0')}:${String(tot % 60).padStart(2, '0')}`;
+  };
+  if (!hits.length) {
+    return [
+      { role: 'buyer', time: at(0), text: '商品问题要求处理！' },
+      { role: 'ai', time: at(4), text: '抱歉给您带来困扰，请问方便提供一下订单号与商品照片吗？' },
+    ];
+  }
+  const msgs: ChatMessage[] = hits.map((h, k) => ({
+    role: 'buyer' as const,
+    time: at(k * 5),
+    text: `${h.phrase}${BUYER_TAILS[k % BUYER_TAILS.length]}`,
+  }));
+  msgs.splice(1, 0, { role: 'ai', time: at(3), text: '抱歉给您带来困扰，请问方便提供一下订单号与商品照片吗？' });
+  msgs.push({ role: 'support', time: at(hits.length * 5 + 2), text: CHAT_REPLIES[seed % CHAT_REPLIES.length] });
+  return msgs;
+};
 
 /** 系列聊天会话（抽屉/平台聊天弹窗同源）：命中包按问题类型占比拆分聊天风险次数，再打包为 ≤12 个会话 */
 export const onlineSessionsOf = (s: QcCenterSeries): ChatSession[] => {
@@ -320,28 +345,25 @@ export const onlineSessionsOf = (s: QcCenterSeries): ChatSession[] => {
       const types = bag.slice(cur, cur + n);
       cur += n;
       const platform = s.platforms[i % s.platforms.length];
-      const dd = String(10 + Math.floor(rnd() * 28)).padStart(2, '0');
+      const dd = String(1 + Math.floor(rnd() * 28)).padStart(2, '0');
       const hh = String(9 + Math.floor(rnd() * 12)).padStart(2, '0');
       const mm = Math.floor(rnd() * 50);
       const tAt = (add: number) => `2026-08-${dd} ${hh}:${String(mm + add).padStart(2, '0')}`;
       const pool = (t: string) => CHAT_PHRASES[t] || ['商品问题要求处理'];
       const phrases = types.map((t) => pool(t)[Math.floor(rnd() * pool(t).length)]);
+      const startedAt = tAt(0);
+      const hits: ChatHit[] = types.map((t, k) => {
+        const ss = subsOfType(t);
+        return { type: t, phrase: phrases[k], sub: ss.length ? ss[(k + i) % ss.length] : undefined };
+      });
       out.push({
         id: `CS-${s.seriesCode.slice(3)}-${i + 1}`,
         code: s.codes[i % s.codes.length].code,
         platform,
-        startedAt: tAt(0),
+        startedAt,
         orderId: `SO-08${dd}-${1000 + Math.floor(rnd() * 9000)}`,
-        messages: [
-          { role: 'buyer', time: tAt(0), text: `${phrases[0]}，要求处理！` },
-          { role: 'ai', time: tAt(4), text: '抱歉给您带来困扰，请问方便提供一下订单号与商品照片吗？' },
-          { role: 'buyer', time: tAt(9), text: phrases.length > 1 ? `${phrases[1]}，尽快给我个说法。` : '照片和订单号都发了，尽快处理。' },
-          { role: 'support', time: tAt(15), text: CHAT_REPLIES[i % CHAT_REPLIES.length] },
-        ],
-        hits: types.map((t, k) => {
-          const ss = subsOfType(t);
-          return { type: t, phrase: phrases[k], sub: ss.length ? ss[(k + i) % ss.length] : undefined };
-        }),
+        messages: buildSessionMessages(hits, startedAt, i),
+        hits,
       });
     }
   }
@@ -349,11 +371,22 @@ export const onlineSessionsOf = (s: QcCenterSeries): ChatSession[] => {
   return out;
 };
 
-/** 全屏弹窗修改命中类型后回写缓存（保持重开抽屉口径一致） */
+/** 聊天数据列口径：风险会话=命中会话数（与会话打包口径同源：每会话≤6次命中、至多12个），
+    会话总数按订单量确定性折算（不低于风险会话），风险率=风险会话/会话总数 */
+export const onlineChatBrief = (s: QcCenterSeries): { total: number; risk: number; rate: number } => {
+  const risk = s.chatRiskHits > 0 && s.codes.length && s.platforms.length
+    ? Math.max(1, Math.min(12, Math.ceil(s.chatRiskHits / 6)))
+    : 0;
+  const h = Number(s.seriesCode.slice(3)) || 0;
+  const total = Math.max(risk, Math.round(s.orders * (0.0008 + ((h * 31) % 23) / 10000)));
+  return { total, risk, rate: total ? risk / total : 0 };
+};
+
+/** 全屏弹窗修改命中类型后回写缓存（保持重开抽屉口径一致；消息证据随命中同步重建） */
 export const patchOnlineSession = (id: string, hits: ChatHit[]) => {
   for (const list of sessionCache.values()) {
     const i = list.findIndex((x) => x.id === id);
-    if (i >= 0) list[i] = { ...list[i], hits };
+    if (i >= 0) list[i] = { ...list[i], hits, messages: buildSessionMessages(hits, list[i].startedAt, 0) };
   }
 };
 
@@ -389,6 +422,18 @@ export const onlineOwnerOf = (seriesCode: string): { group: string; operator: st
   return { group: ONLINE_GROUPS[Math.floor(rnd() * ONLINE_GROUPS.length)], operator: ONLINE_OPERATORS[Math.floor(rnd() * ONLINE_OPERATORS.length)] };
 };
 
+/** 各组在编运维：由系列归属反推，穿梭选择右栏按当前组呈现成员 */
+export const ONLINE_GROUP_MEMBERS = ((): Record<string, string[]> => {
+  const m: Record<string, string[]> = {};
+  for (const g of ONLINE_GROUPS) m[g] = [];
+  for (const s of onlineSeries()) {
+    const o = onlineOwnerOf(s.seriesCode);
+    if (o && !m[o.group].includes(o.operator)) m[o.group].push(o.operator);
+  }
+  for (const g of ONLINE_GROUPS) m[g].sort((a, b) => ONLINE_OPERATORS.indexOf(a) - ONLINE_OPERATORS.indexOf(b));
+  return m;
+})();
+
 /* ---------- 售后列表：系列维度售后单 / 售后率 ---------- */
 
 export interface OnlineAfterRow { seriesCode: string; name: string; group: string; operator: string; afterSales: number; rate: number; }
@@ -397,6 +442,294 @@ export const onlineAfterRows = (): OnlineAfterRow[] => onlineSeries().map((s) =>
   const o = onlineOwnerOf(s.seriesCode);
   return { seriesCode: s.seriesCode, name: s.name, group: o?.group ?? '—', operator: o?.operator ?? '—', afterSales: s.afterSales, rate: s.orders ? s.afterSales / s.orders : 0 };
 });
+
+/* ---------- 售后单列表（售后列表「查看详情」抽屉）：按系列确定性生成逐单明细 ---------- */
+
+export type AfterOrderStatus = '已处理' | '已拒绝' | '待处理';
+export interface OnlineAfterOrder {
+  afterNo: string;
+  code: string;
+  orderNo: string;
+  platform: Platform;
+  type: string;
+  reason: string;
+  amount: number;
+  status: AfterOrderStatus;
+  appliedAt: string;
+  /** 关联问题类型大类（售后单场景的问题类型占比口径） */
+  ptype: string;
+  /** 关联问题类型小类（售后单场景按小类快速筛选） */
+  psub?: string;
+  /** 售后起因会话（存在时会话卡右侧展示关联售后） */
+  sessionId?: string;
+}
+export const AFTER_TYPES = ['退货退款/退款', '换货', '补发'];
+export const AFTER_STATUSES: AfterOrderStatus[] = ['已处理', '已拒绝', '待处理'];
+/** 售后单平台轮转序（对齐线上：拼多多起、天猫收尾） */
+export const AFTER_PLATFORMS: Platform[] = ['拼多多', '抖音', '京东', '淘宝', '快手', '天猫'];
+const AFTER_REASONS: Record<string, string[]> = {
+  '退货退款/退款': ['质量问题', '商品与描述不符', '尺码不合适', '材质与描述不符', '不想要了/七天无理由'],
+  换货: ['尺码不合适', '颜色与描述不符', '配件缺失'],
+  补发: ['少件漏发', '外包装破损补发'],
+};
+const afterOrderCache = new Map<string, OnlineAfterOrder[]>();
+/** 逐单明细确定性生成（不缓存）：供售后列表页全量扫描，避免缓存全系列售后单撑爆内存 */
+const genAfterOrders = (series: QcCenterSeries): OnlineAfterOrder[] => {
+  const total = series.afterSales;
+  const rnd = mulberry32(Number(series.seriesCode.slice(3)) * 104729 + 31);
+  const refund = Math.round(total * 0.5238);
+  const exchange = Math.round(total * 0.2981);
+  const codes = series.codes.map((c) => c.code);
+  const num = series.seriesCode.slice(3);
+  /* 问题类型按系列占比拆包洗乱，逐单挂载（售后单场景占比口径） */
+  const weights = series.problemHits.length ? series.problemHits : [{ type: QC_PROBLEM_TYPES[0], count: 1 }];
+  const wSum = weights.reduce((sum, w) => sum + w.count, 0);
+  const pbag: string[] = [];
+  let pleft = total;
+  weights.forEach((w, i) => {
+    const n = i === weights.length - 1 ? pleft : Math.min(pleft, Math.round((w.count / wSum) * total));
+    pleft -= n;
+    for (let k = 0; k < n; k++) pbag.push(w.type);
+  });
+  for (let i = pbag.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [pbag[i], pbag[j]] = [pbag[j], pbag[i]];
+  }
+  const list: OnlineAfterOrder[] = [];
+  for (let i = 0; i < total; i++) {
+    const type = i < refund ? AFTER_TYPES[0] : i < refund + exchange ? AFTER_TYPES[1] : AFTER_TYPES[2];
+    const dd = String(1 + Math.floor(rnd() * 28)).padStart(2, '0');
+    const mins = (9 * 60 + 7 + i * 67) % (24 * 60);
+    const pool = AFTER_REASONS[type];
+    const pt = pbag[i] ?? weights[0].type;
+    const ss = subsOfType(pt);
+    list.push({
+      afterNo: `AS-${num}-${String(i + 1).padStart(5, '0')}`,
+      code: codes.length ? codes[i % codes.length] : '—',
+      orderNo: `SO-08${dd}-${1037 + i * 37}`,
+      platform: AFTER_PLATFORMS[i % AFTER_PLATFORMS.length],
+      type,
+      reason: pool[Math.floor(rnd() * pool.length)],
+      amount: 30 + Math.floor(rnd() * 170),
+      status: AFTER_STATUSES[i % AFTER_STATUSES.length],
+      appliedAt: `2026-08-${dd} ${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`,
+      ptype: pt,
+      psub: ss.length ? ss[i % ss.length] : undefined,
+    });
+  }
+  /* 售后起因会话：约四成会话由售后发起（同平台同订单），会话卡据此展示关联售后 */
+  const sessions = onlineSessionsOf(series);
+  sessions.forEach((sess, i) => {
+    if (i % 5 > 1) return;
+    const o = list.find((x) => !x.sessionId && x.platform === sess.platform);
+    if (!o) return;
+    o.sessionId = sess.id;
+    o.orderNo = sess.orderId;
+  });
+  return list;
+};
+export const onlineAfterOrdersOf = (series: QcCenterSeries): OnlineAfterOrder[] => {
+  const hit = afterOrderCache.get(series.seriesCode);
+  if (hit) return hit;
+  const list = genAfterOrders(series);
+  afterOrderCache.set(series.seriesCode, list);
+  return list;
+};
+
+/* ---------- 售后列表页（系列维度之外的逐单口径）：全量扫描 + 分页切片 ----------
+   售后单总量约数十万条，不能一次性物化：扫描只累计计数与每系列命中数，
+   分页时按累计区间回生成对应系列的售后单取行，避免内存与首屏开销 */
+
+export interface AfterOrderQuery {
+  kw: string;
+  group: string;
+  operator: string;
+  type: string;
+  platform: string;
+  status: string;
+  /** 问题大类（未选小类时按大类口径过滤） */
+  ptype: string | null;
+  sub: string | null;
+  from: string;
+  to: string;
+}
+/** 页面行 = 售后单 + 系列/归属上下文 */
+export type AfterOrderRow = OnlineAfterOrder & { seriesCode: string; seriesName: string; group: string; operator: string };
+export interface AfterScan {
+  total: number;
+  /** 每系列命中数（分页切片按累计区间回生成） */
+  cum: { code: string; count: number }[];
+}
+const matchAfter = (o: OnlineAfterOrder, f: AfterOrderQuery, seriesCode: string, seriesName: string): boolean => {
+  if (f.type !== '全部类型' && o.type !== f.type) return false;
+  if (f.platform !== '全部平台' && o.platform !== f.platform) return false;
+  if (f.status !== '全部状态' && o.status !== f.status) return false;
+  if (f.sub) { if (o.psub !== f.sub) return false; }
+  else if (f.ptype && o.ptype !== f.ptype) return false;
+  if (f.kw) {
+    const k = f.kw.trim().toLowerCase();
+    if (k && !o.afterNo.toLowerCase().includes(k) && !o.orderNo.toLowerCase().includes(k) && !o.code.toLowerCase().includes(k)
+      && !seriesCode.toLowerCase().includes(k) && !seriesName.toLowerCase().includes(k)) return false;
+  }
+  const day = o.appliedAt.slice(0, 10);
+  if (f.from && day < f.from) return false;
+  if (f.to && day > f.to) return false;
+  return true;
+};
+export const scanAfterOrders = (f: AfterOrderQuery): AfterScan => {
+  const cum: { code: string; count: number }[] = [];
+  let total = 0;
+  for (const s of onlineSeries()) {
+    const ow = onlineOwnerOf(s.seriesCode);
+    if (f.group !== '全部组别' && (ow?.group ?? '—') !== f.group) continue;
+    if (f.operator !== '全部运维' && (ow?.operator ?? '—') !== f.operator) continue;
+    let c = 0;
+    for (const o of genAfterOrders(s)) {
+      if (!matchAfter(o, f, s.seriesCode, s.name)) continue;
+      c += 1;
+    }
+    if (c) { total += c; cum.push({ code: s.seriesCode, count: c }); }
+  }
+  return { total, cum };
+};
+export const sliceAfterOrders = (f: AfterOrderQuery, cum: { code: string; count: number }[], start: number, end: number): AfterOrderRow[] => {
+  const out: AfterOrderRow[] = [];
+  let offset = 0;
+  for (const seg of cum) {
+    if (offset >= end) break;
+    if (offset + seg.count <= start) { offset += seg.count; continue; }
+    const s = onlineSeries().find((x) => x.seriesCode === seg.code);
+    if (!s) { offset += seg.count; continue; }
+    const ow = onlineOwnerOf(s.seriesCode);
+    for (const o of genAfterOrders(s)) {
+      if (!matchAfter(o, f, s.seriesCode, s.name)) continue;
+      if (offset >= start) out.push({ ...o, seriesCode: s.seriesCode, seriesName: s.name, group: ow?.group ?? '—', operator: ow?.operator ?? '—' });
+      offset += 1;
+      if (offset >= end) break;
+    }
+  }
+  return out;
+};
+
+/* ---------- 系列详情抽屉时间口径：今日 / 近3天 / 近7天 / 近14天 / 近30天 / 近三个月 / 自定义 ----------
+   证据日期固定落在 2026-08-01~28，窗口按数据日期锚定（今日=数据末日），避免按真实今天过滤后全空；
+   近三个月超出证据跨度时钳制为全跨度 */
+
+export const DRAWER_RANGE_LABELS: { key: RangeKey; label: string }[] = [
+  { key: 'today', label: '今日' },
+  { key: '3d', label: '近3天' },
+  { key: '7d', label: '近7天' },
+  { key: '14d', label: '近14天' },
+  { key: '30d', label: '近30天' },
+  { key: '90d', label: '近三个月' },
+  { key: 'custom', label: '自定义' },
+];
+const EVIDENCE_END = '2026-08-28';
+const EVIDENCE_START = '2026-08-01';
+const shiftDay = (d: string, n: number) => {
+  const t = new Date(`${d}T00:00:00`);
+  t.setDate(t.getDate() + n);
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+};
+/** 抽屉时间范围 → 闭区间日期窗口；自定义越界/反序时钳制与交换 */
+export function drawerRangeWindow(range: RangeKey, custom?: DateRange): [string, string] {
+  if (range === 'today') return [EVIDENCE_END, EVIDENCE_END];
+  if (range === '3d') return [shiftDay(EVIDENCE_END, -2), EVIDENCE_END];
+  if (range === '7d') return [shiftDay(EVIDENCE_END, -6), EVIDENCE_END];
+  if (range === '14d') return [shiftDay(EVIDENCE_END, -13), EVIDENCE_END];
+  if (range === '30d' || range === '90d') return [EVIDENCE_START, EVIDENCE_END];
+  let start = custom?.start || EVIDENCE_START;
+  let end = custom?.end || EVIDENCE_END;
+  if (start > end) [start, end] = [end, start];
+  return [start, end];
+}
+/** 默认自定义区间（近30天档全量数据日期） */
+export const DRAWER_DEFAULT_CUSTOM: DateRange = { start: EVIDENCE_START, end: EVIDENCE_END };
+/** 数量指标随时间窗口的缩放占比（窗口天数 / 数据全跨度天数） */
+export function drawerRangeRatio(range: RangeKey, custom?: DateRange): number {
+  const [s, e] = drawerRangeWindow(range, custom);
+  const days = Math.round((new Date(`${e}T00:00:00`).getTime() - new Date(`${s}T00:00:00`).getTime()) / 86400000) + 1;
+  return Math.min(1, Math.max(0, days / 28));
+}
+
+/* ---------- 线上问题评价：按系列惰性生成，问题类型占比与系列命中同权重 ---------- */
+
+export interface OnlineReview {
+  id: string;
+  code: string;
+  platform: Platform;
+  ptype: string;
+  /** 关联问题类型小类（评价场景按小类快速筛选） */
+  psub?: string;
+  /** 平台商品ID（同编码同平台恒定，评价行展示） */
+  goodsId: string;
+  content: string;
+  rating: number;
+  reviewedAt: string;
+}
+
+const REVIEW_PHRASES: Record<string, string[]> = {
+  质量问题: ['用了不到一周就开胶断裂', '做工粗糙边缘全是毛刺', '材质异味重不敢用'],
+  '描述/宣传不符': ['实物颜色和图片差很多', '标注的尺寸和实际量出来不符', '宣传的功能一个都没有'],
+  包装破损: ['外箱压扁角上全磕坏了', '拆开包装里面商品裂了', '没有任何缓冲填充裸装发货'],
+  少发: ['套餐里少了一件配件', '数量核对不上少发一份', '漏发赠品联系补发'],
+  物流问题: ['物流信息五天不更新', '显示签收但根本没收到', '发货拖了四天才揽收'],
+  服务类问题: ['客服已读不回问题没人管', '售后推诿让找平台', '处理态度敷衍拖了一周'],
+  '价格/活动类问题': ['活动价比日常还贵', '优惠券下单用不了', '保价期内降价不给退差'],
+  错发: ['收到的颜色和下单不一样', '发错型号完全用不了', '收到的是别人退回来的旧件'],
+};
+
+const reviewCache = new Map<string, OnlineReview[]>();
+
+/** 平台商品ID：按编码+平台哈希确定性生成（同商品跨评价恒定） */
+const goodsIdOf = (code: string, pl: Platform): string => {
+  const h = [...(code + pl)].reduce((x, c) => (x * 31 + c.charCodeAt(0)) % 1000000007, 7);
+  return String(100000000 + (h % 900000000));
+};
+
+/** 系列问题评价（抽屉评价场景）：条数按订单量确定性折算，问题类型按系列占比拆包 */
+export const onlineReviewsOf = (s: QcCenterSeries): OnlineReview[] => {
+  const cached = reviewCache.get(s.seriesCode);
+  if (cached) return cached;
+  const out: OnlineReview[] = [];
+  if (s.orders > 0 && s.codes.length && s.platforms.length) {
+    const rnd = mulberry32(Number(s.seriesCode.slice(3)) * 6151 + 53);
+    const total = Math.max(4, Math.min(30, Math.round(s.orders * 0.00012)));
+    const weights = s.problemHits.length ? s.problemHits : [{ type: QC_PROBLEM_TYPES[0], count: 1 }];
+    const wSum = weights.reduce((sum, w) => sum + w.count, 0);
+    const bag: string[] = [];
+    let left = total;
+    weights.forEach((w, i) => {
+      const n = i === weights.length - 1 ? left : Math.min(left, Math.round((w.count / wSum) * total));
+      left -= n;
+      for (let k = 0; k < n; k++) bag.push(w.type);
+    });
+    for (let i = bag.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      [bag[i], bag[j]] = [bag[j], bag[i]];
+    }
+    bag.forEach((t, i) => {
+      const dd = String(1 + Math.floor(rnd() * 28)).padStart(2, '0');
+      const hh = String(8 + Math.floor(rnd() * 13)).padStart(2, '0');
+      const mm = String(Math.floor(rnd() * 60)).padStart(2, '0');
+      const pool = REVIEW_PHRASES[t] || ['商品有问题体验很差'];
+      const ss = subsOfType(t);
+      out.push({
+        id: `RV-${s.seriesCode.slice(3)}-${String(i + 1).padStart(3, '0')}`,
+        code: s.codes[i % s.codes.length].code,
+        platform: s.platforms[i % s.platforms.length],
+        ptype: t,
+        psub: ss.length ? ss[i % ss.length] : undefined,
+        goodsId: goodsIdOf(s.codes[i % s.codes.length].code, s.platforms[i % s.platforms.length]),
+        content: pool[i % pool.length],
+        rating: 1 + Math.floor(rnd() * 2),
+        reviewedAt: `2026-08-${dd} ${hh}:${mm}`,
+      });
+    });
+  }
+  reviewCache.set(s.seriesCode, out);
+  return out;
+};
 
 /* ---------- 问题商品：编码维度垃圾品清单（按退款率 / 聊天风险率双序） ---------- */
 
@@ -437,8 +770,8 @@ export const onlineProblemCodes = (): OnlineProblemCode[] => {
 
 /* ---------- 命中问题管理：12 大类 / 31 小类（二级清单同步自《命中问题分类-维护表》） ---------- */
 
-export interface OnlineHitSub { id: string; name: string; desc: string; keywords: string[]; dept: string; on: boolean; adder: string; addedAt: string; hits: number; }
-export interface OnlineHitCat { name: string; subs: OnlineHitSub[]; }
+export interface OnlineHitSub { id: string; name: string; desc: string; keywords: string[]; depts: string[]; on: boolean; adder: string; addedAt: string; hits: number; }
+export interface OnlineHitCat { name: string; desc: string; subs: OnlineHitSub[]; }
 
 const HIT_CAT_DEF: { name: string; dept: string; subs: string[] }[] = [
   { name: '少发', dept: '仓库', subs: ['数量不足', '缺件漏发'] },
@@ -462,6 +795,15 @@ const HIT_KW: Record<string, string[]> = {
 
 const HIT_ADDERS = ['系统同步', '王五', '李四', '赵六'];
 
+/* 小类责任部门覆盖（可多部门共担）：默认随大类，个别小类按业务归口另配（大类卡标签＝小类责任部门去重汇总） */
+const HIT_SUB_DEPT: Record<string, string[]> = {
+  包装破损类_内物污损: ['品质', '仓库'],
+  包装破损类_缓冲缺失: ['品质'],
+  '描述/宣传不符类_材质宣传不符': ['品质', '运营'],
+  退换货类问题类_退货拒收: ['仓库', '客服'],
+  '安装/使用指导类问题类_使用说明不清': ['运营'],
+};
+
 let hitCache: OnlineHitCat[] | null = null;
 
 /** 命中问题分类清单（大类下小类带关键词 / 责任部门 / 启停 / 添加信息） */
@@ -478,10 +820,10 @@ export const onlineHitCats = (): OnlineHitCat[] => {
       const kws = HIT_KW[key] ?? [sub, `${sub}怎么办`, `遇到${sub}`, sub.slice(0, 2), `${sub}处理`, sub.slice(-2), '要求处理', '投诉' + sub];
       return {
         id: `HS-${ci + 1}-${si + 1}`,
-        name: `${c.name}类-${sub}`,
-        desc: `识别会话中客户描述与图片凭证，匹配「${c.name}类-${sub}」特征即判定命中`,
+        name: sub,
+        desc: `识别会话中客户描述与图片凭证，匹配「${sub}」特征即判定命中`,
         keywords: kws,
-        dept: c.dept,
+        depts: [...(HIT_SUB_DEPT[key] ?? [c.dept])],
         on: (ci + si) % 7 !== 1,
         adder: HIT_ADDERS[(ci + si) % HIT_ADDERS.length],
         addedAt: `2026/${String(1 + ((ci + si) % 8)).padStart(2, '0')}/${String(1 + ((ci * 3 + si * 5) % 27)).padStart(2, '0')} ${String(9 + ((ci + si) % 9)).padStart(2, '0')}:${String((si * 17 + ci * 7) % 60).padStart(2, '0')}:00`,
@@ -489,7 +831,7 @@ export const onlineHitCats = (): OnlineHitCat[] => {
       };
     });
     subs[subs.length - 1].hits = total - subs.reduce((s, x) => s + x.hits, 0);
-    return { name: c.name, subs };
+    return { name: c.name, desc: `识别会话中客户描述与图片凭证，匹配「${c.name}」大类下任一子问题特征即判定命中`, subs };
   });
   return hitCache;
 };
@@ -566,9 +908,8 @@ export interface QcPermMenuRow { name: string; sub?: string; view: number | null
 
 export const QC_PERM_MENU: QcPermMenuRow[] = [
   { name: '数据概览', view: 0, manage: 0, funcs: [] },
-  { name: '监控列表', view: 0, manage: 0, funcs: ['导出列表', '责任部门编辑', '创建优化任务'] },
+  { name: '监控列表', view: 0, manage: 0, funcs: ['导出列表', '责任部门编辑'] },
   { name: '问题商品', view: 0, manage: 0, funcs: ['导出列表'] },
-  { name: '优化任务', view: 0, manage: 0, funcs: ['新建任务', '编辑任务', '删除任务', '任务状态流转'] },
   { name: '标签配置', view: 0, manage: 0, funcs: ['新建标签', '编辑标签', '删除标签'] },
   { name: '权限管理', sub: '成员管理', view: 0, manage: 0, funcs: ['添加成员', '移除成员', '钉钉同步'] },
   { name: '权限管理', sub: '部门管理', view: 0, manage: 0, funcs: ['新建根部门', '添加下级部门', '编辑部门信息', '删除部门', '添加部门成员'] },

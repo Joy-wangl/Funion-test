@@ -2,7 +2,6 @@
 /* ---------- 问题类型看板 ---------- */
 import { computed, ref } from 'vue';
 import {
-  DATE_AXIS,
   DEPT_COLOR,
   DEFAULT_CUSTOM_RANGE,
   PROBLEM_TYPE_COLOR,
@@ -19,11 +18,9 @@ import {
   rateCls,
   topProblemCodes,
   totalCodes,
-  windowOf,
   type DateRange,
   type RangeKey,
 } from './qcCenterData';
-import { OPT_STATUS_LABELS, type OptStatus, type OptTask } from './qcOptData';
 import {
   ONLINE_DEPT_COUNTS,
   ONLINE_OV,
@@ -39,10 +36,8 @@ import StatusTag from './StatusTag.vue';
 import QcSectionHead from './QcSectionHead.vue';
 
 const props = defineProps<{
-  optTasks: OptTask[];
   /** 品控-线上壳：看板走线上固定口径，不随时间范围变化 */
   online?: boolean;
-  onOpenOptStatus: (s: OptStatus) => void;
   onOpenCode: (seriesCode: string, code: string) => void;
   onPickType: (type: string) => void;
   /** 品控-线上：部门卡点击跳转监控列表并预设责任部门 */
@@ -52,11 +47,9 @@ const props = defineProps<{
 const rangeOv = ref<RangeKey>('custom');
 const rangeShare = ref<RangeKey>('custom');
 const rangeTrend = ref<RangeKey>('custom');
-const rangeOpt = ref<RangeKey>('custom');
 const customOv = ref<DateRange>({ ...DEFAULT_CUSTOM_RANGE });
 const customShare = ref<DateRange>({ ...DEFAULT_CUSTOM_RANGE });
 const customTrend = ref<DateRange>({ ...DEFAULT_CUSTOM_RANGE });
-const customOpt = ref<DateRange>({ ...DEFAULT_CUSTOM_RANGE });
 
 const ranking = computed(() => problemTypeRanking());
 const topKey = ref<'refundRate' | 'chatRate'>('refundRate');
@@ -100,22 +93,12 @@ const drillItems = computed(() => {
   if (!props.online || !drillType.value) return null;
   const cat = onlineHitCats().find((c) => c.name === drillType.value);
   if (!cat) return null;
-  return cat.subs.map((s, i) => ({ label: s.name, value: s.hits, color: SUB_COLORS[i % SUB_COLORS.length] }));
+  // 下钻态底部面包屑已标大类，图例/气泡只展示子名，去掉「XX类-」前缀避免重复
+  const prefix = `${cat.name}类-`;
+  return cat.subs.map((s, i) => ({ label: s.name.startsWith(prefix) ? s.name.slice(prefix.length) : s.name, value: s.hits, color: SUB_COLORS[i % SUB_COLORS.length] }));
 });
 const pieItems = computed(() => drillItems.value ?? shareItems.value);
 const trendSeries = computed(() => trend.value.series.map((s) => ({ ...s, color: PROBLEM_TYPE_COLOR[s.type] || '#4f7cff' })));
-
-/* 优化数据概览：周期内各状态任务分布，点击跳转优化任务列表对应状态 */
-const optWin = computed(() => windowOf(rangeOpt.value, customOpt.value));
-const optInWin = computed(() => props.optTasks.filter((t) => {
-  const day = t.createdAt.slice(0, 10);
-  return day >= DATE_AXIS[optWin.value[0]] && day <= DATE_AXIS[optWin.value[1]];
-}));
-const optItems = computed(() => OPT_STATUS_LABELS.map((s) => ({
-  ...s,
-  value: optInWin.value.filter((t) => t.status === s.key).length,
-})));
-const optTotal = computed(() => optInWin.value.length);
 </script>
 
 <template>
@@ -197,26 +180,6 @@ const optTotal = computed(() => optInWin.value.length);
         <div class="v">
           {{ i.value }}
           <span class="dept-pct">{{ deptTotal ? `${((i.value / deptTotal) * 100).toFixed(1)}%` : '0.0%' }}</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 优化数据概览：独立白底模块，卡片点击跳转优化任务列表对应状态 -->
-  <div class="qc-ov-panel">
-    <QcSectionHead title="优化数据概览" :range="rangeOpt" :custom="customOpt" :on-range="(r: RangeKey) => (rangeOpt = r)" :on-custom="(d: DateRange) => (customOpt = d)" />
-    <div class="qc-flat-grid cols-6">
-      <div
-        v-for="i in optItems"
-        :key="i.key"
-        class="flat-card dept-card opt-ov-card"
-        :title="`查看「${i.label}」状态任务`"
-        @click="props.onOpenOptStatus(i.key)"
-      >
-        <div class="k"><i class="type-dot" :style="{ background: i.color }" />{{ i.label }}</div>
-        <div class="v">
-          {{ i.value }}
-          <span class="dept-pct">{{ optTotal ? `${((i.value / optTotal) * 100).toFixed(1)}%` : '0.0%' }}</span>
         </div>
       </div>
     </div>

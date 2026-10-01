@@ -7,6 +7,8 @@
 import { computed, ref, watch } from 'vue';
 import {
   QC_CENTER_SERIES,
+  PROBLEM_DEPT,
+  QC_PROBLEM_TYPES,
   applySeriesView,
   defaultDutyDept,
   deptsOfTypes,
@@ -15,10 +17,8 @@ import {
   type ScopeTotals,
 } from './qcCenterData';
 import { CHAT_SESSIONS, SHOP_NAME, type ChatHit, type ChatSession, type Platform, type PlatformStat } from './data';
-import { QC_OPT_TASKS, OPT_GROUPS, OPT_PICKERS, type OptTask, type OptStatus, type StatusTab } from './qcOptData';
 import { codesMatchTagFilter } from '../quality2/qc2Data';
-import { onlineSeries, onlineSeriesOfCode, onlineSessionsOf, onlineOwnerOf, patchOnlineSession } from './qcOnlineData';
-import { pushToast } from '../../components/toast';
+import { onlineSeries, onlineSeriesOfCode, onlineSessionsOf, onlineOwnerOf, onlineChatBrief, patchOnlineSession } from './qcOnlineData';
 import QcDashboard from './QcDashboard.vue';
 import QcSeriesList, { DEFAULT_SERIES_FILTER, type SeriesFilter, type SortKey } from './QcSeriesList.vue';
 import QcSeriesDrawer from './QcSeriesDrawer.vue';
@@ -26,9 +26,8 @@ import Qc2Dashboard from '../quality2/Qc2Dashboard.vue';
 import Qc2Config from '../quality2/Qc2Config.vue';
 import QcChatModal from './QcChatModal.vue';
 import QcTrendModal from './QcTrendModal.vue';
-import QcCreateOptModal from './QcCreateOptModal.vue';
-import OptTaskView from './qcOptPage.vue';
 import QcAfterSales from './QcAfterSales.vue';
+import QcAfterOrdersDrawer from './QcAfterOrdersDrawer.vue';
 import QcProblemCodes from './QcProblemCodes.vue';
 import QcHitManage from './QcHitManage.vue';
 import QcPerm from './QcPerm.vue';
@@ -40,7 +39,7 @@ import '../quality2/qc2.css';
 /* React 版 App.tsx 静态引入 OpsCenter 使 sg-* 筛选样式全局生效，此处对齐 */
 import '../ops-center/OpsCenter.css';
 
-type View = 'dashboard' | 'series' | 'opt' | 'cfg' | 'after' | 'problem' | 'hit' | 'perm';
+type View = 'dashboard' | 'series' | 'cfg' | 'after' | 'problem' | 'hit' | 'perm';
 /** 壳级模式：原功能（问题类型驱动）/ 商品标签（数据概览的标签模块切换，左侧菜单不变） */
 type Mode = 'legacy' | 'tags';
 
@@ -49,7 +48,7 @@ const props = defineProps<{ sidebarCollapsed: boolean; online?: boolean }>();
 /* 深链：hash 第二段指定初始视图（分享 HTML 直落监控列表等）；线上壳 cfg 由下方 watch 回落 */
 const readInitialView = (): View => {
   const seg = location.hash.replace(/^#/, '').split('/')[1];
-  return seg === 'series' || seg === 'opt' || seg === 'cfg' ? seg : 'dashboard';
+  return seg === 'series' || seg === 'cfg' ? seg : 'dashboard';
 };
 
 const view = ref<View>(readInitialView());
@@ -61,7 +60,6 @@ const NAV_ICONS: Record<string, string> = {
   after: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
   problem: '<path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
   hit: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
-  opt: '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
   perm: '<path d="M12 3l7 3v6c0 4.4-2.9 7.5-7 9-4.1-1.5-7-4.6-7-9V6Z"/><path d="m9.3 11.8 2 2 3.4-3.6"/>',
 };
 const NAV_ICON_SVG = (k: string) =>
@@ -72,22 +70,18 @@ type PermView = 'member' | 'dept' | 'role';
 const permView = ref<PermView>('member');
 /* 模板分支内直接比较会被 TS 窄化报错，统一走 helper */
 const modeIs = (m: Mode) => mode.value === m;
-const sortKey = ref<SortKey>('orders');
+const sortKey = ref<SortKey | null>('orders');
 const sortDesc = ref(true);
-const detail = ref<{ series: QcCenterSeries; code?: string } | null>(null);
+const detail = ref<{ series: QcCenterSeries; code?: string; types?: string[] } | null>(null);
 const chatCtx = ref<{ codes: QcCenterCode[]; platforms: Platform[]; platform: Platform } | null>(null);
 /** 趋势图弹层上下文：系列维度 / 平台维度（数据口径不同，交互一致） */
 const trendCtx = ref<{ title: string; totals: ScopeTotals; seriesCode: string } | null>(null);
-/** 优化任务数据与状态 tab（概览点击可跳转列表对应状态） */
-const optTasks = ref<OptTask[]>(QC_OPT_TASKS);
-/* 品控-线上壳无标签配置菜单：切入线上态时若停留在该视图回退数据概览；优化任务线上为 0 条 */
+/* 品控-线上壳无标签配置菜单：切入线上态时若停留在该视图回退数据概览 */
 watch(() => props.online, (v) => {
-  if (v) { if (view.value === 'cfg') view.value = 'dashboard'; optTasks.value = []; }
-  else optTasks.value = QC_OPT_TASKS;
+  if (v && view.value === 'cfg') view.value = 'dashboard';
 }, { immediate: true });
-const optStatusTab = ref<StatusTab>('all');
-/** 创建优化任务弹层上下文（监控列表操作列 / 详情抽屉入口） */
-const createCtx = ref<QcCenterSeries | null>(null);
+/** 售后单列表抽屉上下文（售后列表「查看详情」，逐单明细，区别于系列编码详情） */
+const afterCtx = ref<QcCenterSeries | null>(null);
 /** 聊天会话（上提：全屏弹窗修改命中类型后卡片 / 统计同步闭环）；线上壳按系列惰性生成（命中总数=聊天风险） */
 const chatSessions = ref<ChatSession[]>(CHAT_SESSIONS);
 const onlineSessions = ref<ChatSession[]>([]);
@@ -139,47 +133,20 @@ const changeDuty = (code: string, dept: string | null) => {
 
 const patchDraft = (patch: Partial<SeriesFilter>) => { draft.value = { ...draft.value, ...patch }; };
 
-/** 创建优化任务：仅采集问题点/需求/凭证，写入优化任务列表（待认领），监控列表关联数同步 */
-const submitCreateOpt = (form: { problem: string; demand: string; evidence: string[] }) => {
-  if (!createCtx.value) return;
-  const series = createCtx.value;
-  const prev = optTasks.value;
-  const nextId = prev.reduce((m, t) => {
-    const n = parseInt(t.id.replace('OT-', ''), 10);
-    return Number.isFinite(n) ? Math.max(m, n) : m;
-  }, 1000) + 1;
-  const d = new Date();
-  const p = (x: number) => String(x).padStart(2, '0');
-  const task: OptTask = {
-    id: `OT-${nextId}`,
-    createdAt: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`,
-    seriesCode: series.seriesCode,
-    seriesName: series.name,
-    status: 'pendingClaim',
-    optType: form.problem,
-    optDirection: form.demand,
-    optLevel: 'P1',
-    picker: OPT_PICKERS[0],
-    orders30d: series.orders,
-    gross30d: Math.round(series.orders * 0.52),
-    refundRate: series.refundRate,
-    group: OPT_GROUPS[0],
-    assignStatus: '待处理',
-    evidence: form.evidence,
-  };
-  optTasks.value = [task, ...prev];
-  createCtx.value = null;
-  pushToast('已创建优化任务，可在「优化任务」列表查看');
-};
-
-const viewSeries = computed(() => (props.online ? onlineSeries() : QC_CENTER_SERIES)
+const seriesView = (problemType: string | null) => (props.online ? onlineSeries() : QC_CENTER_SERIES)
   .map((s) => applySeriesView(s, {
     platform: applied.value.platform === '全部平台' ? null : (applied.value.platform as Platform),
     range: applied.value.range,
     custom: applied.value.custom,
-    problemType: applied.value.type === '全部类型' ? null : applied.value.type,
+    problemType,
   }))
-  .filter((x): x is QcCenterSeries => x !== null));
+  .filter((x): x is QcCenterSeries => x !== null);
+const viewSeries = computed(() => seriesView(applied.value.type === '全部类型' ? null : applied.value.type));
+/* 命中问题类型点入详情：详情内保留全部问题类型（不按列表类型筛选收敛），仅默认选中点入的那一类 */
+const viewSeriesAllTypes = computed(() => seriesView(null));
+const pickTypeDetail = (s: QcCenterSeries, t: string) => {
+  detail.value = { series: viewSeriesAllTypes.value.find((x) => x.seriesCode === s.seriesCode) ?? s, types: [t] };
+};
 
 const filtered = computed(() => {
   let list = viewSeries.value;
@@ -224,15 +191,37 @@ const filtered = computed(() => {
   );
 });
 
-const sorted = computed(() => [...filtered.value].sort((a, b) => {
-  const diff = a[sortKey.value] - b[sortKey.value];
+/* 复合列排序指标取值：派生口径与行内展示同源（退款单数/售后率/聊天三口径） */
+const sortVal = (s: QcCenterSeries): number => {
+  switch (sortKey.value) {
+    case 'refundCount': return Math.round(s.orders * s.refundRate);
+    case 'afterRate': return s.orders ? s.afterSales / s.orders : 0;
+    case 'chatTotal': return onlineChatBrief(s).total;
+    case 'chatRisk': return onlineChatBrief(s).risk;
+    case 'chatRate': return onlineChatBrief(s).rate;
+    case 'refundRate': return s.refundRate;
+    case 'afterSales': return s.afterSales;
+    case 'chatRiskHits': return s.chatRiskHits;
+    default: return s.orders;
+  }
+};
+
+const sorted = computed(() => (sortKey.value ? [...filtered.value].sort((a, b) => {
+  const diff = sortVal(a) - sortVal(b);
   return sortDesc.value ? -diff : diff;
-}));
+}) : filtered.value));
 
 const toggleSort = (key: SortKey) => {
   if (sortKey.value === key) sortDesc.value = !sortDesc.value;
   else { sortKey.value = key; sortDesc.value = true; }
 };
+/** 复合列头气泡内直接指定升降序 */
+const setSort = (key: SortKey, desc: boolean) => {
+  sortKey.value = key;
+  sortDesc.value = desc;
+};
+/** 复合列头气泡清除排序：恢复数据默认顺序 */
+const clearSort = () => { sortKey.value = null; };
 
 /** 平台维度趋势弹窗辅助 */
 const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
@@ -297,15 +286,6 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
         <span class="qc-nav-ico" v-html="NAV_ICON_SVG('hit')" />
         <span class="qc-nav-text">命中问题管理</span>
       </div>
-      <div
-        class="qc-nav"
-        :class="view === 'opt' ? 'active' : ''"
-        @click="view = 'opt'"
-      >
-        <span v-if="online" class="qc-nav-ico" v-html="NAV_ICON_SVG('opt')" />
-        <span v-else class="qc-nav-ico">⚑</span>
-        <span class="qc-nav-text">优化任务</span>
-      </div>
       <template v-if="online">
         <div
           class="qc-nav qc-nav-parent"
@@ -358,9 +338,7 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
       </div>
       <QcDashboard
         v-if="view === 'dashboard' && (online || modeIs('legacy'))"
-        :opt-tasks="optTasks"
         :online="online"
-        :on-open-opt-status="(s: OptStatus) => { optStatusTab = s; view = 'opt'; }"
         :on-pick-type="(t: string) => {
           draft = { ...draft, type: t };
           applied = { ...applied, type: t };
@@ -387,6 +365,8 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
         :sort-key="sortKey"
         :sort-desc="sortDesc"
         :on-toggle-sort="toggleSort"
+        :on-set-sort="setSort"
+        :on-clear-sort="clearSort"
         :draft="draft"
         :on-draft="patchDraft"
         :on-query="() => (applied = draft)"
@@ -401,21 +381,17 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
         :on-trend-stat="onTrendStat"
         :duty-map="dutyMap"
         :on-duty="changeDuty"
-        :opt-tasks="optTasks"
-        :on-create-opt="(s: QcCenterSeries) => (createCtx = s)"
         :online="online"
         :scope-dept="applied.dept"
-      />
-      <OptTaskView
-        v-else-if="view === 'opt'"
-        :tasks="optTasks"
-        :set-tasks="(up: (ts: OptTask[]) => OptTask[]) => (optTasks = up(optTasks))"
-        :status-tab="optStatusTab"
-        :set-status-tab="(s: StatusTab) => (optStatusTab = s)"
+        :on-pick-type="pickTypeDetail"
+        :on-pick-dept="(s: QcCenterSeries, d: string) => (detail = {
+          series: s,
+          types: QC_PROBLEM_TYPES.filter((x) => PROBLEM_DEPT[x] === d),
+        })"
       />
       <QcAfterSales
         v-else-if="view === 'after'"
-        :on-detail="(s: QcCenterSeries) => (detail = { series: s })"
+        :on-orders="(s: QcCenterSeries) => (afterCtx = s)"
         :on-trend="(s: QcCenterSeries) => (trendCtx = {
           title: `系列 ${s.seriesCode} · ${s.name}`,
           totals: { orders: s.orders, refundRate: s.refundRate, afterSales: s.afterSales, chatRisks: s.chatRiskHits },
@@ -439,11 +415,10 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
 
     <QcSeriesDrawer
       v-if="detail"
-      :key="`${detail.series.seriesCode}-${detail.code ?? 'all'}`"
+      :key="`${detail.series.seriesCode}-${detail.code ?? 'all'}-${(detail.types ?? []).join(',')}`"
       :series="detail.series"
       :initial-code="detail.code"
-      :opt-tasks="optTasks.filter((t) => t.seriesCode === detail!.series.seriesCode)"
-      :on-create-opt="() => (createCtx = detail!.series)"
+      :initial-types="detail.types"
       :on-close="() => (detail = null)"
       :all-sessions="drawerSessions"
       :on-update-hits="updateSessionHits"
@@ -462,14 +437,14 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
       v-if="trendCtx"
       :title="trendCtx.title"
       :totals="trendCtx.totals"
-      :opt-tasks="optTasks.filter((t) => t.seriesCode === trendCtx!.seriesCode)"
+      :series-code="trendCtx.seriesCode"
+      :online="online"
       :on-close="() => (trendCtx = null)"
     />
-    <QcCreateOptModal
-      v-if="createCtx"
-      :series="createCtx"
-      :on-close="() => (createCtx = null)"
-      :on-submit="submitCreateOpt"
+    <QcAfterOrdersDrawer
+      v-if="afterCtx"
+      :series="afterCtx"
+      :on-close="() => (afterCtx = null)"
     />
   </div>
 </template>

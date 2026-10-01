@@ -169,7 +169,11 @@
   border-bottom: 1px solid #f0f3f7;
   color: #445066;
   font-size: var(--fs-base);
+  /* 行内首行顶部对齐：多行单元格首行与单行列同高，避免上下居中导致错位 */
+  vertical-align: top;
 }
+/* 双行单元格主/副行之间留出呼吸间距，避免内容过密 */
+.qc-page .table .col-name > div + div { margin-top: 4px; }
 .qc-page .table tbody tr:hover { background: #fcfdff; }
 
 .qc-page .table .arrow {
@@ -189,7 +193,8 @@
 .qc-page .tag { white-space: nowrap; }
 
 /* 审核状态标签：待审核中性灰 */
-.qc-page .tag.rv { background: var(--fill-1); color: var(--text-3); }
+/* 无命中/无归属等空态标签：灰底比控件浅填充再深一档，白底行上仍能看出标签轮廓 */
+.qc-page .tag.rv { background: #e9ebf0; color: var(--text-3); }
 .qc-page .tag.rv.green { background: var(--success-light); color: var(--success); }
 .qc-page .tag.rv.red { background: #ffece8; color: var(--danger); }
 .qc-page .tag.rv.blue { background: var(--primary-light); color: var(--primary); }
@@ -255,15 +260,6 @@
 .qc-page .matrix th { background: #fbfcfe; color: #5d6678; font-weight: 700; white-space: nowrap; }
 .qc-page .matrix tr.off td { color: var(--text-4); }
 .qc-page .matrix tr:last-child td { border-bottom: none; }
-
-/* ---------- 售后类型命中条 ---------- */
-.qc-page .type-bars { display: flex; flex-direction: column; gap: 8px; }
-.qc-page .tb-row { display: flex; align-items: center; gap: 10px; font-size: 12px; margin-bottom: 6px; }
-.qc-page .tb-row .tag { flex: none; width: 112px; justify-content: center; }
-.qc-page .tb-bar { flex: 1; height: 6px; background: var(--fill-2); border-radius: 3px; overflow: hidden; }
-.qc-page .tb-bar i { display: block; height: 100%; border-radius: 3px; background: var(--primary); }
-.qc-page .tb-cnt { width: 56px; text-align: right; color: var(--text-2); flex-shrink: 0; }
-.qc-page .tb-pct { width: 96px; text-align: right; color: var(--text-3); flex-shrink: 0; }
 
 /* ---------- 概览扩展面板 ---------- */
 .qc-page .qc-ov { display: flex; flex-direction: column; gap: 16px; }
@@ -380,17 +376,31 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 10px 34px 10px 12px;
   cursor: pointer;
   font-size: 12px;
   flex-wrap: wrap;
+  position: relative;
 }
 .qc-page .s-head:hover { background: #fcfdff; }
 .qc-page .s-id { font-weight: 600; color: var(--text-2); }
 .qc-page .s-time { color: var(--text-3); }
 .qc-page .s-msgs { color: var(--text-3); }
 .qc-page .s-hits { display: inline-flex; gap: 4px; }
-.qc-page .s-orders { color: var(--primary); }
+.qc-page .s-orders {
+  display: inline-flex; align-items: center; padding: 1px 8px;
+  border: 1px solid #ffe1c0; border-radius: 6px; background: #fff8f0;
+  color: #d46b08; font-size: 12px; white-space: nowrap;
+}
+.qc-page .s-orders i { font-style: normal; margin-left: 4px; opacity: .75; }
+.qc-page .s-link {
+  color: var(--primary);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.qc-page .s-link:hover { text-decoration: underline; }
 .qc-page .s-right {
   margin-left: auto;
   display: flex;
@@ -443,15 +453,21 @@
 .qc-page .bubble-row.support .b-text { background: var(--primary-light); border-color: transparent; }
 .qc-page .drawer-sessions .session-bubbles { background: var(--fill-1); }
 
-/* 会话头部“全屏”按钮 */
-.qc-page .s-expand {
-  color: var(--primary);
-  font-size: 12px;
+/* 会话头部“全屏”图标：固定卡片右上角 */
+.qc-page .s-full {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--text-3);
   cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
 }
-.qc-page .s-expand:hover { text-decoration: underline; }
+.qc-page .s-full:hover { color: var(--primary); background: var(--fill-1); }
 
 /* 全屏聊天模态 */
 .chat-modal-mask {
@@ -518,6 +534,9 @@
 .qc-page .s-head .s-meta > i { font-style: normal; color: var(--text-4); }
 .qc-page .chat-modal-head .s-meta > i::after,
 .qc-page .s-head .s-meta > i::after { content: '：'; }
+/* 平台与店铺统一展示：官方图标＋店铺名灰字（接待账号卡语言），取代平台徽标＋店铺字段两段 */
+.qc-page .s-head .s-shop { display: inline-flex; align-items: center; gap: 8px; color: var(--color-text-3); }
+.qc-page .s-head .s-shop .plat-logo { width: 20px; height: 20px; border-radius: 6px; }
 .qc-page .chat-modal-head .s-id { font-size: var(--fs-base); }
 .qc-page .chat-modal-head .x { margin-left: auto; }
 /* 底部操作栏：上一个/下一个会话切换按钮 */
@@ -617,6 +636,9 @@
 
 /* ---------- 问题类型标签（表格列） ---------- */
 .qc-page .prob-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+/* 可点标签（命中类型/涉及部门）：与概览类型卡、部门卡同语义，点击按该维度筛选监控列表 */
+.qc-page .prob-tags .tag.pick { cursor: pointer; transition: opacity .12s; }
+.qc-page .prob-tags .tag.pick:hover { opacity: .82; }
 
 /* 命中类型折叠：默认 Top3，超出 +N，悬浮气泡展示全部 */
 .qc-page .prob-tags .prob-more { position: relative; cursor: default; color: var(--text-3); }
@@ -641,6 +663,15 @@
 
 /* 系列详情抽屉加宽（平台矩阵列较多） */
 .qc-center-page .drawer.qc-series-drawer { width: 960px; }
+/* 品控-线上壳带细分场景左栏与小类快选，整体加宽缓解拥挤 */
+.qc-center-page .drawer.qc-series-drawer.qc-d-online { width: 1360px; }
+/* 抽屉头部商品主图：文字占位圆改电商主图（圆角方缩略同商品图语言） */
+.qc-center-page .drawer.qc-series-drawer .detail-hero .av { border-radius: 10px; object-fit: cover; background: #fff; border: 1px solid #eef1f6; }
+/* 商品编码切换并入头部信息模块：模块内右对齐，不再单独占行割裂 */
+.qc-center-page .drawer .detail-hero .qc-hero-code-tabs { margin: 0 0 0 auto; flex: none; }
+/* 头部时间维度：紧随编码切换靠右，档位与自定义区间触发器同排不换行 */
+.qc-center-page .drawer .detail-hero .qc-hero-range { flex: none; margin-left: 12px; }
+.qc-center-page .drawer .detail-hero .qc-hero-range .qc-range-wrap { flex-wrap: nowrap; }
 
 /* ---------- 问题诊断与优化建议 ---------- */
 .qc-page .prob-item {
@@ -741,3 +772,41 @@
 
 /* 聊天记录核查：商品编码展开后的会话卡片列表 */
 .qc-page .chat-code-sessions { display: flex; flex-direction: column; gap: 10px; }
+
+/* ---------- 售后单列表抽屉（售后列表「查看详情」） ---------- */
+.qc-center-page .drawer.qc-after-orders-drawer { width: 880px; }
+.qc-after-orders-drawer .drawer-head .ao-count { margin-left: 12px; font-size: 12px; color: var(--text-3); font-weight: 400; }
+.qc-after-orders-drawer .drawer-head .ao-export { margin-left: auto; }
+.qc-after-orders-drawer .drawer-head .x { margin-left: 12px; }
+
+/* 查询条件区：复用全局 sg-filter / sg-grid 语言，三列适配抽屉宽度；申请时间为成对日期控件 */
+.qc-ao-panel .sg-filter { margin-bottom: 14px; box-shadow: none; }
+.qc-ao-panel .sg-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.qc-ao-panel .ao-range { display: flex; align-items: center; gap: 8px; }
+.qc-ao-panel .ao-range > i { font-style: normal; color: var(--color-text-4); }
+.qc-ao-panel .ao-date {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid #e4e8ef;
+  border-radius: 10px;
+  background: #fbfcfe;
+  font-size: var(--fs-base);
+  color: #465064;
+  outline: none;
+}
+.qc-ao-panel .ao-date:focus { border-color: #a9bcff; background: #fff; }
+
+/* 明细表：两行单元格与平台图标 */
+.qc-ao-panel .ao-table .ao-wrap { white-space: normal; word-break: break-all; line-height: 1.5; }
+.qc-ao-panel .ao-plat { display: inline-flex; align-items: center; gap: 6px; }
+.qc-ao-panel .ao-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--text-3);
+}
+.qc-ao-panel .ao-foot button:first-of-type { margin-left: auto; }

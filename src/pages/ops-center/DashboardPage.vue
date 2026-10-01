@@ -856,11 +856,16 @@ const visibleDimRows = computed(() => {
             <td><input type="checkbox" :checked="lossSel.has(row)" @change="toggleLossCheck(row)" /></td>
             <td>{{ i + 1 }}</td>
             <td class="item-info">
-              <div class="item-title">{{ row.title }}</div>
-              <div class="item-meta">
-                {{ row.meta[0] }}
-                <br />
-                {{ row.meta[1] }}
+              <div class="item-product">
+                <img class="ib-thumb" :src="row.thumb" />
+                <div>
+                  <div class="item-title">{{ row.title }}</div>
+                  <div class="item-meta">
+                    {{ row.meta[0] }}
+                    <br />
+                    {{ row.meta[1] }}
+                  </div>
+                </div>
               </div>
             </td>
             <td>{{ row.store }}</td>
@@ -909,11 +914,16 @@ const visibleDimRows = computed(() => {
             <td><input type="checkbox" :checked="stockSel.has(row)" @change="toggleStockCheck(row)" /></td>
             <td>{{ i + 1 }}</td>
             <td class="item-info">
-              <div class="item-title">{{ row.title }}</div>
-              <div class="item-meta">
-                {{ row.meta[0] }}
-                <br />
-                {{ row.meta[1] }}
+              <div class="item-product">
+                <img class="ib-thumb" :src="row.thumb" />
+                <div>
+                  <div class="item-title">{{ row.title }}</div>
+                  <div class="item-meta">
+                    {{ row.meta[0] }}
+                    <br />
+                    {{ row.meta[1] }}
+                  </div>
+                </div>
               </div>
             </td>
             <td>{{ row.store }}</td>

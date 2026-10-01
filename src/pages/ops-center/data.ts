@@ -59,8 +59,16 @@ export const kpiItems: KpiItem[] = [
   { metric: '新毛六利润率', value: '20.5%', foot: [{ cls: 'up', lines: ['▲ 1.6%', '上期 18.9%'] }] },
 ];
 
+/* ---------- 电商主图池（跨列表共用） ---------- */
+/* 电商主图池：真实商品图（白底电商主图，存 public/materials/ec-*.webp）；
+   各列表按自身偏移顺取、模池长循环，保证同列表上下相邻行不重复；同一商品跨列表取同一张 */
+export const EC_MAINS: string[] = Array.from({ length: 24 }, (_, i) => `/materials/ec-${String(i + 1).padStart(2, '0')}.webp`);
+/** 顺取电商主图（索引可为任意整数，自动取模回绕） */
+export const ecMain = (i: number): string => EC_MAINS[((i % EC_MAINS.length) + EC_MAINS.length) % EC_MAINS.length];
+
 /* ---------- 驾驶舱：亏损商品 ---------- */
 export interface LossRow {
+  thumb: string;
   title: string;
   meta: string[];
   store: string;
@@ -76,6 +84,7 @@ export interface LossRow {
 }
 export const lossRows: LossRow[] = [
   {
+    thumb: ecMain(13),
     title: '水具刀削皮刀便携倒钩苹果去皮神器家用拼多多功能款',
     meta: ['商品ID：267079935129', '近7日销量：12087'],
     store: '快乐小店-佰得小站',
@@ -89,6 +98,7 @@ export const lossRows: LossRow[] = [
     goodsStatus: 'selling',
   },
   {
+    thumb: ecMain(14),
     title: '益智魔块3D立体拼图3到6岁动物趣味恐龙模型儿童手工',
     meta: ['商品ID：26701928017129', '近7日销量：11875'],
     store: '快乐小店-佰得小站',
@@ -102,6 +112,7 @@ export const lossRows: LossRow[] = [
     goodsStatus: 'selling',
   },
   {
+    thumb: ecMain(2),
     title: '迷你随身小烟炮音响驱动无线蓝牙便携式重低音抽绳盒',
     meta: ['商品ID：3773095122930106470', '近7日销量：11179'],
     store: '抖音小店-BB丽居佳/健身弹专区',
@@ -118,6 +129,7 @@ export const lossRows: LossRow[] = [
 
 /* ---------- 驾驶舱：缺货商品 ---------- */
 export interface StockRow {
+  thumb: string;
   title: string;
   meta: string[];
   store: string;
@@ -137,6 +149,7 @@ export interface StockRow {
 }
 export const stockRows: StockRow[] = [
   {
+    thumb: ecMain(3),
     title: '挂钩强力粘胶粘钩强承重免打孔门后墙壁透明勾塑料款',
     meta: ['商品ID：977051807853', '创建时间：2026/07/13 17:07'],
     store: '拼多多-朝妮优选的小百货',
@@ -153,6 +166,7 @@ export const stockRows: StockRow[] = [
     goodsStatus: 'selling',
   },
   {
+    thumb: ecMain(5),
     title: '密封胶泥空调孔填缝堵洞防虫防水家用耐高温下水道修补',
     meta: ['商品ID：981543753220', '创建时间：2026/07/25 19:10'],
     store: '拼多多-阿涛弄弄',
@@ -169,6 +183,7 @@ export const stockRows: StockRow[] = [
     goodsStatus: 'selling',
   },
   {
+    thumb: ecMain(4),
     title: '证件防丢卡套卡套防复制身份证银行卡保护隐私便携款',
     meta: ['商品ID：25969737568832', '创建时间：2026/01/24 21:02'],
     store: '快乐小店-歪歪轩',
@@ -187,12 +202,6 @@ export const stockRows: StockRow[] = [
 ];
 
 /* ---------- 内部商机 / 运营管理 商品行 ---------- */
-/* 电商主图池：真实商品图（白底电商主图，存 public/materials/ec-*.webp）；
-   各列表按自身偏移顺取、模池长循环，保证同列表上下相邻行不重复；同一商品跨列表取同一张 */
-export const EC_MAINS: string[] = Array.from({ length: 24 }, (_, i) => `/materials/ec-${String(i + 1).padStart(2, '0')}.webp`);
-/** 顺取电商主图（索引可为任意整数，自动取模回绕） */
-export const ecMain = (i: number): string => EC_MAINS[((i % EC_MAINS.length) + EC_MAINS.length) % EC_MAINS.length];
-
 export interface ProductRow {
   thumb: string;
   pname: string;

@@ -15,6 +15,7 @@ const emit = defineEmits<{ (e: 'close'): void }>();
           <div class="m-title">{{ title }}</div>
           <div v-if="sub" class="m-sub">{{ sub }}</div>
         </div>
+        <div v-if="$slots.extra" class="m-head-extra"><slot name="extra" /></div>
         <span class="x" @click="emit('close')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
         </span>

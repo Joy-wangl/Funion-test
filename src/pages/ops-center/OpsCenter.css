@@ -2582,6 +2582,8 @@
 .ops-center .pm-host .modal.lg { width: 820px; }
 /* xl 档同被宿主基宽覆盖：恢复权限域 1080px（成员穿梭 / 操作日志等宽表弹层） */
 .ops-center .pm-host .modal.xl { width: 1080px; max-width: 94vw; }
+/* xxl 档：SKU 快捷编辑等超宽表弹层（列多、SKU 名称长），对齐权限域 1360px */
+.ops-center .pm-host .modal.xxl { width: 1360px; max-width: 96vw; }
 /* 批量调价弹窗 */
 .ops-center .bp-row {
   display: flex;
@@ -4760,6 +4762,10 @@
 .ops-center .item-info {
   min-width: 260px;
 }
+.ops-center .item-product {
+  display: flex;
+  gap: 12px;
+}
 .ops-center .item-title {
   font-size: var(--fs-base);
   font-weight: 600;
@@ -5039,6 +5045,8 @@
 .ops-center .cp-quick-table td { padding: 8px 10px; border-top: 1px solid #eef1f6; color: #2d3648; }
 .ops-center .cp-quick-table td.cp-quick-label { white-space: nowrap; }
 .ops-center .cp-quick-table td .ib-input { width: 100%; min-width: 48px; }
+/* SKU 名称常为多规格拼接长文本：单独加宽该列输入框最小宽，避免截断 */
+.ops-center .cp-quick-table td .ib-input.cp-quick-name { min-width: 220px; }
 /* SKU 图片/名称列：图 32px 圆角，名单行省略 */
 .ops-center .cp-quick-img { display: block; width: 32px; height: 32px; border-radius: 6px; object-fit: cover; border: 1px solid #eef1f6; }
 /* 操作列：复制/删除文字按钮平铺 */
@@ -5477,12 +5485,13 @@
   padding-top: 6px;
   border-top: 1px solid var(--color-border);
 }
-/* 图下文字行：去水印/去品牌两项居中于图片，间距拉开 */
+/* 图下文字行：去水印/去品牌两项居中于图片，间距拉开；执行中标签较长时整项换行不折字 */
 .ops-center .cp-img-ops {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 2px 12px;
   margin-top: 6px;
 }
 /* 选择三态：未选中空心圆、选中主色实底圆＋白勾＋主色字、已处理灰底不可点 */
@@ -5496,6 +5505,7 @@
   font-size: var(--fs-aux);
   color: var(--color-text-2);
   cursor: pointer;
+  white-space: nowrap;
   transition: 0.15s;
 }
 .ops-center .cp-img-ck {
@@ -5530,6 +5540,201 @@
   background: var(--color-fill-2);
   border-color: var(--color-fill-2);
 }
+/* 去水印执行中：圆勾变主色旋转环（缺口朝上），文字「去水印执行中」，不可再点 */
+.ops-center .cp-img-op.busy { color: var(--color-text-3); cursor: default; }
+.ops-center .cp-img-op.busy .cp-img-ck {
+  border-color: var(--color-primary);
+  border-top-color: transparent;
+  animation: cp-ck-spin 0.8s linear infinite;
+}
+@keyframes cp-ck-spin { to { transform: rotate(360deg); } }
+/* 生成记录版本点选（详情同款）：瓷砖图下胶囊行，点击切换使用版本，选中态主色描边＋右上圆形对勾角标 */
+.ops-center .cp-img-vers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+.ops-center .cp-img-ver {
+  position: relative;
+  padding: 5px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: #fff;
+  font-size: var(--fs-base);
+  color: var(--color-text-3);
+  cursor: pointer;
+}
+.ops-center .cp-img-ver:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.ops-center .cp-img-ver.on {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-weight: 500;
+}
+.ops-center .cp-img-ver-ck {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 9px;
+  font-style: normal;
+  line-height: 1;
+}
+/* 点击查看态：瀑布流之上全屏查看层（高于悬浮预览 z100、低于全局弹窗）；
+   左主区大图＋与瀑布流同源操作行，右列全部图片缩略独立滚动（隐滚动条），滚轮上下切换 */
+.ops-center .cp-view {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  background: #fff;
+}
+.ops-center .cp-view-stage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 48px 104px;
+}
+.ops-center .cp-view-pic {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ops-center .cp-view-pic > img {
+  max-width: 100%;
+  max-height: calc(100vh - 240px);
+  object-fit: contain;
+  background: #fff;
+  border-radius: 16px;
+}
+/* 查看态两选项合为一个胶囊容器并固定在查看态底部（不随图高浮动）：容器内两分段左右均分，对齐图二样式 */
+.ops-center .cp-view-stage .cp-img-ops {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  width: min(760px, calc(100% - 96px));
+  flex: none;
+  margin-top: 0;
+  gap: 4px;
+  flex-wrap: nowrap;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: #fff;
+}
+/* 分段只做勾选不直接执行：选中实心主色胶囊段白字、未选透明底（仅查看态，瀑布流瓷砖行不变） */
+.ops-center .cp-view-stage .cp-img-ops .cp-img-op {
+  flex: 1;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  font-size: var(--fs-lg);
+}
+.ops-center .cp-view-stage .cp-img-ops .cp-img-op:hover:not(.off):not(.on) {
+  background: var(--color-fill-2);
+  color: var(--color-primary);
+}
+.ops-center .cp-view-stage .cp-img-ops .cp-img-op.on {
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 500;
+}
+.ops-center .cp-view-stage .cp-img-ops .cp-img-ck { width: 18px; height: 18px; }
+.ops-center .cp-view-stage .cp-img-ops .cp-img-op.on .cp-img-ck { background: #fff; border-color: #fff; }
+.ops-center .cp-view-stage .cp-img-ops .cp-img-op.on .cp-img-ck::after {
+  left: 5.5px;
+  top: 2px;
+  width: 4.5px;
+  height: 8px;
+  border-right-color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+.ops-center .cp-view-idx {
+  flex: none;
+  font-size: var(--fs-aux);
+  color: var(--color-text-3);
+}
+/* 查看态生成记录：底部操作胶囊上方留白带内居中（水平居中＋不贴胶囊），点击切换使用版本 */
+.ops-center .cp-view-stage .cp-img-vers {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 118px;
+  margin-top: 0;
+  padding: 0 48px;
+}
+.ops-center .cp-view-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--color-text-2);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.ops-center .cp-view-close:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+/* 右列缩略：全部图片按源序；当前项主色描边；隐滚动条仅保留滚轮滚动 */
+.ops-center .cp-view-rail {
+  flex: none;
+  width: 172px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 14px;
+  border-left: 1px solid var(--color-border);
+  scrollbar-width: none;
+}
+.ops-center .cp-view-rail::-webkit-scrollbar { display: none; }
+.ops-center .cp-view-rail-item {
+  flex: none;
+  padding: 2px;
+  border: 2px solid transparent;
+  border-radius: 14px;
+  background: none;
+  cursor: pointer;
+}
+.ops-center .cp-view-rail-item > img {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #fff;
+  border-radius: 10px;
+}
+.ops-center .cp-view-rail-item.on { border-color: var(--color-primary); }
 /* 竞对商机仅 3 个条件：末列按按钮组内容自适应宽，使条件与按钮同排右对齐且不换行 */
 .ops-center .mother-filter .ib-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr)) max-content;

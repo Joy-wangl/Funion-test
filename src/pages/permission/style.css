@@ -409,6 +409,8 @@
 .pm-page .modal-head .m-title { font-size: 16px; font-weight: 600; }
 .pm-page .modal-head .m-sub { font-size: 12px; color: var(--text-3); margin-top: 3px; }
 .pm-page .modal-head .x { margin-left: auto; cursor: pointer; color: var(--text-3); display: flex; padding: 2px; }
+.pm-page .modal-head .m-head-extra { margin-left: auto; display: flex; align-items: center; }
+.pm-page .modal-head .m-head-extra + .x { margin-left: 12px; }
 .pm-page .modal-head .x:hover { color: var(--text-1); }
 .pm-page .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
 .pm-page .modal-foot { padding: 14px 20px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border-2); }

@@ -1,13 +1,4 @@
 <script lang="ts">
-export type OptBand = {
-  /** 优化开始日期（YYYY-MM-DD） */
-  start: string;
-  /** 优化完成日期；缺省=进行中，带延伸至右缘 */
-  end?: string;
-  label: string;
-  color: string;
-};
-
 export interface MetricSeriesDef {
   key: string;
   name: string;
@@ -29,8 +20,6 @@ const props = defineProps<{
   series: MetricSeriesDef[];
   /** 隐藏的维度 key（图例点击切换） */
   hidden: Set<string>;
-  /** 优化过程区间带（优化中 → 优化完成） */
-  bands?: OptBand[];
 }>();
 
 const hover = ref<{ i: number; px: number; py: number } | null>(null);
@@ -64,22 +53,6 @@ const onMove = (e: MouseEvent) => {
   const wr = wrap.getBoundingClientRect();
   hover.value = { i, px: (x(i) / W) * rect.width, py: Math.max(8, Math.min(e.clientY - wr.top, wr.height - 8)) };
 };
-/* 日期 → 轴下标：标签为 MM/DD 或小时制，按 MMDD 匹配；区间带起点早于窗口时左钳制 */
-const bandIdx = (d?: string) => {
-  if (!d) return -1;
-  const key = d.slice(5).replace(/\D/g, '');
-  return props.labels.findIndex((lb) => lb.replace(/\D/g, '').slice(-4) === key);
-};
-/* 区间带渲染数据（起点越界钳制 / 终点缺省延伸至右缘） */
-const bandRects = computed(() => (props.bands ?? []).map((b) => {
-  let i0 = bandIdx(b.start);
-  const i1 = bandIdx(b.end);
-  if (i0 < 0 && (b.end ? i1 >= 0 : true)) i0 = 0;
-  if (i0 < 0) return null;
-  const x1 = x(i0);
-  const x2 = i1 >= 0 ? x(i1) : W - R;
-  return { x1, x2, done: i1 >= 0, color: b.color, label: b.label };
-}).filter((b): b is NonNullable<typeof b> => b !== null));
 const wrapW = () => wrapRef.value?.clientWidth ?? 800;
 
 function niceMax(v: number): number {
@@ -118,12 +91,6 @@ function smoothPath(pts: { x: number; y: number }[]): string {
       </g>
       <text v-if="lMax > 0" :x="L" :y="T - 6" class="ax-cap">数量</text>
       <text v-if="rMax > 0" :x="W - R" :y="T - 6" text-anchor="end" class="ax-cap ax-r">比率</text>
-      <g v-for="(b, bi) in bandRects" :key="bi">
-        <rect :x="b.x1" :y="T" :width="Math.max(2, b.x2 - b.x1)" :height="H - T - B" :fill="b.color" opacity="0.08" />
-        <line :x1="b.x1" :x2="b.x1" :y1="T" :y2="H - B" :stroke="b.color" stroke-dasharray="4 4" opacity="0.6" />
-        <line v-if="b.done" :x1="b.x2" :x2="b.x2" :y1="T" :y2="H - B" :stroke="b.color" opacity="0.6" />
-        <text :x="b.x1 + 4" :y="T + 10" :fill="b.color" class="band-lb">{{ b.label }}{{ b.done ? '·完成' : '·进行中' }}</text>
-      </g>
       <g v-for="s in visible" :key="s.key">
         <path v-if="n > 1" :d="smoothPath(s.points.map((v, i) => ({ x: x(i), y: yOf(s)(v) })))" fill="none" :stroke="s.color" stroke-width="2.2" />
         <circle v-for="(v, i) in s.points" :key="i" :cx="x(i)" :cy="yOf(s)(v)" :r="hover?.i === i ? 4 : 2.4" :fill="s.color" />

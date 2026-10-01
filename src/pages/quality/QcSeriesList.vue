@@ -1,7 +1,26 @@
 <script lang="ts">
 import { DEFAULT_CUSTOM_RANGE, type DateRange, type RangeKey } from './qcCenterData';
 
-export type SortKey = 'orders' | 'refundRate' | 'afterSales' | 'chatRiskHits';
+export type SortKey =
+  | 'orders' | 'refundRate' | 'afterSales' | 'chatRiskHits'
+  | 'refundCount' | 'afterRate'
+  | 'chatTotal' | 'chatRisk' | 'chatRate';
+
+/** 订单数据复合列可选排序指标 */
+export const ORDER_SORT_METRICS: { key: SortKey; label: string }[] = [
+  { key: 'orders', label: '订单量' },
+  { key: 'refundCount', label: '退款订单数' },
+  { key: 'refundRate', label: '退款率' },
+  { key: 'afterSales', label: '售后单数' },
+  { key: 'afterRate', label: '售后率' },
+];
+
+/** 聊天数据复合列可选排序指标 */
+export const CHAT_SORT_METRICS: { key: SortKey; label: string }[] = [
+  { key: 'chatTotal', label: '会话总数' },
+  { key: 'chatRisk', label: '风险会话' },
+  { key: 'chatRate', label: '风险率' },
+];
 
 /** 系列编码列表筛选条件（草稿/生效分离，与任务中心等模块交互一致）；标签四维与品控 2.0 编码标签同源 */
 export type SeriesFilter = {
@@ -56,7 +75,7 @@ export const DEFAULT_SERIES_FILTER: SeriesFilter = {
 
 <script setup lang="ts">
 /* ---------- 系列编码列表 ---------- */
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
   PROBLEM_DEPT,
   QC_DEPTS,
@@ -68,21 +87,24 @@ import {
   type QcCenterSeries,
 } from './qcCenterData';
 import { JUDGE_LABEL, QC2_CATS, qc2Labels } from '../quality2/qc2Data';
-import { ONLINE_GROUPS, ONLINE_OPERATORS } from './qcOnlineData';
 import { pushToast } from '../../components/toast';
 import type { Platform, PlatformStat } from './data';
-import type { OptTask } from './qcOptData';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import CascadeSelect from '../../components/CascadeSelect.vue';
 import SortTh from '../../components/SortTh.vue';
 import QcDateRangePicker from './QcDateRangePicker.vue';
+import QcGroupShuttle from './QcGroupShuttle.vue';
 import QcSeriesRow from './QcSeriesRow.vue';
 
 const props = defineProps<{
   series: QcCenterSeries[];
-  sortKey: SortKey;
+  /** null = 未排序（数据默认顺序） */
+  sortKey: SortKey | null;
   sortDesc: boolean;
   onToggleSort: (key: SortKey) => void;
+  onSetSort: (key: SortKey, desc: boolean) => void;
+  /** 复合列气泡清除排序：恢复默认顺序 */
+  onClearSort: () => void;
   draft: SeriesFilter;
   onDraft: (patch: Partial<SeriesFilter>) => void;
   onQuery: () => void;
@@ -93,12 +115,14 @@ const props = defineProps<{
   onTrendStat: (stat: PlatformStat, label: string, seriesCode: string) => void;
   dutyMap: Record<string, string>;
   onDuty: (code: string, dept: string | null) => void;
-  optTasks: OptTask[];
-  onCreateOpt: (s: QcCenterSeries) => void;
   /** 品控-线上壳：无标签筛选/标签列，列序对齐线上，启用分页 */
   online?: boolean;
   /** 品控-线上：已生效的问题涉及部门；命中类型/部门列按该部门收敛展示 */
   scopeDept?: string;
+  /** 命中类型标签点击：打开详情抽屉并选中该类型 */
+  onPickType?: (s: QcCenterSeries, type: string) => void;
+  /** 问题涉及部门标签点击：打开详情抽屉并选中该部门关联的全部问题类型 */
+  onPickDept?: (s: QcCenterSeries, dept: string) => void;
 }>();
 
 const expanded = ref<Set<string>>(new Set());
@@ -109,8 +133,32 @@ const toggle = (key: string) => {
   expanded.value = next;
 };
 
-const sortState = (key: SortKey): 'none' | 'desc' | 'asc' =>
-  props.sortKey !== key ? 'none' : props.sortDesc ? 'desc' : 'asc';
+const sortState = (key: SortKey | null): 'none' | 'desc' | 'asc' =>
+  !key || props.sortKey !== key ? 'none' : props.sortDesc ? 'desc' : 'asc';
+
+/* 复合列当前排序指标：未排序或排序键不属于本列时为 null（列头图标灰双箭、气泡无选中项） */
+const orderMetric = computed<SortKey | null>(() => {
+  const k = props.sortKey;
+  return k && ORDER_SORT_METRICS.some((m) => m.key === k) ? k : null;
+});
+const chatMetric = computed<SortKey | null>(() => {
+  const k = props.sortKey;
+  return k && CHAT_SORT_METRICS.some((m) => m.key === k) ? k : null;
+});
+/* 复合列头点击出指标气泡：再点列头或点外部收起，选定后隐藏；同指标再选＝切换升降序 */
+const openPick = ref<'order' | 'chat' | null>(null);
+const onPickDoc = (e: MouseEvent) => {
+  if (openPick.value && !(e.target as Element).closest('.qc-pick-th')) openPick.value = null;
+};
+onMounted(() => document.addEventListener('mousedown', onPickDoc));
+onBeforeUnmount(() => document.removeEventListener('mousedown', onPickDoc));
+const onPickMetric = (k: string) => { props.onToggleSort(k as SortKey); openPick.value = null; };
+/* 气泡内升降序分段：对本列当前指标直接指定方向；再点已选中方向＝清除排序恢复默认顺序 */
+const onPickDir = (k: SortKey, desc: boolean) => {
+  if (props.sortKey === k && props.sortDesc === desc) props.onClearSort();
+  else props.onSetSort(k, desc);
+  openPick.value = null;
+};
 
 /* 问题涉及部门联动（线上壳）：问题类型下拉仅列该部门负责类型，行命中类型/部门列按该部门收敛 */
 const typesOfDept = (d: string) => QC_PROBLEM_TYPES.filter((t) => PROBLEM_DEPT[t] === d);
@@ -210,12 +258,13 @@ watch(page, (v) => { jumpVal.value = String(v); });
         <BubbleSelect class-name="sg-select" :value="draft.duty" :options="['全部部门', ...QC_DEPTS]" @change="(v: string) => props.onDraft({ duty: v })" />
       </div>
       <div v-if="online" class="sg-field">
-        <label>组别</label>
-        <BubbleSelect class-name="sg-select" :value="draft.group" :options="['全部组别', ...ONLINE_GROUPS]" @change="(v: string) => props.onDraft({ group: v })" />
-      </div>
-      <div v-if="online" class="sg-field">
-        <label>运维人员</label>
-        <BubbleSelect class-name="sg-select" :value="draft.operator" :options="['全部运维', ...ONLINE_OPERATORS]" @change="(v: string) => props.onDraft({ operator: v })" />
+        <label>组别 / 运维人员</label>
+        <QcGroupShuttle
+          class-name="sg-select"
+          :group="draft.group"
+          :operator="draft.operator"
+          @change="(g: string, o: string) => props.onDraft({ group: g, operator: o })"
+        />
       </div>
       <div v-if="online" class="sg-field">
         <label>订单量</label>
@@ -262,7 +311,7 @@ watch(page, (v) => { jumpVal.value = String(v); });
         <label>日期区间</label>
         <QcDateRangePicker :custom="draft.custom" :on-change="(d) => props.onDraft({ custom: d })" />
       </div>
-      <div class="sg-field-actions">
+      <div class="sg-field-actions" :class="{ 'sg-acts-row': online }">
         <button v-if="online" class="sg-btn" @click="pushToast('已下载导入模板，上传后自动解析')">
           导入
         </button>
@@ -283,23 +332,58 @@ watch(page, (v) => { jumpVal.value = String(v); });
       <thead>
         <tr>
           <th style="width: 40px" />
-          <th>系列编码</th>
-          <th v-if="online">组别</th>
-          <th v-if="online">运维人员</th>
-          <SortTh label="订单量" align="right" :state="sortState('orders')" @sort="props.onToggleSort('orders')" />
-          <SortTh label="退款率" :state="sortState('refundRate')" @sort="props.onToggleSort('refundRate')" />
-          <SortTh label="售后单" :state="sortState('afterSales')" @sort="props.onToggleSort('afterSales')" />
-          <SortTh label="聊天风险" :state="sortState('chatRiskHits')" @sort="props.onToggleSort('chatRiskHits')" />
-          <th>聊天风险率</th>
-          <th v-if="online">关联优化任务数</th>
-          <th>上架平台</th>
+          <th style="width: 140px">系列编码</th>
+          <template v-if="online">
+            <SortTh class="qc-pick-th" label="订单数据" width="190px" :state="sortState(orderMetric)" @sort="openPick = openPick === 'order' ? null : 'order'">
+              <span v-if="openPick === 'order'" class="qc-sort-pick-menu">
+                <span
+                  v-for="m in ORDER_SORT_METRICS" :key="m.key"
+                  class="qc-sort-pick-opt" :class="{ active: m.key === orderMetric }"
+                  @click.stop="onPickMetric(m.key)"
+                >
+                  {{ m.label }}
+                  <span class="qc-sort-pick-dir">
+                    <span class="qc-dir-txt" :class="{ on: sortState(m.key) === 'asc' }" @click.stop="onPickDir(m.key, false)">升序</span>
+                    <span class="qc-dir-txt" :class="{ on: sortState(m.key) === 'desc' }" @click.stop="onPickDir(m.key, true)">降序</span>
+                  </span>
+                </span>
+                <span v-if="sortState(orderMetric) !== 'none'" class="qc-sort-pick-clear" @click.stop="props.onClearSort(); openPick = null">清除排序</span>
+              </span>
+            </SortTh>
+          </template>
+          <template v-else>
+            <SortTh label="订单量" width="110px" :state="sortState('orders')" @sort="props.onToggleSort('orders')" />
+            <SortTh label="退款率" width="90px" :state="sortState('refundRate')" @sort="props.onToggleSort('refundRate')" />
+            <SortTh label="售后单" width="90px" :state="sortState('afterSales')" @sort="props.onToggleSort('afterSales')" />
+          </template>
+          <SortTh v-if="online" class="qc-pick-th" label="聊天数据" width="150px" :state="sortState(chatMetric)" @sort="openPick = openPick === 'chat' ? null : 'chat'">
+            <span v-if="openPick === 'chat'" class="qc-sort-pick-menu">
+              <span
+                v-for="m in CHAT_SORT_METRICS" :key="m.key"
+                class="qc-sort-pick-opt" :class="{ active: m.key === chatMetric }"
+                @click.stop="onPickMetric(m.key)"
+              >
+                {{ m.label }}
+                <span class="qc-sort-pick-dir">
+                  <span class="qc-dir-txt" :class="{ on: sortState(m.key) === 'asc' }" @click.stop="onPickDir(m.key, false)">升序</span>
+                  <span class="qc-dir-txt" :class="{ on: sortState(m.key) === 'desc' }" @click.stop="onPickDir(m.key, true)">降序</span>
+                </span>
+              </span>
+              <span v-if="sortState(chatMetric) !== 'none'" class="qc-sort-pick-clear" @click.stop="props.onClearSort(); openPick = null">清除排序</span>
+            </span>
+          </SortTh>
+          <template v-else>
+            <SortTh label="聊天风险" width="90px" :state="sortState('chatRiskHits')" @sort="props.onToggleSort('chatRiskHits')" />
+            <th style="width: 110px">聊天风险率</th>
+          </template>
+          <th style="width: 230px">上架平台</th>
           <th>命中问题类型</th>
-          <th v-if="!online">健康等级</th>
-          <th v-if="!online">命中标签</th>
-          <th>问题涉及部门</th>
-          <th>责任部门</th>
-          <th v-if="!online">关联优化任务数</th>
-          <th style="width: 140px">操作</th>
+          <th v-if="!online" style="width: 90px">健康等级</th>
+          <th v-if="!online" style="width: 180px">命中标签</th>
+          <th style="width: 230px">问题涉及部门</th>
+          <th style="width: 110px">责任部门</th>
+          <th v-if="online" style="width: 100px">运维归属</th>
+          <th style="width: 120px">操作</th>
         </tr>
       </thead>
       <tbody>
@@ -315,14 +399,14 @@ watch(page, (v) => { jumpVal.value = String(v); });
             :duty="dutyMap[s.seriesCode] ?? defaultDutyDept(s)"
             :has-override="!!dutyMap[s.seriesCode]"
             :on-duty="props.onDuty"
-            :opt-count="optTasks.filter((t) => t.seriesCode === s.seriesCode).length"
-            :on-create-opt="() => props.onCreateOpt(s)"
             :online="online"
             :scope-dept="rowScope"
+            :on-pick-type="(t: string) => props.onPickType?.(s, t)"
+            :on-pick-dept="(d: string) => props.onPickDept?.(s, d)"
           />
         </template>
         <tr v-if="rows.length === 0">
-          <td :colspan="online ? 13 : 15" style="text-align: center; color: var(--text-4); padding: 40px 0">无匹配系列</td>
+          <td :colspan="online ? 10 : 14" style="text-align: center; color: var(--text-4); padding: 40px 0">无匹配系列</td>
         </tr>
       </tbody>
     </table>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, toRaw } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import Modal from '../../components/Modal.vue';
 import { PLATFORM_LOGO } from './data';
 import { getSgDetail, sgDetail, sgOpsLogCls, sgOpsLogOf, sgOpsSalesOf } from './shopGoodsData';
@@ -100,33 +100,35 @@ interface SgSku { key: string; vals: Record<string, string>; name: string; src: 
 const specs = reactive<SgSpec[]>([
   { name: '颜色分类', values: [...d.colors] },
   { name: '款式', values: [...d.styles] },
+  ...(((d as { extraSpecs?: SgSpec[] }).extraSpecs ?? []).map((s) => ({ name: s.name, values: [...s.values] }))),
 ]);
 const specIds = ref<string[]>(specs.map((_, i) => `sgp${i}`));
 let specIdSeed = specs.length;
 const dimField = new Map<string, 'color' | 'style'>();
 specIds.value.forEach((id, si) => { if (si === 0) dimField.set(id, 'color'); else if (si === 1) dimField.set(id, 'style'); });
-/* 第三维起种子无对应字段，属性值记在侧表（key＝种子原对象） */
-const extraVals = new WeakMap<object, Record<string, string>>();
+/* 第三维起种子无对应字段：属性值随种子 extra 持久化，维度定义存 d.extraSpecs，弹窗与详情同读 */
+const extraVals = (s: SgSeed): Record<string, string> => ((s as { extra?: Record<string, string> }).extra ?? {});
 const tSkus = ref<SgSku[]>([]);
 const skuKeyOf = (vals: Record<string, string>) => [...specIds.value].sort().map((id) => vals[id]).filter(Boolean).join(' / ');
 const comboOf = (vals: Record<string, string>) => specIds.value.map((id) => vals[id]).filter(Boolean).join(' + ');
 const filledSpecCount = computed(() => specs.filter((s) => s.values.length > 0).length);
 const seedVals = (s: SgSeed): Record<string, string> => {
-  const vals: Record<string, string> = { ...(extraVals.get(toRaw(s)) ?? {}) };
-  for (const id of specIds.value) {
+  const vals: Record<string, string> = {};
+  specIds.value.forEach((id, si) => {
     const f = dimField.get(id);
     if (f) vals[id] = s[f] ?? '';
-  }
+    else vals[id] = extraVals(s)[String(si)] ?? '';
+  });
   return vals;
 };
 const writeSeedVals = (s: SgSeed, vals: Record<string, string>) => {
   const extra: Record<string, string> = {};
-  for (const id of specIds.value) {
+  specIds.value.forEach((id, si) => {
     const f = dimField.get(id);
     if (f) (s as Record<string, string>)[f] = vals[id] ?? '';
-    else if (vals[id]) extra[id] = vals[id];
-  }
-  extraVals.set(toRaw(s), extra);
+    else if (vals[id]) extra[String(si)] = vals[id];
+  });
+  (s as { extra?: Record<string, string> }).extra = extra;
 };
 /* 维度增删改后把两维属性值写回种子 colors/styles，快捷弹窗与详情读到同一批值 */
 const writeDims = () => {
@@ -156,16 +158,27 @@ const findSeed = (vals: Record<string, string>) => {
   });
 };
 const syncSkus = () => {
-  if (filledSpecCount.value === 0) { tSkus.value = []; return; }
-  /* 仅有种子支撑的组合出行：不再按笛卡尔积补空行 */
-  tSkus.value = allCombos()
-    .map((vals) => {
-      const src = findSeed(vals);
-      return src ? { key: skuKeyOf(vals), vals, name: comboOf(vals), src } : null;
-    })
-    .filter((r): r is SgSku => r !== null);
+  /* 补列：已填维度下缺属性值的种子补该维首值，表格不留空格（真实电商加维度＝原 SKU 补列口径） */
+  specIds.value.forEach((id, si) => {
+    const first = specs[si].values[0];
+    if (!first) return;
+    d.skus.forEach((s) => {
+      if (seedVals(s)[id]) return;
+      const vals = seedVals(s);
+      vals[id] = first;
+      writeSeedVals(s, vals);
+      s.name = comboOf(vals) || s.name;
+    });
+  });
+  /* 一条种子一行：不做笛卡尔投影过滤，弹窗里几条这里就几条 */
+  tSkus.value = d.skus.map((src, i) => {
+    const vals = seedVals(src);
+    return { key: `r${i}`, vals, name: comboOf(vals), src };
+  });
 };
 syncSkus();
+/* 第三维及以后的规格定义随商品持久化，弹窗再开能读到同一批维度 */
+watch(specs, () => { (d as { extraSpecs?: SgSpec[] }).extraSpecs = specs.slice(2).map((s) => ({ name: s.name, values: [...s.values] })); }, { deep: true });
 /* 新增属性值：为含该值的新组合补建种子 SKU（默认值可继续编辑），保留「加值即出行」的创建流程 */
 const mkSeed = (vals: Record<string, string>): SgSeed => {
   const n = d.skus.length;
@@ -314,11 +327,22 @@ const addSpecValue = (si: number) => {
   const v = (specAddVals.value[si] ?? '').trim();
   if (!v) return;
   if (specs[si].values.includes(v)) { pushToast('该属性值已存在', 'warning'); return; }
+  const wasEmpty = specs[si].values.length === 0;
   specs[si].values.push(v);
   specAddVals.value[si] = '';
-  /* 新值对应的组合在种子里落地为真实 SKU 行（可继续编辑），与快捷弹窗口径一致 */
   writeDims();
-  materialize(specIds.value[si], v);
+  const id = specIds.value[si];
+  if (wasEmpty) {
+    /* 维度首个值＝给原 SKU 补一列（真实电商口径）：既有种子挂上该值，不另建重复行，表格不留空格 */
+    snapSeeds().forEach(({ s, vals }) => {
+      if (vals[id]) return;
+      vals[id] = v;
+      writeSeedVals(s, vals);
+    });
+  } else {
+    /* 已有值维度加新值：新组合落地为真实 SKU 行（可继续编辑） */
+    materialize(id, v);
+  }
   syncSkus();
 };
 /* 删除 SKU：删种子行，孤立属性值联动删除 */
