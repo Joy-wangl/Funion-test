@@ -133,7 +133,8 @@ export const MV_TASK_STATUSES: MvTaskStatus[] = ['已启用', '启用中', '已�
 export const MV_EXEC_STATUSES: MvExecStatus[] = ['待执行', '执行中', '已完成'];
 /** 双维耦合矩阵（任务状态影响执行状态，2026-10-02 用户定案，三轮修正）：已禁用＝无执行状态（列表显 —，禁用即在途收口、不再排队）；
  *  一次性＝无任务状态（启用/禁用不适用），任务状态列改展执行方式（立即执行/定时执行），执行维度 {待执行,执行中,已完成}；
- *  循环=已启用×{待执行,执行中}；条件触发=启用中×{待执行,执行中,已完成}。
+ *  循环=已启用×{待执行,执行中}；条件触发=启用中×{待执行,执行中}。
+ *  长期任务（循环/条件触发）启用态永不落终态已完成：条件满足即再触发，只有「一次性」执行完毕才收敛为已完成。
  *  种子列表须枚举全部有效组合供核对 */
 /** 新建任务初始状态：循环创建即已启用、条件触发启用中、一次性无启用维度；执行维度一律待执行 */
 export const mvInitTaskStatus = (m: MvMethod): MvTaskStatus | undefined => (m === '条件触发' ? '启用中' : m === '一次性' ? undefined : '已启用');
@@ -198,7 +199,7 @@ export const mvTasks: MvTask[] = [
       { key: 'c2', conj: '且', metric: '上架时间', op: '=', v1: '', v2: '', preset: '本月' },
     ],
     shopIds: ['s4'], targetShopIds: ['s1', 's5'], strategy: '13245',
-    creator: '七妮妮', taskStatus: '启用中', execStatus: '已完成', createdAt: '2026-08-11 09:12',
+    creator: '七妮妮', taskStatus: '启用中', execStatus: '执行中', createdAt: '2026-08-11 09:12',
   },
   {
     id: 'at-04', name: '滞销下架-AAA小店与泰有钱', platform: '视频号', kind: '自动下架', method: '条件触发',

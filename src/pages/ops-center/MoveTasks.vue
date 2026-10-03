@@ -80,7 +80,7 @@ const methodTag = (m: MvTask['method']) => (m === '条件触发' ? 'tag orange' 
 
 /* 生命周期按维度拆分：启用/禁用作用于任务状态（条件/循环），立即执行作用于执行状态（一次性，原「启动」改名）；
    双维耦合：已禁用即无执行状态（禁用收口在途并清空排队），重新启用后回到待执行；
-   在途执行（执行中）不可禁用：禁用入口隐藏，待本轮执行结束（待执行/已完成）后才可禁用 */
+   在途执行（执行中）不可禁用：禁用入口隐藏，待本轮执行结束（回到待执行）后才可禁用 */
 const stopPatch = (): Partial<MvTask> => ({ taskStatus: '已禁用', execStatus: undefined });
 const runAct = (t: MvTask): { label: string; patch: Partial<MvTask>; msg: string } | null => {
   if (t.method === '条件触发') {
@@ -111,12 +111,22 @@ const applyRun = (t: MvTask) => {
 };
 
 /* 操作矩阵全表（2026-10-02 用户拍板）：执行中＝在途保护态——删除隐藏（在途批次不可无主）、循环/条件可编辑（改动下一轮生效）、
-   一次性禁编辑（本轮即唯一轮，改配置无生效落点）；一次性已完成配置已消耗——编辑撤掉、仅留删除作归档清理；
-   「更多」仅含删除，删除隐藏时整个按钮隐藏不留空气泡 */
+   一次性禁编辑（本轮即唯一轮，改配置无生效落点）；一次性已完成配置已消耗——编辑撤掉、仅留删除作归档清理 */
 const canEdit = (t: MvTask) => !(t.method === '一次性' && t.execStatus !== '待执行');
 const canDel = (t: MvTask) => t.execStatus !== '执行中';
 
-/* 操作列：直出 2 + 更多[删除]；删除强提醒二次确认 */
+/* 操作列：≤3 全部平铺、超出才收「更多」（与 ShopGoodsPage 同口径）；删除强提醒二次确认 */
+type MvOp = { label: string; danger?: boolean; run: () => void };
+const mvOps = (t: MvTask): MvOp[] => {
+  const ops: MvOp[] = [];
+  if (canEdit(t)) ops.push({ label: '编辑', run: () => emit('edit', t) });
+  const run = runAct(t);
+  if (run) ops.push({ label: run.label, run: () => applyRun(t) });
+  if (canDel(t)) ops.push({ label: '删除', danger: true, run: () => (delTarget.value = t) });
+  return ops;
+};
+const flatOps = (t: MvTask) => mvOps(t).slice(0, 3);
+const moreOps = (t: MvTask) => mvOps(t).slice(3).map((o) => ({ label: o.label, danger: o.danger, onClick: o.run }));
 const delTarget = ref<MvTask | null>(null);
 const confirmDel = () => {
   const t = delTarget.value;
@@ -241,9 +251,8 @@ const confirmDel = () => {
               </template>
               <td>
                 <div class="sg-acts">
-                  <a v-if="canEdit(t)" class="sg-link" href="javascript:void(0)" @click.prevent="emit('edit', t)">编辑</a>
-                  <a v-if="runAct(t)" class="sg-link" href="javascript:void(0)" @click.prevent="applyRun(t)">{{ runAct(t)!.label }}</a>
-                  <MoreActions v-if="canDel(t)" :items="[{ label: '删除', danger: true, onClick: () => (delTarget = t) }]" />
+                  <a v-for="o in flatOps(t)" :key="o.label" class="sg-link" :class="{ danger: o.danger }" href="javascript:void(0)" @click.prevent="o.run()">{{ o.label }}</a>
+                  <MoreActions v-if="moreOps(t).length" :items="moreOps(t)" />
                 </div>
               </td>
             </tr>

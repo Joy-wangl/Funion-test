@@ -15,7 +15,12 @@ const openCreate = () => { drawer.value = { open: true, editing: null }; };
 const openEdit = (t: MvTask) => { drawer.value = { open: true, editing: t }; };
 const saveTask = (t: MvTask) => {
   const i = tasks.value.findIndex((x) => x.id === t.id);
-  if (i >= 0) { tasks.value.splice(i, 1, t); pushToast(`已保存：任务「${t.name}」配置更新`); }
+  if (i >= 0) {
+    tasks.value.splice(i, 1, t);
+    /* 循环/条件为持续执行型：编辑不介入本轮执行、下次执行起才按新配置，保存后须明示生效时机 */
+    if (t.method === '一次性') pushToast(`已保存：任务「${t.name}」配置更新`);
+    else pushToast(`已保存：任务「${t.name}」配置更新，将于下次执行起按最新修改执行`, 'warning');
+  }
   else { tasks.value.unshift(t); pushToast(`已创建：任务「${t.name}」，启动后按配置执行`); }
   drawer.value = { open: false, editing: null };
 };
