@@ -68,10 +68,11 @@
 .qc-center-page .mt-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 /* 图例 chips：点击切换维度显隐，附周期汇总值 */
 .qc-center-page .mt-legend { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 0; }
-.qc-center-page .mt-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border: 1px solid #e8ebf1; border-radius: 999px; background: #fff; font-size: 12px; color: #445066; cursor: pointer; }
+.qc-center-page .mt-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border: 1px solid #e8ebf1; border-radius: 999px; background: #fff; font-size: 12px; color: #445066; cursor: pointer; flex: none; white-space: nowrap; line-height: 18px; }
 .qc-center-page .mt-chip:hover { border-color: var(--primary); }
 .qc-center-page .mt-chip i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-.qc-center-page .mt-chip b { font-weight: 700; color: #1d2129; }
+.qc-center-page .mt-chip .mt-chip-name { line-height: 18px; }
+.qc-center-page .mt-chip b { font-weight: 700; color: #1d2129; line-height: 18px; flex: none; }
 .qc-center-page .mt-chip.off { color: var(--text-4); background: transparent; }
 .qc-center-page .mt-chip.off b { color: var(--text-4); text-decoration: line-through; }
 .qc-center-page .mt-range { display: flex; align-items: center; gap: 12px; flex: none; flex-wrap: nowrap; }
@@ -215,6 +216,19 @@
 .qc-center-page .type-card .k { display: flex; align-items: center; gap: 6px; }
 .qc-center-page .dept-card .k { display: flex; align-items: center; gap: 6px; }
 .qc-center-page .dept-pct { font-size: 12px; font-weight: 600; color: #98a0ae; margin-left: 6px; }
+
+/* 售后三指标卡：不可点，卡下附「关联会话数量」子行 */
+.qc-center-page .after-card { cursor: default; }
+.qc-center-page .after-card.clickable { cursor: pointer; }
+.qc-center-page .after-card.clickable:hover { border-color: #b9ccf7; }
+.qc-center-page .after-card .after-sess {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #e4e8ef;
+  font-size: 12px;
+  color: #98a0ae;
+}
+.qc-center-page .after-card .after-sess b { font-size: 14px; font-weight: 600; color: #445066; margin-left: 4px; }
 
 /* 监控列表宽表：标签换行吸收宽度，1440px 下不产生横向滚动；
    固定布局＋列头定宽：筛选/排序改变内容时列宽与列位保持稳定，仅「命中问题类型」列吸收剩余宽度 */
@@ -789,6 +803,73 @@
 .qc-center-page .qc-numpair .sg-input:focus { border-color: transparent; box-shadow: none; }
 .qc-center-page .qc-numpair i { flex: none; font-style: normal; color: #9aa2b1; }
 
+/* 时间范围筛选：合一单框左右两侧日期、中间 - 分隔（问题商品），焦点态由容器 focus-within 承担 */
+.qc-center-page .pc-daterange {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  height: 40px;
+  border: 1px solid #e4e8ef;
+  border-radius: 10px;
+  background: #fbfcfe;
+  transition: 0.15s;
+}
+.qc-center-page .pc-daterange:focus-within { border-color: #a9bcff; box-shadow: 0 0 0 3px rgba(79, 124, 255, 0.08); }
+.qc-center-page .pc-daterange .pc-date {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  border-radius: 0;
+  background: none;
+  padding: 0 10px;
+  font-size: var(--fs-base);
+  color: #465064;
+  outline: none;
+}
+.qc-center-page .pc-daterange i { flex: none; font-style: normal; color: #9aa2b1; }
+
+/* ---------- 问题商品定义（品控-线上）：判定口径配置面板；条件行灰底分段拼装，单位后缀跟随指标自动带出 ---------- */
+/* 编辑入口上移至页头右侧（与标题同行），查看态面板下方不再留孤立按钮区 */
+.qc-center-page .qc-pd-page .qc-head { display: flex; align-items: center; justify-content: space-between; }
+.qc-center-page .pd-panel { background: #fff; border: 1px solid var(--color-border-2); border-radius: 12px; padding: 20px 24px; }
+.qc-center-page .pd-banner { margin-bottom: 18px; padding: 10px 14px; border-radius: 10px; background: #f0f5ff; color: #445066; font-size: var(--fs-base); line-height: 1.7; }
+.qc-center-page .pd-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.qc-center-page .pd-row > label { flex: none; width: 84px; color: var(--color-text-3); font-size: var(--fs-base); }
+.qc-center-page .pd-select { width: 140px; }
+.qc-center-page .pd-time { width: 120px; height: 40px; padding: 0 10px; border: 1px solid #e4e8ef; border-radius: 10px; background: #fbfcfe; font-size: var(--fs-base); color: #465064; outline: none; }
+.qc-center-page .pd-time:focus { border-color: #a9bcff; background: #fff; }
+.qc-center-page .pd-hint { color: var(--color-text-4); font-size: var(--fs-aux); }
+.qc-center-page .pd-conds { margin: 4px 0 14px; padding: 14px; border-radius: 12px; background: #f7f8fa; }
+.qc-center-page .pd-cond { display: flex; align-items: center; gap: 10px; }
+.qc-center-page .pd-cond + .pd-cond { margin-top: 10px; }
+.qc-center-page .pd-idx { flex: none; width: 22px; height: 22px; border-radius: 50%; background: #eef4ff; color: #4f7cff; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; }
+.qc-center-page .pd-when { flex: none; width: 64px; text-align: center; font-size: var(--fs-base); color: var(--color-text-2); }
+.qc-center-page .pd-conj-sel { flex: none; width: 64px; }
+.qc-center-page .pd-dim { width: 110px; }
+.qc-center-page .pd-metric { width: 140px; }
+.qc-center-page .pd-op { width: 76px; }
+.qc-center-page .pd-val { display: inline-flex; align-items: center; flex: 1; max-width: 260px; height: 40px; border: 1px solid #e4e8ef; border-radius: 10px; background: #fbfcfe; }
+.qc-center-page .pd-val input { flex: 1; min-width: 0; height: 100%; border: none; background: none; padding: 0 10px; font-size: var(--fs-base); color: #465064; outline: none; }
+.qc-center-page .pd-val .pd-unit { flex: none; padding-right: 12px; color: #9aa2b1; font-size: var(--fs-base); }
+.qc-center-page .pd-del { flex: none; margin-left: auto; width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; color: #9aa2b1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.qc-center-page .pd-del:hover { background: #ffece8; color: #e5484d; }
+.qc-center-page .pd-empty { padding: 6px 2px 10px; color: var(--color-text-4); font-size: var(--fs-base); }
+.qc-center-page .pd-add { margin-top: 10px; height: 34px; padding: 0 14px; border: 1px dashed #c9d2e0; border-radius: 10px; background: #fff; color: #4f7cff; font-size: var(--fs-base); cursor: pointer; }
+.qc-center-page .pd-add:hover { border-color: #4f7cff; }
+.qc-center-page .pd-view-text { display: inline-flex; align-items: center; flex: none; height: 40px; padding: 0 12px; border: 1px solid #e4e8ef; border-radius: 10px; background: #fbfcfe; color: #465064; font-size: var(--fs-base); }
+.qc-center-page .pd-view-select { width: 140px; }
+.qc-center-page .pd-view-dim { width: 110px; }
+.qc-center-page .pd-view-metric { width: 140px; }
+.qc-center-page .pd-view-val { flex: 1; max-width: 260px; }
+.qc-center-page .pd-view-conj { width: 64px; justify-content: center; padding: 0; color: #4f7cff; }
+.qc-center-page .pd-view-op { width: 76px; justify-content: center; padding: 0; }
+.qc-center-page .pd-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px 14px; border-radius: 10px; background: #f7f8fa; }
+.qc-center-page .pd-summary-label { color: var(--color-text-4); font-size: var(--fs-aux); }
+.qc-center-page .pd-chip { padding: 4px 10px; border-radius: 8px; background: #fff; border: 1px solid #e8ebf1; font-size: 12px; color: #445066; }
+.qc-center-page .pd-conj { color: #4f7cff; font-size: 12px; }
+.qc-center-page .pd-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
+
 /* ---------- 问题商品 / 命中问题管理 / 权限管理（品控-线上补齐） ---------- */
 .qc-center-page .qc-op-col a.danger { color: var(--danger); }
 .qc-center-page .qc-pc-tabs { display: flex; align-items: center; gap: 8px; padding: 0 0 12px; }
@@ -1132,8 +1213,8 @@
 .qc-center-page .qc-series-drawer .qc-ao-panel .ao-table th:nth-child(8) { width: 68px; }
 .qc-center-page .qc-series-drawer .qc-ao-panel .ao-table th:nth-child(9) { width: 128px; }
 .qc-center-page .qc-series-drawer .qc-ao-panel .ao-table th:nth-child(10) { width: 76px; }
-/* 明细表字重与对齐：正文统一常规字重与正文色（等宽列不加深），单行内容与标签垂直居中对齐 */
-.qc-center-page .qc-ao-panel .ao-table tbody td { font-weight: 400; vertical-align: middle; }
+/* 明细表字重与对齐：正文统一常规字重与正文色（等宽列不加深），多行单元格与单行字段顶部对齐 */
+.qc-center-page .qc-ao-panel .ao-table tbody td { font-weight: 400; vertical-align: top; }
 .qc-center-page .qc-ao-panel .ao-table .qc-mono { color: var(--color-text-2); }
 /* 操作列无挂链占位：沿用操作列语言但置灰不可点 */
 .qc-center-page .qc-ao-panel .qc-op-col .ao-dim { color: var(--text-4); cursor: default; }
@@ -1161,9 +1242,9 @@
 /* 评价明细行 */
 .qc-center-page .qc-rev-row { border: 1px solid var(--border-2); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; background: #fff; }
 .qc-center-page .qc-rev-head { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); }
-.qc-center-page .qc-rev-head .code { color: #232b3a; font-weight: 500; }
+.qc-center-page .qc-rev-head .code { margin-left: 8px; color: #232b3a; font-weight: 500; }
 .qc-center-page .qc-rev-head .shop { color: var(--text-2); }
-.qc-center-page .qc-rev-head .gid { color: var(--text-3); font-variant-numeric: tabular-nums; }
+.qc-center-page .qc-rev-head .gid { margin-left: 8px; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .qc-center-page .qc-rev-head .tm { margin-left: auto; color: var(--text-4); font-variant-numeric: tabular-nums; }
 .qc-center-page .qc-rev-body { margin-top: 6px; font-size: 12px; color: #465064; }
 .qc-center-page .qc-rev-foot { margin-top: 6px; display: flex; align-items: center; gap: 10px; }

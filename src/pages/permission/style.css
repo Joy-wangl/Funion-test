@@ -356,6 +356,24 @@
 .pm-page .tag.green { background: var(--success-light); color: var(--success); }
 .pm-page .tag.red { background: var(--danger-light); color: var(--danger); }
 .pm-page .tag.orange { background: var(--warning-light); color: var(--warning); }
+
+/* tag 系统适用壳扩展：智能运营中心壳无 pm-page 包裹，同规格在此提供（与 .pm-page .tag 同值，直取全局色 token） */
+.ops-center .tag {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-aux);
+  background: var(--color-fill-2);
+  color: var(--color-text-2);
+  gap: 4px;
+  margin: 2px;
+}
+.ops-center .tag.blue { background: var(--color-primary-light); color: var(--color-primary); }
+.ops-center .tag.green { background: var(--color-success-light); color: var(--color-success); }
+.ops-center .tag.red { background: var(--color-danger-light); color: var(--color-danger); }
+.ops-center .tag.orange { background: var(--color-warning-light); color: var(--color-warning); }
 .pm-page .tags-wrap { display: flex; flex-wrap: wrap; align-items: center; }
 
 /* ---------- 分页 ---------- */

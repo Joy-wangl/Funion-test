@@ -88,6 +88,9 @@ export interface QcCenterSeries {
   problemHits: { type: string; count: number }[];
 }
 
+/** 问题编码状态：系列下任一商品编码存在问题命中即为有问题编码（首列标识与监控列表筛选同口径） */
+export const seriesHasProblemCode = (s: QcCenterSeries) => s.codes.some((c) => c.problemHits.some((h) => h.count > 0));
+
 /* ---------- 商品编码级 mock（平台数据与品控管理同源口径） ---------- */
 
 const RAW: { seriesCode: string; code: QcCenterCode }[] = [

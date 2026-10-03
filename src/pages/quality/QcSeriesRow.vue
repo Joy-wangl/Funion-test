@@ -9,6 +9,7 @@ import {
   pct,
   platformProblemHits,
   rateCls,
+  seriesHasProblemCode,
   type QcCenterCode,
   type QcCenterSeries,
 } from './qcCenterData';
@@ -20,10 +21,12 @@ import {
   seriesTagBrief,
   type TagBrief,
 } from '../quality2/qc2Data';
-import { onlineChatBrief, onlineOwnerOf, onlineSessionsOf } from './qcOnlineData';
+import { cancelHitCodes, isHitCanceled, onlineChatBrief, onlineOwnerOf, onlineProblemCodes, onlineSessionsOf, seriesHitCodes } from './qcOnlineData';
+import { pushToast } from '../../components/toast';
 import type { Platform, PlatformStat } from './data';
 import PlatLogo from './PlatLogo.vue';
 import PlatformMatrix from './PlatformMatrix.vue';
+import Modal from '../../components/Modal.vue';
 
 const props = defineProps<{
   series: QcCenterSeries;
@@ -70,6 +73,11 @@ onBeforeUnmount(() => {
 
 const selCode = computed(() => (codeTab.value === 'all' ? null : props.series.codes.find((c) => c.code === codeTab.value) ?? null));
 const owner = computed(() => onlineOwnerOf(props.series.seriesCode));
+/* 取消命中重判：已取消命中的商品编码不再计入命中问题商品，线上壳首列标识 / 命中聚合 / 矩阵命中同源取未取消口径
+   （运维壳无取消命中入口，保持 qcCenterData 原口径） */
+const liveCodes = computed(() => (props.online ? props.series.codes.filter((c) => !isHitCanceled(c.code)) : props.series.codes));
+const hitCodes = computed(() => liveCodes.value.filter((c) => c.problemHits.some((h) => h.count > 0)));
+const hasProblemCode = computed(() => (props.online ? hitCodes.value.length > 0 : seriesHasProblemCode(props.series)));
 /* 售后率口径与售后列表一致：售后单 / 订单量 */
 const afterRate = computed(() => (props.series.orders ? props.series.afterSales / props.series.orders : 0));
 /* 退款订单数：系列仅存退款率，单数按 订单量 × 退款率 还原（与平台矩阵口径一致） */
@@ -99,12 +107,18 @@ const chatMatrix = computed(() => {
 });
 const afterRateCls = (v: number) => (v < 0.03 ? 'ok' : v < 0.05 ? 'warn' : 'bad');
 /* 问题涉及部门生效时：命中类型 / 涉及部门 / 平台矩阵命中仅保留该部门负责类型的数据 */
+const seriesHitsLive = computed(() => {
+  if (!props.online) return props.series.problemHits;
+  const m: Record<string, number> = {};
+  for (const c of liveCodes.value) for (const h of c.problemHits) if (h.count > 0) m[h.type] = (m[h.type] ?? 0) + h.count;
+  return Object.entries(m).map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count);
+});
 const shownHits = computed(() => (props.scopeDept
-  ? props.series.problemHits.filter((h) => PROBLEM_DEPT[h.type] === props.scopeDept)
-  : props.series.problemHits));
+  ? seriesHitsLive.value.filter((h) => PROBLEM_DEPT[h.type] === props.scopeDept)
+  : seriesHitsLive.value));
 const shownDepts = computed(() => deptsOfTypes(shownHits.value.map((h) => h.type)));
 const hits = computed(() => {
-  const all = platformProblemHits(selCode.value ? [selCode.value] : props.series.codes);
+  const all = platformProblemHits(selCode.value ? (isHitCanceled(selCode.value.code) ? [] : [selCode.value]) : liveCodes.value);
   if (!props.scopeDept) return all;
   const out: Partial<Record<Platform, [string, number][]>> = {};
   (Object.keys(all) as Platform[]).forEach((p) => {
@@ -112,6 +126,23 @@ const hits = computed(() => {
   });
   return out;
 });
+
+/* ---------- 取消命中：仅系列维度入口（系列行操作列），不细分到商品编码；
+   取消＝系列下命中编码与该系列问题商品清单编码同步取消，
+   取消后重判系列下是否仍有命中问题商品编码（首列标识 / 筛选联动） ---------- */
+const cancelOpen = ref(false);
+const openCancel = () => { cancelOpen.value = true; };
+const cancelCodes = computed(() => [
+  ...hitCodes.value.map((c) => c.code),
+  ...onlineProblemCodes().filter((r) => r.seriesCode === props.series.seriesCode).map((r) => r.code),
+]);
+const doCancel = () => {
+  const n = cancelCodes.value.length;
+  cancelHitCodes(cancelCodes.value);
+  cancelOpen.value = false;
+  const left = seriesHitCodes(props.series).length;
+  pushToast(left ? `已取消命中 ${n} 个商品编码，系列下仍有 ${left} 个命中问题商品编码` : `已取消命中 ${n} 个商品编码，系列下已无命中问题商品编码，问题编码标识已移除`);
+};
 
 /* 标签合并口径：系列维度聚合；展开区按「该平台在售编码」聚合后并入平台矩阵列 */
 const tag = computed(() => seriesTagBrief(props.series.seriesCode));
@@ -135,12 +166,16 @@ const platTagBrief = (pl: Platform): TagBrief | null => {
       <div>{{ series.seriesCode }}</div>
       <!-- 线上壳名称为生成占位（无效字段），改示关联商品编码数 -->
       <div v-if="online">关联ID数：{{ series.codes.length }}</div>
-      <div v-else>{{ series.name }}</div>
+      <!-- 问题编码标识：仅系列存在问题编码命中时在关联ID数下方示红芯片，无问题不占行（用户定案 2026-10-01） -->
+      <div v-if="online && hasProblemCode">
+        <span class="tag rv red">问题编码</span>
+      </div>
+      <div v-if="!online">{{ series.name }}</div>
     </td>
     <td v-if="online" class="col-name qc-order-data">
       <div><span class="qc-cd-lb">订单总数：</span><span class="qc-cd-v">{{ series.orders.toLocaleString() }}</span></div>
-      <div><span class="qc-cd-lb">退款订单：</span><span class="qc-cd-v">{{ refundCount.toLocaleString() }}</span><span class="rate" :class="rateCls(series.refundRate)">{{ pct(series.refundRate) }}</span></div>
       <div><span class="qc-cd-lb">售后订单：</span><span class="qc-cd-v">{{ series.afterSales.toLocaleString() }}</span><span class="rate" :class="afterRateCls(afterRate)">{{ pct(afterRate) }}</span></div>
+      <div><span class="qc-cd-lb">退款订单：</span><span class="qc-cd-v">{{ refundCount.toLocaleString() }}</span><span class="rate" :class="rateCls(series.refundRate)">{{ pct(series.refundRate) }}</span></div>
     </td>
     <template v-else>
       <td>{{ series.orders.toLocaleString() }}</td>
@@ -178,7 +213,10 @@ const platTagBrief = (pl: Platform): TagBrief | null => {
           {{ h.type }} {{ h.count }}
         </span>
       </div>
-      <span v-else class="tag rv">无命中</span>
+      <div v-else class="prob-tags">
+        <!-- 空值芯片与常规灰标签同款同交互（用户定案 2026-10-01）：可点，点入系列详情 -->
+        <span class="tag pick" title="暂无问题命中，点击查看系列详情" @click="props.onDetail">无命中</span>
+      </div>
     </td>
     <td v-if="!online">
       <span
@@ -224,24 +262,29 @@ const platTagBrief = (pl: Platform): TagBrief | null => {
       </div>
     </td>
     <td>
-      <!-- 无任何命中且未手动绑定时不给默认责任部门，灰色无命中标签代替 -->
+      <!-- 无任何命中且未手动绑定时不给默认责任部门，无命中芯片与常规灰标签同款同交互 -->
       <div v-if="hasOverride || series.problemHits.length" class="prob-tags">
         <span class="tag duty-tag" :title="hasOverride ? '已手动绑定' : '默认责任部门（问题数最多部门）'">{{ duty }}</span>
       </div>
-      <span v-else class="tag rv">无命中</span>
+      <div v-else class="prob-tags">
+        <span class="tag pick" title="暂无问题命中，点击查看系列详情" @click="props.onDetail">无命中</span>
+      </div>
     </td>
     <td v-if="online" class="col-name">
       <template v-if="owner">
         <div>{{ owner.operator }}</div>
         <div>{{ owner.group }}</div>
       </template>
-      <span v-else class="tag rv">无归属</span>
+      <div v-else class="prob-tags">
+        <span class="tag pick" title="暂无组别 / 运维归属，点击查看系列详情" @click="props.onDetail">无归属</span>
+      </div>
     </td>
     <td>
       <div class="qc-op-col">
         <a @click="props.onDetail">查看详情</a>
         <a @click="props.onTrend">趋势图</a>
         <a @click="dutyOpen = !dutyOpen">修改责任部门</a>
+        <a v-if="online && hitCodes.length" @click="openCancel">取消命中</a>
         <div ref="dutyRef" class="duty-edit">
           <div v-if="dutyOpen" class="duty-pop">
             <span
@@ -289,4 +332,19 @@ const platTagBrief = (pl: Platform): TagBrief | null => {
       />
     </td>
   </tr>
+  <Teleport to=".qc-center-page">
+    <Modal
+      v-if="cancelOpen"
+      title="取消命中"
+      sub="取消后该系列编码下的命中问题商品编码同步取消命中"
+      size="md"
+      @close="cancelOpen = false"
+    >
+      <div class="qc-pc-confirm">确认取消系列 {{ series.seriesCode }} 下全部 {{ hitCodes.length }} 个命中问题商品编码的命中标记？</div>
+      <template #foot>
+        <button class="btn" @click="cancelOpen = false">取消</button>
+        <button class="btn primary" @click="doCancel">确认取消</button>
+      </template>
+    </Modal>
+  </Teleport>
 </template>

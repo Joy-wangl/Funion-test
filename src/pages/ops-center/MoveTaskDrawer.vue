@@ -3,9 +3,9 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import { pushToast } from '../../components/toast';
 import {
-  MV_KINDS, MV_METHODS, MV_METHOD_STATUS, MV_COND_METRIC_NAMES, MV_DATE_PRESETS, MV_RANK_RANGES, MV_WEEK_DAYS, MV_MONTH_DAYS, MV_SOURCES, mvInitStatus,
+  MV_KINDS, MV_METHODS, MV_METHOD_TASK_STATUS, MV_COND_METRIC_NAMES, MV_DATE_PRESETS, MV_RANK_RANGES, MV_WEEK_DAYS, MV_MONTH_DAYS, MV_SOURCES, MV_PLATFORMS, mvInitTaskStatus, mvInitExecStatus,
   mvMetricMeta, mvShops, mvShopOf,
-  type MvCondMetric, type MvCondRow, type MvDatePreset, type MvKind, type MvMethod, type MvRankRange, type MvSource, type MvTask, type MvTaskStatus,
+  type MvCondMetric, type MvCondRow, type MvDatePreset, type MvKind, type MvMethod, type MvPlatform, type MvRankRange, type MvSource, type MvTask, type MvTaskStatus,
 } from './moveData';
 import { PLATFORM_LOGO, PUB_STRATEGIES } from './data';
 
@@ -20,6 +20,15 @@ const METHOD_LABEL: Record<MvMethod, string> = { 循环: '循环任务', 条件�
 const METHOD_LABELS = MV_METHODS.map((md) => METHOD_LABEL[md]);
 const name = ref(m?.name ?? '');
 const kind = ref<MvKind>(m?.kind ?? '自动搬家');
+/* 任务执行平台：新建可选（决定选店池），编辑锁定不可改；切换平台清空已选店铺（跨平台店铺不通用） */
+const platform = ref<MvPlatform>(m?.platform ?? '视频号');
+const setPlatform = (v: string) => {
+  const p = v as MvPlatform;
+  if (p === platform.value) return;
+  platform.value = p;
+  shopIds.value = [];
+  targetIds.value = [];
+};
 const source = ref<MvSource>(m?.source ?? '内部商机');
 /* 最大数量（仅自动发品）：0-999，输入实时夹取，清空失焦回落 0 */
 const maxQty = ref(String(m?.maxQty ?? 999));
@@ -226,15 +235,14 @@ const MV_STRATEGY_OPTIONS = ['不使用策略发布', ...PUB_STRATEGIES.map((s) 
 const strategy = ref(m?.strategy ?? PUB_STRATEGIES[0].name);
 const targetIds = ref<string[]>(m?.targetShopIds ? [...m.targetShopIds] : []);
 const removeTarget = (id: string) => { targetIds.value = targetIds.value.filter((x) => x !== id); };
-/* 选店弹窗（被搬/目标共用）：多选暂存 + 搜索，确认后落回芯片行；第一版仅视频号 */
+/* 选店弹窗（被搬/目标共用）：多选暂存 + 搜索，确认后落回芯片行；店铺池按任务执行平台过滤 */
 const pickModal = ref(false);
 const modalMode = ref<'source' | 'target'>('source');
 const srcPick = ref<string[]>([]);
 const tgtPick = ref<string[]>([]);
 const pickQuery = ref('');
-/* 第一版仅视频号店铺 */
-const VIDEO_SHOPS = mvShops.filter((s) => s.platform === '视频号');
-const pickShops = computed(() => VIDEO_SHOPS.filter((s) =>
+/* 店铺池随任务执行平台（视频号/淘宝）切换 */
+const pickShops = computed(() => mvShops.filter((s) => s.platform === platform.value).filter((s) =>
   !pickQuery.value.trim() || s.name.includes(pickQuery.value.trim())));
 const pickRef = () => (modalMode.value === 'source' ? srcPick : tgtPick);
 const curPick = computed(() => pickRef().value);
@@ -297,6 +305,7 @@ const save = () => {
   const base: MvTask = m ? { ...m } : {
     id: `at-${Date.now().toString().slice(-6)}`,
     name: name.value.trim(),
+    platform: platform.value,
     kind: kind.value,
     method: method.value,
     cond: [],
@@ -304,11 +313,13 @@ const save = () => {
     targetShopIds: kind.value === '自动搬家' ? [...targetIds.value] : undefined,
     source: kind.value === '自动发品' ? source.value : undefined,
     creator: '七妮妮',
-    status: mvInitStatus(method.value),
+    taskStatus: mvInitTaskStatus(method.value),
+    execStatus: mvInitExecStatus(),
     createdAt: '2026-09-13 10:00',
   };
-  /* 状态随执行方式枚举回落：编辑改方式后原状态不在新枚举内则重置为初始态 */
-  const status: MvTaskStatus = MV_METHOD_STATUS[method.value].includes(base.status) ? base.status : mvInitStatus(method.value);
+  /* 任务状态随执行方式枚举回落：编辑改方式后原状态不在新枚举内则重置为初始态（一次性无启用维度=undefined）；执行状态沿用 */
+  const taskStatus: MvTaskStatus | undefined =
+    base.taskStatus && MV_METHOD_TASK_STATUS[method.value].includes(base.taskStatus) ? base.taskStatus : mvInitTaskStatus(method.value);
   emit('save', {
     ...base,
     name: name.value.trim(),
@@ -326,7 +337,7 @@ const save = () => {
     cond: condRows.value.map((r) => ({ ...r })),
     shopIds: kind.value === '自动发品' ? [] : [...shopIds.value],
     targetShopIds: kind.value === '自动搬家' ? [...targetIds.value] : undefined,
-    status,
+    taskStatus,
   });
 };
 </script>
@@ -346,6 +357,11 @@ const save = () => {
           <div class="sg-field">
             <label>任务名称<span class="mv-req">*</span></label>
             <input v-model="name" class="sg-input" placeholder="如 自动搬家-淘宝心选店全店循环" />
+          </div>
+          <div class="sg-field">
+            <label>执行平台<span class="mv-req">*</span></label>
+            <BubbleSelect class-name="sg-select" :options="MV_PLATFORMS" :value="platform" :disabled="!!m" @change="setPlatform" />
+            <div v-if="m" class="mv-field-hint">任务执行平台创建后不可更改</div>
           </div>
           <div class="sg-field">
             <label>任务类型<span class="mv-req">*</span></label>

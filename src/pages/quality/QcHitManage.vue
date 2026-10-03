@@ -250,7 +250,7 @@ const doDelete = () => {
     </main>
   </div>
 
-  <!-- 子问题新建/编辑：名称 → 关键词标签 → AI分析提示语 → 责任部门 -->
+  <!-- 子问题新建/编辑：名称 → 关键词标签 → 责任部门 -->
   <Modal v-if="form" :title="form.id ? '编辑子问题' : '新增子问题'" :sub="form.id ? form.name : `归属大类：${active}`" size="md" @close="form = null">
     <div class="opt-form">
       <div class="sg-field">
@@ -262,15 +262,11 @@ const doDelete = () => {
         <div class="qa-kwtags">
           <em v-for="t in kwTags.tags" :key="t" class="kb-scene-tag">{{ t }}<i title="移除" @click="kwRemove(t)">✕</i></em>
           <input
-            v-if="kwCreating" :ref="(el) => { kwInputRef = el as HTMLInputElement | null; }" v-model="kwDraft" class="kb-scene-create" placeholder="输入后回车或逗号添加"
+            v-if="kwCreating" :ref="(el) => { kwInputRef = el as HTMLInputElement | null; }" v-model="kwDraft" class="kb-scene-create" placeholder="请输入"
             @keydown="kwOnKey" @keyup.esc="kwCreating = false" @blur="kwEndCreate"
           >
           <button v-else type="button" class="kb-scene-tag add" title="新增关键词" @click="kwStartCreate">＋</button>
         </div>
-      </div>
-      <div class="sg-field">
-        <label>AI分析提示语</label>
-        <textarea class="qa-textarea" rows="4" :value="form.desc" placeholder="命中判定口径说明" @input="form.desc = ($event.target as HTMLTextAreaElement).value"></textarea>
       </div>
       <div class="sg-field">
         <label>责任部门</label>

@@ -335,22 +335,25 @@ const loadQuickSpecs = (link: string) => {
   const dims: { name: string; values: string[] }[] = (props.jm ? dd.saleAttrs : dd.specs) ?? [];
   quickSpecs.value = dims.map((s) => ({ name: s.name, values: [...s.values] }));
 };
-/* 种子 SKU → 属性关联：非京麦按 specs 维度序取 color/style；京麦解析 attrs 串（颜色:黑 规格:标准） */
-const valsOf = (u: Record<string, string>): Record<string, string> => {
+/* 种子 SKU → 属性关联：非京麦按该商品 specs 维度序取 color/style；京麦解析 attrs 串（颜色:黑 规格:标准） */
+const valsOf = (u: Record<string, string>, specs: QuickSpec[]): Record<string, string> => {
   if (props.jm) return Object.fromEntries((u.attrs ?? '').split(' ').filter(Boolean).map((kv) => { const [k, v] = kv.split(':'); return [k, v]; }));
-  const vals: Record<string, string> = { [quickSpecs.value[0]?.name ?? '颜色分类']: u.color, [quickSpecs.value[1]?.name ?? '款式']: u.style };
+  const vals: Record<string, string> = { [specs[0]?.name ?? '颜色分类']: u.color, [specs[1]?.name ?? '款式']: u.style };
   /* 第三维起取值随种子 extra 持久化，弹窗与详情展示同一批关联值 */
   const extra = (u as { extra?: Record<string, string> }).extra ?? {};
-  quickSpecs.value.forEach((sp, si) => { if (si > 1) vals[sp.name] = extra[String(si)] ?? ''; });
+  specs.forEach((sp, si) => { if (si > 1) vals[sp.name] = extra[String(si)] ?? ''; });
   return vals;
 };
-/* 每件商品独立展开一组 SKU 行（批量勾选 N 件即 N 组）：src 指向该商品详情缓存里的种子对象，val/vals 每行独立克隆互不串改；保存时按 own 分组、按 src 去重重建 */
+/* 每件商品独立展开一组 SKU 行（批量勾选 N 件即 N 组）：src 指向该商品详情缓存里的种子对象，val/vals 每行独立克隆互不串改；
+   规格维度按商品各自构建草稿（批量异构商品各带一套，弹窗组头行展示维度名并独立增删值），保存时按 own 分组、按 src 去重重建 */
 const buildDraft = (list: CreateRow[]): QuickDraftRow[] => list.flatMap((row) => {
   const own = detailOf(row.link);
+  const dims: { name: string; values: string[] }[] = (props.jm ? own?.saleAttrs : own?.specs) ?? [];
+  const specs: QuickSpec[] = dims.map((s) => ({ name: s.name, values: [...s.values] }));
   const skus: Record<string, string>[] = own?.skus ?? [];
   return skus.map((u): QuickDraftRow => (props.jm
-    ? { thumb: row.thumb, title: row.title, jm: true, own, src: u, qcode: u.outerId, val: mkVal(u.name, u.outerId, u.series, u.cost, u.jdPrice, u.stock), vals: valsOf(u) }
-    : { thumb: row.thumb, title: row.title, jm: false, own, src: u, qcode: u.code, val: mkVal(u.name, u.code, u.series, u.cost, u.price, u.stock), vals: valsOf(u) }));
+    ? { thumb: row.thumb, title: row.title, jm: true, own, src: u, qcode: u.outerId, val: mkVal(u.name, u.outerId, u.series, u.cost, u.jdPrice, u.stock), vals: valsOf(u, specs), specs }
+    : { thumb: row.thumb, title: row.title, jm: false, own, src: u, qcode: u.code, val: mkVal(u.name, u.code, u.series, u.cost, u.price, u.stock), vals: valsOf(u, specs), specs }));
 });
 const openQuickSku = (row: CreateRow) => {
   loadQuickSpecs(row.link);
@@ -358,10 +361,9 @@ const openQuickSku = (row: CreateRow) => {
   quickBatch.value = false;
   quickRow.value = row;
 };
-/* 批量入口：勾选的每件商品各展开一组 SKU 行（弹窗内按商品分组展示），与单件共用弹窗与回写 */
+/* 批量入口：勾选的每件商品各展开一组 SKU 行（弹窗内按商品分组展示），与单件共用弹窗与回写；规格维度各行自带，无需预载首件 */
 const batchRows = computed(() => rows.value.filter((r) => selLinks.value.has(r.link)));
 const openBatchSku = () => {
-  loadQuickSpecs(batchRows.value[0]?.link ?? '');
   quickDraft.value = buildDraft(batchRows.value);
   quickBatch.value = true;
   quickRow.value = null;
@@ -372,16 +374,17 @@ const closeQuick = () => {
 };
 const saveQuickSku = () => {
   const write = (r: QuickDraftRow) => {
+    const sps = r.specs ?? quickSpecs.value;
     Object.assign(r.src, r.jm
       ? { name: r.val.name, outerId: r.val.code, series: r.val.series, cost: r.val.cost, jdPrice: r.val.price, stock: r.val.stock }
       : { name: r.val.name, code: r.val.code, series: r.val.series, cost: r.val.cost, price: r.val.price, stock: r.val.stock });
-    /* 属性关联回写：京麦重拼 attrs 串（空值维度不落，避免详情页解析出空属性）；非京麦按 specs 维度序写回 color/style */
-    if (r.jm) r.src.attrs = quickSpecs.value.filter((sp) => r.vals[sp.name]).map((sp) => `${sp.name}:${r.vals[sp.name]}`).join(' ');
+    /* 属性关联回写：京麦重拼 attrs 串（空值维度不落，避免详情页解析出空属性）；非京麦按该商品 specs 维度序写回 color/style */
+    if (r.jm) r.src.attrs = sps.filter((sp) => r.vals[sp.name]).map((sp) => `${sp.name}:${r.vals[sp.name]}`).join(' ');
     else {
-      r.src.color = r.vals[quickSpecs.value[0]?.name ?? ''] ?? '';
-      r.src.style = r.vals[quickSpecs.value[1]?.name ?? ''] ?? '';
+      r.src.color = r.vals[sps[0]?.name ?? ''] ?? '';
+      r.src.style = r.vals[sps[1]?.name ?? ''] ?? '';
       const extra: Record<string, string> = {};
-      quickSpecs.value.forEach((sp, si) => { if (si > 1 && r.vals[sp.name]) extra[String(si)] = r.vals[sp.name]; });
+      sps.forEach((sp, si) => { if (si > 1 && r.vals[sp.name]) extra[String(si)] = r.vals[sp.name]; });
       (r.src as { extra?: Record<string, string> }).extra = extra;
     }
     return r.src;
@@ -391,7 +394,7 @@ const saveQuickSku = () => {
     const seen = new Set<Record<string, string>>();
     return list.map(write).filter((s) => !seen.has(s) && (seen.add(s), true));
   };
-  /* 按所属商品详情分组回写：各自重建 skus；规格仅在维度数一致时回写（批量勾选到异构商品时不误改） */
+  /* 按所属商品详情分组回写：各自重建 skus；规格维度按该组行自带的草稿回写（维度数一致才写，异构商品互不串改） */
   const groups = new Map<Record<string, any>, QuickDraftRow[]>();
   for (const r of quickDraft.value) {
     const own = r.own ?? (props.jm ? (sgJmDetail as Record<string, any>) : (createDetail as Record<string, any>));
@@ -400,7 +403,8 @@ const saveQuickSku = () => {
     else groups.set(own, [r]);
   }
   groups.forEach((list, own) => {
-    const specsBack = quickSpecs.value.map((s) => ({ name: s.name, values: [...s.values] }));
+    const groupSpecs = list[0]?.specs ?? quickSpecs.value;
+    const specsBack = groupSpecs.map((s) => ({ name: s.name, values: [...s.values] }));
     const dims = props.jm ? own.saleAttrs : own.specs;
     const sameDims = Array.isArray(dims) && dims.length === specsBack.length;
     if (props.jm) {
@@ -411,7 +415,7 @@ const saveQuickSku = () => {
       if (sameDims) own.specs = specsBack;
     }
   });
-  pushToast(quickBatch.value ? `SKU 信息已保存（${batchRows.value.length} 件商品）` : 'SKU 信息已保存');
+  pushToast(quickBatch.value ? `SKU 信息已保存（${groups.size} 件商品）` : 'SKU 信息已保存');
   closeQuick();
 };
 const pubSelOf = (name: string) => pubSel.value.find((s) => s.name === name) ?? null;
@@ -640,8 +644,8 @@ const batchRetryPub = () => {
   pushToast('重新发布中…');
   window.setTimeout(() => pushToast(`重新发布成功（${subs.length} 个任务）`), 1200);
 };
-const pubStatusText: Record<SubTask['status'], string> = { queued: '队列中', running: '执行中', success: '已完成', failed: '执行失败', confirm: '待确认', cancelled: '已取消' };
-const pubStatusCls: Record<SubTask['status'], string> = { queued: 'queued', running: 'running', success: 'done', failed: 'failed', confirm: 'confirm', cancelled: 'cancelled' };
+const pubStatusText: Record<SubTask['status'], string> = { queued: '队列中', running: '执行中', success: '已完成', failed: '执行失败', confirm: '待确认' };
+const pubStatusCls: Record<SubTask['status'], string> = { queued: 'queued', running: 'running', success: 'done', failed: 'failed', confirm: 'confirm' };
 const retryPub = (sub: SubTask) => {
   pubChecked.value = pubChecked.value.filter((x) => x !== sub.id);
   retrySub(sub);

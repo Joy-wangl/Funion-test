@@ -4,6 +4,7 @@
    - 数据口径复刻线上截图：共 21,584 个系列 · 优化任务 0 条
    - 看板为固定口径（不随时间范围变化）；监控列表首页与线上截图一致，其余页确定性生成
    ========================================================= */
+import { shallowRef } from 'vue';
 import { DATE_AXIS, QC_PLATFORMS, QC_PROBLEM_TYPES, type DateRange, type QcCenterCode, type QcCenterSeries, type QcPlatformStat, type RangeKey } from './qcCenterData';
 import { type ChatHit, type ChatMessage, type ChatSession, type Platform } from './data';
 
@@ -467,6 +468,11 @@ export const AFTER_TYPES = ['退货退款/退款', '换货', '补发'];
 export const AFTER_STATUSES: AfterOrderStatus[] = ['已处理', '已拒绝', '待处理'];
 /** 售后单平台轮转序（对齐线上：拼多多起、天猫收尾） */
 export const AFTER_PLATFORMS: Platform[] = ['拼多多', '抖音', '京东', '淘宝', '快手', '天猫'];
+/** 售后类型组合口径（数据概览「换货/补发」卡与列表筛选同源） */
+export const AFTER_TYPE_EXCH_RESHIP = '换货/补发';
+/** 数据概览售后数据卡跳转售后列表的预选筛选；消费后即清空，避免侧栏直达误带筛选 */
+export interface AfterJump { type?: string; status?: string }
+export const afterJumpSeed = shallowRef<AfterJump | null>(null);
 const AFTER_REASONS: Record<string, string[]> = {
   '退货退款/退款': ['质量问题', '商品与描述不符', '尺码不合适', '材质与描述不符', '不想要了/七天无理由'],
   换货: ['尺码不合适', '颜色与描述不符', '配件缺失'],
@@ -547,6 +553,8 @@ export interface AfterOrderQuery {
   type: string;
   platform: string;
   status: string;
+  /** 是否有会话：全部/有会话/无会话（售后单是否由会话发起） */
+  sess: string;
   /** 问题大类（未选小类时按大类口径过滤） */
   ptype: string | null;
   sub: string | null;
@@ -561,9 +569,14 @@ export interface AfterScan {
   cum: { code: string; count: number }[];
 }
 const matchAfter = (o: OnlineAfterOrder, f: AfterOrderQuery, seriesCode: string, seriesName: string): boolean => {
-  if (f.type !== '全部类型' && o.type !== f.type) return false;
+  if (f.type !== '全部类型') {
+    const hit = f.type === AFTER_TYPE_EXCH_RESHIP ? (o.type === '换货' || o.type === '补发') : o.type === f.type;
+    if (!hit) return false;
+  }
   if (f.platform !== '全部平台' && o.platform !== f.platform) return false;
   if (f.status !== '全部状态' && o.status !== f.status) return false;
+  if (f.sess === '有会话' && !o.sessionId) return false;
+  if (f.sess === '无会话' && o.sessionId) return false;
   if (f.sub) { if (o.psub !== f.sub) return false; }
   else if (f.ptype && o.ptype !== f.ptype) return false;
   if (f.kw) {
@@ -658,6 +671,7 @@ export interface OnlineReview {
   id: string;
   code: string;
   platform: Platform;
+  /** 问题大类；「未命中」= 非差评（未命中任何问题类型） */
   ptype: string;
   /** 关联问题类型小类（评价场景按小类快速筛选） */
   psub?: string;
@@ -678,6 +692,10 @@ const REVIEW_PHRASES: Record<string, string[]> = {
   '价格/活动类问题': ['活动价比日常还贵', '优惠券下单用不了', '保价期内降价不给退差'],
   错发: ['收到的颜色和下单不一样', '发错型号完全用不了', '收到的是别人退回来的旧件'],
 };
+
+/** 非差评（未命中任何问题类型）的类型名：评价场景大类列置于「全部」之后 */
+export const REVIEW_MISS_TYPE = '未命中';
+const REVIEW_GOOD_PHRASES = ['质量不错做工也细致', '和描述一致用着挺顺手', '发货快包装严实没磕碰', '客服回复及时处理也利落', '回购第二次了体验一直稳定'];
 
 const reviewCache = new Map<string, OnlineReview[]>();
 
@@ -704,16 +722,20 @@ export const onlineReviewsOf = (s: QcCenterSeries): OnlineReview[] => {
       left -= n;
       for (let k = 0; k < n; k++) bag.push(w.type);
     });
+    /* 非差评混入明细：未命中任何问题类型，与问题评价同列展示 */
+    const missCount = Math.max(2, Math.round(total * 0.6));
+    for (let k = 0; k < missCount; k++) bag.push(REVIEW_MISS_TYPE);
     for (let i = bag.length - 1; i > 0; i--) {
       const j = Math.floor(rnd() * (i + 1));
       [bag[i], bag[j]] = [bag[j], bag[i]];
     }
     bag.forEach((t, i) => {
+      const miss = t === REVIEW_MISS_TYPE;
       const dd = String(1 + Math.floor(rnd() * 28)).padStart(2, '0');
       const hh = String(8 + Math.floor(rnd() * 13)).padStart(2, '0');
       const mm = String(Math.floor(rnd() * 60)).padStart(2, '0');
-      const pool = REVIEW_PHRASES[t] || ['商品有问题体验很差'];
-      const ss = subsOfType(t);
+      const pool = miss ? REVIEW_GOOD_PHRASES : REVIEW_PHRASES[t] || ['商品有问题体验很差'];
+      const ss = miss ? [] : subsOfType(t);
       out.push({
         id: `RV-${s.seriesCode.slice(3)}-${String(i + 1).padStart(3, '0')}`,
         code: s.codes[i % s.codes.length].code,
@@ -722,7 +744,7 @@ export const onlineReviewsOf = (s: QcCenterSeries): OnlineReview[] => {
         psub: ss.length ? ss[i % ss.length] : undefined,
         goodsId: goodsIdOf(s.codes[i % s.codes.length].code, s.platforms[i % s.platforms.length]),
         content: pool[i % pool.length],
-        rating: 1 + Math.floor(rnd() * 2),
+        rating: miss ? 4 + Math.floor(rnd() * 2) : 1 + Math.floor(rnd() * 2),
         reviewedAt: `2026-08-${dd} ${hh}:${mm}`,
       });
     });
@@ -731,15 +753,93 @@ export const onlineReviewsOf = (s: QcCenterSeries): OnlineReview[] => {
   return out;
 };
 
-/* ---------- 问题商品：编码维度垃圾品清单（按退款率 / 聊天风险率双序） ---------- */
+/* ---------- 首页售后/评价模块：系列维度聚合（与逐单生成口径一致，避免逐单物化） ---------- */
+export interface OnlineSceneBrief {
+  total: number;
+  types: Record<string, number>;
+  platforms: Record<string, number>;
+  statuses: Record<string, number>;
+}
+const cycleCounts = (total: number, len: number, k: number) => (k < total ? Math.floor((total - k + len - 1) / len) : 0);
+let afterBrief: OnlineSceneBrief | null = null;
+export const onlineAfterBrief = (): OnlineSceneBrief => {
+  if (afterBrief) return afterBrief;
+  const b: OnlineSceneBrief = { total: 0, types: {}, platforms: {}, statuses: {} };
+  onlineSeries().forEach((s) => {
+    const total = s.afterSales;
+    if (!total) return;
+    b.total += total;
+    const refund = Math.round(total * 0.5238);
+    const exchange = Math.round(total * 0.2981);
+    b.types[AFTER_TYPES[0]] = (b.types[AFTER_TYPES[0]] ?? 0) + refund;
+    b.types[AFTER_TYPES[1]] = (b.types[AFTER_TYPES[1]] ?? 0) + exchange;
+    b.types[AFTER_TYPES[2]] = (b.types[AFTER_TYPES[2]] ?? 0) + (total - refund - exchange);
+    AFTER_PLATFORMS.forEach((p, k) => {
+      const c = cycleCounts(total, AFTER_PLATFORMS.length, k);
+      if (c) b.platforms[p] = (b.platforms[p] ?? 0) + c;
+    });
+    AFTER_STATUSES.forEach((st, k) => {
+      const c = cycleCounts(total, AFTER_STATUSES.length, k);
+      if (c) b.statuses[st] = (b.statuses[st] ?? 0) + c;
+    });
+  });
+  afterBrief = b;
+  return b;
+};
+
+/** 首页售后模块：关联会话数量（订单发生退换货时是否存在会话）
+    口径：会话按命中打包，约四成会话（索引 i%5<=1）由售后起因并挂链；
+    挂链数按各系列售后类型占比分摊到「退货退款/仅退款」与「换货/补发」两组。
+    仅用系列级聚合量确定性推算，避免物化 2 万余系列逐单。 */
+let afterSessionBrief: { sessions: number; refund: number; exchReship: number } | null = null;
+export const onlineAfterSessionBrief = (): { sessions: number; refund: number; exchReship: number } => {
+  if (afterSessionBrief) return afterSessionBrief;
+  let sessions = 0;
+  let refund = 0;
+  let exchReship = 0;
+  onlineSeries().forEach((s) => {
+    const total = s.afterSales;
+    if (!total) return;
+    const L = s.chatRiskHits > 0 && s.codes.length && s.platforms.length
+      ? Math.max(1, Math.min(12, Math.ceil(s.chatRiskHits / 6)))
+      : 0;
+    if (!L) return;
+    sessions += L;
+    /* 约四成会话（索引 i%5<=1）由售后起因并挂链；按本系列售后类型占比分摊到各类型组 */
+    const cand = 2 * Math.floor(L / 5) + Math.min(2, L % 5);
+    const linked = Math.min(cand, total);
+    const rf = Math.round(total * 0.5238);
+    const toRf = Math.round((linked * rf) / total);
+    refund += toRf;
+    exchReship += linked - toRf;
+  });
+  afterSessionBrief = { sessions, refund, exchReship };
+  return afterSessionBrief;
+};
+
+/* ---------- 问题商品：编码维度垃圾品清单（按退款率 / 聊天风险率双序） ----------
+   取消命中：商品编码级会话态；取消后不再计入命中问题商品，
+   系列首列问题编码标识、监控列表筛选、问题商品清单与首页 TOP 问题商品同源重判 */
 
 export interface OnlineProblemCode { code: string; codeName: string; seriesCode: string; group: string; operator: string; orders: number; refundRate: number; afterSales: number; chatRate: number; status: string; }
 
+const hitCanceled = shallowRef<Set<string>>(new Set());
+export const isHitCanceled = (code: string) => hitCanceled.value.has(code);
+export const cancelHitCodes = (codes: string[]) => {
+  if (!codes.length) return;
+  hitCanceled.value = new Set([...hitCanceled.value, ...codes]);
+};
+/** 系列下仍在命中的问题商品编码（问题命中 > 0 且未取消命中） */
+export const seriesHitCodes = (s: QcCenterSeries) => s.codes.filter((c) => !hitCanceled.value.has(c.code) && c.problemHits.some((h) => h.count > 0));
+
 let problemCache: OnlineProblemCode[] | null = null;
 
-/** 问题商品全量（退款率 45%~52% 垃圾品口径，确定性生成 480 条） */
+/** 问题商品全量（退款率 45%~52% 垃圾品口径，确定性生成 480 条；已取消命中的编码不再入清单） */
 export const onlineProblemCodes = (): OnlineProblemCode[] => {
-  if (problemCache) return problemCache;
+  if (!problemCache) problemCache = buildProblemCodes();
+  return problemCache.filter((r) => !hitCanceled.value.has(r.code));
+};
+const buildProblemCodes = (): OnlineProblemCode[] => {
   const rnd = mulberry32(8801);
   const rows: OnlineProblemCode[] = [];
   for (let i = 0; i < 480; i++) {

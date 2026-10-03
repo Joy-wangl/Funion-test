@@ -38,6 +38,8 @@ export type SeriesFilter = {
   /** 线上壳：组别 / 运维人员归属筛选 */
   group: string;
   operator: string;
+  /** 线上壳：问题编码状态筛选（全部 / 有问题编码 / 无问题编码） */
+  pcode: string;
   /** 线上壳：数值区间（空串 = 不限），订单量/退款率(%)/售后单/聊天风险 */
   ordersMin: string;
   ordersMax: string;
@@ -62,6 +64,7 @@ export const DEFAULT_SERIES_FILTER: SeriesFilter = {
   tagJudge: '全部方式',
   group: '全部组别',
   operator: '全部运维',
+  pcode: '全部',
   ordersMin: '',
   ordersMax: '',
   rateMin: '',
@@ -81,7 +84,6 @@ import {
   QC_DEPTS,
   QC_PLATFORMS,
   QC_PROBLEM_TYPES,
-  RANGE_LABELS,
   defaultDutyDept,
   type QcCenterCode,
   type QcCenterSeries,
@@ -299,17 +301,12 @@ watch(page, (v) => { jumpVal.value = String(v); });
         </span>
       </div>
       <div class="sg-field">
-        <label>时间范围</label>
-        <BubbleSelect
-          class-name="sg-select"
-          :value="RANGE_LABELS.find((r) => r.key === draft.range)?.label ?? '自定义'"
-          :options="RANGE_LABELS.map((r) => r.label)"
-          @change="(v: string) => props.onDraft({ range: RANGE_LABELS.find((r) => r.label === v)?.key ?? 'custom' })"
-        />
-      </div>
-      <div v-if="draft.range === 'custom'" class="sg-field">
         <label>日期区间</label>
         <QcDateRangePicker :custom="draft.custom" :on-change="(d) => props.onDraft({ custom: d })" />
+      </div>
+      <div v-if="online" class="sg-field">
+        <label>问题编码</label>
+        <BubbleSelect class-name="sg-select" :value="draft.pcode" :options="['全部', '有问题编码', '无问题编码']" @change="(v: string) => props.onDraft({ pcode: v })" />
       </div>
       <div class="sg-field-actions" :class="{ 'sg-acts-row': online }">
         <button v-if="online" class="sg-btn" @click="pushToast('已下载导入模板，上传后自动解析')">

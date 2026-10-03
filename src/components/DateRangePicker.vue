@@ -141,8 +141,9 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocDown));
   justify-content: space-between;
   height: 40px;
   padding: 0 12px;
-  background: #fff;
-  border: 1px solid var(--color-border, #e8ebf1);
+  /* 对齐全局表单控件规范（.sg-input/.sg-select）：浅底 #fbfcfe ＋ 边 #e4e8ef，日期触发不例外 */
+  background: #fbfcfe;
+  border: 1px solid #e4e8ef;
   border-radius: var(--radius-lg, 10px);
   cursor: pointer;
   font-size: var(--fs-base, 14px);
@@ -160,7 +161,7 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocDown));
   white-space: nowrap;
 }
 .drp-text.ph {
-  color: var(--color-text-4, #c9cdd4);
+  color: var(--color-placeholder, #98a0b3);
 }
 .drp-clock {
   flex: none;

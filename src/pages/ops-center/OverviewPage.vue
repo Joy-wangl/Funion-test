@@ -55,12 +55,12 @@ const winBounds = computed<{ s: string; e: string }>(() => {
   return { s: ymd(Number(ovRange.value) - 1), e: ymd(0) };
 });
 
-/** 发布任务四态计数：聚合任务中心子任务（与任务列表口径一致）并按时间窗口切片；单任务不跨平台，平台口径归 shops[0]；风控态（待确认/已取消）不计入四态 */
+/** 发布任务四态计数：聚合任务中心子任务（与任务列表口径一致）并按时间窗口切片；单任务不跨平台，平台口径归 shops[0]；风控态（待确认）不计入四态 */
 const taskCounts = computed(() => {
   const c = { success: 0, failed: 0, running: 0, queued: 0 };
   const { s: from, e: to } = winBounds.value;
   for (const p of parentTasks) for (const s of p.subs) {
-    if (s.status === 'confirm' || s.status === 'cancelled') continue;
+    if (s.status === 'confirm') continue;
     if (platTask.value !== '全部' && s.shops[0]?.platform !== platTask.value) continue;
     const day = (s.startTime || p.createTime).slice(0, 10);
     if (day < from || day > to) continue;
@@ -146,7 +146,7 @@ const shopRows = computed<OvShopRow[]>(() => {
         const row = map.get(`${sh.platform}::${sh.shop}`);
         if (!row) continue;
         /* 风控态店铺行不会出现（未派发），防御性跳过保四态口径 */
-        if (sh.status === 'confirm' || sh.status === 'cancelled') continue;
+        if (sh.status === 'confirm') continue;
         row.total += 1;
         row[sh.status] += 1;
       }

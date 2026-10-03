@@ -24,6 +24,7 @@
   --color-text-2: #445066;
   --color-text-3: #8b92a1;
   --color-text-4: #c9cdd4;
+  --color-placeholder: #98a0b3; /* 查询控件占位文案统一色（2026-10 定案：输入/下拉/日期占位同色，与 BubbleSelect .ph 原值一致） */
 
   /* ── 边框与填充 ── */
   --color-border: #e8ebf1; /* 卡片 / 控件边框 */

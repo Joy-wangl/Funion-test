@@ -35,7 +35,7 @@
 }
 /* 功能标题占位（非选择项）灰色展示 */
 .bselect .bselect-text.ph {
-  color: #98a0b3;
+  color: var(--color-placeholder);
 }
 .bselect .bselect-arrow {
   flex: none;

@@ -22,13 +22,18 @@ import {
   type RangeKey,
 } from './qcCenterData';
 import {
+  AFTER_STATUSES,
+  AFTER_TYPE_EXCH_RESHIP,
   ONLINE_DEPT_COUNTS,
   ONLINE_OV,
   ONLINE_TYPE_COUNTS,
+  onlineAfterBrief,
+  onlineAfterSessionBrief,
   onlineHitCats,
   onlineOrderTrend,
   onlineTopCodes,
   onlineTrend,
+  type AfterJump,
 } from './qcOnlineData';
 import PieChart from './PieChart.vue';
 import ProblemTrendChart from './ProblemTrendChart.vue';
@@ -42,6 +47,8 @@ const props = defineProps<{
   onPickType: (type: string) => void;
   /** 品控-线上：部门卡点击跳转监控列表并预设责任部门 */
   onPickDept?: (dept: string) => void;
+  /** 品控-线上：售后数据卡点击跳转售后列表并预选类型 / 状态 */
+  onPickAfter?: (seed: AfterJump) => void;
 }>();
 
 const rangeOv = ref<RangeKey>('custom');
@@ -99,6 +106,27 @@ const drillItems = computed(() => {
 });
 const pieItems = computed(() => drillItems.value ?? shareItems.value);
 const trendSeries = computed(() => trend.value.series.map((s) => ({ ...s, color: PROBLEM_TYPE_COLOR[s.type] || '#4f7cff' })));
+
+/* 售后模块（品控-线上固定口径）：订单量 / 退货退款 / 换货补发 三指标卡 + 状态占比行 */
+const rangeAfter = ref<RangeKey>('custom');
+const customAfter = ref<DateRange>({ ...DEFAULT_CUSTOM_RANGE });
+const AFTER_TYPE_COLOR: Record<string, string> = { '退货退款/退款': '#e6455c', 换货: '#ff9a2e', 补发: '#4f7cff' };
+const AFTER_STATUS_COLOR: Record<string, string> = { 已处理: '#1f9d55', 已拒绝: '#e5484d', 待处理: '#ff9a2e' };
+const afterBrief = computed(() => onlineAfterBrief());
+const afterSess = computed(() => onlineAfterSessionBrief());
+const sharePct = (v: number, total: number) => (total ? `${((v / total) * 100).toFixed(1)}%` : '0.0%');
+/* 三指标卡：值取售后类型口径（退货退款/仅退款＝退货退款；换货/补发合并），
+   卡下「关联会话数量」＝订单发生退换货时存在会话的关联会话数（订单量卡为周期会话总数） */
+const afterCards = computed(() => {
+  const t = afterBrief.value.types;
+  const s = afterSess.value;
+  return [
+    { label: '订单量', value: ovTotals.value.orders, color: '#4f7cff', sess: s.sessions, seed: {} as AfterJump, tip: '查看周期内全部售后单明细' },
+    { label: '退货退款/仅退款', value: t['退货退款/退款'] ?? 0, color: AFTER_TYPE_COLOR['退货退款/退款'], sess: s.refund, seed: { type: '退货退款/退款' } as AfterJump, tip: '查看退货退款 / 仅退款售后单明细' },
+    { label: '换货/补发', value: (t['换货'] ?? 0) + (t['补发'] ?? 0), color: AFTER_TYPE_COLOR['换货'], sess: s.exchReship, seed: { type: AFTER_TYPE_EXCH_RESHIP } as AfterJump, tip: '查看换货 / 补发售后单明细' },
+  ];
+});
+const afterStatusItems = computed(() => AFTER_STATUSES.map((s) => ({ label: s, value: afterBrief.value.statuses[s] ?? 0, color: AFTER_STATUS_COLOR[s] || '#4f7cff', seed: { status: s } as AfterJump, tip: `查看状态为「${s}」的售后单明细` })));
 </script>
 
 <template>
@@ -181,6 +209,43 @@ const trendSeries = computed(() => trend.value.series.map((s) => ({ ...s, color:
           {{ i.value }}
           <span class="dept-pct">{{ deptTotal ? `${((i.value / deptTotal) * 100).toFixed(1)}%` : '0.0%' }}</span>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 售后数据：售后状态占比行在上、订单量 / 退货退款 / 换货补发 三指标卡在下（每卡下带关联会话数量），品控-线上固定口径 -->
+  <div v-if="online" class="qc-ov-panel">
+    <div class="qc-sec-head"><div class="qc-sec-title">售后状态占比</div></div>
+    <div class="qc-flat-grid cols-3">
+      <div
+        v-for="i in afterStatusItems"
+        :key="i.label"
+        class="flat-card dept-card"
+        :class="{ clickable: !!props.onPickAfter }"
+        :title="props.onPickAfter ? i.tip : undefined"
+        @click="props.onPickAfter?.(i.seed)"
+      >
+        <div class="k"><i class="type-dot" :style="{ background: i.color }" />{{ i.label }}</div>
+        <div class="v">
+          {{ i.value.toLocaleString() }}
+          <span class="dept-pct">{{ sharePct(i.value, afterBrief.total) }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="qc-ov-divider" />
+    <QcSectionHead title="售后数据" :range="rangeAfter" :custom="customAfter" :on-range="(r: RangeKey) => (rangeAfter = r)" :on-custom="(d: DateRange) => (customAfter = d)" />
+    <div class="qc-flat-grid cols-3">
+      <div
+        v-for="i in afterCards"
+        :key="i.label"
+        class="flat-card type-card after-card"
+        :class="{ clickable: !!props.onPickAfter }"
+        :title="props.onPickAfter ? i.tip : undefined"
+        @click="props.onPickAfter?.(i.seed)"
+      >
+        <div class="k"><i class="type-dot" :style="{ background: i.color }" />{{ i.label }}</div>
+        <div class="v">{{ i.value.toLocaleString() }}</div>
+        <div class="after-sess">关联会话数量 <b>{{ i.sess.toLocaleString() }}</b></div>
       </div>
     </div>
   </div>

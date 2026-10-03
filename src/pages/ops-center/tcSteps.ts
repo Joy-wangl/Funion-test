@@ -13,18 +13,21 @@ const dash: StepView = { dot: 'wait', v: '–', cls: 'wait' };
 const fail: StepView = { dot: 'fail', v: '失败', cls: '' };
 const wait: StepView = { dot: 'wait', v: '待执行', cls: 'wait' };
 const confirmV: StepView = { dot: 'confirm', v: '待确认', cls: 'confirm' };
-const cancelledV: StepView = { dot: 'wait', v: '已取消', cls: 'wait' };
 
-/** 发布/铺货类任务：获取链接信息下增加「校验管控商品」节点 */
-const PUB_TYPES = ['商品发布', '商品铺货', '快速铺货'];
-/** 节点标签集：自动下架两节点（获取链接信息→店铺商品删除）；商品搬家首节点为获取商品信息；发布/铺货类四节点（含校验管控商品）；其余三节点 */
+/** 发布/铺货/搬家类任务：获取链接信息下增加「校验管控商品」节点（任务中心脑图：商品发布组＋自动搬家/自动发布） */
+const PUB_TYPES = ['商品发布', '批量铺货', '快速铺货', '自动发布', '自动搬家'];
+/** 下架类任务两节点（获取商品信息→商品下架） */
+const OFF_TYPES = ['自动下架', '批量下架'];
+/** 调价类任务三节点（商品信息校验→利润测算→商品信息发布） */
+const PRICE_TYPES = ['批量调价', '批量涨价'];
+/** 节点标签集：下架类两节点；调价类三节点；发布/铺货/搬家类四节点（含校验管控商品）；其余三节点兜底 */
 export const stepLabelsOf = (type: string): string[] => {
-  if (type === '自动下架') return ['获取链接信息', '店铺商品删除'];
+  if (OFF_TYPES.includes(type)) return ['获取商品信息', '商品下架'];
+  if (PRICE_TYPES.includes(type)) return ['商品信息校验', '利润测算', '商品信息发布'];
   if (PUB_TYPES.includes(type)) return ['获取链接信息', '校验管控商品', '定价策略计算', '商品发布店铺'];
-  if (type === '商品搬家') return ['获取商品信息', '定价策略计算', '商品发布店铺'];
   return ['获取链接信息', '定价策略计算', '商品发布店铺'];
 };
-const isPub = (type: string) => PUB_TYPES.includes(type);
+export const isPub = (type: string) => PUB_TYPES.includes(type);
 
 /** 校验管控商品节点结果：x/y 通过；失败/待确认时追加计数 */
 function verifyOf(s: SubTask, state: 'ok' | 'fail' | 'confirm'): StepView {
@@ -52,8 +55,6 @@ export function headStepsOf(s: SubTask, type = ''): StepView[] {
   if (s.status === 'queued') return [wait, ...rest(n - 1)];
   /* 待确认：发布/铺货类暂停在校验管控商品节点（命中待确认商品），其余暂停在首节点 */
   if (s.status === 'confirm') return isPub(type) ? [ok, verifyOf(s, 'confirm'), ...rest(n - 2)] : [confirmV, ...rest(n - 1)];
-  /* 已取消（风控/手动）：任务终止，店铺集合未触达 */
-  if (s.status === 'cancelled') return [cancelledV, ...rest(n - 1)];
   /* 执行失败且失败在统一节点：失败节点及其后续统一节点均失败（校验节点展示通过/失败计数） */
   if (s.status === 'failed' && s.failStep !== undefined && s.failStep < n) {
     return Array.from({ length: n }, (_, i) => (i < s.failStep! ? ok : i === s.failStep && i === 1 ? verifyOf(s, 'fail') : fail));
@@ -67,7 +68,6 @@ export function step3Of(s: SubTask, type = ''): StepView {
   if (s.status === 'queued') return wait;
   /* 待确认：发布/铺货类暂停在校验节点，店铺未触达 */
   if (s.status === 'confirm') return isPub(type) ? dash : confirmV;
-  if (s.status === 'cancelled') return cancelledV;
   /* 统一节点失败：店铺未触达 */
   if (s.status === 'failed' && s.failStep !== undefined) return dash;
   if (s.status === 'running') return { dot: '', v: '执行中', cls: '' };

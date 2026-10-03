@@ -396,6 +396,8 @@ export const PLATFORM_LOGO: Record<string, string> = {
   京麦: '/logos/jd.png',
   京东: '/logos/jd.png',
   视频号: wxLogo,
+  微信视频号小店: wxLogo,
+  微信小店: wxLogo,
 };
 
 /* ---------- 商品创建（淘宝） ---------- */
@@ -618,29 +620,32 @@ const dateDaysAgo = (n: number) => {
 };
 /** 运行时当前时刻串：重试/通过/拒绝等动作回写时间 */
 const nowStr = () => `${TC_TODAY} ${new Date().toTimeString().slice(0, 8)}`;
-const taskThumb = (bg: string, text: string) =>
-  "data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2748%27%20height%3D%2748%27%3E%0A%20%20%20%20%3Crect%20width%3D%2748%27%20height%3D%2748%27%20rx%3D%279%27%20fill%3D%27" +
-  encodeURIComponent(bg).replace(/'/g, '%27') +
-  "%27/%3E%0A%20%20%20%20%3Crect%20x%3D%276%27%20y%3D%276%27%20width%3D%2736%27%20height%3D%2736%27%20rx%3D%277%27%20fill%3D%27white%27%20fill-opacity%3D%27.92%27/%3E%0A%20%20%20%20%3Ctext%20x%3D%2724%27%20y%3D%2728%27%20text-anchor%3D%27middle%27%20font-size%3D%2711%27%20font-family%3D%27Arial%27%20fill%3D%27%23596273%27%3E" +
-  encodeURIComponent(text).replace(/'/g, '%27') +
-  '%3C/text%3E%0A%20%20%20%20%3C/svg%3E';
 
 export type ParentStatus = 'queued' | 'running' | 'done';
-/** confirm=风控待二次确认；cancelled=已取消（取消方式见 cancelType） */
-export type SubStatus = 'queued' | 'running' | 'success' | 'failed' | 'confirm' | 'cancelled';
-/** 取消方式：risk=风控自动取消 / manual=手动取消执行 */
-export type CancelType = 'risk' | 'manual';
-/** 风控取消原因（品控中心垃圾品口径） */
-export const RISK_JUNK_REASON = '商品命中公司垃圾品管控，不允许上架';
+/** confirm=风控待二次确认 */
+export type SubStatus = 'queued' | 'running' | 'success' | 'failed' | 'confirm';
 /** 风险管控失败原因（校验管控商品节点命中禁止上架商品） */
 export const RISK_CTRL_REASON = '命中我司风险管控商品，该商品禁止上架';
+/** 任务类型标签色：批次列表/详情列表/钻入头部三处同口径 */
+export const TYPE_COLOR: Record<string, string> = {
+  快速铺货: '#4f7cff',
+  批量铺货: '#7c5cff',
+  商品发布: '#1f9d55',
+  批量调价: '#ff9a2e',
+  批量涨价: '#e6455c',
+  批量下架: '#0ea5e9',
+  自动搬家: '#14b8a6',
+  自动下架: '#64748b',
+  自动发布: '#eb2f96',
+};
+export const typeColor = (t: string) => TYPE_COLOR[t] || '#4f7cff';
 
 /** 店铺发布结果（任务节点三集合元素）：商品发到不同店铺时各自的独立结果 */
 export interface ShopResult {
   platform: string;
   shop: string;
   status: SubStatus;
-  /** 失败原因（失败tab筛选 chips：发品受限/价格异常/母链接同步失败/风控拦截/材料缺失/系列编码异常/其它） */
+  /** 失败原因（具体原因词表 TC_FAIL_REASONS；大类口径见 failCatOf） */
   reason: string;
   retried: boolean;
   startTime: string;
@@ -655,9 +660,9 @@ export interface SubTask {
   name: string;
   thumb: string;
   linkId: string;
-  /** 来源店铺名称（商品搬家类型） */
+  /** 来源店铺名称（自动搬家类型） */
   sourceShop?: string;
-  /** 来源商品ID（商品搬家类型） */
+  /** 来源商品ID（自动搬家类型） */
   sourceProductId?: string;
   /** 发布人（商品创建-关联发布任务抽屉「发布信息」列） */
   publisher?: string;
@@ -667,9 +672,7 @@ export interface SubTask {
   failStep?: number;
   /** 校验管控商品节点结果（发布/铺货类任务）：总数/通过/失败/待确认 */
   verify?: { total: number; pass: number; fail: number; pending: number };
-  /** 取消方式（仅 cancelled）：区分风控自动取消/手动取消（已取消 tab 子状态） */
-  cancelType?: CancelType;
-  /** 风险说明（confirm/cancelled）：弹窗与取消原因展示 */
+  /** 风险说明（confirm）：弹窗展示 */
   riskReason?: string;
   /** 一品一店一任务：单店发布结果集（长度恒为 1） */
   shops: ShopResult[];
@@ -708,22 +711,105 @@ export interface ParentTask {
   subs: SubTask[];
   /** 个人商品库商品链接：该批次子任务与「关联发布任务」抽屉同源联动 */
   pubFor?: string;
+  /** 自动化任务ID（自动搬家/自动下架/自动发布）：溯源自动化中心-视频号自动化任务（如 at-01） */
+  mvId?: string;
 }
 
 const SUB_NAME = 'Nike Sock durk 男子运动鞋采用优质舒适休闲设计';
-const subThumb = taskThumb('#f6e7dc', '鞋');
+const subThumb = ecMain(6);
 const makers = ['张三', '李四', '王五'];
-const failReasons = ['发品受限', '价格异常', '母链接同步失败', '风控拦截', '材料缺失', '系列编码异常', '其它'];
+/** 失败大类（执行失败 tab 筛选 chips）：大白话短名，其它=兜底置最后 */
+export const TC_FAIL_CATS = ['店铺限制', '编码问题', '系统超时', '模板问题', '类目资质', '接口报错', '价格库存', '店铺授权', '素材图片', '页面异常', '状态冲突', '其它'];
+/** 原因未知具体原因（失败但接口未返回错误说明）：原因行兜底口径 */
+export const TC_FAIL_REASON_UNKNOWN = '任务状态失败，但未返回失败节点或错误说明';
+/** 具体失败原因（列表「原因：」行与节点气泡）：每条归属一个大类 */
+export const TC_FAIL_REASONS: { reason: string; cat: string }[] = [
+  { reason: '每日发品、提审或上架次数达到上限', cat: '店铺限制' },
+  { reason: '店铺需开通运费险', cat: '店铺限制' },
+  { reason: '在架商品数达到上限或店铺不允许上架', cat: '店铺限制' },
+  { reason: '类目商品数量超过限额', cat: '店铺限制' },
+  { reason: '保证金不足导致上架受限', cat: '店铺限制' },
+  { reason: '店铺不具备类目发布权限', cat: '店铺限制' },
+  { reason: 'SKU 系列编码不一致', cat: '编码问题' },
+  { reason: 'SKU 缺少系列编码', cat: '编码问题' },
+  { reason: 'SKU 规格名称超长', cat: '编码问题' },
+  { reason: 'SKU 规格值匹配或校验失败', cat: '编码问题' },
+  { reason: '调价 SKU 标识与规格不一致或无法匹配', cat: '编码问题' },
+  { reason: 'SKU 商家编码含英文逗号', cat: '编码问题' },
+  { reason: '在售 SKU 规格名称重复', cat: '编码问题' },
+  { reason: '组合编码创建失败', cat: '编码问题' },
+  { reason: 'Worker 未领取消息，重投次数耗尽', cat: '系统超时' },
+  { reason: '同步母链接失败：数据流读取异常', cat: '模板问题' },
+  { reason: '商品管理查询返回空结果', cat: '模板问题' },
+  { reason: '母链接同步、获取或保存模板失败', cat: '模板问题' },
+  { reason: '预留模板与平台或来源不一致', cat: '模板问题' },
+  { reason: '源链接失效或商品不存在', cat: '模板问题' },
+  { reason: '复制或保存模板失败：唯一键冲突', cat: '模板问题' },
+  { reason: '类目预测失败、类目缺失或不一致', cat: '类目资质' },
+  { reason: '商品表单或属性校验不通过', cat: '类目资质' },
+  { reason: '类目要求坏损包退、假一赔三等服务', cat: '类目资质' },
+  { reason: '资质或许可证必填项缺失', cat: '类目资质' },
+  { reason: '聚水潭商品下架操作失败，未提供具体原因', cat: '接口报错' },
+  { reason: '执行进程内存不足', cat: '接口报错' },
+  { reason: '发布操作上下文读取失败', cat: '接口报错' },
+  { reason: '对象映射编译异常', cat: '接口报错' },
+  { reason: '外部接口返回 HTTP 404', cat: '接口报错' },
+  { reason: '请求超时或连接、流读取异常', cat: '接口报错' },
+  { reason: '外部请求发送失败', cat: '接口报错' },
+  { reason: '数据库连接上存在未结束命令', cat: '接口报错' },
+  { reason: '成本价缺失或为零', cat: '价格库存' },
+  { reason: '库存为零或库存数据异常', cat: '价格库存' },
+  { reason: '销售价不高于成本或价格测算不通过', cat: '价格库存' },
+  { reason: '店铺未核身，勾选框被禁用', cat: '店铺授权' },
+  { reason: '账号未持有目标店铺', cat: '店铺授权' },
+  { reason: '店铺信息缺失（店铺为空或无平台编码）', cat: '店铺授权' },
+  { reason: '素材图缺失或上传异常', cat: '素材图片' },
+  { reason: '视频无效或转换失败', cat: '素材图片' },
+  { reason: '图片失效、尺寸或比例不合法', cat: '素材图片' },
+  { reason: '媒体 URL 非法或多个 URL 逗号拼接', cat: '素材图片' },
+  { reason: '聚水潭页面未出现 SKU 表格', cat: '页面异常' },
+  { reason: '发布页面或 RPA 卡控提示其它异常', cat: '页面异常' },
+  { reason: '页面等待、元素定位或提交状态超时', cat: '页面异常' },
+  { reason: '已有待审核草稿，无法调价或重复发布', cat: '状态冲突' },
+  { reason: '微信商品审核撤销或拒绝', cat: '状态冲突' },
+  { reason: '远端创建结果未知，系统阻断自动重发', cat: '状态冲突' },
+  { reason: TC_FAIL_REASON_UNKNOWN, cat: '其它' },
+];
+/** 任务失败大类：统一节点失败（风险管控/无店铺原因）归其它兜底 */
+export const failCatOf = (s: { failStep?: number; shops: { reason: string }[] }): string => {
+  if (s.failStep !== undefined) return '其它';
+  return TC_FAIL_REASONS.find((x) => x.reason === (s.shops[0]?.reason || ''))?.cat ?? '其它';
+};
+/** 调价类（批量调价/批量涨价）专属原因：仅出现在调价任务内 */
+const ADJUST_ONLY = new Set(['商品管理查询返回空结果', '调价 SKU 标识与规格不一致或无法匹配', '销售价不高于成本或价格测算不通过', '已有待审核草稿，无法调价或重复发布', '微信商品审核撤销或拒绝']);
+/** 下架类（批量下架/自动下架）专属原因 */
+const DELIST_ONLY = new Set(['聚水潭商品下架操作失败，未提供具体原因']);
+/** 全类型通用原因：消息调度超时、失败但未返回错误说明 */
+const ALL_TYPES_ONLY = new Set(['Worker 未领取消息，重投次数耗尽', TC_FAIL_REASON_UNKNOWN]);
+/* 任务类型→原因组：调价/下架专属词表，其余归铺货类，未知类型回落铺货类 */
+const grpOfType = (type: string): 'pub' | 'adjust' | 'delist' =>
+  type === '批量调价' || type === '批量涨价' ? 'adjust' : type === '批量下架' || type === '自动下架' ? 'delist' : 'pub';
+const grpOfReason = (reason: string): 'pub' | 'adjust' | 'delist' | 'all' =>
+  ALL_TYPES_ONLY.has(reason) ? 'all' : ADJUST_ONLY.has(reason) ? 'adjust' : DELIST_ONLY.has(reason) ? 'delist' : 'pub';
+/** 任务类型下适用的失败大类（词表顺序含通用类）：类型为空返回全部，供 chips 按类型收敛 */
+export const failCatsOfType = (type: string): string[] => {
+  if (!type) return TC_FAIL_CATS;
+  const g = grpOfType(type);
+  const cats = new Set(TC_FAIL_REASONS.filter((x) => { const rg = grpOfReason(x.reason); return rg === 'all' || rg === g; }).map((x) => x.cat));
+  return TC_FAIL_CATS.filter((c) => cats.has(c));
+};
+/** 任务类型下的失败原因种子池：演示行不串用其它类型专属话术 */
+export const failReasonsOfType = (type: string): string[] => {
+  const g = grpOfType(type);
+  return TC_FAIL_REASONS.filter((x) => { const rg = grpOfReason(x.reason); return rg === 'all' || rg === g; }).map((x) => x.reason);
+};
+const failReasons = failReasonsOfType('商品发布');
 
-/** 种子状态：在 SubStatus 基础上区分取消来源（风控/手动），建模时归一为 cancelled */
-type SubSeed = SubStatus | 'risk_cancelled' | 'manual_cancelled';
-const seedStatus = (st: SubSeed): SubStatus => (st === 'risk_cancelled' || st === 'manual_cancelled' ? 'cancelled' : st);
-
-/** 各父任务状态下的子任务状态序列（含风控样本：confirm=待二次确认 / risk_cancelled=风控取消 / manual_cancelled=手动取消） */
-const subPattern: Record<ParentStatus, SubSeed[]> = {
+/** 各父任务状态下的子任务状态序列（含风控样本：confirm=待二次确认） */
+const subPattern: Record<ParentStatus, SubStatus[]> = {
   queued: Array.from({ length: 10 }, () => 'queued' as SubStatus),
-  running: ['success', 'confirm', 'failed', 'success', 'running', 'risk_cancelled', 'running', 'success', 'queued', 'queued'],
-  done: ['success', 'failed', 'success', 'manual_cancelled', 'failed', 'success', 'success', 'risk_cancelled', 'success', 'confirm'],
+  running: ['success', 'confirm', 'failed', 'success', 'running', 'running', 'running', 'success', 'queued', 'queued'],
+  done: ['success', 'failed', 'success', 'success', 'failed', 'success', 'success', 'failed', 'success', 'confirm'],
 };
 
 /* 个人商品库-关联发布任务：该商品在任务中心的发布批次（与任务列表同源，状态联动） */
@@ -752,8 +838,8 @@ function buildShops(seed: number, i: number, st: SubStatus, day: string): ShopRe
   const allFailed = st === 'failed' && (seed + i) % 4 === 0;
   return pools.map((p, k) => {
     let status: SubStatus = st;
-    /* 风控态（待确认/已取消）：任务未进入店铺发布，全部店铺保持待执行 */
-    if (st === 'confirm' || st === 'cancelled') status = 'queued';
+    /* 风控态（待确认）：任务未进入店铺发布，全部店铺保持待执行 */
+    if (st === 'confirm') status = 'queued';
     if (st === 'running') status = k === 0 ? 'success' : k === 1 ? 'running' : 'queued';
     if (st === 'failed') status = unifiedFailed ? 'queued' : allFailed ? 'failed' : k === pools.length - 1 ? 'failed' : 'success';
     return {
@@ -820,13 +906,12 @@ function buildPubBatch(row: CreateRow, seed: number): ParentTask {
 function buildSubs(seed: number, status: ParentStatus, day: string): SubTask[] {
   const subs: SubTask[] = [];
   subPattern[status].forEach((sd, i) => {
-    const st = seedStatus(sd);
-    /* 风控态：待确认（风险管控，可能亏损）/ 已取消（垃圾品管控或手动取消），店铺未触达 */
-    const risk = st === 'confirm' || st === 'cancelled';
+    const st = sd;
+    /* 风控态：待确认（风险管控，可能亏损），店铺未触达 */
+    const risk = st === 'confirm';
     /* 失败样本分流：统一节点失败（0/1，店铺未触达）与店铺级失败（failStep 缺省）按槽位交替 */
     const failStep = st === 'failed' && (seed + i) % 3 < 2 ? (seed + i) % 2 : undefined;
     const shops = buildShops(seed, i, risk ? 'queued' : st, day);
-    const cancelType: CancelType | undefined = sd === 'risk_cancelled' ? 'risk' : sd === 'manual_cancelled' ? 'manual' : undefined;
     shops.forEach((sp, k) => {
       const rowSt: SubStatus = risk ? st : taskStatusOf({ failStep, shops: [sp] });
       subs.push({
@@ -838,11 +923,10 @@ function buildSubs(seed: number, status: ParentStatus, day: string): SubTask[] {
         linkId: '888877776666',
         status: rowSt,
         failStep,
-        cancelType,
-        riskReason: risk ? RISK_JUNK_REASON : undefined,
+        riskReason: risk ? RISK_CTRL_REASON : undefined,
         shops: [sp],
         startTime: rowSt === 'queued' || rowSt === 'confirm' ? '' : sp.startTime || `${day} 12:01:00`,
-        endTime: rowSt === 'success' || rowSt === 'failed' || rowSt === 'cancelled' ? sp.endTime || `${day} 12:04:00` : '',
+        endTime: rowSt === 'success' || rowSt === 'failed' ? sp.endTime || `${day} 12:04:00` : '',
       });
     });
   });
@@ -892,13 +976,14 @@ export const parentTasks = reactive<ParentTask[]>([
   createTaobaoRows.forEach((row, ri) => parentTasks.push(buildPubBatch(row, ri + 1)));
 }
 
-/* ---- 商品搬家类型任务种子 ---- */
+/* ---- 自动搬家类型任务种子 ---- */
 const moveProducts = [
-  { name: '盒装100根数数棒数学小学一年级计算棒算术教具', thumb: taskThumb('#e8f4e6', '数'), linkId: '3840586443', sourceShop: '淘宝心选店', sourceProductId: 'TB-88887777' },
-  { name: '不锈钢保温杯大容量便携水杯定制logo', thumb: taskThumb('#eef0f6', '杯'), linkId: '3840112266', sourceShop: '天猫旗舰店', sourceProductId: 'TM-66665555' },
-  { name: '家用高压水枪喷头卫浴手持花洒套装', thumb: taskThumb('#e6f0f6', '水'), linkId: '2696088794', sourceShop: '拼多多优品店', sourceProductId: 'PDD-44443333' },
+  { name: '盒装100根数数棒数学小学一年级计算棒算术教具', thumb: ecMain(0), linkId: '3840586443', sourceShop: '淘宝心选店', sourceProductId: 'TB-88887777' },
+  { name: '不锈钢保温杯大容量便携水杯定制logo', thumb: ecMain(1), linkId: '3840112266', sourceShop: '天猫旗舰店', sourceProductId: 'TM-66665555' },
+  { name: '家用高压水枪喷头卫浴手持花洒套装', thumb: ecMain(2), linkId: '2696088794', sourceShop: '拼多多优品店', sourceProductId: 'PDD-44443333' },
 ];
 const moveMakers = ['七妮妮', '李珊珊', '王越'];
+const moveMvIds = ['at-01', 'at-02', 'at-03'];
 for (let i = 0; i < moveProducts.length; i++) {
   const p = moveProducts[i];
   const st: ParentStatus = i === 0 ? 'running' : i === 1 ? 'done' : 'running';
@@ -931,7 +1016,7 @@ for (let i = 0; i < moveProducts.length; i++) {
     id: 9000 + i,
     creator: moveMakers[i],
     createTime: `${TC_TODAY} 09:30:41`,
-    type: '商品搬家',
+    type: '自动搬家',
     status: st,
     channel: '智能',
     pubWay: '蜂联发布',
@@ -943,15 +1028,17 @@ for (let i = 0; i < moveProducts.length; i++) {
     startTime: `${TC_TODAY} 09:30:41`,
     endTime: st === 'done' ? `${TC_TODAY} 09:39:43` : '',
     subs: [sub],
+    mvId: moveMvIds[i],
   });
 }
 
-/* ---- 自动下架类型任务种子：节点=获取链接信息/店铺商品删除，商品信息展店铺+商品ID ---- */
+/* ---- 自动下架类型任务种子：节点=获取商品信息/商品下架，商品信息展店铺+商品ID ---- */
 const delistProducts = [
-  { name: '过季清仓连衣裙女夏碎花雪纺长裙', thumb: taskThumb('#f6e7dc', '裙'), linkId: '3841226677', sourceShop: '淘宝心选店', sourceProductId: 'TB-33332222' },
-  { name: '老款透明手机壳防摔软壳库存清理', thumb: taskThumb('#eef0f6', '壳'), linkId: '2697335588', sourceShop: '天猫旗舰店', sourceProductId: 'TM-11119999' },
+  { name: '过季清仓连衣裙女夏碎花雪纺长裙', thumb: ecMain(3), linkId: '3841226677', sourceShop: '淘宝心选店', sourceProductId: 'TB-33332222' },
+  { name: '老款透明手机壳防摔软壳库存清理', thumb: ecMain(4), linkId: '2697335588', sourceShop: '天猫旗舰店', sourceProductId: 'TM-11119999' },
 ];
 const delistMakers = ['李珊珊', '王越'];
+const delistMvIds = ['at-04', 'at-05'];
 for (let i = 0; i < delistProducts.length; i++) {
   const p = delistProducts[i];
   const st: ParentStatus = i === 0 ? 'done' : 'running';
@@ -995,17 +1082,18 @@ for (let i = 0; i < delistProducts.length; i++) {
     startTime: `${TC_TODAY} 10:12:08`,
     endTime: st === 'done' ? `${TC_TODAY} 10:15:32` : '',
     subs: [sub],
+    mvId: delistMvIds[i],
   });
 }
 
 /* ---- 参照版（客户端 v1.0.3）任务详情种子：微信小店今日商品发布批次（执行失败 98 条，前 4 行对齐参照截图） ---- */
 const wcProducts = [
-  { name: '盒装100根数数棒数学小学一年级计算棒算术教具', thumb: taskThumb('#e8f4e6', '数'), linkId: '3840586443' },
-  { name: '卡皮巴拉硅胶拍拍小夜灯充电款创意可爱玩具', thumb: taskThumb('#f6e7dc', '灯'), linkId: '2696075564' },
-  { name: '家用高压水枪喷头卫浴手持花洒套装', thumb: taskThumb('#e6f0f6', '水'), linkId: '2696088794' },
-  { name: '乒乓球批发100个三星级b训练球', thumb: taskThumb('#fdf3e0', '球'), linkId: '3842240765' },
-  { name: '不锈钢保温杯大容量便携水杯定制logo', thumb: taskThumb('#eef0f6', '杯'), linkId: '3840112266' },
-  { name: '儿童益智积木拼装玩具男孩女孩礼物', thumb: taskThumb('#f6ece8', '积'), linkId: '2696118823' },
+  { name: '盒装100根数数棒数学小学一年级计算棒算术教具', thumb: ecMain(0), linkId: '3840586443' },
+  { name: '卡皮巴拉硅胶拍拍小夜灯充电款创意可爱玩具', thumb: ecMain(5), linkId: '2696075564' },
+  { name: '家用高压水枪喷头卫浴手持花洒套装', thumb: ecMain(2), linkId: '2696088794' },
+  { name: '乒乓球批发100个三星级b训练球', thumb: ecMain(7), linkId: '3842240765' },
+  { name: '不锈钢保温杯大容量便携水杯定制logo', thumb: ecMain(1), linkId: '3840112266' },
+  { name: '儿童益智积木拼装玩具男孩女孩礼物', thumb: ecMain(8), linkId: '2696118823' },
 ];
 const wcShopOf = (i: number) => ((i + 1) % 4 === 0 ? '真子名品' : '首力茹愕小店');
 
@@ -1044,10 +1132,10 @@ function buildWcParents(): ParentTask[] {
     };
   };
   /* 前 4 行：任务ID/店铺/创建人/执行起止时间逐一对齐参照截图 */
-  groups[0].push(mk(0, '224460576923043006', 0, 'failed', wcTime(9, 30, 41), wcTime(9, 39, 43), '发品受限', false, '首力茹愕小店'));
-  groups[1].push(mk(1, '224823860986230464', 1, 'failed', wcTime(9, 29, 45), wcTime(9, 38, 37), '价格异常', false, '首力茹愕小店'));
-  groups[1].push(mk(1, '224823860986230380', 2, 'failed', wcTime(9, 29, 45), wcTime(9, 37, 57), '母链接同步失败', false, '首力茹愕小店'));
-  groups[1].push(mk(1, '224823860986230280', 3, 'failed', wcTime(9, 29, 45), wcTime(9, 38, 0), '风控拦截', false, '真子名品'));
+  groups[0].push(mk(0, '224460576923043006', 0, 'failed', wcTime(9, 30, 41), wcTime(9, 39, 43), '每日发品、提审或上架次数达到上限', false, '首力茹愕小店'));
+  groups[1].push(mk(1, '224823860986230464', 1, 'failed', wcTime(9, 29, 45), wcTime(9, 38, 37), '成本价缺失或为零', false, '首力茹愕小店'));
+  groups[1].push(mk(1, '224823860986230380', 2, 'failed', wcTime(9, 29, 45), wcTime(9, 37, 57), '同步母链接失败：数据流读取异常', false, '首力茹愕小店'));
+  groups[1].push(mk(1, '224823860986230280', 3, 'failed', wcTime(9, 29, 45), wcTime(9, 38, 0), '店铺需开通运费险', false, '真子名品'));
   /* 待确认样本：命中待确认商品，暂停在校验管控商品节点（操作列 通过/拒绝） */
   groups[0].push(mk(0, '224823860986230195', 4, 'confirm', '', '', '', false, '首力茹愕小店', { verify: { total: 4, pass: 0, fail: 0, pending: 1 }, shopStatus: 'queued', riskReason: RISK_CTRL_REASON }));
   groups[2].push(mk(2, '224823860986230171', 5, 'confirm', '', '', '', false, '真子名品', { verify: { total: 4, pass: 0, fail: 0, pending: 2 }, shopStatus: 'queued', riskReason: RISK_CTRL_REASON }));
@@ -1069,7 +1157,7 @@ function buildWcParents(): ParentTask[] {
           st,
           start,
           end,
-          riskFail ? '风险管控' : st === 'failed' ? failReasons[i % failReasons.length] : '',
+          riskFail ? '' : st === 'failed' ? failReasons[i % failReasons.length] : '',
           st === 'failed' && i % 5 === 0,
           wcShopOf(i),
           riskFail ? { failStep: 1, verify: { total: 4, pass: 0, fail: 1, pending: 0 }, riskReason: RISK_CTRL_REASON } : undefined,
@@ -1097,6 +1185,111 @@ function buildWcParents(): ParentTask[] {
 }
 parentTasks.unshift(...buildWcParents());
 
+/* ---- 其余任务类型种子：批量铺货/批量调价/批量涨价/批量下架/自动发布——类型行计数与五个执行状态均有数据 ---- */
+const EXTRA_TYPES: {
+  type: string;
+  prefix: string;
+  maker: string;
+  time: string;
+  end: string;
+  /** 自动化任务ID（仅自动发布等自动化类型）：溯源自动化中心任务 */
+  mvId?: string;
+  subs: { st: SubStatus; prod: number; reason?: string }[];
+}[] = [
+  {
+    type: '批量铺货', prefix: 'BL', maker: '陈葛豪', time: `${TC_TODAY} 08:12:05`, end: `${TC_TODAY} 08:32:41`,
+    subs: [{ st: 'success', prod: 0 }, { st: 'failed', prod: 1 }, { st: 'confirm', prod: 2 }, { st: 'running', prod: 3 }],
+  },
+  {
+    type: '批量调价', prefix: 'TJ', maker: '张晋菘', time: `${TC_TODAY} 08:26:40`, end: `${TC_TODAY} 08:44:12`,
+    subs: [{ st: 'success', prod: 4 }, { st: 'queued', prod: 5 }, { st: 'failed', prod: 0, reason: '调价 SKU 标识与规格不一致或无法匹配' }],
+  },
+  {
+    type: '批量涨价', prefix: 'TZ', maker: '陈葛豪', time: `${TC_TODAY} 08:41:18`, end: `${TC_TODAY} 08:59:03`,
+    subs: [{ st: 'success', prod: 1 }, { st: 'running', prod: 2 }, { st: 'queued', prod: 3 }],
+  },
+  {
+    type: '批量下架', prefix: 'XJ', maker: '张晋菘', time: `${TC_TODAY} 08:55:02`, end: `${TC_TODAY} 09:12:36`,
+    subs: [{ st: 'success', prod: 4 }, { st: 'failed', prod: 5, reason: '聚水潭商品下架操作失败，未提供具体原因' }, { st: 'queued', prod: 0 }, { st: 'running', prod: 1 }],
+  },
+  {
+    type: '自动发布', prefix: 'FP', maker: '陈葛豪', time: `${TC_TODAY} 09:08:47`, end: `${TC_TODAY} 09:26:19`, mvId: 'at-09',
+    subs: [{ st: 'success', prod: 2 }, { st: 'confirm', prod: 3 }, { st: 'failed', prod: 4 }, { st: 'running', prod: 5 }],
+  },
+];
+{
+  let taskNo = 2244605769230600;
+  EXTRA_TYPES.forEach((g, gi) => {
+    /* 发布/铺货类含校验管控商品节点：失败样本卡在校验节点，其余类型失败为店铺级 */
+    const pub = g.type === '批量铺货' || g.type === '自动发布';
+    const subs: SubTask[] = g.subs.map((sd, i) => {
+      const p = wcProducts[sd.prod % wcProducts.length];
+      const unifiedFail = pub && sd.st === 'failed';
+      const shopStatus: SubStatus =
+        sd.st === 'success' ? 'success'
+          : sd.st === 'running' ? 'running'
+            : sd.st === 'failed' && !unifiedFail ? 'failed'
+              : 'queued';
+      const shopStart = shopStatus === 'queued' ? '' : g.time;
+      const shopEnd = shopStatus === 'success' || shopStatus === 'failed' ? g.end : '';
+      return {
+        id: i,
+        taskId: String(taskNo++),
+        templateNo: `${g.prefix}-${String(i + 1).padStart(3, '0')}`,
+        name: p.name,
+        thumb: p.thumb,
+        linkId: p.linkId,
+        publisher: g.maker,
+        status: sd.st,
+        failStep: unifiedFail ? 1 : undefined,
+        verify: pub && sd.st === 'success' ? { total: 4, pass: 4, fail: 0, pending: 0 }
+          : pub && sd.st === 'running' ? { total: 4, pass: 4, fail: 0, pending: 0 }
+            : pub && sd.st === 'confirm' ? { total: 4, pass: 3, fail: 0, pending: 1 }
+              : pub && sd.st === 'failed' ? { total: 4, pass: 2, fail: 1, pending: 0 }
+                : undefined,
+        riskReason: unifiedFail ? RISK_CTRL_REASON : undefined,
+        shops: [{ platform: '淘宝', shop: '小二的店铺', status: shopStatus, reason: shopStatus === 'failed' ? sd.reason || TC_FAIL_REASON_UNKNOWN : '', retried: false, startTime: shopStart, endTime: shopEnd }],
+        startTime: sd.st === 'queued' || sd.st === 'confirm' ? '' : g.time,
+        endTime: sd.st === 'success' || sd.st === 'failed' ? g.end : '',
+      };
+    });
+    parentTasks.push({
+      id: 9200 + gi,
+      creator: g.maker,
+      createTime: g.time,
+      type: g.type,
+      status: 'running',
+      channel: '智能',
+      pubWay: '蜂联发布',
+      shops: subs.length,
+      links: subs.length,
+      success: 0,
+      failed: 0,
+      running: 0,
+      startTime: '',
+      endTime: '',
+      subs,
+      mvId: g.mvId,
+    });
+  });
+}
+
+/** 批次聚合闭环：状态/起止时间/成功失败执行中计数全部由子任务推导——已完成必有结束时间，未开始必无开始时间 */
+const TERMINAL_SUB: SubStatus[] = ['success', 'failed'];
+export function syncParentAgg(p: ParentTask): void {
+  const subs = p.subs;
+  p.success = subs.filter((s) => s.status === 'success').length;
+  p.failed = subs.filter((s) => s.status === 'failed').length;
+  p.running = subs.filter((s) => s.status === 'running').length;
+  const starts = subs.map((s) => s.startTime).filter(Boolean);
+  const ends = subs.map((s) => s.endTime).filter(Boolean);
+  const allTerminal = subs.every((s) => TERMINAL_SUB.includes(s.status));
+  p.startTime = starts.length ? starts.reduce((a, b) => (a < b ? a : b)) : '';
+  p.endTime = allTerminal && ends.length ? ends.reduce((a, b) => (a > b ? a : b)) : '';
+  p.status = (allTerminal ? 'done' : subs.every((s) => s.status === 'queued') ? 'queued' : 'running') as ParentStatus;
+}
+parentTasks.forEach(syncParentAgg);
+
 /** 风控二次确认-继续上架：待确认任务清风险态进入执行中，店铺集合开始发布，1.2s 后跑完同步批次聚合 */
 export function confirmSub(sub: SubTask): void {
   if (sub.status !== 'confirm') return;
@@ -1110,7 +1303,7 @@ export function confirmSub(sub: SubTask): void {
     sh.status = 'running';
     sh.startTime = sh.startTime || nowStr();
   });
-  if (parent) parent.running += sub.shops.length;
+  if (parent) syncParentAgg(parent);
   window.setTimeout(() => {
     sub.shops.forEach((sh) => {
       sh.status = 'success';
@@ -1118,10 +1311,7 @@ export function confirmSub(sub: SubTask): void {
     });
     sub.status = taskStatusOf(sub);
     sub.endTime = nowStr();
-    if (parent) {
-      parent.running = Math.max(0, parent.running - sub.shops.length);
-      parent.success += sub.shops.length;
-    }
+    if (parent) syncParentAgg(parent);
   }, 1200);
 }
 
@@ -1138,36 +1328,17 @@ export function rejectSub(sub: SubTask): void {
   sub.endTime = t;
   sub.shops.forEach((sh) => {
     sh.status = 'failed';
-    sh.reason = '风险管控';
+    sh.reason = '';
     sh.startTime = sh.startTime || t;
     sh.endTime = t;
   });
-  if (parent) parent.failed += sub.shops.length;
-}
-
-/** 取消任务：待确认弹窗选「取消任务」（risk）或列表手动取消队列中/执行中任务（manual）；批次聚合不变（仅统计成功/失败/执行中） */
-export function cancelSub(sub: SubTask, type: CancelType): void {
-  if (sub.status !== 'confirm' && sub.status !== 'queued' && sub.status !== 'running') return;
-  const parent = parentTasks.find((p) => p.subs.includes(sub));
-  if (parent && sub.status === 'running') parent.running = Math.max(0, parent.running - sub.shops.filter((sh) => sh.status !== 'success').length);
-  sub.status = 'cancelled';
-  sub.cancelType = type;
-  if (type === 'risk') sub.riskReason = sub.riskReason || RISK_JUNK_REASON;
-  sub.endTime = nowStr();
-  sub.shops.forEach((sh) => {
-    if (sh.status !== 'success') {
-      sh.status = 'queued';
-      sh.startTime = '';
-      sh.endTime = '';
-    }
-  });
+  if (parent) syncParentAgg(parent);
 }
 
 /** 重试/重新发布：失败店铺（或未触达店铺）重跑→成功，并同步更新所属批次聚合（任务中心与关联发布任务抽屉联动） */
 export function retrySub(sub: SubTask): void {
   if (sub.status !== 'failed') return;
   const parent = parentTasks.find((p) => p.subs.includes(sub));
-  const n = Math.max(1, sub.shops.filter((sh) => sh.status === 'failed').length);
   sub.failStep = undefined;
   if (sub.verify) sub.verify = { ...sub.verify, pass: sub.verify.total, fail: 0, pending: 0 };
   sub.shops.forEach((sh) => {
@@ -1179,10 +1350,7 @@ export function retrySub(sub: SubTask): void {
   });
   sub.status = 'running';
   sub.endTime = '';
-  if (parent) {
-    parent.failed = Math.max(0, parent.failed - n);
-    parent.running += n;
-  }
+  if (parent) syncParentAgg(parent);
   window.setTimeout(() => {
     sub.shops.forEach((sh) => {
       if (sh.status === 'running') {
@@ -1194,10 +1362,7 @@ export function retrySub(sub: SubTask): void {
     });
     sub.status = taskStatusOf(sub);
     sub.endTime = nowStr();
-    if (parent) {
-      parent.running = Math.max(0, parent.running - n);
-      parent.success += n;
-    }
+    if (parent) syncParentAgg(parent);
   }, 1200);
 }
 

@@ -22,6 +22,8 @@ const STUFF_OPTIONS = ['全新', '二手'];
 const OTHER_COST_TIP = '其它成本：运费、包装费、平台佣金等额外成本，利润与利润率计算时一并扣除';
 /* 展开明细态出仓总成本列头提示（原生 title） */
 const OUT_COST_TIP = '出仓总成本：出仓物流、仓储作业、工资分摊、推广等总成本，利润与利润率计算时一并扣除';
+/* 视频号（微信小店）平台必填规格类型：编辑态规格区顶部提醒条＋命中行「平台必填」空心标；规格名须与平台一致，缺失项提醒条列名 */
+const XD_REQUIRED_SPECS = ['颜色分类', '尺码'];
 
 /** 商品创建详情页：查看态/编辑态（样式复用店铺商品详情 sgd-*，字段按原型） */
 const editing = ref(false);
@@ -43,6 +45,8 @@ const getTbDetail = inject<(link: string) => any>('getTbDetail');
 const d = reactive(getTbDetail ? getTbDetail(props.row.link) : JSON.parse(JSON.stringify(createDetail))) as typeof createDetail;
 /* 3:4主图为单图槽位：历史多图数据仅保留首张 */
 if (d.mainImgs.length > 1) d.mainImgs.splice(1);
+/* 视频号平台必填规格缺失项：提醒条列名并引导「添加规格」补齐 */
+const xdMissingSpecs = computed(() => XD_REQUIRED_SPECS.filter((n) => !d.specs.some((s) => s.name === n)));
 
 /* SKU「查看」→ 商品匹配视图（聚水潭/竞品/条件三 tab） */
 const matchSku = ref<SkmSku | null>(null);
@@ -253,6 +257,17 @@ const addSpec = () => {
   specIds.value.push(`sp${specIdSeed++}`);
   specAddVals.value.push('');
   syncSkus();
+};
+/* 一键添加：每个缺失必填类型生成一条新规格（属性值留空待填），补齐后提醒条自动隐藏 */
+const addXdMissingSpecs = () => {
+  const miss = xdMissingSpecs.value;
+  miss.forEach((n) => {
+    d.specs.push({ name: n, values: [] });
+    specIds.value.push(`sp${specIdSeed++}`);
+    specAddVals.value.push('');
+  });
+  syncSkus();
+  pushToast(`已添加必填规格「${miss.join('、')}」`);
 };
 const valArm = ref<string | null>(null);
 const valDrag = ref<string | null>(null);
@@ -741,6 +756,12 @@ watch(previewList, (v) => {
       </div>
       <div v-if="specOpen" class="sgd-sec-body">
         <template v-if="editing">
+          <!-- 视频号平台必填规格提醒（仅编辑态）：齐备即隐藏；有缺失才显示并在条右提供一键添加补齐 -->
+          <div v-if="video && xdMissingSpecs.length" class="cpd-spec-notice">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 1 21h22L12 2zm1 14h-2v2h2v-2zm0-7h-2v5h2V9z" /></svg>
+            <span>视频号平台必填规格类型：{{ XD_REQUIRED_SPECS.join('、') }}，规格名须与平台要求保持一致；当前缺少「{{ xdMissingSpecs.join('、') }}」，请通过「添加规格」补齐</span>
+            <button type="button" class="cpd-spec-notice-add" @click="addXdMissingSpecs">一键添加</button>
+          </div>
           <div
             v-for="(sp, si) in d.specs"
             :key="specIds[si]"
@@ -754,6 +775,7 @@ watch(previewList, (v) => {
             <div class="cpd-spec-head">
               <span class="cpd-drag" title="拖动排序规格" @mousedown="specArm = si" @mouseup="specArm = null">⋮</span>
               <input v-model="sp.name" class="cpd-vspec-name" placeholder="规格名" />
+              <span v-if="video && XD_REQUIRED_SPECS.includes(sp.name)" class="cpd-spec-req">平台必填</span>
               <span class="cpd-spec-ics">
                 <i class="danger" title="删除该规格" @click="askRemoveSpec(si)">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6.5 7l.8 12a1.6 1.6 0 0 0 1.6 1.5h6.2a1.6 1.6 0 0 0 1.6-1.5l.8-12M10 11v6M14 11v6" /></svg>

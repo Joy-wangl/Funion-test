@@ -155,7 +155,7 @@ const railMenus: Record<string, { title: string; subs: RailSub[] }> = {
   taskCenter: { title: '任务中心', subs: [{ name: '任务中心', target: 'taskCenter' }] },
   strategy: { title: '商品策略', subs: [{ name: '商品策略', target: 'strategy' }] },
   aiAssistant: { title: 'AI助手', subs: [{ name: 'AI助手', target: 'aiAssistant' }] },
-  automation: { title: '自动化中心', subs: [{ name: '视频号自动化', target: 'move' }] },
+  automation: { title: '自动化中心', subs: [{ name: '自动化配置', target: 'move' }] },
   appeal: { title: '申诉中心', subs: [{ name: '评价申诉', target: 'reviewAppeal' }] },
   codeKb: { title: '系列编码知识库', subs: [{ name: '系列编码素材库', target: 'codeKbMaterial' }, { name: '素材中心', target: 'videoStudio' }] },
   permission: { title: '设置', subs: permItems.map((p) => ({ name: p.name, target: p.target })) },
@@ -267,7 +267,7 @@ const onMsgJump = (id: string) => {
           </div>
           <div class="subnav-wrap" :class="automationOpen ? 'show' : ''">
             <div class="subnav" :class="active === 'move' ? 'active' : ''" @click.stop="onSubnav('move', 'move')">
-              视频号自动化
+              自动化配置
             </div>
           </div>
           <div class="nav nav-parent" :class="appealOpen ? 'open' : ''" @click.stop="toggleGroup('appeal')" @mouseenter="railEnter('appeal', $event)" @mouseleave="railLeave()">

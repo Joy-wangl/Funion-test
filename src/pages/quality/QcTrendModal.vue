@@ -13,7 +13,7 @@ import {
   type ScopeTotals,
   type TrendRangeKey,
 } from './qcCenterData';
-import { onlineAfterOrdersOf, onlineReviewsOf, onlineSeries, onlineSessionsOf } from './qcOnlineData';
+import { onlineAfterOrdersOf, onlineReviewsOf, onlineSeries, onlineSessionsOf, REVIEW_MISS_TYPE } from './qcOnlineData';
 import Modal from '../../components/Modal.vue';
 import MetricTrendChart from './MetricTrendChart.vue';
 import QcDateRangePicker from './QcDateRangePicker.vue';
@@ -82,7 +82,7 @@ const typeCounts = computed(() => {
   const m = new Map<string, number>();
   if (dim.value === 'chat') onlineSessionsOf(s).forEach((x) => x.hits.forEach((h) => m.set(h.type, (m.get(h.type) ?? 0) + 1)));
   else if (dim.value === 'after') onlineAfterOrdersOf(s).forEach((o) => m.set(o.ptype, (m.get(o.ptype) ?? 0) + 1));
-  else onlineReviewsOf(s).forEach((r) => m.set(r.ptype, (m.get(r.ptype) ?? 0) + 1));
+  else onlineReviewsOf(s).forEach((r) => { if (r.ptype !== REVIEW_MISS_TYPE) m.set(r.ptype, (m.get(r.ptype) ?? 0) + 1); });
   return [...m.entries()].map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count);
 });
 const seedOf = (name: string) => [...name].reduce((a, c) => a + c.charCodeAt(0), 0) % 7;
@@ -158,7 +158,7 @@ const legendChips = computed(() => activeSeries.value.map((s) => ({
             @click="toggle(c.key)"
           >
             <i :style="{ background: hidden.has(c.key) ? '#d5d9e0' : c.color }" />
-            {{ c.name }}
+            <span class="mt-chip-name">{{ c.name }}</span>
             <b>{{ c.fmt(c.sum) }}</b>
           </button>
         </div>

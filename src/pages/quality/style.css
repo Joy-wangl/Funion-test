@@ -198,6 +198,8 @@
 .qc-page .tag.rv.green { background: var(--success-light); color: var(--success); }
 .qc-page .tag.rv.red { background: #ffece8; color: var(--danger); }
 .qc-page .tag.rv.blue { background: var(--primary-light); color: var(--primary); }
+/* 首列内芯片（问题编码状态/无归属）与文字行左缘对齐：抵消 .tag 基类 2px 外边距 */
+.qc-page .col-name .tag { margin: 0; }
 
 /* 操作栏：竖排（td 保持 table-cell，仅子元素 block） */
 .qc-page .qc-op-col { white-space: nowrap; }
@@ -562,6 +564,19 @@
 .qc-page .cm-nav button:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
 .qc-page .cm-nav button:disabled { opacity: 0.45; cursor: not-allowed; }
 .qc-page .cm-idx { min-width: 44px; text-align: center; color: var(--text-3); font-size: 12px; }
+/* 会话内容导出钮：与上一个/下一个同规格，靠footer右缘 */
+.qc-page .cm-export {
+  margin-left: 8px;
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text-2);
+  font-size: 12px;
+  cursor: pointer;
+}
+.qc-page .cm-export:hover { border-color: var(--primary); color: var(--primary); }
 
 /* 命中问题类型编辑条 */
 .qc-page .cm-hits {
@@ -779,28 +794,51 @@
 .qc-after-orders-drawer .drawer-head .ao-export { margin-left: auto; }
 .qc-after-orders-drawer .drawer-head .x { margin-left: 12px; }
 
-/* 查询条件区：复用全局 sg-filter / sg-grid 语言，三列适配抽屉宽度；申请时间为成对日期控件 */
+/* 查询条件区：复用全局 sg-filter / sg-grid 语言，三列适配抽屉宽度；申请时间为合一单框日期区间（同问题商品时间范围） */
 .qc-ao-panel .sg-filter { margin-bottom: 14px; box-shadow: none; }
 .qc-ao-panel .sg-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.qc-ao-panel .ao-range { display: flex; align-items: center; gap: 8px; }
-.qc-ao-panel .ao-range > i { font-style: normal; color: var(--color-text-4); }
-.qc-ao-panel .ao-date {
-  flex: 1;
-  min-width: 0;
+.qc-ao-panel .ao-range {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
   height: 40px;
-  padding: 0 10px;
   border: 1px solid #e4e8ef;
   border-radius: 10px;
   background: #fbfcfe;
+  transition: 0.15s;
+}
+.qc-ao-panel .ao-range:focus-within { border-color: #a9bcff; box-shadow: 0 0 0 3px rgba(79, 124, 255, 0.08); }
+.qc-ao-panel .ao-range > i { flex: none; font-style: normal; color: #9aa2b1; }
+.qc-ao-panel .ao-date {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  border-radius: 0;
+  background: none;
+  padding: 0 10px;
   font-size: var(--fs-base);
   color: #465064;
   outline: none;
 }
-.qc-ao-panel .ao-date:focus { border-color: #a9bcff; background: #fff; }
 
 /* 明细表：两行单元格与平台图标 */
 .qc-ao-panel .ao-table .ao-wrap { white-space: normal; word-break: break-all; line-height: 1.5; }
+/* 多行单元格（编码、类型/原因）与单行字段首行齐平：整表顶部对齐 */
+.qc-ao-panel .ao-table th, .qc-ao-panel .ao-table td { vertical-align: top; }
 .qc-ao-panel .ao-plat { display: inline-flex; align-items: center; gap: 6px; }
+/* 售后列表页「售后类型/售后原因」原因行：次级字号、最多两行截断，悬浮 title 展示完整原因 */
+.qc-as-page .ao-table .ao-reason {
+  max-width: 240px;
+  font-size: var(--fs-aux);
+  color: var(--color-text-2);
+  line-height: 1.5;
+  word-break: break-all;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .qc-ao-panel .ao-foot {
   display: flex;
   align-items: center;

@@ -19,6 +19,7 @@ import {
   drawerRangeWindow,
   onlineAfterOrdersOf,
   onlineReviewsOf,
+  REVIEW_MISS_TYPE,
 } from './qcOnlineData';
 import { ecMain } from '../ops-center/data';
 import { CAT_COLOR, QC2_CATS, QC2_CODES, briefOf, seriesTagBrief, type Qc2Code } from '../quality2/qc2Data';
@@ -202,7 +203,11 @@ const reviews = computed(() => onlineReviewsOf(props.series).filter((r) => inRan
 const revHits = computed(() => {
   const m = new Map<string, number>();
   reviews.value.forEach((r) => m.set(r.ptype, (m.get(r.ptype) ?? 0) + 1));
-  return [...m.entries()].map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count);
+  const list = [...m.entries()].map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count);
+  /* 非差评「未命中」固定置于「全部」之后，其余大类按条数排序 */
+  const i = list.findIndex((h) => h.type === REVIEW_MISS_TYPE);
+  if (i > 0) list.unshift(...list.splice(i, 1));
+  return list;
 });
 const sceneHits = computed(() => (scene.value === 'chat' ? chatHits.value : scene.value === 'after' ? asHits.value : revHits.value));
 /* 场景内问题小类清单：随已选大类 + 当前平台收敛，只列该平台内已命中的小类，计数与该场景单位口径一致 */
@@ -283,7 +288,7 @@ const buildRows = (dim: OvDim): OvRow[] => {
   };
   if (dim === 'chat') sessions.value.forEach((s) => s.hits.forEach((h) => bump(normType(h.type), h.sub, s.platform)));
   else if (dim === 'after') afterOrders.value.forEach((o) => bump(o.ptype, o.psub, o.platform));
-  else reviews.value.forEach((r) => bump(r.ptype, r.psub, r.platform));
+  else reviews.value.forEach((r) => { if (r.ptype !== REVIEW_MISS_TYPE) bump(r.ptype, r.psub, r.platform); });
   return [...typeMap.entries()]
     .map(([type, count]) => {
       const subs = [...(subMap.get(type) ?? new Map<string, number>()).entries()]

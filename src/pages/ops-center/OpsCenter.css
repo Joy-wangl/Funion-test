@@ -1234,7 +1234,7 @@
 .ops-center .ib-field label {
   display: block;
   font-size: 12px;
-  color: #7e8796;
+  color: #7f8796;
   margin-bottom: 7px;
 }
 .ops-center .ib-input,
@@ -1466,7 +1466,7 @@
   border: 1px solid #ffd3ae;
   border-radius: 999px;
   padding: 1px 7px;
-  font-size: 11px;
+  font-size: var(--fs-aux);
 }
 .ops-center .badge-red {
   display: inline-block;
@@ -1475,7 +1475,7 @@
   border: 1px solid #ffd0d1;
   border-radius: 999px;
   padding: 1px 7px;
-  font-size: 11px;
+  font-size: var(--fs-aux);
 }
 .ops-center .badge-green {
   display: inline-block;
@@ -1484,7 +1484,7 @@
   border: 1px solid #c8f2de;
   border-radius: 999px;
   padding: 2px 8px;
-  font-size: 11px;
+  font-size: var(--fs-aux);
 }
 .ops-center .badge-gray {
   display: inline-block;
@@ -1493,7 +1493,7 @@
   border: 1px solid #e7ebf0;
   border-radius: 999px;
   padding: 2px 8px;
-  font-size: 11px;
+  font-size: var(--fs-aux);
 }
 .ops-center .spark {
   width: 90px;
@@ -1777,17 +1777,6 @@
   border-radius: 0 0 14px 14px;
   margin-bottom: 16px;
 }
-.ops-center .tc-filter-grid {
-  display: grid;
-  grid-template-columns: 1.35fr 1fr 1fr 1fr;
-  gap: 12px 14px;
-}
-.ops-center .tc-field label {
-  display: block;
-  font-size: 12px;
-  color: #7f8796;
-  margin-bottom: 7px;
-}
 .ops-center .tc-input,
 .ops-center .tc-select {
   width: 100%;
@@ -1885,18 +1874,20 @@
 .ops-center .tc-table th {
   padding: 13px 12px;
   background: #fbfcfe;
-  border-bottom: 1px solid #e9edf3;
+  border-bottom: 1px solid #edf0f5;
   text-align: left;
-  color: var(--color-text-2);
-  font-size: var(--fs-base);
+  color: #5d6678;
+  font-size: var(--fs-aux);
   font-weight: 500;
   white-space: nowrap;
 }
+/* 列表排版对标监控宽表规范：表头与正文同字号（12px），正文同色同字重，副行不单独置灰 */
 .ops-center .tc-table td {
   padding: 16px 12px;
   border-bottom: 1px solid #f0f3f7;
-  color: var(--color-text-2);
-  font-size: var(--fs-base);
+  color: #445066;
+  font-size: var(--fs-aux);
+  font-weight: 400;
   line-height: 22px;
   vertical-align: top;
 }
@@ -1908,11 +1899,37 @@
 .ops-center .tc-table tr:hover td {
   background: #fcfdff;
 }
+/* 列表内状态标/类型标签/节点文案/操作链与正文同字号（12px） */
+.ops-center .tc-table .tc-st,
+.ops-center .tc-table .tc-step,
+.ops-center .tc-table .tc-type-tag,
+.ops-center .tc-table .tc-link {
+  font-size: var(--fs-aux);
+}
+/* 发布店铺：店铺名前缀平台官方图标 */
+.ops-center .tc-shop {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  vertical-align: top;
+  height: 22px;
+}
+.ops-center .tc-shop img {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  object-fit: contain;
+  flex: none;
+}
 .ops-center .tc-product {
   display: flex;
   gap: 10px;
   align-items: flex-start;
   min-width: 265px;
+}
+/* 文本块允许收缩到列宽内，标题省略号生效而不溢出单元格 */
+.ops-center .tc-product > div {
+  min-width: 0;
 }
 .ops-center .tc-thumb {
   width: 48px;
@@ -1922,15 +1939,38 @@
   object-fit: cover;
 }
 .ops-center .tc-pname {
-  font-size: var(--fs-base);
-  color: var(--color-text-2);
+  font-size: var(--fs-aux);
+  color: #445066;
   font-weight: 400;
   line-height: 22px;
 }
 .ops-center .tc-pmeta {
   font-size: var(--fs-aux);
-  color: var(--color-text-3);
+  color: #445066;
+  font-weight: 400;
   line-height: 22px;
+}
+/* 商品信息列：标题定宽单行省略（各行标题长度一致），标题/副行显式同字号防旧样式残留覆盖 */
+.ops-center .tc-table .tc-product .tc-pname,
+.ops-center .tc-table .tc-product .tc-pmeta {
+  font-size: 12px;
+  color: #445066;
+  font-weight: 400;
+  line-height: 22px;
+}
+.ops-center .tc-table .tc-product .tc-pname {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 商品信息列副行标签定宽：链接商品ID/任务ID/自动化任务ID 标签长度不一，定宽后值列左缘对齐；商品名称行不参与；
+   定宽取最长标签自然宽（72px），短标签两端对齐撑满（同执行信息 .k 规范），冒号贴值不留空档 */
+.ops-center .tc-table .tc-product .tc-pmeta-k {
+  display: inline-block;
+  width: 72px;
+  text-align: justify;
+  text-align-last: justify;
 }
 .ops-center .tc-type {
   display: inline-flex;
@@ -2010,6 +2050,11 @@
   font-size: var(--fs-base);
   line-height: 22px;
 }
+/* 任务表操作列链接随正文 12px 并回到 22px 行格（压过全局 .actions-col a 的行高） */
+.ops-center .tc-table .actions-col a {
+  font-size: var(--fs-aux);
+  line-height: 22px;
+}
 .ops-center .tc-progress {
   display: flex;
   align-items: center;
@@ -2062,11 +2107,6 @@
   color: #9aa2b1;
   font-size: var(--fs-base);
 }
-@media (max-width: 1250px) {
-  .ops-center .tc-filter-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
 
 /* ----- 任务列表 v2：父任务列表 + 子任务详情 两级结构 ----- */
 /* 头部行：返回图标钮居左（仅详情态）、视角切换随后；下边距由行统一承担 */
@@ -2080,16 +2120,19 @@
 /* 返回钮：与商品详情/素材中心 .sgd-back 同 token（28px 方钮 + ← 图标） */
 .ops-center .tc-back {
   flex: none;
-  width: 28px;
+  min-width: 28px;
   height: 28px;
+  padding: 0 10px;
   border: 1px solid #e4e8ef;
   background: #fbfcfe;
   border-radius: 8px;
   color: #596273;
   font-size: 14px;
   cursor: pointer;
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   transition: 0.15s;
 }
 .ops-center .tc-back:hover {
@@ -2097,11 +2140,30 @@
   color: #4f7cff;
   background: #f6f9ff;
 }
+/* 钻入态头部批次信息：创建人/创建时间/类型标签单行排布，与返回钮垂直居中 */
+.ops-center .tc-head-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.ops-center .tc-head-meta .tm-name {
+  font-size: var(--fs-base);
+  font-weight: 500;
+  color: #202532;
+  white-space: nowrap;
+}
+.ops-center .tc-head-meta .tm-time {
+  font-size: var(--fs-aux);
+  color: #727b8a;
+  white-space: nowrap;
+}
 /* 状态点 + 文本 */
 .ops-center .tc-st {
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  vertical-align: top;
   font-size: var(--fs-base);
   line-height: 22px;
   color: var(--color-text-2);
@@ -2124,12 +2186,9 @@
 .ops-center .tc-st.failed i {
   background: var(--color-danger);
 }
-/* 风控待确认（橙）/ 已取消（灰） */
+/* 风控待确认（橙） */
 .ops-center .tc-st.confirm i {
   background: var(--color-warning);
-}
-.ops-center .tc-st.cancelled i {
-  background: var(--color-text-4);
 }
 /* 任务状态：圆环占比 + 中心数字 */
 .ops-center .tc-ring-cell {
@@ -2181,40 +2240,141 @@
   font-size: var(--fs-base);
   color: #465064;
 }
-/* 视角切换：按任务批次 / 按任务详情 */
-.ops-center .tc-mode {
+/* 视角切换：单钮 = 切换图标 + 目标视角名（纯图标文字钮，参照发品设置钮样式） */
+.ops-center .tc-mode-toggle {
   display: inline-flex;
-  background: #fff;
-  border: 1px solid #e8ebf1;
-  border-radius: 10px;
-  padding: 4px;
-  gap: 4px;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  padding: 0;
+  background: none;
+  font-size: var(--fs-base);
+  color: var(--color-text-2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s;
 }
-.ops-center .tc-mode button {
-  height: 32px;
-  padding: 0 18px;
+.ops-center .tc-mode-toggle svg {
+  flex: none;
+}
+.ops-center .tc-mode-toggle:hover {
+  color: var(--color-primary);
+}
+/* 模式切换置头部右上角（非页签形态） */
+.ops-center .tc-head .tc-mode-toggle {
+  margin-left: auto;
+}
+/* 列表态（顶为类型/状态行）：切换钮浮至右上，与类型行顶部对齐；批次下钻详情态无切换钮，头部回文档流、返回钮居左 */
+.ops-center .tc-page {
+  position: relative;
+}
+.ops-center .tc-page:has(> .tc-segwrap):has(.tc-mode-toggle) > .tc-head {
+  position: absolute;
+  top: 0;
+  right: 0;
+  margin-bottom: 0;
+  z-index: 2;
+}
+/* 为右上浮钮预留横向空间，避免类型行换行压到切换钮 */
+.ops-center .tc-page:has(> .tc-segwrap):has(.tc-mode-toggle) > .tc-segwrap {
+  padding-right: 132px;
+}
+/* 任务列表结构：上任务类型行（下划线式+括号计数）→ 下状态行（胶囊） */
+.ops-center .tc-segwrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.ops-center .tc-typerow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 32px;
+}
+.ops-center .tc-typeitem {
+  position: relative;
   border: 0;
   background: transparent;
-  border-radius: 8px;
+  padding: 0 0 9px;
   font-size: var(--fs-base);
-  color: #465064;
+  color: var(--color-text);
   cursor: pointer;
   white-space: nowrap;
 }
-.ops-center .tc-mode button.active {
-  background: #4f7cff;
-  color: #fff;
+.ops-center .tc-typeitem:hover {
+  color: #4f7cff;
 }
-.ops-center .tc-filter-grid > .tc-span2 {
-  grid-column: span 2;
-  min-width: 0;
+.ops-center .tc-typeitem.active {
+  color: #4f7cff;
+  font-weight: 500;
+}
+.ops-center .tc-typeitem.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: #4f7cff;
+}
+.ops-center .tc-statusrow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ops-center .tc-statuspill {
+  height: 30px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font-size: var(--fs-base);
+  color: var(--color-text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ops-center .tc-statuspill:hover {
+  background: #f5f7fa;
+}
+.ops-center .tc-statuspill.active {
+  background: #e8f1ff;
+  color: #4f7cff;
+  font-weight: 500;
+}
+.ops-center .tc-statuspill.active:hover {
+  background: #e8f1ff;
+}
+/* 全部态：列表内任务类型以标签呈现（与状态行同 22px 行格，避免错位） */
+.ops-center .tc-type-tag {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: top;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: var(--fs-base);
+  line-height: 22px;
+  white-space: nowrap;
+}
+/* 无页签前置时筛选卡独立成卡（任务详情列表） */
+.ops-center .tc-filter-solo {
+  border-top: 1px solid #e8ebf1;
+  border-radius: 14px;
 }
 /* 多行信息格（创建人/发布信息/执行信息/起止时间） */
 .ops-center .tc-cell-lines {
-  font-size: var(--fs-base);
-  color: var(--color-text-2);
+  font-size: var(--fs-aux);
+  color: #445066;
   line-height: 22px;
   white-space: nowrap;
+}
+/* 多行信息格行距与表格 22px 行格统一，保证跨列同行对齐 */
+.ops-center .tc-cell-lines > div + div {
+  margin-top: 0;
 }
 /* 标签定宽（4 字）+ 两端均匀字距，使三字/四字标签同宽且冒号紧跟 */
 .ops-center .tc-cell-lines .k {
@@ -2265,8 +2425,14 @@
 /* 失败原因 chips */
 .ops-center .tc-chips {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin: 0 0 12px;
+}
+/* 失败原因 chips 置于列表卡顶部（查询条件下方）：内边距对齐卡片，取消外边距 */
+.ops-center .tc-table-card > .tc-chips {
+  padding: 14px 18px 12px;
+  margin: 0;
 }
 .ops-center .tc-chip {
   height: 30px;
@@ -2300,6 +2466,227 @@
   height: 16px;
   border-radius: var(--radius-xs);
   flex: none;
+}
+/* 节点状态：主状态行（圆点+文案）＋节点步进器（成功✓/失败!/待确认!/未开始序号，执行中蓝点呼吸）＋当前节点行
+   失败行显式「第N步 …·失败」并附原因；悬浮单元格展开全节点时间线浮层（起点/终点＋逐节点卡片） */
+.ops-center .tc-nodecell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--fs-aux);
+  line-height: 20px;
+  vertical-align: top;
+}
+.ops-center .nc-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ops-center .nc-mdot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #99a1af;
+}
+.ops-center .nc-mdot.running { background: #2f8cf9; }
+.ops-center .nc-mdot.failed { background: #f5224d; }
+.ops-center .nc-mdot.success { background: #1da86f; }
+.ops-center .nc-mdot.confirm { background: var(--color-warning); }
+.ops-center .nc-mtext { font-weight: 500; color: #202532; }
+.ops-center .nc-mtext.running { color: #2f8cf9; }
+.ops-center .nc-mtext.failed { color: #f5224d; }
+.ops-center .nc-mtext.success { color: #1da86f; }
+.ops-center .nc-mtext.confirm { color: var(--color-warning); }
+.ops-center .nc-mtext.queued { color: #727b8a; }
+/* 步进器：圆点＋连接线段，颜色随节点态 */
+.ops-center .nc-steps {
+  display: flex;
+  align-items: center;
+}
+.ops-center .nc-sd {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 500;
+  color: #fff;
+  background: #c6ccd6;
+}
+.ops-center .nc-sd.ok { background: #1da86f; }
+.ops-center .nc-sd.fail { background: #f5224d; }
+.ops-center .nc-sd.confirm { background: var(--color-warning); }
+.ops-center .nc-sd.run {
+  background: #2f8cf9;
+  animation: nc-pulse 1.6s ease-out infinite;
+}
+.ops-center .nc-sl {
+  flex: none;
+  width: 18px;
+  height: 2px;
+  margin: 0 3px;
+  background: #e2e6ec;
+}
+.ops-center .nc-sl.ok { background: #9fdcbf; }
+.ops-center .nc-sl.fail { background: #f5a0b4; }
+/* 当前节点行：执行中蓝/失败红/待确认橙；失败或执行中尾随前往符号 */
+.ops-center .nc-cur {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #202532;
+}
+.ops-center .nc-cur.run { color: #2f8cf9; }
+.ops-center .nc-cur.fail { color: #f5224d; }
+.ops-center .nc-cur.confirm { color: var(--color-warning); }
+.ops-center .nc-cur.wait,
+.ops-center .nc-cur.ok { color: #445066; }
+.ops-center .nc-arrow {
+  display: inline-flex;
+  font-style: normal;
+  animation: nc-nudge 1.2s ease-in-out infinite;
+}
+.ops-center .nc-reason {
+  color: var(--color-text-2);
+}
+/* 悬浮热区容器：仅步进/当前节点/原因块触发时间线（主状态行不触发），内部行距与单元格一致
+   热区宽度收窄为内容宽（fit-content）：单元格右侧/下方空白不触发悬浮时间线 */
+.ops-center .nc-hover {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: fit-content;
+}
+/* 悬浮时间线浮层：Teleport 至 body，选择器不带容器前缀；左轨图标＋连接线，右卡按节点态着浅底（参照草图） */
+.nc-pop {
+  position: fixed;
+  z-index: 60;
+  width: 300px;
+  padding: 14px 14px 12px;
+  background: #fff;
+  border: 1px solid #edf0f5;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(26, 34, 56, 0.14);
+}
+.nc-pop-item {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.nc-pop-item:last-child {
+  margin-bottom: 0;
+}
+.nc-pop-rail {
+  position: relative;
+  flex: none;
+  width: 18px;
+}
+/* 图标与卡片垂直居中对齐：绝对定位于轨道中点 */
+.nc-pop-ico {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 500;
+  color: #fff;
+  background: #c6ccd6;
+}
+.nc-pop-ico.ok { background: #1da86f; }
+.nc-pop-ico.fail { background: #f5224d; }
+.nc-pop-ico.confirm { background: var(--color-warning); }
+.nc-pop-ico.run { background: #2f8cf9; }
+/* 连接线贯穿卡片间距，直落下一节点图标，轨线不断节 */
+.nc-pop-line {
+  position: absolute;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: #e2e6ec;
+}
+.nc-pop-line.top { top: 0; height: 50%; }
+.nc-pop-line.bottom { top: 50%; bottom: -12px; }
+.nc-pop-line.ok { background: #9fdcbf; }
+.nc-pop-line.fail { background: #f5a0b4; }
+.nc-pop-card {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f5f6f8;
+}
+.nc-pop-card.ok { background: #f5fcf8; }
+.nc-pop-card.run { background: #eef4ff; }
+.nc-pop-card.fail { background: #fef5f7; }
+.nc-pop-card.confirm { background: #fff6ea; }
+.nc-pop-t {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: var(--fs-aux);
+  font-weight: 500;
+  color: #202532;
+}
+/* 状态词右对齐到卡片右缘（与节点名拉开，auto 外边距吸收剩余宽度） */
+.nc-pop-st {
+  margin-left: auto;
+  font-weight: 400;
+  color: #727b8a;
+}
+.nc-pop-st.ok { color: #1da86f; }
+.nc-pop-st.run { color: #2f8cf9; }
+.nc-pop-st.fail { color: #f5224d; }
+.nc-pop-st.confirm { color: var(--color-warning); }
+.nc-pop-reason {
+  margin-top: 4px;
+  font-size: var(--fs-aux);
+  color: #f5224d;
+}
+/* loading 省略号：三点依次点亮 */
+.ops-center .nc-dots {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 3px;
+  vertical-align: 2px;
+}
+.ops-center .nc-dots i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #2f8cf9;
+  animation: nc-dot 1.2s infinite;
+}
+.ops-center .nc-dots i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.ops-center .nc-dots i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes nc-dot {
+  0%, 60%, 100% { opacity: 0.25; }
+  30% { opacity: 1; }
+}
+@keyframes nc-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(47, 140, 249, 0.35); }
+  100% { box-shadow: 0 0 0 7px rgba(47, 140, 249, 0); }
+}
+@keyframes nc-nudge {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(3px); }
 }
 /* 子任务三节点竖向时间线 */
 .ops-center .tc-steps {
@@ -2406,12 +2793,14 @@
   font-size: var(--fs-base);
   line-height: 20px;
 }
-/* 两级表格宽度 */
+/* 两级表格宽度：fixed 布局＋表头定宽，列宽不随 tab 切换的内容变化（页面不跳），占比按内容需要分配 */
 .ops-center .tc-table.tc-list {
+  table-layout: fixed;
   min-width: 1150px;
 }
 .ops-center .tc-table.tc-detail {
-  min-width: 1000px;
+  table-layout: fixed;
+  min-width: 1304px;
 }
 
 /* ===== 店铺商品，仅新增本模块样式 ===== */
@@ -2485,6 +2874,40 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px 16px;
 }
+/* 任务中心筛选卡：四列恒等宽＋控件一律撑满格宽，批次/详情/钻入三处条件同长 */
+.ops-center .tc-filter .sg-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.ops-center .tc-filter .sg-grid .sg-input,
+.ops-center .tc-filter .sg-grid .sg-select,
+.ops-center .tc-filter .sg-grid .drp-trigger {
+  width: 100%;
+  min-width: 0;
+}
+/* 查询输入框清除钮：复用知识库 .kb-clear 全局规范（框内右侧实心灰圆×、有值才显、点击清空并立即重查） */
+.ops-center .sg-inputwrap {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+.ops-center .sg-inputwrap > .sg-input {
+  padding-right: 30px;
+}
+.ops-center .sg-clear {
+  position: absolute;
+  right: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--color-text-3);
+  cursor: pointer;
+}
+.ops-center .sg-clear:hover {
+  color: var(--color-text-2);
+}
 .sg-field label {
   display: block;
   font-size: 12px;
@@ -2508,6 +2931,19 @@
   border-color: #a9bcff;
   box-shadow: 0 0 0 3px rgba(79, 124, 255, 0.07);
   background: #fff;
+}
+/* 查询条件占位文案统一规格（2026-10 定案）：色取 --color-placeholder、字重恒 400、字号随控件正文（.ops-center input 已全局约束 --fs-base）；
+   下拉/日期占位同色见 .bselect-text.ph / .drp-text.ph；此处为 ops-center 全部查询输入的唯一出处，禁止再散落单色规则 */
+.sg-input::placeholder,
+.ib-input::placeholder,
+.id-input::placeholder,
+.mc-bt-input::placeholder,
+.ra-input::placeholder,
+.ra-appeal-textarea::placeholder,
+.mv-cond-val input::placeholder,
+.mv-src-search input::placeholder {
+  color: var(--color-placeholder);
+  font-weight: 400;
 }
 .sg-range {
   display: grid;
@@ -3865,6 +4301,24 @@
 /* 规格名输入在首格宽内撑满，字号同正文、字重 kv 键档 */
 .ops-center .cpd-vspec-name { flex: 1; min-width: 0; height: 32px; border: 1px solid #e3e7ee; border-radius: 8px; padding: 0 10px; font-size: var(--fs-base); font-weight: var(--fw-medium); color: #3d4657; outline: none; background: #fff; }
 .ops-center .cpd-vspec-name:focus { border-color: #4f7cff; }
+/* 视频号平台必填规格提醒条（编辑态规格区顶部）：警示浅底＋叹号图标，列必填类型与缺失项；命中行「平台必填」实心浅标同 mc-lib-tag 色族 */
+.ops-center .cpd-spec-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--color-warning-light);
+  color: var(--color-warning);
+  font-size: var(--fs-base);
+  line-height: 20px;
+}
+.ops-center .cpd-spec-notice svg { flex: none; margin-top: 3px; }
+/* 一键添加：提醒条右端纯文字动作（无按钮框），条内垂直居中 */
+.ops-center .cpd-spec-notice-add { flex: none; margin-left: auto; align-self: center; border: none; background: none; padding: 0; color: var(--color-warning); font-size: var(--fs-base); font-weight: var(--fw-medium); cursor: pointer; white-space: nowrap; }
+.ops-center .cpd-spec-notice-add:hover { text-decoration: underline; }
+.ops-center .cpd-spec-req { flex: none; padding: 1px 8px; border-radius: var(--radius-xs); background: var(--color-warning-light); color: var(--color-warning); font-size: var(--fs-aux); font-weight: var(--fw-medium); white-space: nowrap; }
 /* 属性值区：详情页紧凑芯片流式换行，避免全宽容器下芯片被拉伸 */
 .ops-center .cpd-vspec-vals { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 0 4px; }
 .ops-center .cpd-vspec-chip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: 1px solid #e4e8ef; background: #fff; border-radius: 8px; font-size: var(--fs-base); color: #465064; }
@@ -3888,7 +4342,9 @@
 /* 展开明细态多 6 列（云仓占比/成本价/出仓总成本/工资分摊/推广费率/税比例），再加宽防挤压 */
 .ops-center .cpd-sku-table.cpd-tsku-x { min-width: 2000px; }
 /* 属性列合并格（前置属性值占多行）：垂直居中，同原型 */
-.ops-center .cpd-tsku td.cpd-merge-cell { vertical-align: middle; color: #465064; }
+/* SKU 表单元格内容统一垂直居中：文本/输入框/缩略图高度不一，top 对齐造成行内上下错落；合并格跨行居中不变 */
+.ops-center .cpd-tsku td { vertical-align: middle; }
+.ops-center .cpd-tsku td.cpd-merge-cell { color: #465064; }
 /* SKU 表文字单行完整展示＋内容居中对齐（用户定案） */
 .ops-center .cpd-tsku th,
 .ops-center .cpd-tsku td { white-space: nowrap; text-align: center; }
@@ -4357,9 +4813,6 @@
   font-size: var(--fs-base);
   color: #4f5868;
   outline: none;
-}
-.ops-center .id-input::placeholder {
-  color: #b6bfcc;
 }
 .ops-center .id-range {
   display: grid;
@@ -5063,11 +5516,14 @@
 /* 重复属性组合：关联列红框＋浅红底，hover 行内提示重复行号（保存被守卫拦截） */
 .ops-center .cp-quick-table td.cp-quick-dup { background: #fff6f6; }
 .ops-center .cp-quick-table td.cp-quick-dup .bselect-trigger { border-color: #e5484d; }
-/* 批量编辑分组头行：商品缩略图＋标题横跨全列，浅底色与组内 SKU 行区分（td 保持 table-cell 以撑满 colspan，flex 放内层 wrapper） */
+/* 批量编辑分组头行：每个商品自己的列头——首列缩略图＋标题，规格维度名落入对应规格列，浅底色与组内 SKU 行区分（td 保持 table-cell，flex 放内层 wrapper） */
 .ops-center .cp-quick-table tr.cp-quick-group td { padding: 6px 10px; background: #f7f9fc; }
 .ops-center .cp-quick-group-cell { display: flex; align-items: center; gap: 8px; }
 .ops-center .cp-quick-table tr.cp-quick-group .cp-quick-img { flex: 0 0 auto; width: 24px; height: 24px; }
 .ops-center .cp-quick-group-title { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: #2d3648; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 组头规格列：维度名以列头文字呈现（与 th 同字号字重），不用芯片；四列批量 icon 单元格为浮层锚点 */
+.ops-center .cp-quick-group-spec { color: #5b6475; font-size: 12px; font-weight: 500; white-space: nowrap; }
+.ops-center .cp-quick-table tr.cp-quick-group td.cp-quick-group-edit { position: relative; }
 /* 商品间渐变分割线：组头行顶缘 2px 蓝线，左右两端向中间渐显（销量数据分割线同款）；首组无上邻商品不画线 */
 .ops-center .cp-quick-table tr.cp-quick-sep td {
   background: linear-gradient(90deg, transparent, var(--color-primary), transparent) top / 100% 2px no-repeat, #f7f9fc;
@@ -6074,7 +6530,6 @@
 .ops-center .mc-bt-refth { position: relative; width: 96px; aspect-ratio: 1; border-radius: var(--radius-md); overflow: hidden; border: 2px solid var(--color-border); background: #fff; }
 .ops-center .mc-bt-refth img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ops-center .mc-bt-input { display: block; width: 100%; min-height: 48px; padding: 4px 2px; border: none; outline: none; resize: none; background: transparent; font: inherit; font-size: var(--fs-base); color: var(--color-text); line-height: 1.6; }
-.ops-center .mc-bt-input::placeholder { color: var(--color-text-4); }
 .ops-center .mc-bt-cbar { display: flex; align-items: center; gap: 12px; }
 .ops-center .mc-bt-credit { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-base); font-weight: 600; color: var(--color-warning); }
 .ops-center .mc-bt-submit { display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border-radius: 999px; }
@@ -6187,10 +6642,12 @@
 .ops-center .mc-cancel-tip { font-size: var(--fs-base); color: var(--color-text-2); line-height: 1.7; }
 
 /* ============ 消息通知：铃铛入口 + 下拉面板 ============ */
-/* 顶栏固定在滚动容器（.app-content）顶部：内容下滚时铃铛入口不消失；发丝线区分固定边 */
+/* 顶栏固定在滚动容器（.app-content）顶部：内容下滚时铃铛入口不消失；发丝线区分固定边；
+   层级 120：压过页内所有气泡/锚点（om-col-anchor z80 / metric z90 / calendar z99 / cp-img-zoom z100），
+   消息面板随顶栏上下文一起盖住页内浮层（原 z40 低于页内锚点，▦ 按钮会透盖面板）；仍低于应用级消息面板 z200 与全局抽屉 ≥1000 */
 .ops-center .ops-topbar {
   display: flex; align-items: center; justify-content: flex-end; padding: 12px 20px; background: #fff;
-  position: sticky; top: 0; z-index: 40;
+  position: sticky; top: 0; z-index: 120;
   border-bottom: 1px solid #e8ebf1;
 }
 .ops-center .msg-bell { position: relative; }
@@ -6557,6 +7014,24 @@
 .ops-center .tc-step-toggle.open .tc-help-q {
   background: var(--color-primary);
 }
+/* ---------- 任务中心-批量操作气泡（按钮锚定，absolute 跟随；容器对齐 .add-pop 规格） ---------- */
+.tc-batch-anchor {
+  position: relative;
+  display: inline-flex;
+  z-index: 80;
+}
+.tc-batch-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 999;
+  min-width: 110px;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #e8ebf1;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(26, 34, 56, 0.12);
+}
 /* 任务详情：创建信息单列（创建人+创建时间竖排） */
 /* 待确认 通过/拒绝 二次确认弹窗（Teleport 至 body，不依赖页面作用域前缀） */
 .tc-dlg-mask {
@@ -6686,9 +7161,6 @@
 }
 .mk-create-body .sg-input:focus {
   border-color: #4f7cff;
-}
-.mk-create-body .sg-input::placeholder {
-  color: #98a0b3;
 }
 .mk-create-foot {
   padding: 0 24px 20px;

@@ -12,13 +12,14 @@ import {
   applySeriesView,
   defaultDutyDept,
   deptsOfTypes,
+  seriesHasProblemCode,
   type QcCenterCode,
   type QcCenterSeries,
   type ScopeTotals,
 } from './qcCenterData';
 import { CHAT_SESSIONS, SHOP_NAME, type ChatHit, type ChatSession, type Platform, type PlatformStat } from './data';
 import { codesMatchTagFilter } from '../quality2/qc2Data';
-import { onlineSeries, onlineSeriesOfCode, onlineSessionsOf, onlineOwnerOf, onlineChatBrief, patchOnlineSession } from './qcOnlineData';
+import { onlineSeries, onlineSeriesOfCode, onlineSessionsOf, onlineOwnerOf, onlineChatBrief, patchOnlineSession, seriesHitCodes, afterJumpSeed, type AfterJump } from './qcOnlineData';
 import QcDashboard from './QcDashboard.vue';
 import QcSeriesList, { DEFAULT_SERIES_FILTER, type SeriesFilter, type SortKey } from './QcSeriesList.vue';
 import QcSeriesDrawer from './QcSeriesDrawer.vue';
@@ -28,7 +29,7 @@ import QcChatModal from './QcChatModal.vue';
 import QcTrendModal from './QcTrendModal.vue';
 import QcAfterSales from './QcAfterSales.vue';
 import QcAfterOrdersDrawer from './QcAfterOrdersDrawer.vue';
-import QcProblemCodes from './QcProblemCodes.vue';
+import QcProblemDef from './QcProblemDef.vue';
 import QcHitManage from './QcHitManage.vue';
 import QcPerm from './QcPerm.vue';
 import QcPermDept from './QcPermDept.vue';
@@ -39,7 +40,7 @@ import '../quality2/qc2.css';
 /* React 版 App.tsx 静态引入 OpsCenter 使 sg-* 筛选样式全局生效，此处对齐 */
 import '../ops-center/OpsCenter.css';
 
-type View = 'dashboard' | 'series' | 'cfg' | 'after' | 'problem' | 'hit' | 'perm';
+type View = 'dashboard' | 'series' | 'cfg' | 'after' | 'hit' | 'pdef' | 'perm';
 /** 壳级模式：原功能（问题类型驱动）/ 商品标签（数据概览的标签模块切换，左侧菜单不变） */
 type Mode = 'legacy' | 'tags';
 
@@ -52,14 +53,15 @@ const readInitialView = (): View => {
 };
 
 const view = ref<View>(readInitialView());
+const pickAfterJump = (s: AfterJump) => { afterJumpSeed.value = s; view.value = 'after'; };
 const mode = ref<Mode>('legacy');
 /* 品控-线上侧栏图标（stroke currentColor，16x16，viewBox 0 0 24 24） */
 const NAV_ICONS: Record<string, string> = {
   dashboard: '<line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="10"/>',
   series: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
   after: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
-  problem: '<path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
   hit: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+  pdef: '<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
   perm: '<path d="M12 3l7 3v6c0 4.4-2.9 7.5-7 9-4.1-1.5-7-4.6-7-9V6Z"/><path d="m9.3 11.8 2 2 3.4-3.6"/>',
 };
 const NAV_ICON_SVG = (k: string) =>
@@ -175,6 +177,11 @@ const filtered = computed(() => {
       && inRange(Math.round(s.refundRate * 1000) / 10, f.rateMin, f.rateMax)
       && inRange(s.afterSales, f.asMin, f.asMax)
       && inRange(s.chatRiskHits, f.crMin, f.crMax));
+    /* 问题编码状态筛选：与首列标识同口径（系列下任一编码存在问题命中） */
+    if (f.pcode !== '全部') {
+      const want = f.pcode === '有问题编码';
+      list = list.filter((s) => (props.online ? seriesHitCodes(s).length > 0 : seriesHasProblemCode(s)) === want);
+    }
   }
   /* 标签筛选（级联多选 + 健康等级 + 判定方式）：系列下属任一商品编码命中即保留（与编码标签页同源口径）；线上壳无该维度 */
   const f = applied.value;
@@ -271,20 +278,20 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
       <div
         v-if="online"
         class="qc-nav"
-        :class="view === 'problem' ? 'active' : ''"
-        @click="view = 'problem'"
-      >
-        <span class="qc-nav-ico" v-html="NAV_ICON_SVG('problem')" />
-        <span class="qc-nav-text">问题商品</span>
-      </div>
-      <div
-        v-if="online"
-        class="qc-nav"
         :class="view === 'hit' ? 'active' : ''"
         @click="view = 'hit'"
       >
         <span class="qc-nav-ico" v-html="NAV_ICON_SVG('hit')" />
         <span class="qc-nav-text">命中问题管理</span>
+      </div>
+      <div
+        v-if="online"
+        class="qc-nav"
+        :class="view === 'pdef' ? 'active' : ''"
+        @click="view = 'pdef'"
+      >
+        <span class="qc-nav-ico" v-html="NAV_ICON_SVG('pdef')" />
+        <span class="qc-nav-text">问题商品定义</span>
       </div>
       <template v-if="online">
         <div
@@ -353,6 +360,7 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
           applied = { ...applied, dept: d };
           view = 'series';
         } : undefined"
+        :on-pick-after="pickAfterJump"
       />
       <Qc2Dashboard
         v-else-if="view === 'dashboard' && !online"
@@ -391,18 +399,9 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
       />
       <QcAfterSales
         v-else-if="view === 'after'"
-        :on-orders="(s: QcCenterSeries) => (afterCtx = s)"
-        :on-trend="(s: QcCenterSeries) => (trendCtx = {
-          title: `系列 ${s.seriesCode} · ${s.name}`,
-          totals: { orders: s.orders, refundRate: s.refundRate, afterSales: s.afterSales, chatRisks: s.chatRiskHits },
-          seriesCode: s.seriesCode,
-        })"
-      />
-      <QcProblemCodes
-        v-else-if="view === 'problem'"
-        :on-detail="(s: QcCenterSeries) => (detail = { series: s })"
       />
       <QcHitManage v-else-if="view === 'hit'" />
+      <QcProblemDef v-else-if="view === 'pdef'" />
       <QcPerm v-else-if="view === 'perm' && permView === 'member'" />
       <QcPermDept v-else-if="view === 'perm' && permView === 'dept'" />
       <QcPermRole v-else-if="view === 'perm' && permView === 'role'" />

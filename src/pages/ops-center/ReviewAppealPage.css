@@ -31,7 +31,6 @@
 .ops-center .ra-input:focus {
   border-color: #a9bcff; box-shadow: 0 0 0 3px rgba(79, 124, 255, 0.07); background: #fff;
 }
-.ops-center .ra-input::placeholder { color: #9aa2b1; }
 .ops-center .ra-clear {
   position: absolute; right: 9px; top: 50%; width: 14px; height: 14px;
   display: inline-flex; align-items: center; justify-content: center; transform: translateY(-50%);
@@ -200,7 +199,6 @@
   font: inherit; font-size: var(--fs-base); line-height: 22px; box-sizing: border-box;
 }
 .ops-center .ra-appeal-textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-10); }
-.ops-center .ra-appeal-textarea::placeholder { color: var(--color-text-4); }
 .ops-center .ra-appeal-readonly-text { overflow: hidden; resize: none; white-space: pre-wrap; }
 .ops-center .ra-appeal-count { align-self: flex-end; margin-top: -30px; padding-right: 12px; color: var(--color-text-4); font-size: var(--fs-aux); pointer-events: none; }
 .ops-center .ra-appeal-error { margin: -4px 0 0; color: var(--color-danger); font-size: var(--fs-aux); line-height: 18px; }

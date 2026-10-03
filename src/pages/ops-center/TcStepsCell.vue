@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { RISK_CTRL_REASON, type SubTask } from './data';
+import { RISK_CTRL_REASON, TC_FAIL_REASON_UNKNOWN, type SubTask } from './data';
 import { headStepsOf, step3Of, stepLabelsOf } from './tcSteps';
 
 /** 节点状态单元格：一品一店一任务，节点竖排（发布/铺货类含校验管控商品）；失败节点提供失败原因气泡 */
@@ -14,7 +14,7 @@ const verifyReason = computed(() =>
 );
 /* 店铺节点失败原因（统一节点失败无店铺原因，不展示入口） */
 const shopReason = computed(() =>
-  (props.sub.status === 'failed' && props.sub.failStep === undefined ? props.sub.shops[0]?.reason || '其它' : ''),
+  (props.sub.status === 'failed' && props.sub.failStep === undefined ? props.sub.shops[0]?.reason || TC_FAIL_REASON_UNKNOWN : ''),
 );
 
 /* 气泡坐标（浮层坐标属行内样式白名单）；Teleport 至 body 避免被表格 overflow 裁剪 */

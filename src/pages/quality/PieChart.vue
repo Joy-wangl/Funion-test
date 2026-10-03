@@ -22,6 +22,8 @@ const props = defineProps<{
   onSelect?: (label: string) => void;
   /** 图例追加「次数 · 占比」数值列 */
   showValue?: boolean;
+  /** 环心总量文案（缺省问题数） */
+  totalLabel?: string;
 }>();
 
 const hidden = ref<Set<string>>(new Set());
@@ -112,7 +114,7 @@ const tipItem = computed(() => {
       </template>
       <circle :cx="cx" :cy="cy" :r="r" fill="#f7f8fa" pointer-events="none" />
       <text :x="cx" :y="cy - 2" text-anchor="middle" class="pie-total">{{ total.toLocaleString() }}</text>
-      <text :x="cx" :y="cy + 16" text-anchor="middle" class="pie-sub">问题数</text>
+      <text :x="cx" :y="cy + 16" text-anchor="middle" class="pie-sub">{{ totalLabel ?? '问题数' }}</text>
     </svg>
     <div v-if="tip && tipItem" class="pie-tip" :style="{ left: tip.x + 'px', top: tip.y + 'px' }">
       <div class="pie-tip-line">

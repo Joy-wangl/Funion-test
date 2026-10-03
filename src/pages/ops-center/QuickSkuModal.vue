@@ -3,7 +3,7 @@
 export type QuickVal = { name: string; code: string; series: string; cost: string; price: string; stock: string; profit: string; rate: string };
 /** 属性配置维度（与商品详情 specs 同构）：属性名＋属性值清单 */
 export type QuickSpec = { name: string; values: string[] };
-export type QuickDraftRow = { thumb: string; title: string; jm: boolean; src: Record<string, string>; qcode: string; val: QuickVal; /** SKU 关联的属性值（属性名→值） */ vals: Record<string, string>; /** 所属商品详情数据（保存时按它分组回写，与详情页同源） */ own?: Record<string, any> };
+export type QuickDraftRow = { thumb: string; title: string; jm: boolean; src: Record<string, string>; qcode: string; val: QuickVal; /** SKU 关联的属性值（属性名→值） */ vals: Record<string, string>; /** 所属商品详情数据（保存时按它分组回写，与详情页同源） */ own?: Record<string, any>; /** 该商品自己的属性维度草稿（批量异构商品各自一套；缺省回退弹窗级 specs） */ specs?: QuickSpec[] };
 export const numOf = (v: string) => {
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : NaN;
@@ -84,22 +84,75 @@ const emit = defineEmits<{ (e: 'close'): void; (e: 'save'): void }>();
 /* 列头批量编辑：售价/利润/利润率/库存数 列头 icon，浮层输入统一值后整列应用（利润/利润率按联动反推） */
 type ColEditKey = 'price' | 'profit' | 'rate' | 'stock';
 const colEdit = ref<{ key: ColEditKey; value: string } | null>(null);
+/* 行级属性维度：批量异构商品各带自己的一套（行内 specs），单件/旧调用方回退弹窗级 specs */
+const specsOf = (r: QuickDraftRow): QuickSpec[] => r.specs ?? props.specs ?? [];
+/* 批量分组：连续同商品行归一组（组头行展示该商品自己的规格维度名＋关闭按钮） */
+const groups = computed(() => {
+  const out: { start: number; count: number; title: string; thumb: string; specs: QuickSpec[] }[] = [];
+  props.draft.forEach((r, i) => {
+    const last = out[out.length - 1];
+    if (last && props.draft[i - 1].own === r.own && props.draft[i - 1].title === r.title) {
+      last.count++;
+      return;
+    }
+    out.push({ start: i, count: 1, title: r.title, thumb: r.thumb, specs: specsOf(r) });
+  });
+  return out;
+});
+/* 规格列数：单件=自身维度数；批量=各商品维度数取大（不足的商品行留空单元格） */
+const specCols = computed(() => (props.batch
+  ? groups.value.reduce((m, g) => Math.max(m, g.specs.length), 0)
+  : (props.specs ?? []).length));
+/* 组头行定位：行号→组；SKU 行规格单元格按列序补齐（该商品没有的维度留空） */
+const groupStart = computed(() => new Map(groups.value.map((g) => [g.start, g])));
+const groupAt = (i: number) => groupStart.value.get(i);
+const rowSpecCells = (r: QuickDraftRow): (QuickSpec | null)[] => {
+  const sps = specsOf(r);
+  return Array.from({ length: specCols.value }, (_, c) => sps[c] ?? null);
+};
+/* 关闭商品：整组行移出草稿，不再参与列头批量应用与保存回写 */
+const delGroup = ref<{ start: number; count: number; title: string } | null>(null);
+const confirmDelGroup = () => {
+  const g = delGroup.value;
+  if (!g) return;
+  props.draft.splice(g.start, g.count);
+  pushToast(`已删除「${g.title}」：该商品及其 ${g.count} 个 SKU 行移出本次编辑`);
+  delGroup.value = null;
+};
+const batchSub = computed(() => `已选 ${groups.value.length} 件商品`);
 const openColEdit = (key: ColEditKey) => {
   colEdit.value = colEdit.value?.key === key ? null : { key, value: '' };
+};
+/* 单行应用统一值：顶部列头（全部商品）与组头列头（单商品）共用同一套联动口径 */
+const applyValTo = (r: QuickDraftRow, key: ColEditKey, value: string) => {
+  if (key === 'stock') r.val.stock = value;
+  else {
+    /* 售价/利润整列应用也归一两位小数 */
+    r.val[key] = key === 'price' || key === 'profit' ? fmt2(value) : value;
+    (key === 'price' ? syncPriceVal : key === 'profit' ? syncProfitVal : syncRateVal)(r.val);
+  }
 };
 const applyColumn = () => {
   const ce = colEdit.value;
   if (!ce) return;
-  for (const r of props.draft) {
-    if (ce.key === 'stock') r.val.stock = ce.value;
-    else {
-      /* 售价/利润整列应用也归一两位小数 */
-      r.val[ce.key] = ce.key === 'price' || ce.key === 'profit' ? fmt2(ce.value) : ce.value;
-      (ce.key === 'price' ? syncPriceVal : ce.key === 'profit' ? syncProfitVal : syncRateVal)(r.val);
-    }
-  }
+  for (const r of props.draft) applyValTo(r, ce.key, ce.value);
   colEdit.value = null;
 };
+/* 组头列头批量编辑：每个商品自己的列头四列带 icon，统一值仅应用该商品组内 SKU 行（顶部列头 icon 应用全部商品） */
+const COL_KEYS: ColEditKey[] = ['price', 'profit', 'rate', 'stock'];
+const groupColEdit = ref<{ start: number; key: ColEditKey; value: string } | null>(null);
+const openGroupColEdit = (start: number, key: ColEditKey) => {
+  groupColEdit.value = groupColEdit.value?.start === start && groupColEdit.value?.key === key ? null : { start, key, value: '' };
+};
+const applyGroupColumn = () => {
+  const ce = groupColEdit.value;
+  if (!ce) return;
+  const g = groups.value.find((x) => x.start === ce.start);
+  if (g) for (let i = g.start; i < g.start + g.count; i++) { const r = props.draft[i]; if (r) applyValTo(r, ce.key, ce.value); }
+  groupColEdit.value = null;
+};
+/* 组头行规格单元格：维度名落入对应规格列（不足列数留空对齐） */
+const groupSpecCells = (g: { specs: QuickSpec[] }) => Array.from({ length: specCols.value }, (_, c) => g.specs[c] ?? null);
 /* 售价/利润输入失焦归一两位小数后再联动 */
 const priceBlur = (r: QuickDraftRow) => {
   r.val.price = fmt2(r.val.price);
@@ -135,13 +188,13 @@ const codeBlur = (r: QuickDraftRow) => {
     syncPriceVal(r.val);
   });
 };
-/* 属性组合口径：按属性序拼接关联值（批量态混多件商品，需带商品标题隔离，避免跨商品误判重复） */
-const comboOf = (r: QuickDraftRow) => (props.specs ?? []).map((sp) => r.vals[sp.name] ?? '').join(' / ');
+/* 属性组合口径：按该行商品自己的属性序拼接关联值（批量混多件商品，需带商品标题隔离，避免跨商品误判重复） */
+const comboOf = (r: QuickDraftRow) => specsOf(r).map((sp) => r.vals[sp.name] ?? '').join(' / ');
 const comboKey = (r: QuickDraftRow) => `${r.title}||${comboOf(r)}`;
 /* 重复组合：同商品下同一属性组合出现多行即冲突（复制行未改归属时必然命中），记录首行号供提示 */
 const dupInfo = computed(() => {
   const res: { dup: boolean; first: number }[] = props.draft.map(() => ({ dup: false, first: -1 }));
-  if (!props.specs?.length) return res;
+  if (!props.specs?.length && !props.draft.some((r) => r.specs?.length)) return res;
   const seen = new Map<string, number[]>();
   props.draft.forEach((r, i) => {
     const arr = seen.get(comboKey(r)) ?? [];
@@ -165,7 +218,7 @@ const spawnCopy = (i: number, vals: Record<string, string>, comboText: string) =
   const r = props.draft[i];
   if (!r) return;
   const row: QuickDraftRow = { ...r, src: { ...r.src }, val: { ...r.val }, vals: { ...vals } };
-  if (props.specs?.length) row.val.name = autoName(row);
+  if (specsOf(row).length) row.val.name = autoName(row);
   props.draft.splice(i + 1, 0, row);
   flash.value = i + 1;
   if (flashTimer) clearTimeout(flashTimer);
@@ -191,7 +244,7 @@ const { pos: copyPos, open: openCopyPop, close: closeCopyPop } = useAnchorPop();
 const copyQuick = (i: number, e: MouseEvent) => {
   const r = props.draft[i];
   if (!r) return;
-  const sps = props.specs ?? [];
+  const sps = specsOf(r);
   if (sps.length === 1) {
     const sp = sps[0];
     const sv = r.vals[sp.name] ?? '';
@@ -219,7 +272,7 @@ const confirmCopy = () => {
   if (!cp) return;
   const src = props.draft[cp.row];
   if (!src) return;
-  const sps = props.specs ?? [];
+  const sps = specsOf(src);
   const need = sps.length - 1;
   if (cp.dims.length !== need) {
     pushToast(`请选择 ${need} 个属性创建副本`, 'warning');
@@ -242,6 +295,10 @@ const deleteQuick = (i: number) => {
 };
 /* 保存守卫：存在重复属性组合时拦截并指明冲突行，避免写出同组合的多条 SKU */
 const onSave = () => {
+  if (props.batch && !props.draft.length) {
+    pushToast('已关闭全部商品，无需保存', 'warning');
+    return;
+  }
   const bad = dupInfo.value.findIndex((d, i) => d.dup && d.first !== i);
   if (bad >= 0) {
     pushToast(`第 ${bad + 1} 行与第 ${dupInfo.value[bad].first + 1} 行属性组合重复，请调整后再保存`, 'error');
@@ -251,7 +308,7 @@ const onSave = () => {
 };
 /* SKU 名称随属性关联自动拼接：口径与详情一致（京麦空格分隔，淘宝/视频号「 + 」），改属性值/复制/改名后名称即跟随 */
 const autoName = (r: QuickDraftRow) =>
-  (props.specs ?? []).map((sp) => r.vals[sp.name] ?? '').filter(Boolean).join(props.jm ? ' ' : ' + ');
+  specsOf(r).map((sp) => r.vals[sp.name] ?? '').filter(Boolean).join(props.jm ? ' ' : ' + ');
 /* 属性值行内改名（SKU 表下拉内铅笔）：同步属性配置与所有 SKU 行的关联值 */
 const renameSpecVal = (sp: QuickSpec, oldV: string, newV: string) => {
   if (sp.values.includes(newV)) {
@@ -303,12 +360,13 @@ const doDeleteVal = () => {
 
 <template>
   <div class="pm-page pm-host">
-    <Modal :title="batch ? '批量编辑商品' : '快捷编辑SKU'" :sub="sub" size="xxl" @close="emit('close')">
+    <Modal :title="batch ? '批量编辑商品' : '快捷编辑SKU'" :sub="batch ? batchSub : sub" size="xxl" @close="emit('close')">
       <table class="cp-quick-table">
         <thead>
           <tr>
             <th>SKU图片</th>
-            <th v-for="sp in specs ?? []" :key="sp.name">{{ sp.name }}</th>
+            <!-- 批量态各商品规格维度不同：列头只标通用「规格N」，真实维度名在各商品组头行给出 -->
+            <th v-for="c in specCols" :key="`c${c}`">{{ batch ? `规格${c}` : specs?.[c - 1]?.name }}</th>
             <th>SKU名称</th>
             <th>{{ jm ? '商家编码' : '商品编码' }}</th>
             <th>系列编码</th>
@@ -342,15 +400,41 @@ const doDeleteVal = () => {
         </thead>
         <tbody>
           <template v-for="(r, i) in draft" :key="i">
-            <!-- 批量态按商品分组：组首插入商品头行（缩略图＋标题），组内行为该商品的 SKU -->
-            <tr v-if="batch && (i === 0 || draft[i - 1].title !== r.title || draft[i - 1].thumb !== r.thumb)" class="cp-quick-group" :class="{ 'cp-quick-sep': i > 0 }">
-              <td :colspan="10 + (specs?.length ?? 0)"><span class="cp-quick-group-cell"><img class="cp-quick-img" :src="r.thumb" alt="" /><span class="cp-quick-group-title">{{ r.title }}</span></span></td>
+            <!-- 批量态按商品分组：组头行＝该商品自己的列头——首列缩略图＋标题，规格维度名落入对应规格列，
+                 售价/利润/利润率/库存数四列带批量 icon（仅应用该商品组内 SKU 行），最右操作列＝删除该商品（二次确认） -->
+            <tr v-if="batch && groupAt(i)" class="cp-quick-group" :class="{ 'cp-quick-sep': i > 0 }">
+              <td>
+                <span class="cp-quick-group-cell">
+                  <img class="cp-quick-img" :src="groupAt(i)!.thumb" alt="" />
+                  <span class="cp-quick-group-title">{{ groupAt(i)!.title }}</span>
+                </span>
+              </td>
+              <td v-for="(sp, ci) in groupSpecCells(groupAt(i)!)" :key="`gs${ci}`">
+                <span v-if="sp" class="cp-quick-group-spec">{{ sp.name }}</span>
+              </td>
+              <td /><td /><td /><td />
+              <td v-for="k in COL_KEYS" :key="`ge${k}`" class="cp-quick-group-edit">
+                <button type="button" class="cp-quick-col-btn" title="批量修改该商品本列" @click.stop="openGroupColEdit(groupAt(i)!.start, k)"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M11.4 1.6l3 3-9 9-3.8.8.8-3.8 9-9z" fill="currentColor" /></svg></button>
+                <div v-if="groupColEdit && groupColEdit.start === groupAt(i)!.start && groupColEdit.key === k" class="cp-quick-colpop" @click.stop>
+                  <input v-model="groupColEdit.value" class="ib-input" placeholder="统一值" />
+                  <button type="button" class="sg-btn primary" @click="applyGroupColumn">应用</button>
+                </div>
+              </td>
+              <td class="cp-quick-ops">
+                <button type="button" class="cp-quick-op danger" @click="delGroup = groupAt(i)!">删除</button>
+              </td>
             </tr>
             <tr :class="{ 'cp-quick-dup': dupInfo[i].dup, 'cp-quick-flash': flash === i }">
             <td><img class="cp-quick-img" :src="r.thumb" alt="" /></td>
-            <!-- SKU 关联属性值：按属性维度列展示；下拉内可改名/删除该属性值（替代顶部属性配置模块）；重复组合红框＋行号提示 -->
-            <td v-for="sp in specs ?? []" :key="sp.name" :class="{ 'cp-quick-dup': dupInfo[i].dup }" :title="dupInfo[i].dup ? dupTip(i) : undefined">
+            <!-- SKU 关联属性值：按该商品自己的维度列展示；批量态维度数不足列数时留空对齐；下拉内可改名/删除该属性值 -->
+            <td
+              v-for="(sp, ci) in rowSpecCells(r)"
+              :key="`s${ci}`"
+              :class="{ 'cp-quick-dup': dupInfo[i].dup && !!sp }"
+              :title="dupInfo[i].dup && sp ? dupTip(i) : undefined"
+            >
               <BubbleSelect
+                v-if="sp"
                 class-name="sg-select"
                 :options="sp.values"
                 :value="r.vals[sp.name] ?? ''"
@@ -391,7 +475,7 @@ const doDeleteVal = () => {
         :style="{ left: `${copyPos.x}px`, top: `${copyPos.y}px` }"
         @mousedown.stop
       >
-        <div v-for="sp in specs ?? []" :key="sp.name" class="cp-quick-poprow">
+        <div v-for="sp in specsOf(draft[copyPop.row])" :key="sp.name" class="cp-quick-poprow">
           <span class="cp-quick-popname">{{ sp.name }}</span>
           <button
             type="button"
@@ -414,6 +498,19 @@ const doDeleteVal = () => {
           <div class="mk-confirm-foot">
             <button class="sg-btn" @click="delBox = null">取消</button>
             <button class="sg-btn danger" @click="doDeleteVal">确认删除</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+    <!-- 删除商品（非 SKU）二次确认：整组行移出本次编辑，属不可逆操作 -->
+    <Teleport to="body">
+      <div v-if="delGroup" class="mk-create-mask mk-confirm-mask" @click.self="delGroup = null">
+        <div class="mk-confirm-modal">
+          <div class="mk-confirm-head">删除商品</div>
+          <div class="mk-confirm-body">删除「{{ delGroup.title }}」及其 {{ delGroup.count }} 个 SKU 行？删除后不参与本次修改，不可恢复。</div>
+          <div class="mk-confirm-foot">
+            <button class="sg-btn" @click="delGroup = null">取消</button>
+            <button class="sg-btn danger" @click="confirmDelGroup">确认删除</button>
           </div>
         </div>
       </div>

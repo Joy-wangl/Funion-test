@@ -16,6 +16,8 @@ const props = defineProps<{
   showSub?: boolean;
   /** 场景级已选小类：气泡内隐藏小类快选并按其过滤 */
   subFilter?: string | null;
+  /** 会话内容导出入口（售后列表关联会话传入）：缺省不展示导出钮 */
+  onExport?: () => void;
 }>();
 
 const s = computed(() => props.sessions.find((x) => x.id === props.currentId));
@@ -94,6 +96,7 @@ const addable = computed(() => QC_PROBLEM_TYPES.filter((t) => !types.value.inclu
           <span class="cm-idx">{{ idx + 1 }} / {{ chain.length }}</span>
           <button type="button" :disabled="idx >= chain.length - 1" @click="props.onNav(chain[idx + 1].id)">下一个 ›</button>
         </div>
+        <button v-if="props.onExport" type="button" class="cm-export" @click="props.onExport">导出</button>
       </div>
     </div>
   </div>
