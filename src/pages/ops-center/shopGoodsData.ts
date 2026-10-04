@@ -545,3 +545,50 @@ export function sgOpsSalesOf(p: SgProduct): SgOpsSalesNode[] {
     return { time: l.time, person: l.person, type: l.type, delta, total };
   });
 }
+
+/* ================= 调价 / 涨价记录（「是否调价」筛选 + 详情调价记录） =================
+   语义：商品链接是否使用过「批量调价 / 批量涨价」功能（运营管理·店铺商品列表 → 批量操作）。
+   调价/涨价仅对「出售中」链接生效，故仅在售（含审核未通过在售）商品可能有记录。
+   记录含：商品上架时的初始利润率，及每次调价/涨价执行的时间、类型、改价后利润与利润率。 */
+export interface SgPriceRecord {
+  time: string;
+  /** 类型：调价（可上可下）/ 涨价（仅上调） */
+  type: '调价' | '涨价';
+  /** 改价后利润（元） */
+  profit: number;
+  /** 改价后利润率（%） */
+  rate: number;
+  person: string;
+}
+const priceHash = (id: string) => { let h = 7; for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 997; return h; };
+/** 商品上架时的初始利润率（%）：按商品ID确定性生成，锚定 12~28% */
+export function sgListingRate(p: Pick<SgProduct, 'id'>): number {
+  return 12 + (priceHash(p.id) % 17);
+}
+/** 调价/涨价记录：按商品ID确定性生成 0~3 条（非在售恒空），倒序返回（最近一次在前） */
+export function sgPriceRecords(p: SgProduct): SgPriceRecord[] {
+  if (p.status !== 'selling' && p.status !== 'auditFail') return [];
+  const h = priceHash(p.id);
+  const n = h % 4;
+  if (!n) return [];
+  const base = p.shelfTime ?? p.publishTime ?? '2026-06-01 10:00:00';
+  const listing = sgListingRate(p);
+  const baseProfit = 15 + (h % 30);
+  let rate = listing;
+  const recs: SgPriceRecord[] = [];
+  for (let i = 0; i < n; i++) {
+    const type: '调价' | '涨价' = ((h >> (i + 1)) & 1) ? '涨价' : '调价';
+    const delta = type === '涨价' ? 2 + ((h >> i) % 5) : -(((h >> i) % 4) + 1);
+    rate = Math.max(3, Math.min(60, rate + delta));
+    /* 利润随利润率同向变动：以上架利润为基准按 rate/listing 折算，涨价利润增、调价利润减 */
+    const profit = Math.round(baseProfit * (rate / listing) * 100) / 100;
+    recs.push({
+      time: logDay(base, 3 + i * 4, `${9 + ((h >> i) % 8)}:${(h >> i) & 1 ? '30' : '15'}:00`),
+      type, profit, rate,
+      person: (h >> i) & 1 ? '李四' : '张三',
+    });
+  }
+  return recs.reverse();
+}
+/** 是否调价：链接是否使用过调价/涨价功能（有记录即「是」） */
+export const sgHasPriceRecord = (p: SgProduct) => sgPriceRecords(p).length > 0;

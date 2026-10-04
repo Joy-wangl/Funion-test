@@ -8,13 +8,14 @@ import MoreActions from '../../components/MoreActions.vue';
 import Modal from '../../components/Modal.vue';
 import { pushToast } from '../../components/toast';
 import { PLATFORM_LOGO } from './data';
-import { sgProducts, SG_CHIPS, JM_CHIPS, SG_STATUS_META, sgRowActions, SG_OFF_FAIL_TYPES, SG_OFF_GROUP, SG_OFF_GROUPS, sgWarnType, sgSales7, sgPrev7Avg, getSgDetail } from './shopGoodsData';
+import { sgProducts, SG_CHIPS, JM_CHIPS, SG_STATUS_META, sgRowActions, SG_OFF_FAIL_TYPES, SG_OFF_GROUP, SG_OFF_GROUPS, sgWarnType, sgSales7, sgPrev7Avg, getSgDetail, sgHasPriceRecord } from './shopGoodsData';
 import type { SgProduct, SgTab } from './shopGoodsData';
 import QuickSkuModal, { mkVal } from './QuickSkuModal.vue';
 import type { QuickDraftRow, QuickSpec } from './QuickSkuModal.vue';
 import SgDetailPage from './SgDetailPage.vue';
 import JmCreateDetailPage from './JmCreateDetailPage.vue';
 import SgBatchPriceModal from './SgBatchPriceModal.vue';
+import SgPriceRecordModal from './SgPriceRecordModal.vue';
 import CwRelDrawer from './CwRelDrawer.vue';
 import ColFieldPop from './ColFieldPop.vue';
 import { useColField } from './colFields';
@@ -45,6 +46,8 @@ const confirmDel = () => {
 type SgOp = { label: string; danger?: boolean; run: () => void };
 const sgOps = (p: SgProduct): SgOp[] => {
   const ops: SgOp[] = rowActions(p).map((a) => ({ label: a, run: () => { if (a === '商品详情') detail.value = p; } }));
+  /* 调价记录：仅使用过调价/涨价功能（有记录）的商品展示，点击弹层看上架利润率与每次改价明细 */
+  if (sgHasPriceRecord(p)) ops.push({ label: '调价记录', run: () => { priceRecTarget.value = p; } });
   if (sgWarnType(p)) ops.push({ label: '关联商品', run: () => { relTarget.value = p; } });
   ops.push({ label: '删除', danger: true, run: () => { delTarget.value = p; } });
   return ops;
@@ -124,6 +127,8 @@ const collapsed = ref(false);
 const detail = ref<SgProduct | null>(null);
 /* 风险预警：关联商品抽屉 */
 const relTarget = ref<SgProduct | null>(null);
+/* 调价记录弹层：上架时利润率 + 每次调价/涨价执行（时间/类型/改价后利润·利润率） */
+const priceRecTarget = ref<SgProduct | null>(null);
 /* 京麦商品详情：走京麦接口字段页（SgProduct → CreateRow 适配，字段映射 getProduct/material） */
 const jmDetailRow = computed(() => detail.value && detail.value.storePlatform === '京麦'
   ? { thumb: detail.value.img, title: detail.value.title, link: detail.value.linkId, store: detail.value.store, person: detail.value.operator, time: detail.value.createTime ?? detail.value.publishTime, platformBadge: '京麦' }
@@ -135,7 +140,7 @@ const bpOpen = ref(false);
 const detailEdit = ref(false);
 
 /* 筛选 */
-const emptyFilter = { store: '', title: '', goodsId: '', seriesCode: '', tpl: '', linkId: '', source: '全部来源', publisher: '', strategy: '全部策略', publishMode: '全部', hitWarn: '全部', listOnFrom: '', listOnTo: '', offFrom: '', offTo: '' };
+const emptyFilter = { store: '', title: '', goodsId: '', seriesCode: '', tpl: '', linkId: '', source: '全部来源', publisher: '', strategy: '全部策略', publishMode: '全部', hitWarn: '全部', priced: '全部', listOnFrom: '', listOnTo: '', offFrom: '', offTo: '' };
 const filter = ref({ ...emptyFilter });
 const applied = ref({ ...emptyFilter });
 const patchFilter = (patch: Partial<typeof emptyFilter>) => { filter.value = { ...filter.value, ...patch }; };
@@ -258,6 +263,7 @@ const rows = computed(() => {
     if (applied.value.publisher && !p.publisher.includes(applied.value.publisher)) return false;
     if (applied.value.source !== '全部来源' && p.source !== applied.value.source) return false;
     if (applied.value.strategy !== '全部策略' && p.strategy !== applied.value.strategy) return false;
+    if (applied.value.priced !== '全部' && sgHasPriceRecord(p) !== (applied.value.priced === '是')) return false;
     return true;
   });
   const k = sortKey.value;
@@ -599,6 +605,10 @@ const onTab = (t: SgTab) => {
             <label>是否命中预警</label>
             <BubbleSelect class-name="sg-select" :value="filter.hitWarn" :options="['全部', '命中预警', '未命中预警']" @change="(v: string) => patchFilter({ hitWarn: v })" />
           </div>
+          <div class="sg-field">
+            <label>是否调价过</label>
+            <BubbleSelect class-name="sg-select" :value="filter.priced" :options="['全部', '是', '否']" @change="(v: string) => patchFilter({ priced: v })" />
+          </div>
         </template>
         <div class="sg-actions">
           <ColFieldPop :st="cfMain" />
@@ -909,6 +919,8 @@ const onTab = (t: SgTab) => {
           <button class="btn danger" @click="confirmDel">确认删除</button>
         </template>
       </Modal>
+      <!-- 调价记录：商品上架时利润率 + 每次调价/涨价执行（时间/类型/改价后利润·利润率），倒序展示 -->
+      <SgPriceRecordModal v-if="priceRecTarget" :product="priceRecTarget" @close="priceRecTarget = null" />
     </div>
 
     <div v-if="offPop.show" class="sg-fail-pop" :style="{ left: offPop.x + 'px', top: offPop.y + 'px' }">

@@ -5,7 +5,9 @@ import { omProducts, toSgProduct } from './data';
 import ProductTable from './ProductTable.vue';
 import SgDetailPage from './SgDetailPage.vue';
 import SgBatchPriceModal from './SgBatchPriceModal.vue';
-import { sgRowActions, SG_CHIPS } from './shopGoodsData';
+import SgPriceRecordModal from './SgPriceRecordModal.vue';
+import { sgRowActions, SG_CHIPS, sgHasPriceRecord } from './shopGoodsData';
+import type { SgProduct } from './shopGoodsData';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import type { BubbleOption } from '../../components/BubbleSelect.vue';
 import { pushToast } from '../../components/toast';
@@ -31,6 +33,8 @@ const onCond = (label: string, v: string) => { condSel.value = { ...condSel.valu
 /* 选择平台 + 商品状态查询条件：两平台状态枚举有差别（视频号含「审核待处理」，淘宝无），状态选项随平台联动 */
 const platform = ref('全部');
 const status = ref('全部');
+/* 是否调价：链接是否使用过「批量调价 / 批量涨价」功能（有调价记录即「是」） */
+const priced = ref('全部');
 const STATUS_OPTIONS = ['全部', '销售中', '审核中', '审核待处理', '已下架', '草稿箱'];
 const statusOptions = computed(() => (platform.value === '淘宝' ? STATUS_OPTIONS.filter((s) => s !== '审核待处理') : STATUS_OPTIONS));
 
@@ -72,6 +76,7 @@ const FILTER_FIELDS: FilterField[] = [
   { key: 'cat1', label: '一级类目', type: 'select', options: CAT1_OPTIONS },
   { key: 'cat2', label: '二级类目', type: 'select', options: CAT2_OPTIONS },
   { key: 'cloudrate', label: '外仓率 %', type: 'range', ph: ['外仓率最小值 %', '外仓率最大值 %'] },
+  { key: 'priced', label: '是否调价', type: 'select', options: ['全部', '是', '否'] },
 ];
 const onPlatform = (v: string) => {
   platform.value = v;
@@ -83,13 +88,23 @@ const rows = computed(() => allRows.value.filter((r) => {
   const okPlat = platform.value === '全部' || r.sg.channel === platform.value;
   const chipDef = SG_CHIPS.find((c) => c.label === status.value);
   const okStatus = !chipDef || chipDef.match(r.sg.status);
-  return okPlat && okStatus;
+  const okPriced = priced.value === '全部'
+    || sgHasPriceRecord(toSgProduct(r, { status: r.sg.status })) === (priced.value === '是');
+  return okPlat && okStatus && okPriced;
 }));
 
-/* 操作列：与店铺商品操作列同步（商品详情 + 状态动作，区分淘宝 / 视频号行状态） */
+/* 操作列：与店铺商品操作列同步（商品详情 + 状态动作，区分淘宝 / 视频号行状态）；调价记录与店铺商品同口径仅对有记录的商品展示 */
 const detail = ref<OmProduct | null>(null);
-const omActions = (r: ProductRow) => sgRowActions((r as OmProduct).sg.status);
-const onAction = (r: ProductRow, a: string) => { if (a === '商品详情') detail.value = r as OmProduct; };
+const priceRecTarget = ref<SgProduct | null>(null);
+const omActions = (r: ProductRow) => {
+  const acts = sgRowActions((r as OmProduct).sg.status);
+  if (sgHasPriceRecord(toSgProduct(r as OmProduct, { status: (r as OmProduct).sg.status }))) acts.push('调价记录');
+  return acts;
+};
+const onAction = (r: ProductRow, a: string) => {
+  if (a === '商品详情') detail.value = r as OmProduct;
+  else if (a === '调价记录') priceRecTarget.value = toSgProduct(r as OmProduct, { status: (r as OmProduct).sg.status });
+};
 
 /* 数字相关列：表头加排序（点击循环 降序→升序→取消） */
 const NUMERIC_KEYS = [
@@ -292,6 +307,7 @@ const onLog = () => {
             <!-- 选择平台/商品状态联动页面状态；其余 select 为演示气泡 -->
             <BubbleSelect v-if="f.type === 'select' && f.key === 'platform'" class-name="id-select" :value="platform" :options="f.options ?? []" @change="(v: string) => onPlatform(v)" />
             <BubbleSelect v-else-if="f.type === 'select' && f.key === 'status'" class-name="id-select" :value="status" :options="statusOptions" @change="(v: string) => (status = v)" />
+            <BubbleSelect v-else-if="f.type === 'select' && f.key === 'priced'" class-name="id-select" :value="priced" :options="f.options ?? []" @change="(v: string) => (priced = v)" />
             <BubbleSelect v-else-if="f.type === 'select'" class-name="id-select" :default-value="f.label" :options="f.options ?? []" />
             <!-- 条件型：先选 低于/高于/等于/介于 再切换值输入区（介于=最小值 至 最大值） -->
             <div v-else-if="f.type === 'cond'" class="id-cond">
@@ -407,6 +423,9 @@ const onLog = () => {
             @ok="pushToast"
           />
         </div>
+
+        <!-- 调价记录：与店铺商品同弹层，上架利润率 + 每次改价明细 -->
+        <SgPriceRecordModal v-if="priceRecTarget" :product="priceRecTarget" @close="priceRecTarget = null" />
       </div>
     </div>
   </div>
