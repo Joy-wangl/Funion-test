@@ -15,7 +15,7 @@ const wait: StepView = { dot: 'wait', v: '待执行', cls: 'wait' };
 const confirmV: StepView = { dot: 'confirm', v: '待确认', cls: 'confirm' };
 
 /** 发布/铺货/搬家类任务：获取链接信息下增加「校验管控商品」节点（任务中心脑图：商品发布组＋自动搬家/自动发布） */
-const PUB_TYPES = ['商品发布', '批量铺货', '快速铺货', '自动发布', '自动搬家'];
+const PUB_TYPES = ['商品发布', '自动发布', '自动搬家'];
 /** 下架类任务两节点（获取商品信息→商品下架） */
 const OFF_TYPES = ['自动下架', '批量下架'];
 /** 调价类任务三节点（商品信息校验→利润测算→商品信息发布） */

@@ -628,8 +628,6 @@ export type SubStatus = 'queued' | 'running' | 'success' | 'failed' | 'confirm';
 export const RISK_CTRL_REASON = '命中我司风险管控商品，该商品禁止上架';
 /** 任务类型标签色：批次列表/详情列表/钻入头部三处同口径 */
 export const TYPE_COLOR: Record<string, string> = {
-  快速铺货: '#4f7cff',
-  批量铺货: '#7c5cff',
   商品发布: '#1f9d55',
   批量调价: '#ff9a2e',
   批量涨价: '#e6455c',
@@ -940,7 +938,7 @@ function buildParent(id: number, status: ParentStatus, day?: string): ParentTask
     id,
     creator: makers[id % 3],
     createTime: `${d} 12:00:00`,
-    type: '快速铺货',
+    type: '商品发布',
     status,
     channel: id % 2 === 0 ? '蜂联' : '智能',
     pubWay: id % 2 === 0 ? '蜂联发布' : '插件发布',
@@ -1185,7 +1183,7 @@ function buildWcParents(): ParentTask[] {
 }
 parentTasks.unshift(...buildWcParents());
 
-/* ---- 其余任务类型种子：批量铺货/批量调价/批量涨价/批量下架/自动发布——类型行计数与五个执行状态均有数据 ---- */
+/* ---- 其余任务类型种子：商品发布补批（原批量铺货并入）/批量调价/批量涨价/批量下架/自动发布——类型行计数与五个执行状态均有数据 ---- */
 const EXTRA_TYPES: {
   type: string;
   prefix: string;
@@ -1197,7 +1195,7 @@ const EXTRA_TYPES: {
   subs: { st: SubStatus; prod: number; reason?: string }[];
 }[] = [
   {
-    type: '批量铺货', prefix: 'BL', maker: '陈葛豪', time: `${TC_TODAY} 08:12:05`, end: `${TC_TODAY} 08:32:41`,
+    type: '商品发布', prefix: 'BL', maker: '陈葛豪', time: `${TC_TODAY} 08:12:05`, end: `${TC_TODAY} 08:32:41`,
     subs: [{ st: 'success', prod: 0 }, { st: 'failed', prod: 1 }, { st: 'confirm', prod: 2 }, { st: 'running', prod: 3 }],
   },
   {
@@ -1221,7 +1219,7 @@ const EXTRA_TYPES: {
   let taskNo = 2244605769230600;
   EXTRA_TYPES.forEach((g, gi) => {
     /* 发布/铺货类含校验管控商品节点：失败样本卡在校验节点，其余类型失败为店铺级 */
-    const pub = g.type === '批量铺货' || g.type === '自动发布';
+    const pub = g.type === '商品发布' || g.type === '自动发布';
     const subs: SubTask[] = g.subs.map((sd, i) => {
       const p = wcProducts[sd.prod % wcProducts.length];
       const unifiedFail = pub && sd.st === 'failed';

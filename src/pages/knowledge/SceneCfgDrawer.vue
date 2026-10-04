@@ -108,8 +108,8 @@ const toggleLeaf = (lv: string) => {
   else dConds.orderStates.push(lv);
   syncStages();
 };
-/* 场景类型选项：刚输入的新类型尚未落库时并入，避免触发器灰显 */
-const groupNames = computed(() => fbScenes.map((g) => g.name));
+/* 场景类型选项：刚输入的新类型尚未落库时并入，避免触发器灰显；固定场景（商品信息咨询=命中商品知识库）不挂兜底场景，排除 */
+const groupNames = computed(() => fbScenes.filter((g) => !g.goodsKb).map((g) => g.name));
 const dTypeOptions = computed(() => (dType.value && !groupNames.value.includes(dType.value) ? [...groupNames.value, dType.value] : groupNames.value));
 
 watch(() => props.open, (v) => {
@@ -117,7 +117,7 @@ watch(() => props.open, (v) => {
   const s = props.scene;
   const g = s ? fbScenes.find((x) => x.subs.some((y) => y.id === s.id)) : null;
   editingKey.value = g && s ? { groupId: g.id, subId: s.id } : null;
-  dType.value = g?.name ?? props.defaultType ?? fbScenes[0]?.name ?? '';
+  dType.value = g?.name ?? props.defaultType ?? fbScenes.find((x) => !x.goodsKb)?.name ?? '';
   dName.value = s?.name ?? '';
   dAct.value = s?.act ?? '智能回复';
   dAiPrompt.value = s?.aiPrompt ?? '';
@@ -155,6 +155,7 @@ const submitScene = () => {
   if (!editingKey.value) {
     if (fbScenes.some((x) => x.subs.some((y) => y.name === name))) { pushToast(`场景「${name}」已存在`, 'warning'); return; }
     let g = fbScenes.find((x) => x.name === typeName);
+    if (g?.goodsKb) { pushToast(`「${typeName}」为固定场景类型（命中商品知识库），不可挂载兜底场景`, 'warning'); return; }
     if (!g) { g = { id: `FS${Date.now()}`, name: typeName, condDef: defaultTypeDef(), semDef: '', questions: [], creator: CUR_USER, createdAt: todayStr(), subs: [] }; fbScenes.push(g); }
     g.subs.push({ id: `FB${Date.now()}`, name, questions: [...qTags.state.tags], kws: [...kwTags.state.tags], conds, act: dAct.value, aiPrompt, replyScript, hits: 0, enabled: true, creator: CUR_USER, createdAt: todayStr(), refs: 0 });
     pushToast(`场景「${name}」已新建`);
@@ -177,6 +178,7 @@ const submitScene = () => {
   /* 大场景变更：迁移到目标大场景（不存在则新建） */
   if (typeName !== srcG.name) {
     let g = fbScenes.find((x) => x.name === typeName);
+    if (g?.goodsKb) { pushToast(`「${typeName}」为固定场景类型（命中商品知识库），不可挂载兜底场景`, 'warning'); return; }
     if (!g) { g = { id: `FS${Date.now()}`, name: typeName, condDef: defaultTypeDef(), semDef: '', questions: [], creator: CUR_USER, createdAt: todayStr(), subs: [] }; fbScenes.push(g); }
     srcG.subs.splice(srcG.subs.indexOf(s), 1);
     g.subs.push(s);

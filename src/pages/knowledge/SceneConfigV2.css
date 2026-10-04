@@ -120,6 +120,7 @@
 .sc2-tc-chips .sc2-stage.售中 { background: var(--color-warning-light); color: var(--color-warning); }
 .sc2-tc-chips .sc2-stage.售后 { background: var(--color-success-light); color: var(--color-success); }
 .sc2-tc-chips .sc2-stage.不限 { background: #f9f0ff; color: #722ed1; }
+.sc2-tc-chips .sc2-stage.kb { background: var(--color-primary-light); color: var(--color-primary); }
 .sc2-sc-meta .sc2-stage { background: #fff; }
 .sc2-sc-meta .sc2-stage.售前 { border: 1px solid var(--color-primary); color: var(--color-primary); }
 .sc2-sc-meta .sc2-stage.售中 { border: 1px solid var(--color-warning); color: var(--color-warning); }
@@ -128,3 +129,20 @@
   padding: 2px 8px; border-radius: var(--radius-sm); font-weight: var(--fw-medium);
   background: #fff; border: 1px solid var(--color-primary); color: var(--color-primary);
 }
+
+/* ---------- 固定场景（商品信息咨询）：命中商品知识库导向面板（不挂本地兜底场景） ---------- */
+.sc2-goods-panel {
+  display: flex; flex-direction: column; gap: 12px; padding: 16px;
+  background: radial-gradient(ellipse at top left, var(--color-primary-light) 0%, #fff 70%);
+  border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+}
+.sc2-goods-head { display: flex; align-items: center; gap: 8px; }
+.sc2-goods-head svg { flex: none; color: var(--color-primary); }
+.sc2-goods-head b { font-size: var(--fs-md); font-weight: 600; color: var(--color-text); }
+.sc2-goods-fix {
+  flex: none; padding: 0 6px; border-radius: 6px; font-style: normal; font-size: var(--fs-aux);
+  background: var(--color-primary-light); color: var(--color-primary);
+}
+.sc2-goods-panel p { font-size: var(--fs-base); color: var(--color-text-2); line-height: 22px; }
+.sc2-goods-meta { display: flex; align-items: center; gap: 12px; font-size: var(--fs-aux); color: var(--color-text-4); }
+.sc2-goods-meta i { font-style: normal; }

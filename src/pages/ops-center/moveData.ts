@@ -11,8 +11,8 @@ export type MvSource = '内部商机' | '店铺商品';
 export const MV_SOURCES: MvSource[] = ['内部商机', '店铺商品'];
 /** 执行方式：循环=指定时间循环；条件触发=满足条件即时触发（长期）；一次性=配置条件只执行一次 */
 export type MvMethod = '循环' | '条件触发' | '一次性';
-/** 任务状态（启用维度）：循环=已启用/已禁用；条件=启用中/已禁用；一次性恒已启用 */
-export type MvTaskStatus = '已启用' | '启用中' | '已禁用';
+/** 任务状态（启用维度）：循环/条件=已启用/已禁用（启用态单一词，与启用/禁用动作对应）；一次性无启用维度 */
+export type MvTaskStatus = '已启用' | '已禁用';
 /** 执行状态（执行维度）：待执行 → 执行中 → 已完成 */
 export type MvExecStatus = '待执行' | '执行中' | '已完成';
 /** 条件配置：行式条件组（当/且或 + 条件指标 + 运算符 + 阈值）；日期型指标取 v1/v2 为区间起止 */
@@ -114,7 +114,7 @@ export interface MvTask {
   maxQty?: number;
   creator: string;
   /** 任务状态（启用维度）与执行状态（执行维度）分列展示；已禁用无执行状态（缺省，列表显 —）；
-      一次性无启用维度（缺省），任务状态列改展执行方式（立即执行/定时执行） */
+      一次性同属启用维度（2026-10-03 四轮定案，用户「一次性的也需要禁用、启用」）；执行方式是配置不是状态，仅抽屉回显 */
   taskStatus?: MvTaskStatus;
   execStatus?: MvExecStatus;
   createdAt: string;
@@ -123,33 +123,28 @@ export interface MvTask {
 export const MV_KINDS: MvKind[] = ['自动搬家', '自动下架', '自动发品'];
 export const MV_METHODS: MvMethod[] = ['循环', '条件触发', '一次性'];
 
-/** 各执行方式的任务状态枚举：循环=已启用/已禁用；条件=启用中/已禁用；一次性无启用维度（空枚举） */
+/** 各执行方式的任务状态枚举：循环/条件/一次性统一=已启用/已禁用（一次性 2026-10-03 四轮纳入启用维度） */
 export const MV_METHOD_TASK_STATUS: Record<MvMethod, MvTaskStatus[]> = {
   循环: ['已启用', '已禁用'],
-  一次性: [],
-  条件触发: ['启用中', '已禁用'],
+  一次性: ['已启用', '已禁用'],
+  条件触发: ['已启用', '已禁用'],
 };
-export const MV_TASK_STATUSES: MvTaskStatus[] = ['已启用', '启用中', '已禁用'];
+export const MV_TASK_STATUSES: MvTaskStatus[] = ['已启用', '已禁用'];
 export const MV_EXEC_STATUSES: MvExecStatus[] = ['待执行', '执行中', '已完成'];
-/** 双维耦合矩阵（任务状态影响执行状态，2026-10-02 用户定案，三轮修正）：已禁用＝无执行状态（列表显 —，禁用即在途收口、不再排队）；
- *  一次性＝无任务状态（启用/禁用不适用），任务状态列改展执行方式（立即执行/定时执行），执行维度 {待执行,执行中,已完成}；
- *  循环=已启用×{待执行,执行中}；条件触发=启用中×{待执行,执行中}。
+/** 双维耦合矩阵（任务状态影响执行状态，2026-10-02 用户定案；2026-10-03 四轮：一次性纳入启用维度、执行方式撤出列表）：已禁用＝无执行状态（列表显 —，禁用即在途收口、不再排队）；
+ *  一次性任务状态列同展已启用/已禁用（启用/禁用动作适用），执行维度 {待执行,执行中,已完成}；
+ *  循环=已启用×{待执行,执行中}；条件触发=已启用×{待执行,执行中}；一次性=已启用×{待执行,执行中,已完成}。
  *  长期任务（循环/条件触发）启用态永不落终态已完成：条件满足即再触发，只有「一次性」执行完毕才收敛为已完成。
  *  种子列表须枚举全部有效组合供核对 */
-/** 新建任务初始状态：循环创建即已启用、条件触发启用中、一次性无启用维度；执行维度一律待执行 */
-export const mvInitTaskStatus = (m: MvMethod): MvTaskStatus | undefined => (m === '条件触发' ? '启用中' : m === '一次性' ? undefined : '已启用');
+/** 新建任务初始状态：一律已启用；执行维度一律待执行 */
+export const mvInitTaskStatus = (): MvTaskStatus => '已启用';
 export const mvInitExecStatus = (): MvExecStatus => '待执行';
 /** 状态圆点色档（圆点+文字形态）：任务状态 已禁用红/其余绿；执行状态 待执行黄/执行中蓝/已完成灰 */
 export const mvTaskDot = (s: MvTaskStatus) => (s === '已禁用' ? 'mv-dot-red' : 'mv-dot-green');
 export const mvExecDot = (s: MvExecStatus) => (s === '待执行' ? 'mv-dot-yellow' : s === '执行中' ? 'mv-dot-blue' : 'mv-dot-gray');
-/** 一次性执行方式展示（与抽屉立即执行/定时执行单选同源）：蓝=立即执行、黄=定时执行 */
-export const mvModeText = (t: MvTask) => (t.execMode === 'scheduled' ? '定时执行' : '立即执行');
-export const mvModeDot = (t: MvTask) => (t.execMode === 'scheduled' ? 'mv-dot-yellow' : 'mv-dot-blue');
-/** 任务状态列统一取值/圆点：一次性取执行方式，其余取 taskStatus */
-export const mvTaskStatusText = (t: MvTask) => (t.method === '一次性' ? mvModeText(t) : t.taskStatus ?? '');
-export const mvTaskStatusDot = (t: MvTask) => (t.method === '一次性' ? mvModeDot(t) : mvTaskDot(t.taskStatus ?? '已启用'));
-/** 任务状态筛选选项：启用维度三态 + 一次性执行方式两态（与列展示值同源，所见即可筛） */
-export const MV_TASK_STATUS_FILTERS: string[] = [...MV_TASK_STATUSES, '立即执行', '定时执行'];
+
+/** 可编辑性（列表操作与抽屉只读共用同一口径）：一次性任务本轮即唯一轮，进入执行中/已完成后配置无生效落点——仅可查看不可编辑 */
+export const mvCanEdit = (t: MvTask) => !(t.method === '一次性' && t.execStatus !== '待执行');
 
 /** 执行配置摘要（列表列直展，与抽屉配置同源） */
 export const mvRunSummary = (t: MvTask) => {
@@ -190,7 +185,7 @@ export const mvTasks: MvTask[] = [
   {
     id: 'at-02', name: '自动搬家-天猫旗舰店动销款至视频号', platform: '视频号', kind: '自动搬家', method: '一次性',
     cond: [{ key: 'c1', conj: '且', metric: '销量', op: '>', v1: '50', v2: '' }], shopIds: ['s3'], targetShopIds: ['v1', 'v3'], strategy: '8801',
-    creator: '李珊珊', execMode: 'immediate', execStatus: '执行中', createdAt: '2026-09-01 15:40',
+    creator: '李珊珊', execMode: 'immediate', taskStatus: '已启用', execStatus: '执行中', createdAt: '2026-09-01 15:40',
   },
   {
     id: 'at-03', name: '上新同步-拼多多优品店', platform: '视频号', kind: '自动搬家', method: '条件触发',
@@ -199,7 +194,7 @@ export const mvTasks: MvTask[] = [
       { key: 'c2', conj: '且', metric: '上架时间', op: '=', v1: '', v2: '', preset: '本月' },
     ],
     shopIds: ['s4'], targetShopIds: ['s1', 's5'], strategy: '13245',
-    creator: '七妮妮', taskStatus: '启用中', execStatus: '执行中', createdAt: '2026-08-11 09:12',
+    creator: '七妮妮', taskStatus: '已启用', execStatus: '执行中', createdAt: '2026-08-11 09:12',
   },
   {
     id: 'at-04', name: '滞销下架-AAA小店与泰有钱', platform: '视频号', kind: '自动下架', method: '条件触发',
@@ -223,7 +218,7 @@ export const mvTasks: MvTask[] = [
       { key: 'c2', conj: '且', metric: '利润率', op: '≥', v1: '15', v2: '' },
     ],
     shopIds: ['s6'], targetShopIds: ['v2'], strategy: '8801',
-    creator: '七妮妮', execMode: 'immediate', execStatus: '已完成', createdAt: '2026-08-18 11:26',
+    creator: '七妮妮', execMode: 'immediate', taskStatus: '已启用', execStatus: '已完成', createdAt: '2026-08-18 11:26',
   },
   {
     id: 'at-07', name: '下架-义乌日用家居超期款', platform: '视频号', kind: '自动下架', method: '一次性',
@@ -232,7 +227,7 @@ export const mvTasks: MvTask[] = [
       { key: 'c2', conj: '或', metric: '销量', op: '<', v1: '3', v2: '' },
     ],
     shopIds: ['s5'],
-    creator: '李珊珊', execMode: 'scheduled', execDate: '2026-10-05', execTime: '10:00', execStatus: '待执行', createdAt: '2026-09-05 14:12',
+    creator: '李珊珊', execMode: 'scheduled', execDate: '2026-10-05', execTime: '10:00', taskStatus: '已启用', execStatus: '待执行', createdAt: '2026-09-05 14:12',
   },
   {
     id: 'at-08', name: '动销裂变-淘系C店至视频号', platform: '视频号', kind: '自动搬家', method: '条件触发',
@@ -241,7 +236,7 @@ export const mvTasks: MvTask[] = [
       { key: 'c2', conj: '且', metric: '利润率', op: '≥', v1: '20', v2: '' },
     ],
     shopIds: ['s7'], targetShopIds: ['v3'], strategy: '13245',
-    creator: '李珊珊', taskStatus: '启用中', execStatus: '执行中', createdAt: '2026-07-30 14:55',
+    creator: '李珊珊', taskStatus: '已启用', execStatus: '执行中', createdAt: '2026-07-30 14:55',
   },
   {
     id: 'at-09', name: '自动发品-视频号新品上架', platform: '视频号', kind: '自动发品', method: '循环',
@@ -268,6 +263,6 @@ export const mvTasks: MvTask[] = [
       { key: 'c2', conj: '且', metric: '上架天数', op: '>', v1: '120', v2: '' },
     ],
     shopIds: ['s7'],
-    creator: '王越', taskStatus: '启用中', execStatus: '待执行', createdAt: '2026-09-11 16:45',
+    creator: '王越', taskStatus: '已启用', execStatus: '待执行', createdAt: '2026-09-11 16:45',
   },
 ];

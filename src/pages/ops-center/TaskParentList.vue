@@ -32,7 +32,7 @@ const COL_W: Record<string, string> = { creator: '160px', type: '120px', status:
 
 const platformOptions = ['全部', '淘宝', '天猫', '拼多多', '抖音', '快手', '京东', '阿里巴巴', '微信视频号小店'];
 /** 类型行（下划线+括号计数）：不含「全部」，全部项单独置首 */
-const PARENT_TYPES = ['快速铺货', '批量铺货', '商品发布', '批量调价', '批量涨价', '批量下架', '自动搬家', '自动下架', '自动发布'];
+const PARENT_TYPES = ['商品发布', '批量调价', '批量涨价', '批量下架', '自动搬家', '自动下架', '自动发布'];
 const pubWayOptions = ['全部', '插件发布', '蜂联发布'];
 
 const parentStatusText: Record<ParentTask['status'], string> = {

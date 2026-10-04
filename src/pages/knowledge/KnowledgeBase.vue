@@ -815,7 +815,7 @@ const shownKnowledge = computed(() => (currentCode.value?.knowledge ?? []).filte
     <GoodsKbV2 v-else-if="kbView === 'v2'" ref="goodsView" />
 
     <!-- 场景配置：非商品范畴咨询的兜底场景库（独立主区，共用左侧导航）；定版 V2 左右结构 -->
-    <SceneConfigV2 v-else-if="kbView === 'scene'" ref="sceneView" />
+    <SceneConfigV2 v-else-if="kbView === 'scene'" ref="sceneView" @go-goods-kb="kbView = 'v2'" />
     <ConversationMining v-else-if="kbView === 'mining'" />
     <SmartReplyRoute v-else-if="kbView === 'reply-route'" @configuration="openConfiguration" />
 

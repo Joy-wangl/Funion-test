@@ -34,7 +34,7 @@ const COL_W: Record<string, string> = { product: '300px', taskType: '120px', nod
 const shownCols = computed(() => (applied.value.type || props.parent ? midCols.value.filter((c) => c.key !== 'taskType') : midCols.value));
 
 const platformOptions = ['全部', '淘宝', '天猫', '拼多多', '抖音', '快手', '京东', '阿里巴巴', '微信视频号小店', '微信小店'];
-const typeOptions = ['快速铺货', '批量铺货', '商品发布', '批量调价', '批量涨价', '批量下架', '自动搬家', '自动下架', '自动发布'];
+const typeOptions = ['商品发布', '批量调价', '批量涨价', '批量下架', '自动搬家', '自动下架', '自动发布'];
 /** 发布方式（与批次视图同枚举）：取所属批次的发布方式 */
 const pubWayOptions = ['全部', '插件发布', '蜂联发布'];
 /** 失败大类 chips（执行失败 tab）：按已应用的任务类型收敛词表，其它=兜底置最后 */

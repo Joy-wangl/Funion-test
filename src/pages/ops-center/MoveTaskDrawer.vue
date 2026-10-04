@@ -4,16 +4,18 @@ import BubbleSelect from '../../components/BubbleSelect.vue';
 import { pushToast } from '../../components/toast';
 import {
   MV_KINDS, MV_METHODS, MV_METHOD_TASK_STATUS, MV_COND_METRIC_NAMES, MV_DATE_PRESETS, MV_RANK_RANGES, MV_WEEK_DAYS, MV_MONTH_DAYS, MV_SOURCES, MV_PLATFORMS, mvInitTaskStatus, mvInitExecStatus,
-  mvMetricMeta, mvShops, mvShopOf,
+  mvMetricMeta, mvShops, mvShopOf, mvCanEdit,
   type MvCondMetric, type MvCondRow, type MvDatePreset, type MvKind, type MvMethod, type MvPlatform, type MvRankRange, type MvSource, type MvTask, type MvTaskStatus,
 } from './moveData';
 import { PLATFORM_LOGO, PUB_STRATEGIES } from './data';
 
-/** 视频号自动化配置抽屉：自动搬家两步（配置含被搬店铺 → 目标店铺），自动下架单页；选店铺置于任务类型与执行方式之间；新建 / 编辑 */
+/** 视频号自动化配置抽屉：自动搬家两步（配置含被搬店铺 → 目标店铺），自动下架单页；选店铺置于任务类型与执行方式之间；新建 / 编辑 / 只读详情 */
 const props = defineProps<{ model: MvTask | null; tasks: MvTask[] }>();
 const emit = defineEmits<{ (e: 'close'): void; (e: 'save', t: MvTask): void }>();
 
 const m = props.model;
+/** 只读详情态：不可编辑的任务（一次性·执行中/已完成）抽屉内做校验——控件禁用、不展示保存/执行按钮 */
+const readonly = !!m && !mvCanEdit(m);
 
 /* 步骤1：任务命名 + 任务类型 + 执行方式（配置选择统一下拉形式） */
 const METHOD_LABEL: Record<MvMethod, string> = { 循环: '循环任务', 条件触发: '条件触发（长期）任务', 一次性: '一次性任务' };
@@ -54,6 +56,7 @@ const execMode = ref<'immediate' | 'scheduled'>('immediate');
 const execDate = ref('');
 const execTimeOne = ref('');
 const openExecDp = (e: Event) => {
+  if (readonly) return;
   const rect = (e.currentTarget as HTMLElement).closest('.mv-cond-date')?.getBoundingClientRect();
   dpPos.value = { x: rect?.left ?? 0, y: (rect?.bottom ?? 0) + 4 };
   const base = execDate.value ? new Date(`${execDate.value}T00:00:00`) : new Date();
@@ -76,6 +79,7 @@ const tpTarget = ref<'cycle' | 'exec'>('cycle');
 const tpH = computed(() => (tpTarget.value === 'cycle' ? cycleTime.value : execTimeOne.value).split(':')[0] ?? '');
 const tpM = computed(() => (tpTarget.value === 'cycle' ? cycleTime.value : execTimeOne.value).split(':')[1] ?? '');
 const openTp = (e: Event) => {
+  if (readonly) return;
   tpTarget.value = 'cycle';
   const rect = (e.currentTarget as HTMLElement).closest('.mv-time-box')?.getBoundingClientRect();
   tpPos.value = { x: rect?.left ?? 0, y: (rect?.bottom ?? 0) + 4 };
@@ -89,6 +93,7 @@ const openTp = (e: Event) => {
   });
 };
 const openExecTp = (e: Event) => {
+  if (readonly) return;
   tpTarget.value = 'exec';
   const rect = (e.currentTarget as HTMLElement).closest('.mv-time-box')?.getBoundingClientRect();
   tpPos.value = { x: rect?.left ?? 0, y: (rect?.bottom ?? 0) + 4 };
@@ -167,6 +172,7 @@ const dpAnchor = ref('');
 const dpIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const dpToday = dpIso(new Date());
 const openDp = (e: Event, r: MvCondRow) => {
+  if (readonly) return;
   const rect = (e.currentTarget as HTMLElement).closest('.mv-cond-date')?.getBoundingClientRect();
   dpPos.value = { x: rect?.left ?? 0, y: (rect?.bottom ?? 0) + 4 };
   const base = r.v1 ? new Date(`${r.v1}T00:00:00`) : new Date();
@@ -313,13 +319,13 @@ const save = () => {
     targetShopIds: kind.value === '自动搬家' ? [...targetIds.value] : undefined,
     source: kind.value === '自动发品' ? source.value : undefined,
     creator: '七妮妮',
-    taskStatus: mvInitTaskStatus(method.value),
+    taskStatus: mvInitTaskStatus(),
     execStatus: mvInitExecStatus(),
     createdAt: '2026-09-13 10:00',
   };
-  /* 任务状态随执行方式枚举回落：编辑改方式后原状态不在新枚举内则重置为初始态（一次性无启用维度=undefined）；执行状态沿用 */
-  const taskStatus: MvTaskStatus | undefined =
-    base.taskStatus && MV_METHOD_TASK_STATUS[method.value].includes(base.taskStatus) ? base.taskStatus : mvInitTaskStatus(method.value);
+  /* 任务状态随执行方式枚举回落：编辑改方式后原状态不在新枚举内则重置为初始态（全方式一律已启用/已禁用）；执行状态沿用 */
+  const taskStatus: MvTaskStatus =
+    base.taskStatus && MV_METHOD_TASK_STATUS[method.value].includes(base.taskStatus) ? base.taskStatus : mvInitTaskStatus();
   emit('save', {
     ...base,
     name: name.value.trim(),
@@ -344,9 +350,9 @@ const save = () => {
 
 <template>
   <div class="mv-drawer-mask" @click.self="emit('close')">
-    <div class="mv-drawer">
+    <div class="mv-drawer" :class="{ 'mv-readonly': readonly }">
       <div class="mv-dr-head">
-        <span class="mv-dr-title">{{ m ? '编辑任务' : '新建任务' }}</span>
+        <span class="mv-dr-title">{{ readonly ? '任务详情' : m ? '编辑任务' : '新建任务' }}</span>
         <span class="mv-dr-x" @click="emit('close')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
         </span>
@@ -356,21 +362,21 @@ const save = () => {
         <div v-if="step === 1">
           <div class="sg-field">
             <label>任务名称<span class="mv-req">*</span></label>
-            <input v-model="name" class="sg-input" placeholder="如 自动搬家-淘宝心选店全店循环" />
+            <input v-model="name" class="sg-input" :readonly="readonly" placeholder="如 自动搬家-淘宝心选店全店循环" />
           </div>
           <div class="sg-field">
             <label>执行平台<span class="mv-req">*</span></label>
-            <BubbleSelect class-name="sg-select" :options="MV_PLATFORMS" :value="platform" :disabled="!!m" @change="setPlatform" />
+            <BubbleSelect class-name="sg-select" :options="MV_PLATFORMS" :value="platform" :disabled="!!m || readonly" @change="setPlatform" />
             <div v-if="m" class="mv-field-hint">任务执行平台创建后不可更改</div>
           </div>
           <div class="sg-field">
             <label>任务类型<span class="mv-req">*</span></label>
-            <BubbleSelect class-name="sg-select" :options="MV_KINDS" :value="kind" @change="(v: string) => (kind = v as MvKind)" />
+            <BubbleSelect class-name="sg-select" :options="MV_KINDS" :value="kind" :disabled="readonly" @change="(v: string) => (kind = v as MvKind)" />
           </div>
           <!-- 商品来源：仅自动发品展示（内部商机/店铺商品） -->
           <div v-if="kind === '自动发品'" class="sg-field">
             <label>商品来源<span class="mv-req">*</span></label>
-            <BubbleSelect class-name="sg-select" :options="MV_SOURCES" :value="source" @change="(v: string) => (source = v as MvSource)" />
+            <BubbleSelect class-name="sg-select" :options="MV_SOURCES" :value="source" :disabled="readonly" @change="(v: string) => (source = v as MvSource)" />
           </div>
           <!-- 自动发品无被搬店铺（被搬的不是我们自己管理的店） -->
           <div v-if="kind !== '自动发品'" class="sg-field">
@@ -379,32 +385,32 @@ const save = () => {
               <span v-for="id in shopIds" :key="id" class="mv-chip">
                 <span class="store-logo"><img :src="PLATFORM_LOGO[mvShopOf(id)?.platform ?? '淘宝']" alt="" /></span>
                 <span class="mv-chip-name">{{ mvShopOf(id)?.name }}</span>
-                <span class="mv-chip-x" @click="removeShop(id)">
+                <span v-if="!readonly" class="mv-chip-x" @click="removeShop(id)">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
                 </span>
               </span>
-              <button type="button" class="mv-chip-add" :aria-label="kind === '自动搬家' ? '选择被搬店铺' : '选择关联店铺'" @click="openPick('source')">
+              <button v-if="!readonly" type="button" class="mv-chip-add" :aria-label="kind === '自动搬家' ? '选择被搬店铺' : '选择关联店铺'" @click="openPick('source')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" /></svg>
               </button>
             </div>
           </div>
           <div class="sg-field">
             <label>执行方式<span class="mv-req">*</span></label>
-            <BubbleSelect class-name="sg-select" :options="METHOD_LABELS" :value="METHOD_LABEL[method]" @change="setMethod" />
+            <BubbleSelect class-name="sg-select" :options="METHOD_LABELS" :value="METHOD_LABEL[method]" :disabled="readonly" @change="setMethod" />
           </div>
           <template v-if="method === '循环'">
             <div class="mv-cycle-grid">
               <div class="sg-field mv-cy-cycle">
                 <label>循环周期<span class="mv-req">*</span></label>
-                <BubbleSelect class-name="sg-select" :value="cycle" :options="MV_CYCLES" @change="setCycle" />
+                <BubbleSelect class-name="sg-select" :value="cycle" :options="MV_CYCLES" :disabled="readonly" @change="setCycle" />
               </div>
               <div v-if="cycle === '每周'" class="sg-field mv-cy-day">
                 <label>星期<span class="mv-req">*</span></label>
-                <BubbleSelect class-name="sg-select" :value="cycleDay" :options="MV_WEEK_DAYS" @change="(v: string) => (cycleDay = v)" />
+                <BubbleSelect class-name="sg-select" :value="cycleDay" :options="MV_WEEK_DAYS" :disabled="readonly" @change="(v: string) => (cycleDay = v)" />
               </div>
               <div v-else-if="cycle === '每月'" class="sg-field mv-cy-day">
                 <label>日期<span class="mv-req">*</span></label>
-                <BubbleSelect class-name="sg-select" :value="cycleDay" :options="MV_MONTH_DAYS" @change="(v: string) => (cycleDay = v)" />
+                <BubbleSelect class-name="sg-select" :value="cycleDay" :options="MV_MONTH_DAYS" :disabled="readonly" @change="(v: string) => (cycleDay = v)" />
               </div>
               <div class="sg-field mv-cy-time">
                 <label>执行时间<span class="mv-req">*</span></label>
@@ -422,10 +428,10 @@ const save = () => {
               <label>执行时间<span class="mv-req">*</span></label>
               <div class="mv-exec-mode">
                 <label class="mv-exec-radio" :class="execMode === 'immediate' ? 'on' : ''">
-                  <input type="radio" v-model="execMode" value="immediate" />立即执行
+                  <input type="radio" v-model="execMode" value="immediate" :disabled="readonly" />立即执行
                 </label>
                 <label class="mv-exec-radio" :class="execMode === 'scheduled' ? 'on' : ''">
-                  <input type="radio" v-model="execMode" value="scheduled" />定时执行
+                  <input type="radio" v-model="execMode" value="scheduled" :disabled="readonly" />定时执行
                 </label>
               </div>
             </div>
@@ -454,7 +460,7 @@ const save = () => {
           <div v-if="kind === '自动发品'" class="sg-field">
             <label>最大数量<span class="mv-req">*</span></label>
             <div class="mv-cond-val mv-maxqty">
-              <input :value="maxQty" inputmode="numeric" placeholder="0-999" @input="setMaxQtyInput(($event.target as HTMLInputElement).value)" @blur="blurMaxQty" />
+              <input :value="maxQty" inputmode="numeric" :readonly="readonly" placeholder="0-999" @input="setMaxQtyInput(($event.target as HTMLInputElement).value)" @blur="blurMaxQty" />
               <span class="mv-cond-unit">件</span>
             </div>
           </div>
@@ -463,12 +469,12 @@ const save = () => {
             <div class="mv-cond-rows">
               <div v-for="(r, i) in condRows" :key="r.key" class="mv-cond-row">
                 <span v-if="i === 0" class="mv-cond-when">当</span>
-                <BubbleSelect v-else class-name="sg-select" :options="['且', '或']" :value="r.conj" class="mv-cond-conj" @change="(v: string) => (r.conj = v as '且' | '或')" />
-                <BubbleSelect class-name="sg-select" :options="MV_COND_METRIC_NAMES" :value="r.metric" class="mv-cond-metric" @change="(v: string) => setRowMetric(r, v)" />
-                <BubbleSelect v-if="mvMetricMeta(r.metric).kind !== 'rank' && r.metric !== '近X日内'" class-name="sg-select" :options="mvMetricMeta(r.metric).ops" :value="r.op" class="mv-cond-op" @change="(v: string) => setRowOp(r, v)" />
+                <BubbleSelect v-else class-name="sg-select" :options="['且', '或']" :value="r.conj" class="mv-cond-conj" :disabled="readonly" @change="(v: string) => (r.conj = v as '且' | '或')" />
+                <BubbleSelect class-name="sg-select" :options="MV_COND_METRIC_NAMES" :value="r.metric" class="mv-cond-metric" :disabled="readonly" @change="(v: string) => setRowMetric(r, v)" />
+                <BubbleSelect v-if="mvMetricMeta(r.metric).kind !== 'rank' && r.metric !== '近X日内'" class-name="sg-select" :options="mvMetricMeta(r.metric).ops" :value="r.op" class="mv-cond-op" :disabled="readonly" @change="(v: string) => setRowOp(r, v)" />
                 <!-- 销量排行：时间范围（昨天/指定起止）＋前N名，无运算符 -->
                 <template v-if="mvMetricMeta(r.metric).kind === 'rank'">
-                  <BubbleSelect class-name="sg-select" :options="MV_RANK_RANGES" :value="r.rankRange ?? '昨天'" class="mv-cond-rangsel" @change="(v: string) => setRowRankRange(r, v)" />
+                  <BubbleSelect class-name="sg-select" :options="MV_RANK_RANGES" :value="r.rankRange ?? '昨天'" class="mv-cond-rangsel" :disabled="readonly" @change="(v: string) => setRowRankRange(r, v)" />
                   <div v-if="(r.rankRange ?? '昨天') === '指定时间范围'" class="mv-cond-val mv-cond-date" @click="openDp($event, r)">
                     <span class="mv-date-text" :class="r.v1 ? '' : 'empty'">{{ r.v1 || '开始日期' }}<i>~</i>{{ r.v2 || '结束日期' }}</span>
                     <span class="mv-cond-clock">
@@ -477,12 +483,12 @@ const save = () => {
                   </div>
                   <div class="mv-cond-val mv-cond-rank">
                     <span class="mv-cond-prefix">前</span>
-                    <input v-model="r.topN" inputmode="numeric" placeholder="N" />
+                    <input v-model="r.topN" inputmode="numeric" :readonly="readonly" placeholder="N" />
                     <span class="mv-cond-unit">名</span>
                   </div>
                 </template>
                 <template v-else-if="mvMetricMeta(r.metric).kind === 'date'">
-                  <BubbleSelect v-if="r.op !== '介于'" class-name="sg-select" :options="MV_DATE_PRESETS" :value="r.preset ?? '自定义时间'" class="mv-cond-preset" @change="(v: string) => setRowPreset(r, v)" />
+                  <BubbleSelect v-if="r.op !== '介于'" class-name="sg-select" :options="MV_DATE_PRESETS" :value="r.preset ?? '自定义时间'" class="mv-cond-preset" :disabled="readonly" @change="(v: string) => setRowPreset(r, v)" />
                   <div
                     v-if="r.op === '介于' || (r.preset ?? '自定义时间') === '自定义时间'"
                     class="mv-cond-val mv-cond-date"
@@ -496,7 +502,7 @@ const save = () => {
                 </template>
                 <template v-else>
                   <div class="mv-cond-val">
-                    <input v-model="r.v1" inputmode="decimal" placeholder="阈值" />
+                    <input v-model="r.v1" inputmode="decimal" :readonly="readonly" placeholder="阈值" />
                     <span v-if="!mvMetricMeta(r.metric).units" class="mv-cond-unit">{{ mvMetricMeta(r.metric).unit }}</span>
                   </div>
                   <!-- 销量较昨日：阈值单位件/%可切 -->
@@ -506,14 +512,15 @@ const save = () => {
                     :options="mvMetricMeta(r.metric).units ?? []"
                     :value="r.unit ?? mvMetricMeta(r.metric).unit"
                     class="mv-cond-unitsel"
+                    :disabled="readonly"
                     @change="(v: string) => (r.unit = v as '件' | '%')"
                   />
                 </template>
-                <button type="button" class="mv-cond-del" aria-label="删除条件" @click="removeCondRow(i)">
+                <button v-if="!readonly" type="button" class="mv-cond-del" aria-label="删除条件" @click="removeCondRow(i)">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" /></svg>
                 </button>
               </div>
-              <div>
+              <div v-if="!readonly">
                 <button type="button" class="mv-cond-add" @click="addCondRow">添加条件</button>
               </div>
             </div>
@@ -523,7 +530,7 @@ const save = () => {
         <div v-else>
           <div class="sg-field">
             <label>发布策略<span class="mv-req">*</span></label>
-            <BubbleSelect class-name="sg-select" :options="MV_STRATEGY_OPTIONS" :value="strategy" @change="(v: string) => (strategy = v)" />
+            <BubbleSelect class-name="sg-select" :options="MV_STRATEGY_OPTIONS" :value="strategy" :disabled="readonly" @change="(v: string) => (strategy = v)" />
           </div>
           <div class="sg-field">
             <label>发布店铺（可多选）<span class="mv-req">*</span></label>
@@ -531,11 +538,11 @@ const save = () => {
               <span v-for="id in targetIds" :key="id" class="mv-chip">
                 <span class="store-logo"><img :src="PLATFORM_LOGO[mvShopOf(id)?.platform ?? '淘宝']" alt="" /></span>
                 <span class="mv-chip-name">{{ mvShopOf(id)?.name }}</span>
-                <span class="mv-chip-x" @click="removeTarget(id)">
+                <span v-if="!readonly" class="mv-chip-x" @click="removeTarget(id)">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
                 </span>
               </span>
-              <button type="button" class="mv-chip-add" aria-label="选择发布店铺" @click="openPick('target')">
+              <button v-if="!readonly" type="button" class="mv-chip-add" aria-label="选择发布店铺" @click="openPick('target')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" /></svg>
               </button>
             </div>
@@ -543,16 +550,18 @@ const save = () => {
         </div>
       </div>
       <div class="mv-dr-foot">
-        <button class="sg-btn" @click="emit('close')">取消</button>
-        <button v-if="(kind === '自动搬家' || kind === '自动发品') && step === 1" class="sg-btn primary" @click="nextStep">下一步</button>
-        <template v-else-if="step === 1">
-          <button v-if="method === '一次性' && execMode === 'immediate'" class="sg-btn primary" @click="save">立即执行</button>
-          <button v-else class="sg-btn primary" @click="save">保存任务</button>
-        </template>
-        <template v-else>
-          <button class="sg-btn" @click="step = 1">上一步</button>
-          <button v-if="method === '一次性' && execMode === 'immediate'" class="sg-btn primary" @click="save">立即执行</button>
-          <button v-else class="sg-btn primary" @click="save">保存任务</button>
+        <button class="sg-btn" @click="emit('close')">{{ readonly ? '关闭' : '取消' }}</button>
+        <template v-if="!readonly">
+          <button v-if="(kind === '自动搬家' || kind === '自动发品') && step === 1" class="sg-btn primary" @click="nextStep">下一步</button>
+          <template v-else-if="step === 1">
+            <button v-if="method === '一次性' && execMode === 'immediate'" class="sg-btn primary" @click="save">立即执行</button>
+            <button v-else class="sg-btn primary" @click="save">保存任务</button>
+          </template>
+          <template v-else>
+            <button class="sg-btn" @click="step = 1">上一步</button>
+            <button v-if="method === '一次性' && execMode === 'immediate'" class="sg-btn primary" @click="save">立即执行</button>
+            <button v-else class="sg-btn primary" @click="save">保存任务</button>
+          </template>
         </template>
       </div>
     </div>

@@ -7,7 +7,7 @@ import Modal from '../../components/Modal.vue';
 import MoreActions from '../../components/MoreActions.vue';
 import SortTh from '../../components/SortTh.vue';
 import { pushToast } from '../../components/toast';
-import { MV_KINDS, MV_METHODS, MV_PLATFORMS, MV_EXEC_STATUSES, MV_TASK_STATUS_FILTERS, mvRunSummary, mvShopOf, mvTaskStatusDot, mvTaskStatusText, mvExecDot, type MvTask, type MvExecStatus } from './moveData';
+import { MV_KINDS, MV_METHODS, MV_PLATFORMS, MV_EXEC_STATUSES, MV_TASK_STATUSES, mvRunSummary, mvShopOf, mvTaskDot, mvExecDot, type MvTask, type MvExecStatus, type MvMethod } from './moveData';
 import { PLATFORM_LOGO } from './data';
 import ColFieldPop from './ColFieldPop.vue';
 import { useColField } from './colFields';
@@ -31,7 +31,7 @@ const { midCols } = cf;
 
 /** 任务列表：自动搬家 / 自动下架两类任务的统一配置清单（状态 + 创建人入列） */
 const props = defineProps<{ tasks: MvTask[] }>();
-const emit = defineEmits<{ (e: 'create'): void; (e: 'edit', t: MvTask): void }>();
+const emit = defineEmits<{ (e: 'create'): void; (e: 'detail', t: MvTask): void }>();
 
 /** 顶部 chips=执行状态维度（参考版口径）；任务状态走筛选下拉 */
 const chip = ref<'全部' | MvExecStatus>('全部');
@@ -47,7 +47,7 @@ const doReset = () => { filter.value = { ...emptyFilter }; applied.value = { ...
 const rows = computed(() => {
   const out = props.tasks.filter((t) => {
     if (chip.value !== '全部' && t.execStatus !== chip.value) return false;
-    if (applied.value.taskStatus !== '全部' && mvTaskStatusText(t) !== applied.value.taskStatus) return false;
+    if (applied.value.taskStatus !== '全部' && (t.taskStatus ?? '') !== applied.value.taskStatus) return false;
     if (applied.value.name && !t.name.includes(applied.value.name) && !t.id.includes(applied.value.name)) return false;
     if (applied.value.platform !== '全部' && t.platform !== applied.value.platform) return false;
     if (applied.value.kind !== '全部' && t.kind !== applied.value.kind) return false;
@@ -78,55 +78,47 @@ const sortState = () => sortDir.value;
 /* 执行方式标签：复用全局 .tag 系统（循环=灰 / 条件触发=橙 / 一次性=绿），与品控等模块标签同款 */
 const methodTag = (m: MvTask['method']) => (m === '条件触发' ? 'tag orange' : m === '一次性' ? 'tag green' : 'tag');
 
-/* 生命周期按维度拆分：启用/禁用作用于任务状态（条件/循环），立即执行作用于执行状态（一次性，原「启动」改名）；
+/* 生命周期按维度拆分：启用/禁用作用于任务状态（全方式含一次性，2026-10-03 四轮定案），立即执行作用于执行状态（一次性·已启用·待执行）；
    双维耦合：已禁用即无执行状态（禁用收口在途并清空排队），重新启用后回到待执行；
    在途执行（执行中）不可禁用：禁用入口隐藏，待本轮执行结束（回到待执行）后才可禁用 */
 const stopPatch = (): Partial<MvTask> => ({ taskStatus: '已禁用', execStatus: undefined });
-const runAct = (t: MvTask): { label: string; patch: Partial<MvTask>; msg: string } | null => {
-  if (t.method === '条件触发') {
-    if (t.taskStatus === '启用中') {
-      return t.execStatus === '执行中'
-        ? null
-        : { label: '禁用', patch: stopPatch(), msg: `已禁用：任务「${t.name}」停止条件监听` };
-    }
-    return { label: '启用', patch: { taskStatus: '启用中', execStatus: '待执行' }, msg: `已启用：任务「${t.name}」恢复条件监听` };
-  }
-  if (t.method === '循环') {
-    if (t.taskStatus === '已启用') {
-      return t.execStatus === '执行中'
-        ? null
-        : { label: '禁用', patch: stopPatch(), msg: `已禁用：任务「${t.name}」停止循环` };
-    }
-    return { label: '启用', patch: { taskStatus: '已启用', execStatus: '待执行' }, msg: `已启用：任务「${t.name}」恢复循环执行` };
-  }
-  return t.execStatus === '待执行'
+const TOGGLE_MSG: Record<MvMethod, { on: string; off: string }> = {
+  循环: { off: '停止循环', on: '恢复循环执行' },
+  条件触发: { off: '停止条件监听', on: '恢复条件监听' },
+  一次性: { off: '停止执行', on: '恢复待执行' },
+};
+const toggleAct = (t: MvTask): { label: string; patch: Partial<MvTask>; msg: string } | null => {
+  if (t.taskStatus === '已禁用') return { label: '启用', patch: { taskStatus: '已启用', execStatus: '待执行' }, msg: `已启用：任务「${t.name}」${TOGGLE_MSG[t.method].on}` };
+  if (t.execStatus === '执行中') return null;
+  return { label: '禁用', patch: stopPatch(), msg: `已禁用：任务「${t.name}」${TOGGLE_MSG[t.method].off}` };
+};
+const execAct = (t: MvTask): { label: string; patch: Partial<MvTask>; msg: string } | null =>
+  t.method === '一次性' && t.taskStatus === '已启用' && t.execStatus === '待执行'
     ? { label: '立即执行', patch: { execStatus: '执行中' }, msg: `已立即执行：任务「${t.name}」开始执行` }
     : null;
-};
-const applyRun = (t: MvTask) => {
-  const act = runAct(t);
-  if (!act) return;
+const applyAct = (t: MvTask, act: { label: string; patch: Partial<MvTask>; msg: string }) => {
   Object.assign(t, act.patch);
   pushToast(act.msg);
 };
 
-/* 操作矩阵全表（2026-10-02 用户拍板）：执行中＝在途保护态——删除隐藏（在途批次不可无主）、循环/条件可编辑（改动下一轮生效）、
-   一次性禁编辑（本轮即唯一轮，改配置无生效落点）；一次性已完成配置已消耗——编辑撤掉、仅留删除作归档清理 */
-const canEdit = (t: MvTask) => !(t.method === '一次性' && t.execStatus !== '待执行');
+/* 操作矩阵全表（2026-10-02 用户拍板）：执行中＝在途保护态——删除隐藏（在途批次不可无主）、循环/条件可编辑（改动下一轮生效）；
+   一次性禁编辑（本轮即唯一轮，改配置无生效落点）、一次性已完成配置已消耗——仅留删除作归档清理。
+   详情全行直出（2026-10-04 用户定案）：不可编辑的任务抽屉内做校验＝只读态不展示保存/执行按钮 */
 const canDel = (t: MvTask) => t.execStatus !== '执行中';
 
-/* 操作列：≤3 全部平铺、超出才收「更多」（与 ShopGoodsPage 同口径）；删除强提醒二次确认 */
+/* 操作列：直出≤2 链接、超出收「更多」（docs/UI设计规范 §2.7）；删除强提醒二次确认 */
 type MvOp = { label: string; danger?: boolean; run: () => void };
 const mvOps = (t: MvTask): MvOp[] => {
-  const ops: MvOp[] = [];
-  if (canEdit(t)) ops.push({ label: '编辑', run: () => emit('edit', t) });
-  const run = runAct(t);
-  if (run) ops.push({ label: run.label, run: () => applyRun(t) });
+  const ops: MvOp[] = [{ label: '详情', run: () => emit('detail', t) }];
+  const ex = execAct(t);
+  if (ex) ops.push({ label: ex.label, run: () => applyAct(t, ex) });
+  const tg = toggleAct(t);
+  if (tg) ops.push({ label: tg.label, run: () => applyAct(t, tg) });
   if (canDel(t)) ops.push({ label: '删除', danger: true, run: () => (delTarget.value = t) });
   return ops;
 };
-const flatOps = (t: MvTask) => mvOps(t).slice(0, 3);
-const moreOps = (t: MvTask) => mvOps(t).slice(3).map((o) => ({ label: o.label, danger: o.danger, onClick: o.run }));
+const flatOps = (t: MvTask) => mvOps(t).slice(0, 2);
+const moreOps = (t: MvTask) => mvOps(t).slice(2).map((o) => ({ label: o.label, danger: o.danger, onClick: o.run }));
 const delTarget = ref<MvTask | null>(null);
 const confirmDel = () => {
   const t = delTarget.value;
@@ -180,7 +172,7 @@ const confirmDel = () => {
         </div>
         <div class="sg-field">
           <label>任务状态</label>
-          <BubbleSelect class-name="sg-select" :value="filter.taskStatus" :options="['全部', ...MV_TASK_STATUS_FILTERS]" @change="(v: string) => (filter.taskStatus = v)" />
+          <BubbleSelect class-name="sg-select" :value="filter.taskStatus" :options="['全部', ...MV_TASK_STATUSES]" @change="(v: string) => (filter.taskStatus = v)" />
         </div>
         <div class="sg-field">
           <label>创建人</label>
@@ -232,10 +224,12 @@ const confirmDel = () => {
                   <div class="mv-methodline"><span :class="methodTag(t.method)">{{ t.method }}</span></div>
                 </td>
                 <td v-else-if="c.key === 'taskStatus'">
-                  <span class="sg-status">
-                    <span class="sg-dot" :class="mvTaskStatusDot(t)" />
-                    <span>{{ mvTaskStatusText(t) }}</span>
+                  <!-- 任务状态＝启用维度纯状态（全方式含一次性）；已禁用无执行状态在执行状态列显 — -->
+                  <span v-if="t.taskStatus" class="sg-status">
+                    <span class="sg-dot" :class="mvTaskDot(t.taskStatus)" />
+                    <span>{{ t.taskStatus }}</span>
                   </span>
+                  <span v-else class="mv-none">—</span>
                 </td>
                 <td v-else-if="c.key === 'execStatus'">
                   <span v-if="t.execStatus" class="sg-status">

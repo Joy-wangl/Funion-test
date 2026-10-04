@@ -15,7 +15,9 @@ const emit = defineEmits<{ (e: 'configuration', target: RouteConfigTarget): void
 const received: RouteStep = { name: '收到用户消息', state: 'pass', reason: '已收到买家的咨询消息。', ms: 8 };
 const admitted: RouteStep = { name: '确认回复方式', state: 'pass', reason: '店铺已开启智能回复，当前由 AI 接待。', ms: 12 };
 const productContext: RouteStep = { name: '了解咨询信息', state: 'pass', reason: '咨询商品编码为 FEN-24；买家处于售前阶段，尚未下单。', ms: 20 };
-const noKnowledge: RouteStep = { name: '查找商品知识', state: 'miss', reason: '商品已识别，但未找到与本次提问匹配的商品知识。', ms: 80 };
+/* 处理链路定稿（2026-10-04 领导口径）：优先匹配场景 → 命中导向型场景（商品信息咨询）后按场景内信息查询商品知识库 → 确定回复方式；
+   不导向知识库的场景直接按场景配置答复（查找商品知识=未执行）；未命中任何场景则不查知识库、走默认兜底 */
+const sceneNoKb: RouteStep = { name: '查找商品知识', state: 'skip', reason: '命中的场景不导向商品知识库，直接按场景配置的回复要求答复，无需查询商品知识。' };
 const sceneCandidate = {
   id: 'FB01', kind: 'scene' as const, name: '店铺地址咨询', parent: '店铺信息咨询', result: '采用' as const,
   reason: '与配置问法“有实体店吗”一致；店铺信息咨询不限阶段和订单状态，店铺地址咨询场景已启用且不限阶段。',
@@ -36,15 +38,15 @@ const baseContext = [
 const records: ReplyRouteRecord[] = [
   {
     id: 'PREVIEW-001', sessionId: 'SESSION-01', messageId: 'MSG-001', time: '2026-09-25 10:20:00',
-    text: '鞋子码数准吗', hit: '商品知识', outcome: 'AI已回复', reason: '已匹配“尺码选购”商品知识，回复已成功发送给买家。', reasonCode: 'KNOWLEDGE_REPLY_SENT', elapsed: 1240,
+    text: '鞋子码数准吗', hit: '商品知识', outcome: 'AI已回复', reason: '先命中场景「商品信息咨询」，再按场景查询商品知识库命中“尺码选购”，回复已成功发送给买家。', reasonCode: 'KNOWLEDGE_REPLY_SENT', elapsed: 1240,
     reply: '这款偏小半码，脚背偏高或脚型偏胖建议拍大一码，您可以参考商品页的尺码对照表选择。', context: baseContext,
     steps: [received, admitted, productContext,
-      { name: '查找商品知识', state: 'pass', reason: '与“尺码选购”的配置问法“鞋子码数准吗”一致，咨询商品 FEN-24 也符合该知识的商品范围。', ms: 100 },
-      { name: '匹配咨询场景', state: 'skip', reason: '已匹配商品知识，无需再匹配咨询场景。' },
+      { name: '匹配咨询场景', state: 'pass', reason: '优先匹配场景：咨询内容为尺码等商品本身信息，命中场景类型「商品信息咨询」，该场景导向商品知识库。', ms: 60 },
+      { name: '查找商品知识', state: 'pass', reason: '按场景「商品信息咨询」查询商品知识库：与“尺码选购”的配置问法“鞋子码数准吗”一致，咨询商品 FEN-24 也符合该知识的商品范围。', ms: 100 },
       { name: '确定回复方式', state: 'pass', reason: '采用“尺码选购”商品知识作为回复依据。', ms: 20 },
       { name: '生成回复内容', state: 'pass', reason: '已根据“尺码选购”商品知识生成尺码建议。', ms: 980 },
       { name: '发送给买家', state: 'pass', reason: '平台确认回复已成功发送给买家。', ms: 100 }],
-    candidates: [{ id: 'KN001', kind: 'knowledge', productId: 'K001', code: 'FEN-24', name: '尺码选购', parent: '儿童轻便运动鞋系列 / FEN-24', result: '采用', reason: '买家提问与配置问法一致，咨询商品也符合该知识的商品范围；并非仅凭关键词采用其他商品的知识。', evidence: [
+    candidates: [{ id: 'KN001', kind: 'knowledge', productId: 'K001', code: 'FEN-24', name: '尺码选购', parent: '儿童轻便运动鞋系列 / FEN-24', result: '采用', reason: '由场景「商品信息咨询」导向查询商品知识库：买家提问与配置问法一致，咨询商品也符合该知识的商品范围；并非仅凭关键词采用其他商品的知识。', evidence: [
       { field: '商品范围', expected: '商品编码 FEN-24', actual: '咨询商品编码 FEN-24', result: '通过' },
       { field: '配置问法', expected: '鞋子码数准吗', actual: '鞋子码数准吗', result: '通过' },
       { field: '关键词', expected: '偏码 / 尺码 / 码数', actual: '码数', result: '通过' },
@@ -52,10 +54,11 @@ const records: ReplyRouteRecord[] = [
   },
   {
     id: 'PREVIEW-002', sessionId: 'SESSION-01', messageId: 'MSG-003', time: '2026-09-25 10:21:00',
-    text: '有实体店吗', hit: '场景', outcome: 'AI已回复', reason: '商品知识未匹配，采用“店铺地址咨询”场景，回复已发送给买家。', reasonCode: 'SCENE_REPLY_SENT', elapsed: 1160,
+    text: '有实体店吗', hit: '场景', outcome: 'AI已回复', reason: '优先命中“店铺地址咨询”场景（不导向商品知识库），回复已发送给买家。', reasonCode: 'SCENE_REPLY_SENT', elapsed: 1160,
     reply: '我们是线上店铺，商品由仓库直接发出，您可以在店铺内选购。', context: baseContext,
-    steps: [received, admitted, productContext, noKnowledge,
+    steps: [received, admitted, productContext,
       { name: '匹配咨询场景', state: 'pass', reason: '符合“店铺信息咨询”的适用条件，且与“店铺地址咨询”的配置问法一致。', ms: 140 },
+      sceneNoKb,
       { name: '确定回复方式', state: 'pass', reason: '采用“店铺地址咨询”场景，按设置由 AI 回复。', ms: 20 },
       { name: '生成回复内容', state: 'pass', reason: '已根据“店铺地址咨询”的回复要求生成店铺说明。', ms: 780 },
       { name: '发送给买家', state: 'pass', reason: '平台确认回复已成功发送给买家。', ms: 100 }],
@@ -65,8 +68,9 @@ const records: ReplyRouteRecord[] = [
     id: 'PREVIEW-003', sessionId: 'SESSION-01', messageId: 'MSG-005', time: '2026-09-25 10:22:00',
     text: '能开发票吗', hit: '未命中', outcome: '转人工', reason: '“发票咨询”仅适用于售后已签收订单；买家尚未下单，因此未采用该场景，已转人工。', reasonCode: 'SCENE_CONDITION_MISMATCH', elapsed: 360,
     reply: '', context: baseContext,
-    steps: [received, admitted, productContext, noKnowledge,
+    steps: [received, admitted, productContext,
       { name: '匹配咨询场景', state: 'miss', reason: '符合“服务政策咨询”的适用条件，问法也与“发票咨询”一致；但该场景仅适用于售后已签收订单，买家正在售前咨询且尚未下单，因此未采用。', ms: 140 },
+      { name: '查找商品知识', state: 'skip', reason: '未命中导向商品知识库的场景，未查询商品知识。' },
       { name: '确定回复方式', state: 'pass', reason: '没有可用的商品知识或场景，按默认设置转人工。', ms: 100 },
       { name: '生成回复内容', state: 'skip', reason: '已转人工接待，无需生成 AI 回复。' },
       { name: '发送给买家', state: 'skip', reason: '本条咨询转人工接待，未发送 AI 回复。' }],
@@ -86,8 +90,9 @@ const records: ReplyRouteRecord[] = [
     id: 'PREVIEW-004', sessionId: 'SESSION-02', messageId: 'MSG-008', time: '2026-09-25 10:24:00',
     text: '有实体店吗', hit: '场景', outcome: '发送失败', reason: '已匹配“店铺地址咨询”并生成回复，但平台发送失败，买家未收到这条 AI 回复。', reasonCode: 'PLATFORM_SEND_FAILED', elapsed: 1450,
     reply: '我们是线上店铺，商品由仓库直接发出。', context: baseContext,
-    steps: [received, admitted, productContext, noKnowledge,
+    steps: [received, admitted, productContext,
       { name: '匹配咨询场景', state: 'pass', reason: '已匹配“店铺地址咨询”场景。', ms: 140 },
+      sceneNoKb,
       { name: '确定回复方式', state: 'pass', reason: '采用“店铺地址咨询”场景，按设置由 AI 回复。', ms: 20 },
       { name: '生成回复内容', state: 'pass', reason: '回复内容已生成。', ms: 870 },
       { name: '发送给买家', state: 'error', reason: '平台发送失败，买家未收到这条 AI 回复。', ms: 300 }],
@@ -100,8 +105,8 @@ const records: ReplyRouteRecord[] = [
     steps: [received,
       { name: '确认回复方式', state: 'miss', reason: '李四已接管会话，由客服继续回复，AI 不再自动回复。', ms: 12 },
       { name: '了解咨询信息', state: 'skip', reason: '客服已接管，无需重新识别咨询信息；此处显示此前已有的会话信息。' },
-      { name: '查找商品知识', state: 'skip', reason: '客服已接管，无需查找商品知识。' },
       { name: '匹配咨询场景', state: 'skip', reason: '客服已接管，无需匹配咨询场景。' },
+      { name: '查找商品知识', state: 'skip', reason: '客服已接管，无需查找商品知识。' },
       { name: '确定回复方式', state: 'skip', reason: '客服已接管，无需再确定 AI 回复方式。' },
       { name: '生成回复内容', state: 'skip', reason: '客服已接管，无需生成 AI 回复。' },
       { name: '发送给买家', state: 'skip', reason: '客服已接管，无需发送 AI 回复。' }], candidates: [],
@@ -110,8 +115,9 @@ const records: ReplyRouteRecord[] = [
     id: 'PREVIEW-006', sessionId: 'SESSION-03', messageId: 'MSG-012', time: '2026-09-25 10:26:00',
     text: '有实体店吗', hit: '场景', outcome: '生成失败', reason: '已匹配“店铺地址咨询”，但等待 30 秒仍未生成回复，因此未发送。', reasonCode: 'MODEL_TIMEOUT', elapsed: 30280,
     reply: '', context: baseContext,
-    steps: [received, admitted, productContext, noKnowledge,
+    steps: [received, admitted, productContext,
       { name: '匹配咨询场景', state: 'pass', reason: '已匹配“店铺地址咨询”场景。', ms: 140 },
+      sceneNoKb,
       { name: '确定回复方式', state: 'pass', reason: '采用“店铺地址咨询”场景，按设置由 AI 回复。', ms: 20 },
       { name: '生成回复内容', state: 'error', reason: '等待 30 秒仍未生成完整回复，已停止等待。', ms: 30000 },
       { name: '发送给买家', state: 'skip', reason: '未能生成回复内容，因此未向买家发送消息。' }], candidates: [sceneCandidate],
@@ -120,8 +126,9 @@ const records: ReplyRouteRecord[] = [
     id: 'PREVIEW-007', sessionId: 'SESSION-03', messageId: 'MSG-013', time: '2026-09-25 10:27:00',
     text: '请问有实体店吗', hit: '场景', outcome: '处理中', reason: '已匹配“店铺地址咨询”，AI 正在生成回复，尚未发送给买家。', reasonCode: 'GENERATION_IN_PROGRESS', elapsed: null,
     reply: '', context: baseContext,
-    steps: [received, admitted, productContext, noKnowledge,
+    steps: [received, admitted, productContext,
       { name: '匹配咨询场景', state: 'pass', reason: '买家在咨询实体店，提问包含“店铺地址咨询”的关键词“实体店”。', ms: 140 },
+      sceneNoKb,
       { name: '确定回复方式', state: 'pass', reason: '采用“店铺地址咨询”场景，按设置由 AI 回复。', ms: 20 },
       { name: '生成回复内容', state: 'running', reason: '正在生成回复内容。' },
       { name: '发送给买家', state: 'unknown', reason: '等待回复生成后再发送。' }],

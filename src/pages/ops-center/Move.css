@@ -1,6 +1,6 @@
 /* 自动化中心-视频号自动化：mv- 前缀；通用筛选/表格/徽章复用 sg-* 与 badge-* */
 
-/* 任务状态圆点色档（圆点+文字形态，色值取全局 token）：红=已禁用 / 黄=待执行 / 蓝=执行中 / 灰=已完成 / 绿=启用中 */
+/* 任务状态圆点色档（圆点+文字形态，色值取全局 token）：红=已禁用 / 黄=待执行 / 蓝=执行中 / 灰=已完成 / 绿=已启用 */
 .ops-center .sg-dot.mv-dot-red { background: var(--color-danger); }
 .ops-center .sg-dot.mv-dot-yellow { background: var(--color-warning); }
 .ops-center .sg-dot.mv-dot-blue { background: var(--color-primary); }
@@ -83,6 +83,11 @@
 .ops-center .mv-drawer .sg-field:last-child { margin-bottom: 0; }
 .ops-center .mv-drawer .sg-field > label { font-size: var(--fs-base); color: #4a5468; }
 .ops-center .mv-req { color: #ff6a6f; margin-left: 2px; }
+/* 只读详情态：值类输入着浅底示不可改（下拉/芯片增删由控件自身 disabled / v-if 收口） */
+.ops-center .mv-drawer .sg-input[readonly],
+.ops-center .mv-drawer .mv-cond-val input[readonly] { background: #f5f6f8; cursor: default; }
+.ops-center .mv-drawer.mv-readonly .mv-time-box,
+.ops-center .mv-drawer.mv-readonly .mv-cond-date { cursor: default; }
 /* 循环配置行：周期 + 动态周几/几号 + 执行时间，宽度按内容定死免拉伸 */
 .ops-center .mv-cycle-grid { display: flex; gap: 12px; }
 .ops-center .mv-cycle-grid .mv-cy-cycle { width: 120px; flex: none; }

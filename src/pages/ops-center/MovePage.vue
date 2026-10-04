@@ -9,10 +9,10 @@ import { pushToast } from '../../components/toast';
 /** 自动化中心-视频号自动化：纯任务维度清单 + 配置抽屉 */
 const tasks = ref<MvTask[]>(mvTasks);
 
-/* 配置抽屉：editing 空=新建 */
+/* 配置抽屉：editing 空=新建；非空=详情/编辑（抽屉内按可编辑性决定只读或可改） */
 const drawer = ref<{ open: boolean; editing: MvTask | null }>({ open: false, editing: null });
 const openCreate = () => { drawer.value = { open: true, editing: null }; };
-const openEdit = (t: MvTask) => { drawer.value = { open: true, editing: t }; };
+const openDetail = (t: MvTask) => { drawer.value = { open: true, editing: t }; };
 const saveTask = (t: MvTask) => {
   const i = tasks.value.findIndex((x) => x.id === t.id);
   if (i >= 0) {
@@ -28,7 +28,7 @@ const saveTask = (t: MvTask) => {
 
 <template>
   <div class="sg-page mv-page">
-    <MoveTasks :tasks="tasks" @create="openCreate" @edit="openEdit" />
+    <MoveTasks :tasks="tasks" @create="openCreate" @detail="openDetail" />
 
     <MoveTaskDrawer
       v-if="drawer.open"
