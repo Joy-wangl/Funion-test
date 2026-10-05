@@ -55,7 +55,7 @@ const openMatch = (s: TSku) => { matchSku.value = { code: s.src.code, series: s.
 /* ---------- 推荐素材（素材库选用） ---------- */
 /* 演示映射：淘宝/视频号详情关联素材库商品ID TB-5101（XL-C300 系列下淘宝ID），抽屉按其系列展开商品编码与类型素材 */
 const KB_PRODUCT_ID = 'TB-5101';
-type KbTarget = 'mainImgs' | 'detailImgs' | 'videos' | 'whiteImg' | 'sceneImg';
+type KbTarget = 'mainImgs' | 'thumbs' | 'detailImgs' | 'videos' | 'whiteImg' | 'sceneImg';
 const kbPick = ref<{ type: MaterialType; target: KbTarget; title: string } | null>(null);
 const openKbPick = (type: MaterialType, target: KbTarget, title: string) => { kbPick.value = { type, target, title }; };
 /* 确认选用：选中素材回填对应模块（单图位取首张覆盖，图集/视频追加） */
@@ -70,6 +70,12 @@ const onKbConfirm = (list: CbMaterial[]) => {
     d.mainImgs.splice(0, d.mainImgs.length, urls[0]);
     pushToast(`已选用素材至「${pick.title}」`);
     return;
+  }
+  /* 1:1主图（首图区）为图集：追加选用素材，空位时首张同步为列表封面 */
+  else if (pick.target === 'thumbs') {
+    const wasEmpty = d.thumbs.length === 0;
+    d.thumbs.push(...urls);
+    if (wasEmpty) setCover(d.thumbs[0]);
   }
   else if (pick.target === 'detailImgs') d.detailImgs.push(...urls);
   else if (pick.target === 'videos') d.videos.push(...urls);
@@ -545,9 +551,11 @@ const uploadMain = (files: File[]) => {
   d.mainImgs.splice(0, d.mainImgs.length, URL.createObjectURL(f));
   pushToast('已上传3:4主图');
 };
-/* 更换3:4主图抽屉：图片类型多，气泡放不下，改右侧抽屉按类型分组磁贴选源 */
+/* 更换3:4主图抽屉：图片类型多，气泡放不下，改右侧抽屉按类型分组磁贴选源（1:1主图首图区更换复用同一抽屉） */
 const pickOpen = ref(false);
 const repIdx = ref(0);
+/* 更换目标：main＝3:4主图单图槽位；thumb＝1:1主图（首图区）图集；detail/white/scene＝下方图片区块 */
+const pickTarget = ref<'main' | 'thumb' | 'detail' | 'white' | 'scene'>('main');
 /* 分组磁贴：按图片类型分区（跨组去重），空组不展示 */
 const pickGroups = computed(() => {
   const seen = new Set<string>();
@@ -557,7 +565,7 @@ const pickGroups = computed(() => {
   };
   return [
     grp('3:4主图', d.mainImgs),
-    grp('商品图', [props.row.thumb, ...d.thumbs]),
+    grp('1:1主图', [props.row.thumb, ...d.thumbs]),
     grp('宝贝详情图', d.detailImgs),
     grp('白底图', [d.whiteImg]),
     grp('场景图', [d.sceneImg]),
@@ -570,7 +578,34 @@ const pickSrcGroups = computed(() => pickGroups.value.map((g) => ({
 })));
 const openReplace = (i: number) => {
   repIdx.value = i;
+  pickTarget.value = 'main';
   pickOpen.value = true;
+};
+const openThumbReplace = (i: number) => {
+  repIdx.value = i;
+  pickTarget.value = 'thumb';
+  pickOpen.value = true;
+};
+/* 更换回写：1:1主图首张即列表封面，同步回写 row.thumb */
+const writeReplace = (url: string) => {
+  if (pickTarget.value === 'thumb') {
+    d.thumbs[repIdx.value] = url;
+    if (repIdx.value === 0) setCover(url);
+    pushToast('已更换1:1主图');
+  } else if (pickTarget.value === 'detail') {
+    d.detailImgs[repIdx.value] = url;
+    pushToast('已更换商品详情图');
+  } else if (pickTarget.value === 'white') {
+    d.whiteImg = url;
+    pushToast('已更换白底图');
+  } else if (pickTarget.value === 'scene') {
+    d.sceneImg = url;
+    pushToast('已更换场景图');
+  } else {
+    d.mainImgs[repIdx.value] = url;
+    pushToast('已更换3:4主图');
+  }
+  pickOpen.value = false;
 };
 const repFileRef = ref<HTMLInputElement | null>(null);
 const pickRepFile = () => repFileRef.value?.click();
@@ -579,21 +614,65 @@ const onRepFile = (e: Event) => {
   const f = el.files?.[0];
   el.value = '';
   if (!f) return;
-  d.mainImgs[repIdx.value] = URL.createObjectURL(f);
-  pickOpen.value = false;
-  pushToast('已更换3:4主图');
+  writeReplace(URL.createObjectURL(f));
 };
-const pickRepImg = (src: string) => {
-  d.mainImgs[repIdx.value] = src;
-  pickOpen.value = false;
-  pushToast('已更换3:4主图');
-};
+const pickRepImg = (src: string) => writeReplace(src);
 /* 删除3:4主图：二次确认后清空槽位 */
 const deleteMain = (i: number) => {
   askConfirm('删除3:4主图', '删除后该位置将为空，可重新上传或选用商品图片，确认删除？', () => {
     d.mainImgs.splice(i, 1);
     pushToast('已删除3:4主图');
   });
+};
+/* 详情图/白底图/场景图区块：与主图同口径四类操作（查看=点击预览、更换=选图抽屉、推荐素材、删除=二次确认） */
+type BlockKey = 'detailImgs' | 'whiteImg' | 'sceneImg';
+const BLOCK_LABEL: Record<BlockKey, string> = { detailImgs: '商品详情图', whiteImg: '白底图', sceneImg: '场景图' };
+const replaceFor = (key: BlockKey) => (i: number) => {
+  repIdx.value = i;
+  pickTarget.value = key === 'detailImgs' ? 'detail' : key === 'whiteImg' ? 'white' : 'scene';
+  pickOpen.value = true;
+};
+const uploadFor = (key: BlockKey) => (files: File[]) => {
+  const urls = files.map((f) => URL.createObjectURL(f));
+  if (!urls.length) return;
+  if (key === 'detailImgs') d.detailImgs.push(...urls);
+  else if (key === 'whiteImg') d.whiteImg = urls[0];
+  else d.sceneImg = urls[0];
+  pushToast(`已上传${BLOCK_LABEL[key]}`);
+};
+const deleteFor = (key: BlockKey) => (i: number) => {
+  askConfirm(`删除${BLOCK_LABEL[key]}`, '删除后该位置将为空，可重新上传或选用商品图片，确认删除？', () => {
+    if (key === 'detailImgs') d.detailImgs.splice(i, 1);
+    else if (key === 'whiteImg') d.whiteImg = '';
+    else d.sceneImg = '';
+    pushToast(`已删除${BLOCK_LABEL[key]}`);
+  });
+};
+/* 单图槽位按空值过滤：空时不渲染破图磁贴，删除后恢复上传/推荐素材位 */
+const whiteImgs = computed(() => (d.whiteImg ? [d.whiteImg] : []));
+const sceneImgs = computed(() => (d.sceneImg ? [d.sceneImg] : []));
+/* ---------- 1:1主图（首图区）：上传 / 更换 / 删除 / 推荐素材；第一张即列表封面，改动同步 row.thumb ---------- */
+const setCover = (u: string) => { props.row.thumb = u; };
+const thumbFileRef = ref<HTMLInputElement | null>(null);
+const onThumbFiles = (e: Event) => {
+  const el = e.target as HTMLInputElement;
+  const files = el.files ? [...el.files] : [];
+  el.value = '';
+  if (!files.length) return;
+  const wasEmpty = d.thumbs.length === 0;
+  d.thumbs.push(...files.map((f) => URL.createObjectURL(f)));
+  if (wasEmpty) setCover(d.thumbs[0]);
+  pushToast(`已上传 ${files.length} 张1:1主图`);
+};
+/* 删除1:1主图：二次确认；删首图时后一张顶替为封面 */
+const deleteThumb = (i: number) => {
+  askConfirm('删除1:1主图', i === 0
+    ? '该图为1:1主图第一张（首图），删除后由后一张顶替为首图并同步更新列表封面，确认删除？'
+    : '删除后该图片将从1:1主图中移除，确认删除？', () => {
+      d.thumbs.splice(i, 1);
+      if (i === 0) setCover(d.thumbs[0] ?? '');
+      pushToast('已删除1:1主图');
+    });
 };
 /* 裁剪结果回写：替换当前预览图；白底图/场景图预览传的是临时数组，回写字段以同步缩略图 */
 const commitSize = (url: string) => {
@@ -703,7 +782,22 @@ watch(previewList, (v) => {
                 <span v-if="wmViewOf(`thumbs#${i}`)!.status === 'running'" class="cpd-wm-spin" />
                 <b v-else class="cpd-wm-queue">排队中</b>
               </i>
+              <!-- 1:1主图编辑态悬浮操作：更换（抽屉选源）/ 删除（二次确认，删首图后一张顶替） -->
+              <i v-if="editing" class="cpd-img-ops">
+                <button type="button" @click.stop="openThumbReplace(i)">更换</button>
+                <button type="button" @click.stop="deleteThumb(i)">删除</button>
+              </i>
             </span>
+            <!-- 1:1主图上传位与推荐素材位：与缩略图同宽同构，追加至图集末尾 -->
+            <button v-if="editing" type="button" class="cpd-thumb-add" title="上传1:1主图" @click="thumbFileRef?.click()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+              上传
+            </button>
+            <button v-if="editing" type="button" class="cpd-thumb-add kb" title="从素材库选用1:1主图" @click="openKbPick('主图', 'thumbs', '1:1主图')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l1.8 4.7 4.7 1.8-4.7 1.8L12 17l-1.8-4.7-4.7-1.8 4.7-1.8z" /></svg>
+              推荐
+            </button>
+            <input ref="thumbFileRef" type="file" accept="image/*" multiple class="cpd-file-hidden" @change="onThumbFiles">
           </div>
           <span
             class="cpd-wmbox"
@@ -964,6 +1058,9 @@ watch(previewList, (v) => {
       add-label="添加图片"
       :on-preview="(i) => openPreview(d.detailImgs, i)"
       :wm-of="(i) => wmViewOf(`detail#${i}`)"
+      :on-upload="uploadFor('detailImgs')"
+      :on-replace="replaceFor('detailImgs')"
+      :on-delete="deleteFor('detailImgs')"
       kb-pick
       :on-kb-pick="() => openKbPick('详情图', 'detailImgs', '商品详情')"
     />
@@ -980,20 +1077,30 @@ watch(previewList, (v) => {
     <CpdMediaSec
       title="通用商品白底图"
       note="宽高800*800，所报名商品台的白底图，纯白边，图片饱满（上下贴边或左右贴边），将作为个性化素材展示"
-      :imgs="[d.whiteImg]"
+      :imgs="whiteImgs"
       :editing="editing"
+      :single="true"
+      add-label="添加图片"
       :on-preview="(i) => openPreview([d.whiteImg], i)"
       :wm-of="() => wmViewOf(`single:${d.whiteImg}#0`)"
+      :on-upload="uploadFor('whiteImg')"
+      :on-replace="replaceFor('whiteImg')"
+      :on-delete="deleteFor('whiteImg')"
       kb-pick
       :on-kb-pick="() => openKbPick('白底图', 'whiteImg', '通用商品白底图')"
     />
     <CpdMediaSec
       title="通用商品场景图(非必填)"
       note="基本要求：带有背景，无牛皮癣，主体清晰完整不变形、不拼图、不含图、不留白边，建议主体突出与背景和谐。背景不宜过于复杂，色调自然。格式要求：800*800px，JPG/JPEG、小于3M"
-      :imgs="[d.sceneImg]"
+      :imgs="sceneImgs"
       :editing="editing"
+      :single="true"
+      add-label="添加图片"
       :on-preview="(i) => openPreview([d.sceneImg], i)"
       :wm-of="() => wmViewOf(`single:${d.sceneImg}#0`)"
+      :on-upload="uploadFor('sceneImg')"
+      :on-replace="replaceFor('sceneImg')"
+      :on-delete="deleteFor('sceneImg')"
       kb-pick
       :on-kb-pick="() => openKbPick('场景图', 'sceneImg', '通用商品场景图')"
     />

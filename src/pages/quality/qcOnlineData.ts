@@ -50,6 +50,8 @@ const NAME_POOL = [
   '围裙', '手套', '马克笔', '纸巾盒', '挂钩排', '密封罐', '烤盘', '蒸架', '杯刷', '门垫',
 ];
 const SPEC_POOL = ['', '', '', '(2件装)', '(4)', '(大号)', '(加粗)', '(套装)'];
+/* 系列编码＝商品系列简称（如 袜子、冬季手套）：前缀+品类词+规格后缀；XL-/SP- 为内部主键与商品编码，不作系列编码展示 */
+const SERIES_PREFIX = ['冬季', '夏季', '加厚', '轻薄', '家用', '户外', '儿童', '创意'];
 
 /** 首页固定行（与线上截图一致；平台枚举沿用原型六平台口径） */
 const PAGE1: { name: string; orders: number; refundRate: number; afterSales: number; chatRiskHits: number; platforms: Platform[]; hits: [string, number][] }[] = [
@@ -188,7 +190,7 @@ export const onlineSeries = (): QcCenterSeries[] => {
   /* 第一遍：先生成属性与权重，订单量按权重归一化，保证总量精确且单行不为负 */
   const attrs: { name: string; ratio: number; refundRate: number; chatRiskHits: number; plats: Platform[]; hits: [string, number][]; codeCount: number; w: number }[] = [];
   for (let i = out.length; i < ONLINE_TOTAL; i++) {
-    const name = `${NAME_POOL[Math.floor(rnd() * NAME_POOL.length)]}${SPEC_POOL[Math.floor(rnd() * SPEC_POOL.length)]}`;
+    const name = `${SERIES_PREFIX[Math.floor(rnd() * SERIES_PREFIX.length)]}${NAME_POOL[Math.floor(rnd() * NAME_POOL.length)]}${SPEC_POOL[Math.floor(rnd() * SPEC_POOL.length)]}`;
     const refundRate = Math.round((0.005 + rnd() * 0.055) * 1000) / 1000;
     const ratio = 0.01 + rnd() * 0.03;
     const chatRiskHits = rnd() < 0.6 ? 0 : Math.floor(rnd() * 60);
@@ -202,7 +204,7 @@ export const onlineSeries = (): QcCenterSeries[] => {
       if (remain[t] <= 0) types.splice(types.indexOf(t), 1);
       hits.push([t, c]);
     }
-    attrs.push({ name: `${name}(${i})`, ratio, refundRate, chatRiskHits, plats, hits, codeCount: 1 + Math.floor(rnd() * 2), w: 0.4 + rnd() });
+    attrs.push({ name, ratio, refundRate, chatRiskHits, plats, hits, codeCount: 1 + Math.floor(rnd() * 2), w: 0.4 + rnd() });
   }
   const page1Sum = out.reduce((s, x) => s + x.orders, 0);
   const genTarget = ONLINE_OV.orders - page1Sum;
@@ -791,12 +793,15 @@ export const onlineAfterBrief = (): OnlineSceneBrief => {
     口径：会话按命中打包，约四成会话（索引 i%5<=1）由售后起因并挂链；
     挂链数按各系列售后类型占比分摊到「退货退款/仅退款」与「换货/补发」两组。
     仅用系列级聚合量确定性推算，避免物化 2 万余系列逐单。 */
-let afterSessionBrief: { sessions: number; refund: number; exchReship: number } | null = null;
-export const onlineAfterSessionBrief = (): { sessions: number; refund: number; exchReship: number } => {
+let afterSessionBrief: { sessions: number; refund: number; exchReship: number; probSessions: number; probRefund: number; probExchReship: number } | null = null;
+export const onlineAfterSessionBrief = (): { sessions: number; refund: number; exchReship: number; probSessions: number; probRefund: number; probExchReship: number } => {
   if (afterSessionBrief) return afterSessionBrief;
   let sessions = 0;
   let refund = 0;
   let exchReship = 0;
+  let probSessions = 0;
+  let probRefund = 0;
+  let probExchReship = 0;
   onlineSeries().forEach((s) => {
     const total = s.afterSales;
     if (!total) return;
@@ -812,8 +817,15 @@ export const onlineAfterSessionBrief = (): { sessions: number; refund: number; e
     const toRf = Math.round((linked * rf) / total);
     refund += toRf;
     exchReship += linked - toRf;
+    /* 问题会话数口径：关联会话中约三分之二（索引 i%3<=1）同时命中问题；
+       类型组按与挂链数相同的退款占比拆分，保证问题会话数恒不大于关联会话数 */
+    probSessions += 2 * Math.floor(L / 3) + Math.min(2, L % 3);
+    const probLinked = 2 * Math.floor(linked / 3) + Math.min(2, linked % 3);
+    const toRfProb = Math.round((probLinked * rf) / total);
+    probRefund += toRfProb;
+    probExchReship += probLinked - toRfProb;
   });
-  afterSessionBrief = { sessions, refund, exchReship };
+  afterSessionBrief = { sessions, refund, exchReship, probSessions, probRefund, probExchReship };
   return afterSessionBrief;
 };
 

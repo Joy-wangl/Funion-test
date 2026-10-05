@@ -14,8 +14,11 @@ const props = defineProps<{ model: MvTask | null; tasks: MvTask[] }>();
 const emit = defineEmits<{ (e: 'close'): void; (e: 'save', t: MvTask): void }>();
 
 const m = props.model;
-/** 只读详情态：不可编辑的任务（一次性·执行中/已完成）抽屉内做校验——控件禁用、不展示保存/执行按钮 */
-const readonly = !!m && !mvCanEdit(m);
+/** 查看/编辑两种按钮态（2026-10-04 二轮定案）：存量任务一律查看态进；仅可编辑（已启用×待执行）经底部「编辑」钮切编辑态；
+ *  不可编辑（执行中/已完成/已禁用）只支持查看——不展示「编辑」钮即抽屉内校验 */
+const canEditTask = !m || mvCanEdit(m);
+const mode = ref<'view' | 'edit'>(m ? 'view' : 'edit');
+const readonly = computed(() => mode.value === 'view');
 
 /* 步骤1：任务命名 + 任务类型 + 执行方式（配置选择统一下拉形式） */
 const METHOD_LABEL: Record<MvMethod, string> = { 循环: '循环任务', 条件触发: '条件触发（长期）任务', 一次性: '一次性任务' };
@@ -51,12 +54,12 @@ const setCycle = (v: string) => {
   if (v === '每周' && !MV_WEEK_DAYS.includes(cycleDay.value)) cycleDay.value = '周一';
   if (v === '每月' && !MV_MONTH_DAYS.includes(cycleDay.value)) cycleDay.value = '1号';
 };
-/* 一次性任务执行时间：立即执行 / 定时执行（日期+时分） */
-const execMode = ref<'immediate' | 'scheduled'>('immediate');
-const execDate = ref('');
-const execTimeOne = ref('');
+/* 一次性任务执行时间：立即执行 / 定时执行（日期+时分）；编辑态须回显存量值，否则定时任务被误显/误存为立即执行 */
+const execMode = ref<'immediate' | 'scheduled'>(m?.execMode ?? 'immediate');
+const execDate = ref(m?.execDate ?? '');
+const execTimeOne = ref(m?.execTime ?? '');
 const openExecDp = (e: Event) => {
-  if (readonly) return;
+  if (readonly.value) return;
   const rect = (e.currentTarget as HTMLElement).closest('.mv-cond-date')?.getBoundingClientRect();
   dpPos.value = { x: rect?.left ?? 0, y: (rect?.bottom ?? 0) + 4 };
   const base = execDate.value ? new Date(`${execDate.value}T00:00:00`) : new Date();
@@ -79,7 +82,7 @@ const tpTarget = ref<'cycle' | 'exec'>('cycle');
 const tpH = computed(() => (tpTarget.value === 'cycle' ? cycleTime.value : execTimeOne.value).split(':')[0] ?? '');
 const tpM = computed(() => (tpTarget.value === 'cycle' ? cycleTime.value : execTimeOne.value).split(':')[1] ?? '');
 const openTp = (e: Event) => {
-  if (readonly) return;
+  if (readonly.value) return;
   tpTarget.value = 'cycle';
   const rect = (e.currentTarget as HTMLElement).closest('.mv-time-box')?.getBoundingClientRect();
   tpPos.value = { x: rect?.left ?? 0, y: (rect?.bottom ?? 0) + 4 };
@@ -93,7 +96,7 @@ const openTp = (e: Event) => {
   });
 };
 const openExecTp = (e: Event) => {
-  if (readonly) return;
+  if (readonly.value) return;
   tpTarget.value = 'exec';
   const rect = (e.currentTarget as HTMLElement).closest('.mv-time-box')?.getBoundingClientRect();
   tpPos.value = { x: rect?.left ?? 0, y: (rect?.bottom ?? 0) + 4 };
@@ -172,7 +175,7 @@ const dpAnchor = ref('');
 const dpIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const dpToday = dpIso(new Date());
 const openDp = (e: Event, r: MvCondRow) => {
-  if (readonly) return;
+  if (readonly.value) return;
   const rect = (e.currentTarget as HTMLElement).closest('.mv-cond-date')?.getBoundingClientRect();
   dpPos.value = { x: rect?.left ?? 0, y: (rect?.bottom ?? 0) + 4 };
   const base = r.v1 ? new Date(`${r.v1}T00:00:00`) : new Date();
@@ -296,12 +299,14 @@ const validConfig = (needShops: boolean) => {
 /* 自动搬家：条件配置完成后下一步进入目标店铺选择；自动发品/自动下架直接保存 */
 const step = ref(1);
 const nextStep = () => { if (validConfig(true)) step.value = 2; };
+/* 主按钮文案：新建一次性·立即执行=立即执行（带二次确认），其余=保存任务；编辑存量任务一律保存（改配置而非重新发起执行） */
+const saveLabel = computed(() => (m ? '保存' : method.value === '一次性' && execMode.value === 'immediate' ? '立即执行' : '保存任务'));
 /* 确认立即执行二次弹窗 */
 const confirmImmediate = ref(false);
 
-const save = () => {
-  if (method.value === '一次性' && execMode.value === 'immediate' && step.value === 2) {
-    /* 一次性+立即执行：先弹二次确认 */
+const save = (fromConfirm = false) => {
+  if (!fromConfirm && !m && method.value === '一次性' && execMode.value === 'immediate' && step.value === 2) {
+    /* 新建一次性+立即执行：先弹二次确认（确认回调带 fromConfirm 直达保存，避免重复弹窗） */
     confirmImmediate.value = true;
     return;
   }
@@ -551,16 +556,20 @@ const save = () => {
       </div>
       <div class="mv-dr-foot">
         <button class="sg-btn" @click="emit('close')">{{ readonly ? '关闭' : '取消' }}</button>
-        <template v-if="!readonly">
+        <!-- 查看态：两步任务可翻页看配置；「编辑」钮仅可编辑任务展示（不可编辑=只支持查看） -->
+        <template v-if="readonly">
+          <button v-if="(kind === '自动搬家' || kind === '自动发品') && step === 1" class="sg-btn" @click="step = 2">下一步</button>
+          <button v-if="(kind === '自动搬家' || kind === '自动发品') && step === 2" class="sg-btn" @click="step = 1">上一步</button>
+          <button v-if="canEditTask" class="sg-btn primary" @click="mode = 'edit'">编辑</button>
+        </template>
+        <template v-else>
           <button v-if="(kind === '自动搬家' || kind === '自动发品') && step === 1" class="sg-btn primary" @click="nextStep">下一步</button>
           <template v-else-if="step === 1">
-            <button v-if="method === '一次性' && execMode === 'immediate'" class="sg-btn primary" @click="save">立即执行</button>
-            <button v-else class="sg-btn primary" @click="save">保存任务</button>
+            <button class="sg-btn primary" @click="save()">{{ saveLabel }}</button>
           </template>
           <template v-else>
             <button class="sg-btn" @click="step = 1">上一步</button>
-            <button v-if="method === '一次性' && execMode === 'immediate'" class="sg-btn primary" @click="save">立即执行</button>
-            <button v-else class="sg-btn primary" @click="save">保存任务</button>
+            <button class="sg-btn primary" @click="save()">{{ saveLabel }}</button>
           </template>
         </template>
       </div>
@@ -613,7 +622,7 @@ const save = () => {
         </div>
         <div class="mv-confirm-foot">
           <button class="sg-btn" @click="confirmImmediate = false">取消</button>
-          <button class="sg-btn primary" @click="confirmImmediate = false; save()">确认执行</button>
+          <button class="sg-btn primary" @click="confirmImmediate = false; save(true)">确认执行</button>
         </div>
       </div>
     </div>

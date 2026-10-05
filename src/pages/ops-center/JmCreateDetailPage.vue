@@ -5,6 +5,7 @@ import { sgJmDetail } from './shopGoodsData';
 import { pushToast } from '../../components/toast';
 import { requestVsImg } from '../../components/globalMsgData';
 import CpdMediaSec from './CpdMediaSec.vue';
+import CpdPickDrawer from './CpdPickDrawer.vue';
 import ImgSizeCrop from './ImgSizeCrop.vue';
 import MaterialCenter from './MaterialCenter.vue';
 import KbPickDrawer from '../code-kb/KbPickDrawer.vue';
@@ -340,6 +341,77 @@ const onKbConfirm = (list: CbMaterial[]) => {
   pushToast(`已添加 ${list.length} 个素材至「${pick.title}」`);
 };
 
+/* ---------- 图片区块四类操作（编辑态）：查看=点击预览；更换=选图抽屉（商品其它图片/本地上传）；推荐素材=素材库；删除=二次确认 ---------- */
+type ImgKey = 'mainImgs' | 'rectImgs' | 'detailPc' | 'detailApp' | 'whiteImg' | 'transparentImg' | 'sceneImg';
+const IMG_LABEL: Record<ImgKey, string> = {
+  mainImgs: '主图（方图）', rectImgs: '长图', detailPc: '商品详情（PC端）', detailApp: '商品详情（APP端）',
+  whiteImg: '白底图', transparentImg: '透明图', sceneImg: '场景图',
+};
+/* 单图槽位：长图为数组仅取首张；白底/透明/场景为字符串槽位，按空值过滤避免破图磁贴 */
+const rectImgsOne = computed(() => d.rectImgs.slice(0, 1));
+const whiteImgs = computed(() => (d.whiteImg ? [d.whiteImg] : []));
+const transparentImgs = computed(() => (d.transparentImg ? [d.transparentImg] : []));
+const sceneImgs = computed(() => (d.sceneImg ? [d.sceneImg] : []));
+const setImgAt = (key: ImgKey, i: number, url: string) => {
+  if (key === 'whiteImg') d.whiteImg = url;
+  else if (key === 'transparentImg') d.transparentImg = url;
+  else if (key === 'sceneImg') d.sceneImg = url;
+  else if (key === 'rectImgs') d.rectImgs.splice(i, 1, url);
+  else d[key].splice(i, 1, url);
+};
+const removeImgAt = (key: ImgKey, i: number) => {
+  if (key === 'whiteImg') d.whiteImg = '';
+  else if (key === 'transparentImg') d.transparentImg = '';
+  else if (key === 'sceneImg') d.sceneImg = '';
+  else if (key === 'rectImgs') d.rectImgs.splice(i, 1);
+  else d[key].splice(i, 1);
+};
+/* 更换选图抽屉：按图片类型分组磁贴（跨组去重），空组不展示 */
+const pickOpen = ref(false);
+const repKey = ref<ImgKey>('mainImgs');
+const repIdx = ref(0);
+const replaceFor = (key: ImgKey) => (i: number) => { repKey.value = key; repIdx.value = i; pickOpen.value = true; };
+const pickGroups = computed(() => {
+  /* 组内去重即可：演示种子跨组复用同一批 URL，跨组去重会把后续组清空 */
+  const grp = (label: string, imgs: string[]) => {
+    const s = new Set<string>();
+    return { label, imgs: imgs.filter((u) => !!u && !s.has(u) && s.add(u)) };
+  };
+  return [
+    grp('商品图', [props.row.thumb]),
+    grp('主图（方图）', d.mainImgs),
+    grp('长图', d.rectImgs),
+    grp('商品详情（PC端）', d.detailPc),
+    grp('商品详情（APP端）', d.detailApp),
+    grp('白底图', [d.whiteImg]),
+    grp('透明图', [d.transparentImg]),
+    grp('场景图', [d.sceneImg]),
+  ].filter((g) => g.imgs.length > 0);
+});
+const writeReplace = (url: string) => {
+  setImgAt(repKey.value, repIdx.value, url);
+  pickOpen.value = false;
+  pushToast(`已更换${IMG_LABEL[repKey.value]}`);
+};
+const onPickLocal = (files: File[]) => {
+  const f = files[0];
+  if (f) writeReplace(URL.createObjectURL(f));
+};
+const uploadFor = (key: ImgKey) => (files: File[]) => {
+  const urls = files.map((f) => URL.createObjectURL(f));
+  if (!urls.length) return;
+  if (key === 'whiteImg' || key === 'transparentImg' || key === 'sceneImg') setImgAt(key, 0, urls[0]);
+  else if (key === 'rectImgs') { if (d.rectImgs.length) d.rectImgs.splice(0, 1, urls[0]); else d.rectImgs.push(urls[0]); }
+  else d[key].push(...urls);
+  pushToast(`已上传${IMG_LABEL[key]}`);
+};
+const deleteFor = (key: ImgKey) => (i: number) => {
+  askConfirm(`删除${IMG_LABEL[key]}`, '删除后该位置将为空，可重新上传或选用商品图片，确认删除？', () => {
+    removeImgAt(key, i);
+    pushToast(`已删除${IMG_LABEL[key]}`);
+  });
+};
+
 /* ---------- 图片预览 ---------- */
 const previewList = ref<string[]>([]);
 const previewIdx = ref(0);
@@ -590,17 +662,24 @@ onBeforeUnmount(() => {
       :editing="editing"
       add-label="添加图片"
       :on-preview="(i) => openPreview(d.mainImgs, i)"
+      :on-upload="uploadFor('mainImgs')"
+      :on-replace="replaceFor('mainImgs')"
+      :on-delete="deleteFor('mainImgs')"
       kb-pick
       :on-kb-pick="() => openKbPick('主图', 'mainImgs', '主图（方图）')"
     />
     <CpdMediaSec
       title="长图"
       note="商品长图 material.rectangleImages：非必填，最多1张，比例3:4（部分类目可使用），尺寸480*640~1125*1500px，小于3M"
-      :imgs="d.rectImgs"
+      :imgs="rectImgsOne"
       :ratio34="true"
       :editing="editing"
+      :single="true"
       add-label="添加图片"
       :on-preview="(i) => openPreview(d.rectImgs, i)"
+      :on-upload="uploadFor('rectImgs')"
+      :on-replace="replaceFor('rectImgs')"
+      :on-delete="deleteFor('rectImgs')"
       kb-pick
       :on-kb-pick="() => openKbPick('主图', 'rectImgs', '长图')"
     />
@@ -611,6 +690,9 @@ onBeforeUnmount(() => {
       :editing="editing"
       add-label="添加图片"
       :on-preview="(i) => openPreview(d.detailPc, i)"
+      :on-upload="uploadFor('detailPc')"
+      :on-replace="replaceFor('detailPc')"
+      :on-delete="deleteFor('detailPc')"
       kb-pick
       :on-kb-pick="() => openKbPick('详情图', 'detailPc', '商品详情（PC端）')"
     />
@@ -621,33 +703,51 @@ onBeforeUnmount(() => {
       :editing="editing"
       add-label="添加图片"
       :on-preview="(i) => openPreview(d.detailApp, i)"
+      :on-upload="uploadFor('detailApp')"
+      :on-replace="replaceFor('detailApp')"
+      :on-delete="deleteFor('detailApp')"
       kb-pick
       :on-kb-pick="() => openKbPick('详情图', 'detailApp', '商品详情（APP端）')"
     />
     <CpdMediaSec
       title="白底图"
       note="白底图 material.whiteBackGroundImages：非必填，最多1张，纯白边、无牛皮癣/logo/阴影，图片饱满，将作为个性化素材展示"
-      :imgs="[d.whiteImg]"
+      :imgs="whiteImgs"
       :editing="editing"
+      :single="true"
+      add-label="添加图片"
       :on-preview="(i) => openPreview([d.whiteImg], i)"
+      :on-upload="uploadFor('whiteImg')"
+      :on-replace="replaceFor('whiteImg')"
+      :on-delete="deleteFor('whiteImg')"
       kb-pick
       :on-kb-pick="() => openKbPick('白底图', 'whiteImg', '白底图')"
     />
     <CpdMediaSec
       title="透明图"
       note="透明图 material.transparentImages：非必填，最多1张，透明背景商品图，用于搜索/活动素材"
-      :imgs="[d.transparentImg]"
+      :imgs="transparentImgs"
       :editing="editing"
+      :single="true"
+      add-label="添加图片"
       :on-preview="(i) => openPreview([d.transparentImg], i)"
+      :on-upload="uploadFor('transparentImg')"
+      :on-replace="replaceFor('transparentImg')"
+      :on-delete="deleteFor('transparentImg')"
       kb-pick
       :on-kb-pick="() => openKbPick('白底图', 'transparentImg', '透明图')"
     />
     <CpdMediaSec
       title="场景图(非必填)"
       note="场景图 SKU素材 sku-materials：非必填，最多1张，带有背景、无牛皮癣、主体清晰完整，建议800*800px，JPG/JPEG、小于3M"
-      :imgs="[d.sceneImg]"
+      :imgs="sceneImgs"
       :editing="editing"
+      :single="true"
+      add-label="添加图片"
       :on-preview="(i) => openPreview([d.sceneImg], i)"
+      :on-upload="uploadFor('sceneImg')"
+      :on-replace="replaceFor('sceneImg')"
+      :on-delete="deleteFor('sceneImg')"
       kb-pick
       :on-kb-pick="() => openKbPick('场景图', 'sceneImg', '场景图')"
     />
@@ -695,6 +795,15 @@ onBeforeUnmount(() => {
         </template>
       </div>
     </div>
+
+    <!-- 更换图片选图抽屉：商品其它图片分组磁贴 / 本地上传 -->
+    <CpdPickDrawer
+      :open="pickOpen"
+      :groups="pickGroups"
+      @close="pickOpen = false"
+      @pick="writeReplace"
+      @local="onPickLocal"
+    />
 
     <!-- 推荐素材选用抽屉（素材库） -->
     <KbPickDrawer

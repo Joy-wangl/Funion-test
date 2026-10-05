@@ -250,12 +250,16 @@ const doDelete = () => {
     </main>
   </div>
 
-  <!-- 子问题新建/编辑：名称 → 关键词标签 → 责任部门 -->
+  <!-- 子问题新建/编辑：名称 → AI分析提示语 → 关键词标签 → 责任部门 -->
   <Modal v-if="form" :title="form.id ? '编辑子问题' : '新增子问题'" :sub="form.id ? form.name : `归属大类：${active}`" size="md" @close="form = null">
     <div class="opt-form">
       <div class="sg-field">
         <label>子问题名称</label>
         <input class="sg-input" :value="form.name" placeholder="如：数量不足" @input="form.name = ($event.target as HTMLInputElement).value">
+      </div>
+      <div class="sg-field">
+        <label>AI分析提示语</label>
+        <textarea class="qa-textarea" rows="3" placeholder="命中判定口径说明" :value="form.desc" @input="form.desc = ($event.target as HTMLTextAreaElement).value" />
       </div>
       <div class="sg-field">
         <label>关键词</label>

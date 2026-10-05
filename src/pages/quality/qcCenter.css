@@ -1252,3 +1252,6 @@
 
 /* 空态文案 */
 .qc-center-page .qc-tp-none { padding: 3px 0; font-size: 12px; color: var(--text-4); }
+
+/* 评价申诉（复刻运营中心模块）作用域壳：ra-* 样式以 .ops-center 为前缀，此处仅借其作用域、去掉灰底贴合品控壳背景 */
+.qc-center-page .ra-qc-scope { background: transparent; }

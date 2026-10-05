@@ -81,18 +81,27 @@
 
 /* 店铺信息列：只展示店铺名称 */
 .ops-center .ra-shop { color: var(--color-text-2); white-space: nowrap; }
+.ops-center .ra-shop .plat-logo { width: 16px; height: 16px; border-radius: 4px; object-fit: cover; vertical-align: -3px; margin-right: 6px; }
 
-/* 评价人列：只保留昵称，避免头像占用列表信息位 */
-.ops-center .ra-user { display: flex; align-items: flex-start; min-width: 0; }
-.ops-center .ra-user-name { font-size: var(--fs-base); color: var(--color-text); font-weight: var(--fw-regular); max-width: 120px; }
+/* 评价信息列：评价人昵称主行 + 评价时间灰行，合并单列 */
+.ops-center .ra-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ops-center .ra-info-name {
+  font-size: var(--fs-base); color: var(--color-text); font-weight: var(--fw-regular);
+  max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ops-center .ra-info-time { font-size: var(--fs-aux); color: var(--color-text-3); white-space: nowrap; }
+/* 申诉信息列：申诉状态标签主行 + 申诉时间灰行，合并单列 */
+.ops-center .ra-appeal-info { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
 
-/* 评价内容列：评分标签 + 正文 + 附图 */
+/* 评价内容列：评分标签 + 类型灰行 + 正文 + 附图 */
 .ops-center .ra-rating {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: var(--fs-aux); font-weight: var(--fw-medium); margin-bottom: 4px;
 }
 .ops-center .ra-rating.bad { color: var(--color-warning); }
 .ops-center .ra-rating.good { color: var(--color-success); }
+/* 评价类型灰行：与订单 SKU 灰行同档（辅字号 + 三级文字色） */
+.ops-center .ra-types { font-size: var(--fs-aux); color: var(--color-text-3); margin-bottom: 4px; }
 .ops-center .ra-content { font-size: var(--fs-base); color: var(--color-text); line-height: 1.6; }
 .ops-center .ra-content-ell { max-width: 320px; }
 .ops-center .ra-images { display: flex; gap: 6px; margin-top: 6px; }
@@ -100,9 +109,6 @@
   width: 56px; height: 56px; border-radius: var(--radius-sm);
   background: var(--color-fill-2); object-fit: cover;
 }
-
-/* 评价时间列 */
-.ops-center .ra-time { font-size: var(--fs-aux); color: var(--color-text-3); white-space: nowrap; }
 
 /* 订单详情列：真实商品缩略图 + 标题 + SKU + ID */
 .ops-center .ra-order { display: flex; gap: 10px; align-items: flex-start; min-width: 0; }
@@ -149,11 +155,9 @@
 /* 表头定宽列：订单优先，内容列适度加宽，操作列承载申诉原因 */
 .ops-center .ra-th-order { width: 330px; }
 .ops-center .ra-th-shop { width: 120px; }
-.ops-center .ra-th-user { width: 120px; }
 .ops-center .ra-th-content { width: 360px; }
-.ops-center .ra-th-time { width: 120px; }
+.ops-center .ra-th-time { width: 140px; }
 .ops-center .ra-th-appeal-time { width: 120px; }
-.ops-center .ra-th-status { width: 120px; }
 .ops-center .ra-th-audit { width: 120px; }
 .ops-center .ra-th-ops { width: 140px; }
 .ops-center .ra-content-ell { display: block; max-width: 330px; }

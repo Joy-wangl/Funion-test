@@ -99,6 +99,7 @@ const closeDrawer = () => { drawer.value = null; };
 
 const drawerDistinct = computed(() => drawer.value ? distinctIdCountOfSeries(drawer.value.id) : 0);
 const drawerMatTotal = computed(() => drawer.value ? materialCountOfSeries(drawer.value.id) : 0);
+const drawerTotalSales = computed(() => drawer.value ? totalSalesOfSeries(drawer.value.id) : 0);
 
 /* 商品编码豆腐块：全部 / 单编码；顶部选择层，两种模式共用 */
 const idList = computed(() => (drawer.value ? productsOfSeries(drawer.value.id) : []));
@@ -116,8 +117,15 @@ const codeCounts = computed<Record<string, number>>(() => {
 });
 watch(drawer, () => { curCode.value = '全部'; curId.value = null; });
 
-/* 按类型 TOP10（当前编码下销量最高的十张推荐，仅生效且未被「不再推荐」剔除的素材） */
-const topOf = (t: MaterialType) => codeMaterials.value.filter((m) => m.type === t && m.status === '生效' && !cbNotRec.has(m.id)).slice(0, 10);
+/* 按类型 TOP10（当前编码下按所选字段升/降序的十张推荐，仅生效且未被「不再推荐」剔除的素材） */
+const topOf = (t: MaterialType) => {
+  const val = (m: CbMaterial) => (topSort.value === 'usage' ? m.versions.length : m.sales);
+  return codeMaterials.value
+    .filter((m) => m.type === t && m.status === '生效' && !cbNotRec.has(m.id))
+    .slice()
+    .sort((a, b) => (topOrder.value === 'desc' ? val(b) - val(a) : val(a) - val(b)))
+    .slice(0, 10);
+};
 const typesWithData = computed<MaterialType[]>(() =>
   drawer.value ? MATERIAL_TYPES.filter((t) => (codeCounts.value[t] || 0) > 0) : []);
 
@@ -152,9 +160,17 @@ const expandSections = computed(() =>
     list: materialsOfProduct(curId.value!).filter((m) => m.type === t).sort((a, b) => b.sales - a.sales),
   })).filter((s) => s.list.length > 0));
 const VIEW_OPTIONS = ['按推荐', '全部素材'];
+const TOP_SORT_OPTIONS = ['按销量降序', '按销量升序', '按使用次数降序', '按使用次数升序'];
+const topSort = ref<'sales' | 'usage'>('sales');
+const topOrder = ref<'desc' | 'asc'>('desc');
+const topSortLabel = computed(() => `按${topSort.value === 'usage' ? '使用次数' : '销量'}${topOrder.value === 'asc' ? '升序' : '降序'}`);
 const onViewChange = (v: string) => {
   drawerMode.value = v === '按推荐' ? 'top' : 'all';
   curId.value = null;
+};
+const onTopSortChange = (v: string) => {
+  topSort.value = v.includes('使用次数') ? 'usage' : 'sales';
+  topOrder.value = v.includes('升序') ? 'asc' : 'desc';
 };
 /* 全部素材工具：商品名称搜索（隐藏式：默认仅图标，点击展开输入框）＋销量升/降序 */
 const idKw = ref('');
@@ -274,7 +290,9 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onPvKey));
           <div class="cb-drawer-summary">
             <span>关联ID <b>{{ drawerDistinct }}</b></span>
             <span class="cb-dot">·</span>
-            <span>素材总数 <b>{{ drawerMatTotal }}</b></span>
+            <span>使用次数 <b>{{ drawerMatTotal }}</b></span>
+            <span class="cb-dot">·</span>
+            <span>关联ID总销量 <b>{{ fmtSales(drawerTotalSales) }}</b></span>
           </div>
 
           <!-- 顶部：全部 + 系列下各商品编码豆腐块（两种模式共用选择层） -->
@@ -310,6 +328,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onPvKey));
               </div>
               <!-- 右侧：排序（仅全部素材）＋查看类型，同组靠右 -->
               <div class="cb-toolright">
+                <BubbleSelect v-if="drawerMode === 'top'" class-name="cb-viewsel" :value="topSortLabel" :options="TOP_SORT_OPTIONS" @change="onTopSortChange" />
                 <BubbleSelect v-if="drawerMode === 'all'" class-name="cb-viewsel" :value="idSort === 'desc' ? '销量降序' : '销量升序'" :options="SORT_OPTIONS" @change="onSortChange" />
                 <BubbleSelect class-name="cb-viewsel" :value="drawerMode === 'top' ? '按推荐' : '全部素材'" :options="VIEW_OPTIONS" @change="onViewChange" />
               </div>
@@ -318,7 +337,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onPvKey));
             <template v-if="drawerMode === 'top'">
               <div v-if="curType === '全部'">
                 <div v-for="t in typesWithData" :key="t" class="cb-sec">
-                  <div class="cb-sec-t">{{ t }} · 销量 TOP{{ topOf(t).length }}</div>
+                  <div class="cb-sec-t">{{ t }} · TOP{{ topOf(t).length }}</div>
                   <div v-if="topOf(t).length" class="cb-grid">
                     <div v-for="(m, i) in topOf(t)" :key="m.id" class="cb-card" @click="openPreview(topOf(t), m)">
                       <span class="cb-rank" :class="i < 3 ? 'hot' : ''">{{ i + 1 }}</span>
@@ -329,7 +348,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onPvKey));
                       </div>
                       <div class="cb-card-info">
                         <div class="cb-card-name" :title="m.name">{{ m.name }}</div>
-                        <div class="cb-card-meta">销量 {{ fmtSales(m.sales) }}</div>
+                        <div class="cb-card-meta">销量 {{ fmtSales(m.sales) }} · 使用次数 {{ m.versions.length }}</div>
                       </div>
                     </div>
                   </div>
@@ -337,7 +356,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onPvKey));
                 </div>
               </div>
               <div v-else class="cb-sec">
-                <div class="cb-sec-t">{{ curType }} · 销量 TOP{{ topOf(curType as MaterialType).length }}</div>
+                <div class="cb-sec-t">{{ curType }} · TOP{{ topOf(curType as MaterialType).length }}</div>
                 <div v-if="topOf(curType as MaterialType).length" class="cb-grid">
                   <div v-for="(m, i) in topOf(curType as MaterialType)" :key="m.id" class="cb-card" @click="openPreview(topOf(curType as MaterialType), m)">
                     <span class="cb-rank" :class="i < 3 ? 'hot' : ''">{{ i + 1 }}</span>
@@ -348,7 +367,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onPvKey));
                     </div>
                     <div class="cb-card-info">
                       <div class="cb-card-name" :title="m.name">{{ m.name }}</div>
-                      <div class="cb-card-meta">销量 {{ fmtSales(m.sales) }}</div>
+                      <div class="cb-card-meta">销量 {{ fmtSales(m.sales) }} · 使用次数 {{ m.versions.length }}</div>
                     </div>
                   </div>
                 </div>
@@ -379,7 +398,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onPvKey));
                           <div class="cb-thumb"><img v-if="m.thumb" :src="m.thumb" :alt="m.name" /><div v-else class="cb-ph">{{ materialTypeIcon(m.type) }}</div></div>
                           <div class="cb-card-info">
                             <div class="cb-card-name" :title="m.name">{{ m.name }}</div>
-                            <div class="cb-card-meta">销量 {{ fmtSales(m.sales) }}</div>
+                            <div class="cb-card-meta">销量 {{ fmtSales(m.sales) }} · 使用次数 {{ m.versions.length }}</div>
                           </div>
                         </div>
                       </div>

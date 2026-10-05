@@ -8,8 +8,8 @@ import { reactive } from 'vue';
  * 仅用于原型演示，不接入任何后端
  */
 
-export type MaterialType = '主图' | '详情图' | 'SKU图' | '白底图' | '场景图' | '视频';
-export const MATERIAL_TYPES: MaterialType[] = ['主图', '详情图', 'SKU图', '白底图', '场景图', '视频'];
+export type MaterialType = '主图' | '3:4主图' | '详情图' | 'SKU图' | '白底图' | '场景图' | '视频';
+export const MATERIAL_TYPES: MaterialType[] = ['主图', '3:4主图', '详情图', 'SKU图', '白底图', '场景图', '视频'];
 export type MaterialStatus = '草稿' | '待审' | '生效' | '失效' | '违规';
 export type CodeStatus = '生效' | '待审' | '停用' | '风险';
 
@@ -261,6 +261,7 @@ export const statusChipCls = (s: string) => {
 export const materialTypeIcon = (t: MaterialType) => {
   switch (t) {
     case '主图': return '🖼';
+    case '3:4主图': return '🖼';
     case '详情图': return '📄';
     case 'SKU图': return '🎨';
     case '白底图': return '⬜';

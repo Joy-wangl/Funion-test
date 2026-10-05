@@ -163,14 +163,13 @@ const platTagBrief = (pl: Platform): TagBrief | null => {
       </span>
     </td>
     <td class="col-name">
-      <div>{{ series.seriesCode }}</div>
-      <!-- 线上壳名称为生成占位（无效字段），改示关联商品编码数 -->
+      <!-- 系列编码＝商品系列简称（袜子、冬季手套等）；字母+数字为商品编码，不在此展示 -->
+      <div>{{ series.name }}</div>
       <div v-if="online">关联ID数：{{ series.codes.length }}</div>
       <!-- 问题编码标识：仅系列存在问题编码命中时在关联ID数下方示红芯片，无问题不占行（用户定案 2026-10-01） -->
       <div v-if="online && hasProblemCode">
         <span class="tag rv red">问题编码</span>
       </div>
-      <div v-if="!online">{{ series.name }}</div>
     </td>
     <td v-if="online" class="col-name qc-order-data">
       <div><span class="qc-cd-lb">订单总数：</span><span class="qc-cd-v">{{ series.orders.toLocaleString() }}</span></div>
@@ -340,7 +339,7 @@ const platTagBrief = (pl: Platform): TagBrief | null => {
       size="md"
       @close="cancelOpen = false"
     >
-      <div class="qc-pc-confirm">确认取消系列 {{ series.seriesCode }} 下全部 {{ hitCodes.length }} 个命中问题商品编码的命中标记？</div>
+      <div class="qc-pc-confirm">确认取消系列「{{ series.name }}」下全部 {{ hitCodes.length }} 个命中问题商品编码的命中标记？</div>
       <template #foot>
         <button class="btn" @click="cancelOpen = false">取消</button>
         <button class="btn primary" @click="doCancel">确认取消</button>

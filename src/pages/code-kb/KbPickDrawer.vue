@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import type { CbMaterial, MaterialType } from './codeKbData';
-import { cbProductMap, cbNotRec, materialsOfProduct, productsOfSeries } from './codeKbData';
+import type { CbMaterial, CbSeries, MaterialType } from './codeKbData';
+import { cbProductMap, cbNotRec, cbSeries, materialsOfProduct, productsOfSeries } from './codeKbData';
 
 /** 推荐素材选用抽屉（商品创建编辑态各上传位共用）：
- *  展示当前ID所属系列下全部商品编码豆腐块＋该编码下当前类型的素材；
+ *  左侧系列编码切换栏＋右侧当前系列下全部商品编码豆腐块＋该编码下当前类型的素材；
  *  默认 TOP榜（生效素材按销量 TOP10），可切「全部」；卡片勾选跨编码累计，确认后回传选中素材 */
 const props = defineProps<{ open: boolean; type: MaterialType; productId: string }>();
 const emit = defineEmits<{ (e: 'close'): void; (e: 'confirm', list: CbMaterial[]): void }>();
@@ -12,16 +12,19 @@ const emit = defineEmits<{ (e: 'close'): void; (e: 'confirm', list: CbMaterial[]
 const curCode = ref('');
 const view = ref<'top' | 'all'>('top');
 const sel = ref<CbMaterial[]>([]);
+const curSeries = ref<CbSeries | null>(null);
 
 watch(() => props.open, (v) => {
   if (!v) return;
+  const product = cbProductMap[props.productId];
+  curSeries.value = product ? cbSeries.find((s) => s.id === product.seriesId) ?? null : null;
   curCode.value = props.productId;
   view.value = 'top';
   sel.value = [];
 });
 
 const product = computed(() => cbProductMap[props.productId] ?? null);
-const codes = computed(() => (product.value ? productsOfSeries(product.value.seriesId) : []));
+const codes = computed(() => (curSeries.value ? productsOfSeries(curSeries.value.id) : []));
 const typeCount = (id: string) => materialsOfProduct(id).filter((m) => m.type === props.type).length;
 
 const list = computed(() => {
@@ -31,6 +34,12 @@ const list = computed(() => {
     .sort((a, b) => b.sales - a.sales);
   return view.value === 'top' ? all.filter((m) => m.status === '生效' && !cbNotRec.has(m.id)).slice(0, 10) : all;
 });
+
+const switchSeries = (s: CbSeries) => {
+  curSeries.value = s;
+  const firstProduct = productsOfSeries(s.id)[0];
+  curCode.value = firstProduct?.id ?? '';
+};
 
 const isSel = (m: CbMaterial) => sel.value.some((s) => s.id === m.id);
 const toggle = (m: CbMaterial) => {
@@ -48,64 +57,77 @@ const confirm = () => {
   <Teleport to="body">
     <div v-if="open" class="kbp-mask" @click.self="emit('close')">
       <div class="kbp-panel">
-        <div class="kbp-head">
-          <span class="kbp-title">推荐素材</span>
-          <span class="kbp-type">{{ type }}</span>
-          <button type="button" class="kbp-close" title="关闭" @click="emit('close')">✕</button>
-        </div>
-
-        <!-- 当前ID所属系列下全部商品编码 -->
-        <div class="kbp-codes">
-          <button
-            v-for="p in codes"
-            :key="p.id"
-            class="kbp-code"
-            :class="curCode === p.id ? 'on' : ''"
-            @click="curCode = p.id"
-          >
-            <b>{{ p.id }}</b>
-            <span>素材 {{ typeCount(p.id) }}</span>
-          </button>
-        </div>
-
-        <div class="kbp-toolbar">
-          <button class="kbp-tab" :class="view === 'top' ? 'on' : ''" @click="view = 'top'">TOP榜</button>
-          <button class="kbp-tab" :class="view === 'all' ? 'on' : ''" @click="view = 'all'">全部</button>
-          <span class="kbp-count">共 {{ list.length }} 个素材</span>
-        </div>
-
-        <div class="kbp-body">
-          <div v-if="list.length" class="kbp-grid">
-            <div
-              v-for="m in list"
-              :key="m.id"
-              class="kbp-card"
-              :class="isSel(m) ? 'on' : ''"
-              @click="toggle(m)"
-            >
-              <span class="kbp-thumb">
-                <img :src="m.thumb" :alt="m.name" />
-                <i v-if="type === '视频'" class="kbp-play">▶</i>
-              </span>
-              <i class="kbp-check" :class="isSel(m) ? 'on' : ''">
-                <svg v-if="isSel(m)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
-              </i>
-              <div class="kbp-name" :title="m.name">{{ m.name }}</div>
-              <div class="kbp-sub">销量 {{ m.sales }} · {{ m.version }}</div>
-            </div>
+        <!-- 左侧：系列编码切换栏 -->
+        <div class="kbp-sidebar">
+          <div class="kbp-sidebar-title">系列编码</div>
+          <div class="kbp-sidebar-list">
+            <button v-for="s in cbSeries" :key="s.id" class="kbp-sidebar-item" :class="curSeries?.id === s.id ? 'on' : ''" @click="switchSeries(s)">
+              <div class="kbp-sidebar-id">{{ s.id }}</div>
+              <div class="kbp-sidebar-name">{{ s.name }}</div>
+            </button>
           </div>
-          <div v-else class="kbp-empty">该编码下暂无「{{ type }}」类型素材</div>
         </div>
+        <!-- 右侧：素材内容区 -->
+        <div class="kbp-content">
+          <div class="kbp-head">
+            <span class="kbp-title">推荐素材</span>
+            <span class="kbp-type">{{ type }}</span>
+            <button type="button" class="kbp-close" title="关闭" @click="emit('close')">✕</button>
+          </div>
 
-        <div class="kbp-foot">
-          <span class="kbp-selinfo">
-            已选 {{ sel.length }} 项
-            <a v-if="sel.length" href="#" @click.prevent="sel = []">清空</a>
-          </span>
-          <span class="kbp-acts">
-            <button type="button" class="kbp-btn" @click="emit('close')">取消</button>
-            <button type="button" class="kbp-btn primary kbp-ok" :disabled="!sel.length" @click="confirm">确认使用</button>
-          </span>
+          <!-- 当前系列下全部商品编码 -->
+          <div class="kbp-codes">
+            <button
+              v-for="p in codes"
+              :key="p.id"
+              class="kbp-code"
+              :class="curCode === p.id ? 'on' : ''"
+              @click="curCode = p.id"
+            >
+              <b>{{ p.id }}</b>
+              <span>素材 {{ typeCount(p.id) }}</span>
+            </button>
+          </div>
+
+          <div class="kbp-toolbar">
+            <button class="kbp-tab" :class="view === 'top' ? 'on' : ''" @click="view = 'top'">TOP榜</button>
+            <button class="kbp-tab" :class="view === 'all' ? 'on' : ''" @click="view = 'all'">全部</button>
+            <span class="kbp-count">共 {{ list.length }} 个素材</span>
+          </div>
+
+          <div class="kbp-body">
+            <div v-if="list.length" class="kbp-grid">
+              <div
+                v-for="m in list"
+                :key="m.id"
+                class="kbp-card"
+                :class="isSel(m) ? 'on' : ''"
+                @click="toggle(m)"
+              >
+                <span class="kbp-thumb">
+                  <img :src="m.thumb" :alt="m.name" />
+                  <i v-if="type === '视频'" class="kbp-play">▶</i>
+                </span>
+                <i class="kbp-check" :class="isSel(m) ? 'on' : ''">
+                  <svg v-if="isSel(m)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
+                </i>
+                <div class="kbp-name" :title="m.name">{{ m.name }}</div>
+                <div class="kbp-sub">销量 {{ m.sales }} · {{ m.version }}</div>
+              </div>
+            </div>
+            <div v-else class="kbp-empty">该编码下暂无「{{ type }}」类型素材</div>
+          </div>
+
+          <div class="kbp-foot">
+            <span class="kbp-selinfo">
+              已选 {{ sel.length }} 项
+              <a v-if="sel.length" href="#" @click.prevent="sel = []">清空</a>
+            </span>
+            <span class="kbp-acts">
+              <button type="button" class="kbp-btn" @click="emit('close')">取消</button>
+              <button type="button" class="kbp-btn primary kbp-ok" :disabled="!sel.length" @click="confirm">确认使用</button>
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -113,9 +135,22 @@ const confirm = () => {
 </template>
 
 <style scoped>
-/* 推荐素材抽屉：右侧 760px 白面板，豆腐块/卡片风格与素材库抽屉一致 */
+/* 推荐素材抽屉：右侧 760px 白面板，左侧系列编码切换栏 */
 .kbp-mask { position: fixed; inset: 0; z-index: 1700; background: rgba(20, 25, 40, 0.45); display: flex; justify-content: flex-end; }
-.kbp-panel { width: 760px; max-width: 92vw; height: 100%; background: #fff; display: flex; flex-direction: column; box-shadow: -8px 0 32px rgba(20, 25, 40, 0.16); }
+.kbp-panel { width: 960px; max-width: 92vw; height: 100%; background: #fff; display: flex; flex-direction: row; box-shadow: -8px 0 32px rgba(20, 25, 40, 0.16); }
+
+/* 左侧系列编码切换栏 */
+.kbp-sidebar { width: 200px; border-right: 1px solid #edf0f5; display: flex; flex-direction: column; background: #fafbfd; flex-shrink: 0; }
+.kbp-sidebar-title { padding: 16px; font-size: 13px; color: #8b92a1; font-weight: 500; border-bottom: 1px solid #edf0f5; }
+.kbp-sidebar-list { flex: 1; overflow-y: auto; padding: 8px; }
+.kbp-sidebar-item { display: block; width: 100%; text-align: left; padding: 10px 12px; border: 0; background: transparent; border-radius: 6px; cursor: pointer; margin-bottom: 4px; transition: background .15s; }
+.kbp-sidebar-item:hover { background: #f0f2f8; }
+.kbp-sidebar-item.on { background: #e8ecf5; }
+.kbp-sidebar-id { font-family: 'SF Mono', Consolas, monospace; font-size: 12px; color: #4f7cff; font-weight: 600; }
+.kbp-sidebar-name { font-size: 12px; color: #5b6478; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 右侧内容区 */
+.kbp-content { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .kbp-head { display: flex; align-items: center; gap: 10px; padding: 16px 24px; border-bottom: 1px solid #edf0f5; }
 .kbp-title { font-size: 15px; font-weight: 600; color: #202532; }
 .kbp-type { padding: 2px 10px; border-radius: 6px; background: #eef2ff; color: #4f7cff; font-size: 12px; }

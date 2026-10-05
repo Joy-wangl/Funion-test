@@ -139,12 +139,12 @@ export const MV_EXEC_STATUSES: MvExecStatus[] = ['待执行', '执行中', '已�
 /** 新建任务初始状态：一律已启用；执行维度一律待执行 */
 export const mvInitTaskStatus = (): MvTaskStatus => '已启用';
 export const mvInitExecStatus = (): MvExecStatus => '待执行';
-/** 状态圆点色档（圆点+文字形态）：任务状态 已禁用红/其余绿；执行状态 待执行黄/执行中蓝/已完成灰 */
-export const mvTaskDot = (s: MvTaskStatus) => (s === '已禁用' ? 'mv-dot-red' : 'mv-dot-green');
+/** 状态圆点色档（圆点+文字形态）：执行状态 待执行黄/执行中蓝/已完成灰（任务状态已改开关式，圆点下线） */
 export const mvExecDot = (s: MvExecStatus) => (s === '待执行' ? 'mv-dot-yellow' : s === '执行中' ? 'mv-dot-blue' : 'mv-dot-gray');
 
-/** 可编辑性（列表操作与抽屉只读共用同一口径）：一次性任务本轮即唯一轮，进入执行中/已完成后配置无生效落点——仅可查看不可编辑 */
-export const mvCanEdit = (t: MvTask) => !(t.method === '一次性' && t.execStatus !== '待执行');
+/** 可编辑性（列表与抽屉共用同一口径，2026-10-04 二轮定案）：仅「已启用×待执行」可编辑任务信息；
+ *  执行中＝在途本轮不可改、已完成＝配置已消耗、已禁用＝停用态——三者抽屉内只支持查看（查看/编辑按钮态区分） */
+export const mvCanEdit = (t: MvTask) => t.taskStatus === '已启用' && t.execStatus === '待执行';
 
 /** 执行配置摘要（列表列直展，与抽屉配置同源） */
 export const mvRunSummary = (t: MvTask) => {

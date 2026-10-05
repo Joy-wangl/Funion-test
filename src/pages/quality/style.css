@@ -827,6 +827,8 @@
 /* 多行单元格（编码、类型/原因）与单行字段首行齐平：整表顶部对齐 */
 .qc-ao-panel .ao-table th, .qc-ao-panel .ao-table td { vertical-align: top; }
 .qc-ao-panel .ao-plat { display: inline-flex; align-items: center; gap: 6px; }
+/* 平台列带出店铺名称行：店铺与平台一对一，灰辅字随行展示不另加列（同会话卡店铺语言） */
+.qc-ao-panel .ao-table .ao-shop { margin-top: 2px; font-size: var(--fs-aux); color: var(--color-text-3); }
 /* 售后列表页「售后类型/售后原因」原因行：次级字号、最多两行截断，悬浮 title 展示完整原因 */
 .qc-as-page .ao-table .ao-reason {
   max-width: 240px;

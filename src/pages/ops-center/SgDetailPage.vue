@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import Modal from '../../components/Modal.vue';
 import { PLATFORM_LOGO } from './data';
 import { getSgDetail, sgDetail, sgOpsLogCls, sgOpsLogOf, sgOpsSalesOf } from './shopGoodsData';
 import type { SgProduct } from './shopGoodsData';
 import { pushToast } from '../../components/toast';
 import CpdMediaSec from './CpdMediaSec.vue';
+import CpdPickDrawer from './CpdPickDrawer.vue';
 import KbPickDrawer from '../code-kb/KbPickDrawer.vue';
 import SkuMatchView from './SkuMatchView.vue';
 import type { SkmSku } from './SkuMatchView.vue';
@@ -90,6 +91,96 @@ const onKbConfirm = (list: CbMaterial[]) => {
   else if (pick.target === 'detailImgs') d.detailImgs.push(...urls);
   else if (pick.target === 'videos') d.videos.push(...urls);
   pushToast(`已添加 ${list.length} 个素材至「${pick.title}」`);
+};
+
+/* ---------- 图片预览暗幕：查看态/编辑态统一的查看入口（翻页/缩放/全屏，Esc 关闭） ---------- */
+const previewList = ref<string[]>([]);
+const previewIdx = ref(0);
+const curPreview = computed(() => previewList.value[previewIdx.value] ?? '');
+const zoom = ref(1);
+const zoomBy = (v: number) => { zoom.value = Math.min(3, Math.max(0.5, Math.round((zoom.value + v) * 100) / 100)); };
+const openPreview = (list: string[], i: number) => { previewList.value = list; previewIdx.value = i; zoom.value = 1; };
+const closePreview = () => { previewList.value = []; previewIdx.value = 0; zoom.value = 1; };
+const stepPreview = (v: number) => {
+  const n = previewList.value.length;
+  previewIdx.value = (previewIdx.value + v + n) % n;
+  zoom.value = 1;
+};
+const previewMaskRef = ref<HTMLDivElement | null>(null);
+const isFull = ref(false);
+const syncFull = () => { isFull.value = !!document.fullscreenElement; };
+onMounted(() => document.addEventListener('fullscreenchange', syncFull));
+onBeforeUnmount(() => document.removeEventListener('fullscreenchange', syncFull));
+const toggleFull = () => {
+  if (document.fullscreenElement) void document.exitFullscreen();
+  else void previewMaskRef.value?.requestFullscreen();
+};
+const onPreviewKey = (e: KeyboardEvent) => {
+  if (e.key !== 'Escape') return;
+  if (document.fullscreenElement) { void document.exitFullscreen(); return; }
+  closePreview();
+};
+watch(previewList, (v) => {
+  if (v.length) document.addEventListener('keydown', onPreviewKey);
+  else document.removeEventListener('keydown', onPreviewKey);
+});
+
+/* ---------- 图片区块四类操作（编辑态）：查看=点击预览；更换=选图抽屉（商品其它图片/本地上传）；推荐素材=素材库；删除=二次确认 ---------- */
+type ImgKey = 'mainImgs' | 'detailImgs' | 'whiteImg' | 'sceneImg';
+const IMG_LABEL: Record<ImgKey, string> = { mainImgs: '3:4主图', detailImgs: '商品详情图', whiteImg: '白底图', sceneImg: '场景图' };
+/* 单图槽位按空值过滤：空时不渲染破图磁贴，删除后恢复上传/推荐素材位 */
+const whiteImgs = computed(() => (d.whiteImg ? [d.whiteImg] : []));
+const sceneImgs = computed(() => (d.sceneImg ? [d.sceneImg] : []));
+const setImgAt = (key: ImgKey, i: number, url: string) => {
+  if (key === 'whiteImg') d.whiteImg = url;
+  else if (key === 'sceneImg') d.sceneImg = url;
+  else d[key].splice(i, 1, url);
+};
+const removeImgAt = (key: ImgKey, i: number) => {
+  if (key === 'whiteImg') d.whiteImg = '';
+  else if (key === 'sceneImg') d.sceneImg = '';
+  else d[key].splice(i, 1);
+};
+/* 更换选图抽屉：按图片类型分组磁贴（跨组去重），空组不展示 */
+const pickOpen = ref(false);
+const repKey = ref<ImgKey>('mainImgs');
+const repIdx = ref(0);
+const replaceFor = (key: ImgKey) => (i: number) => { repKey.value = key; repIdx.value = i; pickOpen.value = true; };
+const pickGroups = computed(() => {
+  /* 组内去重即可：演示种子跨组复用同一批 URL，跨组去重会把后续组清空 */
+  const grp = (label: string, imgs: string[]) => {
+    const s = new Set<string>();
+    return { label, imgs: imgs.filter((u) => !!u && !s.has(u) && s.add(u)) };
+  };
+  return [
+    grp('商品图', [p.value.img]),
+    grp('3:4主图', d.mainImgs),
+    grp('商品详情图', d.detailImgs),
+    grp('白底图', [d.whiteImg]),
+    grp('场景图', [d.sceneImg]),
+  ].filter((g) => g.imgs.length > 0);
+});
+const writeReplace = (url: string) => {
+  setImgAt(repKey.value, repIdx.value, url);
+  pickOpen.value = false;
+  pushToast(`已更换${IMG_LABEL[repKey.value]}`);
+};
+const onPickLocal = (files: File[]) => {
+  const f = files[0];
+  if (f) writeReplace(URL.createObjectURL(f));
+};
+const uploadFor = (key: ImgKey) => (files: File[]) => {
+  const urls = files.map((f) => URL.createObjectURL(f));
+  if (!urls.length) return;
+  if (key === 'whiteImg' || key === 'sceneImg') setImgAt(key, 0, urls[0]);
+  else d[key].push(...urls);
+  pushToast(`已上传${IMG_LABEL[key]}`);
+};
+const deleteFor = (key: ImgKey) => (i: number) => {
+  askConfirm(`删除${IMG_LABEL[key]}`, '删除后该位置将为空，可重新上传或选用商品图片，确认删除？', () => {
+    removeImgAt(key, i);
+    pushToast(`已删除${IMG_LABEL[key]}`);
+  });
 };
 /* ---------- 规格/SKU 联动模型：SKU 行＝种子（d.skus）投影，字段编辑直写种子 ----------
    快捷弹窗里复制/新增只落一条种子，详情表格里就只有一行；详情改的值写回种子，弹窗再开即同步 */
@@ -410,9 +501,17 @@ const askRemoveSku = (sku: SgSku) => {
       <div class="sgd-head">
         <div class="sgd-gallery">
           <div class="sgd-thumbs">
-            <img v-for="(t, i) in thumbs" :key="i" class="sgd-thumb" :class="i === 0 ? 'active' : ''" :src="t" alt="" />
+            <img
+              v-for="(t, i) in thumbs"
+              :key="i"
+              class="sgd-thumb cpd-previewable"
+              :class="i === 0 ? 'active' : ''"
+              :src="t"
+              alt=""
+              @click="openPreview([...thumbs], i)"
+            />
           </div>
-          <img class="sgd-main" :src="p.img" alt="" />
+          <img class="sgd-main cpd-previewable" :src="p.img" alt="" @click="openPreview([p.img], 0)" />
         </div>
         <div class="sgd-info">
           <h2>{{ p.title }}</h2>
@@ -585,6 +684,11 @@ const askRemoveSku = (sku: SgSku) => {
       :imgs="d.mainImgs"
       :ratio34="true"
       :editing="editing"
+      add-label="添加图片"
+      :on-preview="(i) => openPreview(d.mainImgs, i)"
+      :on-upload="uploadFor('mainImgs')"
+      :on-replace="replaceFor('mainImgs')"
+      :on-delete="deleteFor('mainImgs')"
       kb-pick
       :on-kb-pick="() => openKbPick('主图', 'mainImgs', '3:4主图')"
     />
@@ -594,6 +698,11 @@ const askRemoveSku = (sku: SgSku) => {
       note="宝贝详情图【高度≤2】，超出将被裁剪，建议宽度≥1440像素以确保清晰，拖动模块可排序"
       :imgs="d.detailImgs"
       :editing="editing"
+      add-label="添加图片"
+      :on-preview="(i) => openPreview(d.detailImgs, i)"
+      :on-upload="uploadFor('detailImgs')"
+      :on-replace="replaceFor('detailImgs')"
+      :on-delete="deleteFor('detailImgs')"
       kb-pick
       :on-kb-pick="() => openKbPick('详情图', 'detailImgs', '商品详情')"
     />
@@ -611,8 +720,14 @@ const askRemoveSku = (sku: SgSku) => {
     <CpdMediaSec
       title="通用商品白底图"
       note="宽高800*800，所报名商品台的白底图，纯白边，图片饱满（上下贴边或左右贴边），将作为个性化素材展示"
-      :imgs="[d.whiteImg]"
+      :imgs="whiteImgs"
       :editing="editing"
+      :single="true"
+      add-label="添加图片"
+      :on-preview="(i) => openPreview([d.whiteImg], i)"
+      :on-upload="uploadFor('whiteImg')"
+      :on-replace="replaceFor('whiteImg')"
+      :on-delete="deleteFor('whiteImg')"
       kb-pick
       :on-kb-pick="() => openKbPick('白底图', 'whiteImg', '通用商品白底图')"
     />
@@ -620,14 +735,46 @@ const askRemoveSku = (sku: SgSku) => {
     <CpdMediaSec
       title="通用商品场景图(非必填)"
       note="基本要求：带有背景，无牛皮癣，主体清晰完整不变形、不拼图、不含图、不留白边，建议主体突出与背景和谐。背景不宜过于复杂，色调自然。格式要求：800*800px，JPG/JPEG、小于3M"
-      :imgs="[d.sceneImg]"
+      :imgs="sceneImgs"
       :editing="editing"
+      :single="true"
+      add-label="添加图片"
+      :on-preview="(i) => openPreview([d.sceneImg], i)"
+      :on-upload="uploadFor('sceneImg')"
+      :on-replace="replaceFor('sceneImg')"
+      :on-delete="deleteFor('sceneImg')"
       kb-pick
       :on-kb-pick="() => openKbPick('场景图', 'sceneImg', '通用商品场景图')"
     />
 
     <div class="sgd-foot">
       <button v-for="f in foot" :key="f.text" class="sgd-foot-btn" :class="f.cls">{{ f.text }}</button>
+    </div>
+
+    <!-- 图片预览：全屏暗幕 + 底部悬浮工具条（翻页/缩放/全屏，Esc 关闭） -->
+    <div v-if="previewList.length" ref="previewMaskRef" class="cpd-preview-mask">
+      <button type="button" class="cpd-preview-close" title="关闭（Esc）" @click="closePreview">✕</button>
+      <div class="cpd-preview-stage" @click.self="closePreview">
+        <div class="cpd-preview-imgwrap" :style="{ transform: `scale(${zoom})` }">
+          <img :src="curPreview" alt="" />
+        </div>
+      </div>
+      <div class="cpd-preview-bar">
+        <button type="button" class="cpd-bar-btn" title="上一张" :disabled="previewList.length < 2" @click="stepPreview(-1)">‹</button>
+        <span class="cpd-bar-count">{{ previewIdx + 1 }} / {{ previewList.length }}</span>
+        <button type="button" class="cpd-bar-btn" title="下一张" :disabled="previewList.length < 2" @click="stepPreview(1)">›</button>
+        <i class="cpd-bar-div" />
+        <button type="button" class="cpd-bar-btn" title="缩小" :disabled="zoom <= 0.5" @click="zoomBy(-0.25)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21M7.5 10.5h6" /></svg>
+        </button>
+        <button type="button" class="cpd-bar-btn" title="放大" :disabled="zoom >= 3" @click="zoomBy(0.25)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21M10.5 7.5v6M7.5 10.5h6" /></svg>
+        </button>
+        <button type="button" class="cpd-bar-btn" :title="isFull ? '退出全屏' : '全屏'" @click="toggleFull">
+          <svg v-if="!isFull" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5H5" /></svg>
+        </button>
+      </div>
     </div>
 
     <!-- 操作日志弹层：当前商品全流程操作（时间/操作人/类型/明细）；Modal 样式挂 .pm-page 作用域需 pm-host 容器 -->
@@ -701,6 +848,9 @@ const askRemoveSku = (sku: SgSku) => {
       @close="matchSku = null"
       @saved="matchSku = null"
     />
+
+    <!-- 更换图片抽屉：按图片类型分组磁贴选源，或本地上传 -->
+    <CpdPickDrawer :open="pickOpen" :groups="pickGroups" @close="pickOpen = false" @pick="writeReplace" @local="onPickLocal" />
 
     <!-- 推荐素材选用抽屉（素材库） -->
     <KbPickDrawer

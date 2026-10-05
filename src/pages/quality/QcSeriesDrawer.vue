@@ -474,7 +474,7 @@ const noneText = computed(() => (selCode.value
       <div class="detail-hero">
         <img class="av" :src="seriesImg" :alt="series.name">
         <div class="info">
-          <div class="n">{{ series.seriesCode }} · {{ series.name }}</div>
+          <div class="n">{{ series.name }}</div>
           <div class="m">{{ series.codes.length }} 个商品编码 · {{ series.platforms.length }} 个平台</div>
         </div>
         <i v-if="online" class="qc-hero-break" aria-hidden="true"></i>

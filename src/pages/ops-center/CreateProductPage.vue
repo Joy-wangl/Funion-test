@@ -21,6 +21,8 @@ import { pushGMsg, requestShopAcct } from '../../components/globalMsgData';
 import { amOfflineShopNames, amOfflineSellerOfShop } from '../permission/accountData';
 import ColFieldPop from './ColFieldPop.vue';
 import { useColField } from './colFields';
+import KbPickDrawer from '../code-kb/KbPickDrawer.vue';
+import type { CbMaterial } from '../code-kb/codeKbData';
 
 /** 商品创建页（jm=京麦平台：列表同源结构，详情走京麦接口字段页；video=视频号：详情走微信小店规格×SKU 笛卡尔积交互） */
 const props = defineProps<{ jm?: boolean; video?: boolean }>();
@@ -417,6 +419,55 @@ const saveQuickSku = () => {
   });
   pushToast(quickBatch.value ? `SKU 信息已保存（${groups.size} 件商品）` : 'SKU 信息已保存');
   closeQuick();
+};
+
+/* ---------- 更多批量操作：选条内气泡收纳低频批量项（批量更换商品标题 / 批量更换首图）；
+   首图＝1:1主图第一张，与列表封面同源，更换后列表缩略图即时同步 ---------- */
+const batchTitle = ref(false);
+const batchTitleVal = ref('');
+const openBatchTitle = () => {
+  batchTitleVal.value = '';
+  batchTitle.value = true;
+};
+const applyBatchTitle = () => {
+  const t = batchTitleVal.value.trim();
+  if (!t) { pushToast('请输入新的商品标题', 'warning'); return; }
+  const n = batchRows.value.length;
+  batchRows.value.forEach((r) => { r.title = t; });
+  batchTitle.value = false;
+  pushToast(`已更换 ${n} 条商品标题`);
+};
+const batchCover = ref(false);
+const batchCoverUrl = ref('');
+const batchKb = ref(false);
+const batchFileRef = ref<HTMLInputElement | null>(null);
+/* 素材库演示商品ID：与商品详情推荐素材同一映射 */
+const BATCH_KB_PRODUCT_ID = 'TB-5101';
+const openBatchCover = () => {
+  batchCoverUrl.value = '';
+  batchCover.value = true;
+};
+const onBatchFile = (e: Event) => {
+  const el = e.target as HTMLInputElement;
+  const f = el.files?.[0];
+  el.value = '';
+  if (f) batchCoverUrl.value = URL.createObjectURL(f);
+};
+/* 演示映射：批量更换首图统一从素材库「主图」类型选用（与商品详情推荐素材同口径） */
+const onBatchKbConfirm = (list: CbMaterial[]) => {
+  batchKb.value = false;
+  if (list.length) batchCoverUrl.value = list[0].thumb;
+};
+const applyBatchCover = () => {
+  const n = batchRows.value.length;
+  batchRows.value.forEach((r) => { r.thumb = batchCoverUrl.value; });
+  closeBatch();
+  pushToast(`已更换 ${n} 条商品首图`);
+};
+const closeBatch = () => {
+  batchTitle.value = false;
+  batchCover.value = false;
+  batchCoverUrl.value = '';
 };
 const pubSelOf = (name: string) => pubSel.value.find((s) => s.name === name) ?? null;
 const noStrat = computed(() => pubSelOf(PUB_NO_STRATEGY));
@@ -837,6 +888,20 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
           </svg>
           图片管理
         </button>
+        <!-- 更多批量操作：低频批量项收进气泡（复用全局 MoreActions / .add-pop 语言） -->
+        <MoreActions
+          :items="[
+            { label: '批量更换商品标题', onClick: openBatchTitle },
+            { label: '批量更换首图', onClick: openBatchCover },
+          ]"
+        >
+          <template #trigger>
+            <button type="button" class="lightBtn cp-more-batch">
+              更多批量操作
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5 8 10.5l4-4" /></svg>
+            </button>
+          </template>
+        </MoreActions>
       </div>
       <div class="ib-table-wrap">
         <table class="ib-table create-table">
@@ -950,7 +1015,46 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
         </div>
       </div>
 
+      <!-- 批量更换商品标题：统一替换已选商品标题 -->
+      <div v-if="batchTitle" class="cp-modal-mask" @click.self="closeBatch">
+        <div class="cp-modal cp-batch-modal">
+          <div class="cp-modal-title">批量更换商品标题</div>
+          <div class="cp-modal-text">将已选 <b>{{ batchRows.length }}</b> 条商品的标题统一更换为以下内容</div>
+          <input v-model="batchTitleVal" class="ib-input cp-batch-input" placeholder="请输入新的商品标题" />
+          <div class="cp-modal-foot">
+            <button class="cp-btn" @click="closeBatch">取消</button>
+            <button class="cp-btn primary" :disabled="!batchTitleVal.trim()" @click="applyBatchTitle">确认更换</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 批量更换首图：1:1主图第一张（列表封面），来源＝本地上传 / 素材库推荐素材 -->
+      <div v-if="batchCover" class="cp-modal-mask" @click.self="closeBatch">
+        <div class="cp-modal cp-batch-modal cp-batch-cover">
+          <div class="cp-modal-title">批量更换首图</div>
+          <div class="cp-modal-text">将已选 <b>{{ batchRows.length }}</b> 条商品的 1:1 主图第一张（即列表封面）统一更换为选用图片</div>
+          <div class="cp-batch-srcs">
+            <button type="button" class="cp-batch-tile" @click="batchFileRef?.click()">本地上传<i>选择图片</i></button>
+            <button type="button" class="cp-batch-tile kb" @click="batchKb = true">推荐素材<i>素材库选用</i></button>
+            <span v-if="batchCoverUrl" class="cp-batch-prev"><img :src="batchCoverUrl" alt="" /><b>待更换首图</b></span>
+          </div>
+          <div class="cp-modal-foot">
+            <button class="cp-btn" @click="closeBatch">取消</button>
+            <button class="cp-btn primary" :disabled="!batchCoverUrl" @click="applyBatchCover">确认更换</button>
+          </div>
+        </div>
+      </div>
+      <input ref="batchFileRef" type="file" accept="image/*" class="cp-batch-file" @change="onBatchFile">
     </Teleport>
+
+    <!-- 批量更换首图的素材库选用抽屉（自行 Teleport 到 body） -->
+    <KbPickDrawer
+      :open="batchKb"
+      type="主图"
+      :product-id="BATCH_KB_PRODUCT_ID"
+      @close="batchKb = false"
+      @confirm="onBatchKbConfirm"
+    />
   </div>
 
   <!-- 关联发布任务抽屉：置于 .ops-center 内复用 tc-table 样式；与列表/详情并列，详情查看态亦可打开 -->

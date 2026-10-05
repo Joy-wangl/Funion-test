@@ -74,7 +74,9 @@ export interface QcCenterCode {
 }
 
 export interface QcCenterSeries {
+  /** 内部主键（字母+数字），仅种子与回查使用，不对用户展示 */
   seriesCode: string;
+  /** 系列编码：商品系列简称（如 袜子、冬季手套）；字母+数字的统一编码为商品编码 */
   name: string;
   codes: QcCenterCode[];
   /** 按平台合并后的平台数据 */
@@ -283,10 +285,10 @@ function buildSeries(seriesCode: string, name: string, codes: QcCenterCode[]): Q
 }
 
 export const QC_CENTER_SERIES: QcCenterSeries[] = [
-  buildSeries('XL-2001', '保温杯系列', RAW.filter((r) => r.seriesCode === 'XL-2001').map((r) => r.code)),
-  buildSeries('XL-2002', '毛绒玩具系列', RAW.filter((r) => r.seriesCode === 'XL-2002').map((r) => r.code)),
-  buildSeries('XL-2003', '厨房收纳系列', RAW.filter((r) => r.seriesCode === 'XL-2003').map((r) => r.code)),
-  buildSeries('XL-2004', '手机支架系列', RAW.filter((r) => r.seriesCode === 'XL-2004').map((r) => r.code)),
+  buildSeries('XL-2001', '保温杯', RAW.filter((r) => r.seriesCode === 'XL-2001').map((r) => r.code)),
+  buildSeries('XL-2002', '毛绒玩具', RAW.filter((r) => r.seriesCode === 'XL-2002').map((r) => r.code)),
+  buildSeries('XL-2003', '厨房收纳', RAW.filter((r) => r.seriesCode === 'XL-2003').map((r) => r.code)),
+  buildSeries('XL-2004', '手机支架', RAW.filter((r) => r.seriesCode === 'XL-2004').map((r) => r.code)),
 ];
 
 /* ---------- 全局指标 ---------- */

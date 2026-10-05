@@ -18,7 +18,7 @@ const count = computed(() => onlineAfterOrdersOf(props.series).length);
   <div class="drawer-mask" @click="props.onClose" />
   <div class="drawer qc-after-orders-drawer">
     <div class="drawer-head">
-      <div class="d-title">售后单列表 · {{ series.seriesCode }} {{ series.name }}</div>
+      <div class="d-title">售后单列表 · {{ series.name }}</div>
       <span class="ao-count">共 {{ count.toLocaleString() }} 单</span>
       <button type="button" class="sg-btn ao-export" @click="panelRef?.exportCsv()">导出</button>
       <span class="x" @click="props.onClose">

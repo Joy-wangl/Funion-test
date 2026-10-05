@@ -128,7 +128,7 @@ const exportCsv = () => {
   const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv' }));
   const a = document.createElement('a');
   a.href = url;
-  a.download = `售后单列表-${props.series.seriesCode}.csv`;
+  a.download = `售后单列表-${props.series.name}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 };

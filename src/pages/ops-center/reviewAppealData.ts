@@ -1,5 +1,6 @@
 /** 评价申诉模块数据层：视频号平台评价申诉列表（用户 2026-09-20 新增） */
 import { reactive } from 'vue';
+import type { Platform } from '../quality/data';
 
 /** 评价类型枚举 */
 export type RaRating = '挺好的' | '不够好';
@@ -10,17 +11,24 @@ export type RaAppealStatus = '待申诉' | '已申诉' | '不予申诉';
 /** 审核状态枚举：提交申诉后的平台审核结果 */
 export type RaAuditStatus = '审核中' | '已通过' | '未通过' | '已撤回';
 
+/** 评价类型词表（平台差评灰行标签；列表灰行展示与「评价类型」筛选选项同源） */
+export const RA_TYPES = ['质量差', '与宣传不符', '发货慢'];
+
 /** 评价申诉行 */
 export interface RaReview {
   id: string;
   /** 店铺名称 */
   shopName: string;
+  /** 店铺归属平台（列表店铺信息列展示官方图标） */
+  platform: Platform;
   /** 评价人昵称 */
   userName: string;
   /** 评价时间 */
   ratedAt: string;
   /** 评价类型 */
   rating: RaRating;
+  /** 评价类型标签（平台差评标签，如 质量差/与宣传不符/发货慢；列表评价内容列评分下灰行展示，缺省不展示） */
+  types?: string[];
   /** 评价正文 */
   content: string;
   /** 评价附图（可选） */
@@ -56,6 +64,7 @@ export const raReviews = reactive<RaReview[]>([
   {
     id: 'RA001',
     shopName: '旗舰店 A',
+    platform: '淘宝',
     userName: '别来无恙',
     ratedAt: '09/19 16:12',
     rating: '不够好',
@@ -72,9 +81,11 @@ export const raReviews = reactive<RaReview[]>([
   {
     id: 'RA002',
     shopName: '旗舰店 A',
+    platform: '淘宝',
     userName: '匿名',
     ratedAt: '09/19 10:13',
     rating: '不够好',
+    types: ['质量差'],
     content: '没有气，不是球，无法用啊',
     images: ['/products/main.png', '/products/serum.png'],
     productTitle: '紧致腰腹/平坦...',
@@ -93,10 +104,12 @@ export const raReviews = reactive<RaReview[]>([
   {
     id: 'RA003',
     shopName: '旗舰店 B',
+    platform: '京东',
     userName: '印象@慢学',
     ratedAt: '09/18 23:08',
     rating: '不够好',
-    content: '发货慢，与宣传不符，质量差\n用户觉得不够好。',
+    types: ['发货慢', '与宣传不符', '质量差'],
+    content: '用户觉得不够好。',
     images: [],
     productTitle: '至尊款【三档调节三重保护】送充电线',
     productSku: '',
@@ -109,9 +122,11 @@ export const raReviews = reactive<RaReview[]>([
   {
     id: 'RA004',
     shopName: '旗舰店 B',
+    platform: '京东',
     userName: '黄二',
     ratedAt: '09/18 19:45',
     rating: '不够好',
+    types: ['质量差'],
     content: '根本没什么作用',
     images: [],
     productTitle: '【多功能灶台架】通用型.旗舰品质：加厚材质（...',
@@ -124,9 +139,11 @@ export const raReviews = reactive<RaReview[]>([
   {
     id: 'RA005',
     shopName: '旗舰店 C',
+    platform: '拼多多',
     userName: '用户_9527',
     ratedAt: '09/18 14:22',
     rating: '不够好',
+    types: ['与宣传不符'],
     content: '材质一般，和描述有差距',
     images: ['/products/serum.png'],
     productTitle: '便携式收纳盒',
@@ -145,9 +162,11 @@ export const raReviews = reactive<RaReview[]>([
   {
     id: 'RA006',
     shopName: '旗舰店 C',
+    platform: '拼多多',
     userName: '匿名',
     ratedAt: '09/17 21:30',
     rating: '不够好',
+    types: ['发货慢'],
     content: '物流太慢了，等了一周',
     images: [],
     productTitle: '家用置物架',

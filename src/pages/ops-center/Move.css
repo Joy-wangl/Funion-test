@@ -1,13 +1,19 @@
 /* 自动化中心-视频号自动化：mv- 前缀；通用筛选/表格/徽章复用 sg-* 与 badge-* */
 
-/* 任务状态圆点色档（圆点+文字形态，色值取全局 token）：红=已禁用 / 黄=待执行 / 蓝=执行中 / 灰=已完成 / 绿=已启用 */
-.ops-center .sg-dot.mv-dot-red { background: var(--color-danger); }
+/* 执行状态圆点色档（圆点+文字形态，色值取全局 token）：黄=待执行 / 蓝=执行中 / 灰=已完成 */
 .ops-center .sg-dot.mv-dot-yellow { background: var(--color-warning); }
 .ops-center .sg-dot.mv-dot-blue { background: var(--color-primary); }
 .ops-center .sg-dot.mv-dot-gray { background: var(--color-text-4); }
-.ops-center .sg-dot.mv-dot-green { background: var(--color-success); }
 /* 已禁用无执行状态：执行状态列灰破折号占位（同空值灰字档） */
 .ops-center .mv-none { color: #98a0b3; }
+
+/* 任务状态开关（2026-10-04 定案取代圆点+启停链接）：开=已启用绿 / 关=已禁用灰；在途执行行禁用态半透明不可点 */
+.ops-center .mv-switchrow { display: inline-flex; align-items: center; gap: 8px; }
+.ops-center .mv-switch { position: relative; width: 34px; height: 18px; flex: none; padding: 0; border: none; border-radius: 999px; background: #c6ccd8; cursor: pointer; transition: background 0.15s; }
+.ops-center .mv-switch i { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(31, 39, 51, 0.2); transition: left 0.15s; }
+.ops-center .mv-switch.on { background: var(--color-success); }
+.ops-center .mv-switch.on i { left: 18px; }
+.ops-center .mv-switch:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* 任务/店铺两行信息 */
 .ops-center .mv-name { font-size: var(--fs-base); color: #1f2733; font-weight: 500; }

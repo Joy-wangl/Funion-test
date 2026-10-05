@@ -6,7 +6,7 @@ import {
   afterJumpSeed, scanAfterOrders, sliceAfterOrders, onlineSeriesOfCode, onlineSessionsOf, patchOnlineSession,
   type AfterScan, type AfterOrderRow,
 } from './qcOnlineData';
-import type { ChatHit, ChatMessage, ChatSession } from './data';
+import { SHOP_NAME, type ChatHit, type ChatMessage, type ChatSession } from './data';
 import PlatLogo from './PlatLogo.vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import QcTypeShuttle from './QcTypeShuttle.vue';
@@ -67,8 +67,6 @@ watch(page, (v) => { jumpVal.value = String(v); });
 
 const onQuery = () => { applied.value = { ...draft.value }; };
 const onReset = () => { draft.value = blank(); applied.value = blank(); };
-
-const statusTag = (s: string) => (s === '已处理' ? 'green' : s === '已拒绝' ? 'red' : 'orange');
 
 /* 关联会话：由会话发起的售后单数据层已挂 sessionId，操作列点开聊天记录全屏弹窗（与售后单抽屉同源回写） */
 const sessionModalId = ref<string | null>(null);
@@ -169,38 +167,35 @@ const exportSession = () => {
       <table class="table ao-table">
         <thead>
           <tr>
+            <th>平台</th>
+            <th>售后单号</th>
             <th>系列编码</th>
             <th>组别 / 运维人员</th>
             <th>订单号</th>
-            <th>售后单号</th>
-            <th>平台</th>
             <th>售后类型 / 售后原因</th>
             <th>问题小类</th>
-            <th>金额</th>
-            <th>状态</th>
             <th>申请时间</th>
             <th>操作</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="o in rows" :key="o.afterNo">
-            <td class="col-name">
-              <div class="qc-mono">{{ o.seriesCode }}</div>
-              <div class="qc-mono">{{ o.code }}</div>
+            <td>
+              <span class="ao-plat"><PlatLogo :platform="o.platform" />{{ o.platform }}</span>
+              <div class="ao-shop">{{ SHOP_NAME[o.platform] }}</div>
+            </td>
+            <td class="qc-mono">{{ o.afterNo }}</td>
+            <!-- 系列编码＝商品系列简称（袜子、冬季手套等），标签形式；字母+数字为商品编码 -->
+            <td>
+              <span class="tag">{{ o.seriesName }}</span>
             </td>
             <td>{{ o.group === '—' ? '—' : `${o.group} / ${o.operator}` }}</td>
             <td class="qc-mono ao-wrap">{{ o.orderNo }}</td>
-            <td class="qc-mono">{{ o.afterNo }}</td>
-            <td>
-              <span class="ao-plat"><PlatLogo :platform="o.platform" />{{ o.platform }}</span>
-            </td>
             <td class="col-name">
               <div><span class="tag">{{ o.type }}</span></div>
               <div class="ao-reason" :title="o.reason">{{ o.reason }}</div>
             </td>
             <td><span class="tag">{{ o.psub || o.ptype }}</span></td>
-            <td>¥{{ o.amount }}</td>
-            <td><span class="tag" :class="statusTag(o.status)">{{ o.status }}</span></td>
             <td class="ao-wrap">{{ o.appliedAt }}</td>
             <td>
               <div class="qc-op-col">
@@ -210,7 +205,7 @@ const exportSession = () => {
             </td>
           </tr>
           <tr v-if="!rows.length">
-            <td colspan="11">
+            <td colspan="9">
               <div class="sg-empty-wrap">
                 <div class="sg-empty-icon">◌</div>
                 <div>暂无数据，请调整筛选条件</div>

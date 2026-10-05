@@ -4397,6 +4397,18 @@
 /* 推荐素材位：上传位同构，蓝调区分来源（素材库选用） */
 .ops-center .cpd-upload-kb { border-color: #a8bcff; background: linear-gradient(135deg, #f3f7ff, #eef2ff); color: #4f7cff; }
 .ops-center .cpd-upload-kb i { color: #7b96e8; }
+/* 1:1主图（首图区）编辑态：缩略图列内的 52px 上传位/推荐位，与缩略图同宽同构；悬浮操作条压缩至 18px 不遮整图 */
+.ops-center .cpd-thumb-add {
+  width: 52px; height: 52px; flex: none; border-radius: 8px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border: 1px dashed #b9a6f0; background: linear-gradient(135deg, #fff7ef, #fdf1ff);
+  color: #596273; font-size: 11px;
+}
+.ops-center .cpd-thumb-add.kb { border-color: #a8bcff; background: linear-gradient(135deg, #f3f7ff, #eef2ff); color: #4f7cff; }
+.ops-center .sgd-thumbs .cpd-wmbox { flex: none; border-radius: 8px; overflow: hidden; }
+.ops-center .sgd-thumbs .cpd-img-ops button { height: 18px; font-size: 11px; }
+.ops-center .sgd-thumbs .cpd-img-ops button:first-child,
+.ops-center .sgd-thumbs .cpd-img-ops button:last-child { border-radius: 0; }
 /* 缩略图悬浮操作条：更换/裁剪（编辑态悬浮显现，底部贴边暗条） */
 .ops-center .cpd-img-ops {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
@@ -5688,6 +5700,32 @@
 .cp-btn.danger:hover {
   background: #d33a37;
 }
+/* 更多批量操作弹窗（Teleport 到 body，样式不带 .ops-center 前缀）：标题/首图两种批量更换 */
+.cp-batch-modal { width: 420px; }
+.cp-batch-cover { width: 520px; }
+.cp-batch-modal .cp-modal-foot { margin-top: 18px; }
+.cp-batch-input {
+  width: 100%; height: 36px; padding: 0 12px; box-sizing: border-box;
+  border: 1px solid #e4e8ef; border-radius: 8px; background: #fbfcfe;
+  font-size: var(--fs-base); color: var(--color-text); outline: none;
+}
+.cp-batch-input:focus { border-color: var(--color-primary); background: #fff; }
+.cp-batch-input::placeholder { color: var(--color-placeholder); font-weight: 400; }
+/* 首图来源磁贴：本地上传 / 推荐素材（蓝调区分来源，与详情页上传位同构），选中图片后追加预览块 */
+.cp-batch-srcs { display: flex; align-items: center; gap: 12px; }
+.cp-batch-tile {
+  width: 120px; height: 120px; flex: none; border-radius: 10px; cursor: pointer;
+  border: 1px dashed #b9a6f0; background: linear-gradient(135deg, #fff7ef, #fdf1ff);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  color: #596273; font-size: 12px;
+}
+.cp-batch-tile i { font-style: normal; color: #98a0ae; font-size: 11px; }
+.cp-batch-tile.kb { border-color: #a8bcff; background: linear-gradient(135deg, #f3f7ff, #eef2ff); color: #4f7cff; }
+.cp-batch-tile.kb i { color: #7b96e8; }
+.cp-batch-prev { width: 120px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.cp-batch-prev img { width: 120px; height: 120px; object-fit: cover; border-radius: 10px; border: 1px solid #eef1f5; background: #f6f8fb; }
+.cp-batch-prev b { font-size: 11px; font-weight: 500; color: #8a92a1; }
+.cp-batch-file { display: none; }
 /* 关联发布任务抽屉：右侧滑出，展示该商品发布到任务列表的数据 */
 .cp-drawer-mask {
   position: fixed;
@@ -5846,6 +5884,9 @@
   gap: 6px;
 }
 .ops-center .cp-img-entry svg { flex: none; }
+/* 更多批量操作触发钮：选条内与图片管理同规格，尾随下拉箭头示意气泡展开 */
+.ops-center .cp-more-batch { display: inline-flex; align-items: center; gap: 4px; }
+.ops-center .cp-more-batch svg { flex: none; }
 /* 图片管理二级页显示时：内容区去外边距并整幅白底（花瓣式全幅白，消除灰底切割感）；
    须限定 .page.show——子页 v-show 保活，离开后 .cp-imgpage 仍在 DOM，不限定会把白底漏到其它页 */
 .ops-center .content:has(.page.show .cp-imgpage) { padding: 0; background: #fff; }

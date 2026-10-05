@@ -79,10 +79,10 @@ export interface SeriesRow {
 }
 
 export const SERIES: SeriesRow[] = [
-  { seriesCode: 'XL-2001', name: '保温杯系列' },
-  { seriesCode: 'XL-2002', name: '毛绒玩具系列' },
-  { seriesCode: 'XL-2003', name: '厨房收纳系列' },
-  { seriesCode: 'XL-2004', name: '手机支架系列' },
+  { seriesCode: 'XL-2001', name: '保温杯' },
+  { seriesCode: 'XL-2002', name: '毛绒玩具' },
+  { seriesCode: 'XL-2003', name: '厨房收纳' },
+  { seriesCode: 'XL-2004', name: '手机支架' },
 ];
 
 export const PRODUCT_CODES: ProductCodeRow[] = [

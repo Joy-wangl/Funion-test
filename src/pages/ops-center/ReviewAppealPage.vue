@@ -7,10 +7,14 @@ import Ellipsis from '../../components/Ellipsis.vue';
 import Modal from '../../components/Modal.vue';
 import SortTh from '../../components/SortTh.vue';
 import { pushToast } from '../../components/toast';
-import { raReviews, type RaReview, type RaVisibility, type RaAppealStatus, type RaAuditStatus } from './reviewAppealData';
+import { raReviews, RA_TYPES, type RaReview, type RaAppealStatus, type RaAuditStatus } from './reviewAppealData';
 import ColFieldPop from './ColFieldPop.vue';
+import PlatLogo from '../quality/PlatLogo.vue';
 import { useColField } from './colFields';
 import './ReviewAppealPage.css';
+
+/* 嵌入其它壳（品控中心）时由壳自带页头，隐藏运营中心面包屑 */
+defineProps<{ hideHead?: boolean }>();
 
 /* 列表字段管理：订单详情置首、操作固定右；CSS 类驱动宽 sticky=false */
 const cf = useColField('reviewAppeal', {
@@ -18,11 +22,9 @@ const cf = useColField('reviewAppeal', {
   fields: [
     { key: 'order', label: '订单详情' },
     { key: 'shop', label: '店铺信息' },
-    { key: 'user', label: '评价人' },
     { key: 'content', label: '评价内容' },
-    { key: 'ratedAt', label: '评价时间' },
-    { key: 'appealTime', label: '申诉时间' },
-    { key: 'appealStatus', label: '申诉状态' },
+    { key: 'ratedAt', label: '评价信息' },
+    { key: 'appealTime', label: '申诉信息' },
     { key: 'auditStatus', label: '审核状态' },
   ],
   fixedRight: [{ key: 'ops', label: '操作' }],
@@ -35,23 +37,23 @@ const fProductId = ref('');
 const fShopName = ref('');
 const fDateFrom = ref('');
 const fDateTo = ref('');
-const fVisibility = ref<RaVisibility | '全部'>('全部');
 const fAppealStatus = ref<RaAppealStatus | '全部'>('全部');
 const fAuditStatus = ref<RaAuditStatus | '全部'>('全部');
+const fReviewType = ref('全部');
 
 interface RaFilters {
   productId: string;
   shopName: string;
   dateFrom: string;
   dateTo: string;
-  visibility: RaVisibility | '全部';
   appealStatus: RaAppealStatus | '全部';
   auditStatus: RaAuditStatus | '全部';
+  reviewType: string;
 }
 
 const appliedFilters = ref<RaFilters>({
   productId: '', shopName: '', dateFrom: '', dateTo: '',
-  visibility: '全部', appealStatus: '全部', auditStatus: '全部',
+  appealStatus: '全部', auditStatus: '全部', reviewType: '全部',
 });
 const appealDetail = ref<RaReview | null>(null);
 const appealTarget = ref<RaReview | null>(null);
@@ -76,9 +78,9 @@ const filtered = computed(() => {
   const out = raReviews.filter((r) => {
     /* 仅抓取差评，固定只展示「不够好」 */
     if (r.rating !== '不够好') return false;
-    if (f.visibility !== '全部' && r.visibility !== f.visibility) return false;
     if (f.appealStatus !== '全部' && r.appealStatus !== f.appealStatus) return false;
     if (f.auditStatus !== '全部' && r.auditStatus !== f.auditStatus) return false;
+    if (f.reviewType !== '全部' && !(r.types || []).includes(f.reviewType)) return false;
     if (f.productId && !r.productId.includes(f.productId)) return false;
     if (f.shopName && !r.shopName.includes(f.shopName)) return false;
     if (f.dateFrom || f.dateTo) {
@@ -88,7 +90,7 @@ const filtered = computed(() => {
     }
     return true;
   });
-  /* 评价时间 / 申诉时间 列头排序（时间串 localeCompare，申诉时间为空排末尾） */
+  /* 评价信息（按评价时间）/ 申诉信息（按申诉时间）列头排序（时间串 localeCompare，申诉时间为空排末尾） */
   const k = sortKey.value;
   if (k && sortDir.value !== 'none') {
     const dir = sortDir.value === 'asc' ? 1 : -1;
@@ -127,9 +129,9 @@ const doFilter = () => {
     shopName: fShopName.value.trim(),
     dateFrom: fDateFrom.value,
     dateTo: fDateTo.value,
-    visibility: fVisibility.value,
     appealStatus: fAppealStatus.value,
     auditStatus: fAuditStatus.value,
+    reviewType: fReviewType.value,
   };
 };
 const doReset = () => {
@@ -137,9 +139,9 @@ const doReset = () => {
   fShopName.value = '';
   fDateFrom.value = '';
   fDateTo.value = '';
-  fVisibility.value = '全部';
   fAppealStatus.value = '全部';
   fAuditStatus.value = '全部';
+  fReviewType.value = '全部';
   doFilter();
 };
 const clearTextFilter = (field: 'productId' | 'shopName') => {
@@ -228,7 +230,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 <template>
   <div class="ra-page">
     <!-- 页面标题：沿用运营中心列表页的面包屑层级，不把筛选项直接铺在背景上 -->
-    <div class="ra-head">
+    <div v-if="!hideHead" class="ra-head">
       <div class="ra-breadcrumb">智能运营中心 <span>/ 申诉中心 / 评价申诉</span></div>
     </div>
   
@@ -258,16 +260,16 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
           />
         </div>
         <div class="ra-filter-field">
-          <label>可见范围</label>
-          <BubbleSelect class-name="ra-select" :value="fVisibility" :options="['全部', '展示中', '已折叠', '未展示']" @change="(v) => (fVisibility = v as RaVisibility | '全部')" />
-        </div>
-        <div class="ra-filter-field">
           <label>申诉状态</label>
           <BubbleSelect class-name="ra-select" :value="fAppealStatus" :options="['全部', '待申诉', '已申诉', '不予申诉']" @change="(v) => (fAppealStatus = v as RaAppealStatus | '全部')" />
         </div>
         <div class="ra-filter-field">
           <label>审核状态</label>
           <BubbleSelect class-name="ra-select" :value="fAuditStatus" :options="['全部', '审核中', '已通过', '未通过', '已撤回']" @change="(v) => (fAuditStatus = v as RaAuditStatus | '全部')" />
+        </div>
+        <div class="ra-filter-field">
+          <label>评价类型</label>
+          <BubbleSelect class-name="ra-select" :value="fReviewType" :options="['全部', ...RA_TYPES]" @change="(v) => (fReviewType = v)" />
         </div>
         <div class="ra-filter-actions">
           <!-- 列表字段管理 ▦：居按钮组最左（规范） -->
@@ -288,11 +290,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
             <template v-for="c in midCols" :key="c.key">
               <th v-if="c.key === 'order'" class="ra-th-order">{{ c.label }}</th>
               <th v-else-if="c.key === 'shop'" class="ra-th-shop">{{ c.label }}</th>
-              <th v-else-if="c.key === 'user'" class="ra-th-user">{{ c.label }}</th>
               <th v-else-if="c.key === 'content'" class="ra-th-content">{{ c.label }}</th>
               <SortTh v-else-if="c.key === 'ratedAt'" class="ra-th-time" :label="c.label" :state="sortState('ratedAt')" @sort="onSort('ratedAt')" />
               <SortTh v-else-if="c.key === 'appealTime'" class="ra-th-appeal-time" :label="c.label" :state="sortState('appealTime')" @sort="onSort('appealTime')" />
-              <th v-else-if="c.key === 'appealStatus'" class="ra-th-status">{{ c.label }}</th>
               <th v-else-if="c.key === 'auditStatus'" class="ra-th-audit">{{ c.label }}</th>
             </template>
             <th class="ra-th-ops">操作</th>
@@ -312,19 +312,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
                   </div>
                 </div>
               </td>
-              <!-- 店铺信息：仅保留店铺名称 -->
-              <td v-else-if="c.key === 'shop'" class="ra-shop">{{ r.shopName }}</td>
-              <!-- 评价人：保留昵称 -->
-              <td v-else-if="c.key === 'user'">
-                <div class="ra-user">
-                  <span class="ra-user-name" :title="r.userName">{{ r.userName }}</span>
-                </div>
-              </td>
-              <!-- 评价内容：评分标签 + 正文 + 附图 -->
+              <!-- 店铺信息：平台官方图标＋店铺名称 -->
+              <td v-else-if="c.key === 'shop'" class="ra-shop"><PlatLogo :platform="r.platform" />{{ r.shopName }}</td>
+              <!-- 评价内容：评分标签 + 类型灰行 + 正文 + 附图 -->
               <td v-else-if="c.key === 'content'">
                 <div class="ra-rating" :class="r.rating === '不够好' ? 'bad' : 'good'">
                   <span>{{ r.rating === '不够好' ? '😞' : '😊' }} {{ r.rating }}</span>
                 </div>
+                <div v-if="r.types && r.types.length" class="ra-types">{{ r.types.join('，') }}</div>
                 <div class="ra-content">
                   <Ellipsis class="ra-content-ell" :text="r.content" />
                 </div>
@@ -332,13 +327,19 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
                   <img v-for="img in r.images" :key="img" class="ra-img-thumb" :src="img" alt="评价附图" />
                 </div>
               </td>
-              <!-- 评价时间 -->
-              <td v-else-if="c.key === 'ratedAt'" class="ra-time">{{ r.ratedAt }}</td>
-              <!-- 申诉时间 -->
-              <td v-else-if="c.key === 'appealTime'" class="ra-time">{{ r.appealTime || '—' }}</td>
-              <!-- 申诉状态 -->
-              <td v-else-if="c.key === 'appealStatus'">
-                <span class="ra-status" :class="statusCls(r.appealStatus)">{{ r.appealStatus }}</span>
+              <!-- 评价信息：评价人昵称 + 评价时间 合并单列 -->
+              <td v-else-if="c.key === 'ratedAt'">
+                <div class="ra-info">
+                  <span class="ra-info-name" :title="r.userName">{{ r.userName }}</span>
+                  <span class="ra-info-time">{{ r.ratedAt }}</span>
+                </div>
+              </td>
+              <!-- 申诉信息：申诉状态标签主行 + 申诉时间灰行 合并单列 -->
+              <td v-else-if="c.key === 'appealTime'">
+                <div class="ra-appeal-info">
+                  <span class="ra-status" :class="statusCls(r.appealStatus)">{{ r.appealStatus }}</span>
+                  <span v-if="r.appealTime" class="ra-info-time">{{ r.appealTime }}</span>
+                </div>
               </td>
               <!-- 审核状态：提交申诉后的平台审核结果 -->
               <td v-else-if="c.key === 'auditStatus'">

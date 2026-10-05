@@ -88,6 +88,7 @@ const defaultFlatFilter = (): FlatFilter => ({
 const tab = ref('all');
 const chip = ref('全部');
 const type = ref('');
+const isAutoType = computed(() => ['自动搬家', '自动下架', '自动发布'].includes(type.value));
 const linkId = ref('');
 const shop = ref('');
 const platform = ref('');
@@ -441,9 +442,9 @@ watch(pageCount, (v) => { if (page.value > v) page.value = v; });
         </span>
       </div>
       <div class="sg-field">
-        <label>自动化任务</label>
+        <label>{{ isAutoType ? '自动化任务名称' : '自动化任务' }}</label>
         <span class="sg-inputwrap">
-          <input v-model="mvId" class="sg-input" placeholder="自动化任务" />
+          <input v-model="mvId" class="sg-input" :placeholder="isAutoType ? '请输入' : '自动化任务'" />
           <button v-if="mvId" type="button" class="sg-clear" title="清除" @click="mvId = ''; onSearch()">
             <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
           </button>

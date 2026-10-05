@@ -7,7 +7,7 @@ import Modal from '../../components/Modal.vue';
 import MoreActions from '../../components/MoreActions.vue';
 import SortTh from '../../components/SortTh.vue';
 import { pushToast } from '../../components/toast';
-import { MV_KINDS, MV_METHODS, MV_PLATFORMS, MV_EXEC_STATUSES, MV_TASK_STATUSES, mvRunSummary, mvShopOf, mvTaskDot, mvExecDot, type MvTask, type MvExecStatus, type MvMethod } from './moveData';
+import { MV_KINDS, MV_METHODS, MV_PLATFORMS, MV_EXEC_STATUSES, MV_TASK_STATUSES, mvRunSummary, mvShopOf, mvExecDot, type MvTask, type MvExecStatus, type MvMethod } from './moveData';
 import { PLATFORM_LOGO } from './data';
 import ColFieldPop from './ColFieldPop.vue';
 import { useColField } from './colFields';
@@ -78,9 +78,10 @@ const sortState = () => sortDir.value;
 /* 执行方式标签：复用全局 .tag 系统（循环=灰 / 条件触发=橙 / 一次性=绿），与品控等模块标签同款 */
 const methodTag = (m: MvTask['method']) => (m === '条件触发' ? 'tag orange' : m === '一次性' ? 'tag green' : 'tag');
 
-/* 生命周期按维度拆分：启用/禁用作用于任务状态（全方式含一次性，2026-10-03 四轮定案），立即执行作用于执行状态（一次性·已启用·待执行）；
+/* 生命周期按维度拆分：启用/禁用作用于任务状态（全方式含一次性），立即执行作用于执行状态（一次性·已启用·待执行）；
    双维耦合：已禁用即无执行状态（禁用收口在途并清空排队），重新启用后回到待执行；
-   在途执行（执行中）不可禁用：禁用入口隐藏，待本轮执行结束（回到待执行）后才可禁用 */
+   在途执行（执行中）不可禁用：任务状态列开关禁用，待本轮执行结束（回到待执行）后才可关。
+   启用/禁用 2026-10-04 二轮撤出操作列，改由任务状态列开关承托（用户定案「做成开关式的样式」） */
 const stopPatch = (): Partial<MvTask> => ({ taskStatus: '已禁用', execStatus: undefined });
 const TOGGLE_MSG: Record<MvMethod, { on: string; off: string }> = {
   循环: { off: '停止循环', on: '恢复循环执行' },
@@ -92,6 +93,10 @@ const toggleAct = (t: MvTask): { label: string; patch: Partial<MvTask>; msg: str
   if (t.execStatus === '执行中') return null;
   return { label: '禁用', patch: stopPatch(), msg: `已禁用：任务「${t.name}」${TOGGLE_MSG[t.method].off}` };
 };
+const onSwitch = (t: MvTask) => {
+  const act = toggleAct(t);
+  if (act) applyAct(t, act);
+};
 const execAct = (t: MvTask): { label: string; patch: Partial<MvTask>; msg: string } | null =>
   t.method === '一次性' && t.taskStatus === '已启用' && t.execStatus === '待执行'
     ? { label: '立即执行', patch: { execStatus: '执行中' }, msg: `已立即执行：任务「${t.name}」开始执行` }
@@ -101,9 +106,9 @@ const applyAct = (t: MvTask, act: { label: string; patch: Partial<MvTask>; msg: 
   pushToast(act.msg);
 };
 
-/* 操作矩阵全表（2026-10-02 用户拍板）：执行中＝在途保护态——删除隐藏（在途批次不可无主）、循环/条件可编辑（改动下一轮生效）；
-   一次性禁编辑（本轮即唯一轮，改配置无生效落点）、一次性已完成配置已消耗——仅留删除作归档清理。
-   详情全行直出（2026-10-04 用户定案）：不可编辑的任务抽屉内做校验＝只读态不展示保存/执行按钮 */
+/* 操作矩阵全表（2026-10-02 用户拍板）：执行中＝在途保护态——删除隐藏（在途批次不可无主）；
+   一次性已完成配置已消耗——仅留删除作归档清理。启用/禁用已移任务状态列开关。
+   详情全行直出（2026-10-04 定案）：可编辑性 mvCanEdit（已启用×待执行）由抽屉内查看/编辑按钮态区分收口 */
 const canDel = (t: MvTask) => t.execStatus !== '执行中';
 
 /* 操作列：直出≤2 链接、超出收「更多」（docs/UI设计规范 §2.7）；删除强提醒二次确认 */
@@ -112,8 +117,6 @@ const mvOps = (t: MvTask): MvOp[] => {
   const ops: MvOp[] = [{ label: '详情', run: () => emit('detail', t) }];
   const ex = execAct(t);
   if (ex) ops.push({ label: ex.label, run: () => applyAct(t, ex) });
-  const tg = toggleAct(t);
-  if (tg) ops.push({ label: tg.label, run: () => applyAct(t, tg) });
   if (canDel(t)) ops.push({ label: '删除', danger: true, run: () => (delTarget.value = t) });
   return ops;
 };
@@ -224,12 +227,18 @@ const confirmDel = () => {
                   <div class="mv-methodline"><span :class="methodTag(t.method)">{{ t.method }}</span></div>
                 </td>
                 <td v-else-if="c.key === 'taskStatus'">
-                  <!-- 任务状态＝启用维度纯状态（全方式含一次性）；已禁用无执行状态在执行状态列显 — -->
-                  <span v-if="t.taskStatus" class="sg-status">
-                    <span class="sg-dot" :class="mvTaskDot(t.taskStatus)" />
-                    <span>{{ t.taskStatus }}</span>
+                  <!-- 任务状态＝开关式（2026-10-04 定案）：开=已启用/关=已禁用，点击即启停；在途执行中行开关禁用（不可禁用） -->
+                  <span class="mv-switchrow">
+                    <button
+                      type="button"
+                      class="mv-switch"
+                      :class="{ on: t.taskStatus === '已启用' }"
+                      :disabled="!toggleAct(t)"
+                      :title="!toggleAct(t) ? '执行中任务不可禁用' : t.taskStatus === '已启用' ? '点击禁用' : '点击启用'"
+                      :aria-label="t.taskStatus === '已启用' ? '禁用任务' : '启用任务'"
+                      @click="onSwitch(t)"
+                    ><i /></button>
                   </span>
-                  <span v-else class="mv-none">—</span>
                 </td>
                 <td v-else-if="c.key === 'execStatus'">
                   <span v-if="t.execStatus" class="sg-status">
@@ -261,17 +270,19 @@ const confirmDel = () => {
       </div>
     </div>
 
-    <!-- 删除强提醒：危险操作二次确认 -->
-    <Modal v-if="delTarget" title="删除任务" :sub="`删除后不可恢复，请谨慎确认`" @close="delTarget = null">
-      <div class="bp-rows">
-        <div class="bp-row"><span class="bp-label">任务</span><b>{{ delTarget.name }}（{{ delTarget.id }}）</b></div>
-        <div class="bp-row"><span class="bp-label">类型与配置</span><b>{{ delTarget.kind }} · {{ delTarget.method }} · {{ mvRunSummary(delTarget) }}</b></div>
-        <div class="bp-row"><span class="bp-label">影响</span><b>该任务的执行批次记录将一并移除，已发布 / 已下架商品不受影响</b></div>
-      </div>
-      <template #foot>
-        <button class="btn" @click="delTarget = null">取消</button>
-        <button class="btn danger" @click="confirmDel">确认删除</button>
-      </template>
-    </Modal>
+    <!-- 删除强提醒：危险操作二次确认；Modal 基础样式挂 .pm-page 作用域，需 pm-host 宿主层 -->
+    <div v-if="delTarget" class="pm-page pm-host">
+      <Modal title="删除任务" :sub="`删除后不可恢复，请谨慎确认`" @close="delTarget = null">
+        <div class="bp-rows">
+          <div class="bp-row"><span class="bp-label">任务</span><b>{{ delTarget.name }}（{{ delTarget.id }}）</b></div>
+          <div class="bp-row"><span class="bp-label">类型与配置</span><b>{{ delTarget.kind }} · {{ delTarget.method }} · {{ mvRunSummary(delTarget) }}</b></div>
+          <div class="bp-row"><span class="bp-label">影响</span><b>该任务的执行批次记录将一并移除，已发布 / 已下架商品不受影响</b></div>
+        </div>
+        <template #foot>
+          <button class="btn" @click="delTarget = null">取消</button>
+          <button class="btn danger" @click="confirmDel">确认删除</button>
+        </template>
+      </Modal>
+    </div>
   </div>
 </template>

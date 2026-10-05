@@ -22,7 +22,6 @@ import {
   type RangeKey,
 } from './qcCenterData';
 import {
-  AFTER_STATUSES,
   AFTER_TYPE_EXCH_RESHIP,
   ONLINE_DEPT_COUNTS,
   ONLINE_OV,
@@ -107,33 +106,35 @@ const drillItems = computed(() => {
 const pieItems = computed(() => drillItems.value ?? shareItems.value);
 const trendSeries = computed(() => trend.value.series.map((s) => ({ ...s, color: PROBLEM_TYPE_COLOR[s.type] || '#4f7cff' })));
 
-/* 售后模块（品控-线上固定口径）：订单量 / 退货退款 / 换货补发 三指标卡 + 状态占比行 */
+/* 售后模块（品控-线上固定口径）：订单量卡留在「售后数据」块，两张售后类型卡上移至「数据总览」指标行；
+   每张卡带「关联会话数量」「问题会话数量」两子行 */
 const rangeAfter = ref<RangeKey>('custom');
 const customAfter = ref<DateRange>({ ...DEFAULT_CUSTOM_RANGE });
 const AFTER_TYPE_COLOR: Record<string, string> = { '退货退款/退款': '#e6455c', 换货: '#ff9a2e', 补发: '#4f7cff' };
-const AFTER_STATUS_COLOR: Record<string, string> = { 已处理: '#1f9d55', 已拒绝: '#e5484d', 待处理: '#ff9a2e' };
 const afterBrief = computed(() => onlineAfterBrief());
 const afterSess = computed(() => onlineAfterSessionBrief());
-const sharePct = (v: number, total: number) => (total ? `${((v / total) * 100).toFixed(1)}%` : '0.0%');
-/* 三指标卡：值取售后类型口径（退货退款/仅退款＝退货退款；换货/补发合并），
-   卡下「关联会话数量」＝订单发生退换货时存在会话的关联会话数（订单量卡为周期会话总数） */
+/* 值取售后类型口径（退货退款/仅退款＝退货退款；换货/补发合并）；
+   sess＝订单发生退换货时存在会话的关联会话数（订单量卡为周期会话总数），prob＝关联会话中命中问题的会话数 */
 const afterCards = computed(() => {
   const t = afterBrief.value.types;
   const s = afterSess.value;
   return [
-    { label: '订单量', value: ovTotals.value.orders, color: '#4f7cff', sess: s.sessions, seed: {} as AfterJump, tip: '查看周期内全部售后单明细' },
-    { label: '退货退款/仅退款', value: t['退货退款/退款'] ?? 0, color: AFTER_TYPE_COLOR['退货退款/退款'], sess: s.refund, seed: { type: '退货退款/退款' } as AfterJump, tip: '查看退货退款 / 仅退款售后单明细' },
-    { label: '换货/补发', value: (t['换货'] ?? 0) + (t['补发'] ?? 0), color: AFTER_TYPE_COLOR['换货'], sess: s.exchReship, seed: { type: AFTER_TYPE_EXCH_RESHIP } as AfterJump, tip: '查看换货 / 补发售后单明细' },
+    { label: '订单量', value: ovTotals.value.orders, color: '#4f7cff', sess: s.sessions, prob: s.probSessions, seed: {} as AfterJump, tip: '查看周期内全部售后单明细' },
+    { label: '退货退款/仅退款', value: t['退货退款/退款'] ?? 0, color: AFTER_TYPE_COLOR['退货退款/退款'], sess: s.refund, prob: s.probRefund, seed: { type: '退货退款/退款' } as AfterJump, tip: '查看退货退款 / 仅退款售后单明细' },
+    { label: '换货/补发', value: (t['换货'] ?? 0) + (t['补发'] ?? 0), color: AFTER_TYPE_COLOR['换货'], sess: s.exchReship, prob: s.probExchReship, seed: { type: AFTER_TYPE_EXCH_RESHIP } as AfterJump, tip: '查看换货 / 补发售后单明细' },
   ];
 });
-const afterStatusItems = computed(() => AFTER_STATUSES.map((s) => ({ label: s, value: afterBrief.value.statuses[s] ?? 0, color: AFTER_STATUS_COLOR[s] || '#4f7cff', seed: { status: s } as AfterJump, tip: `查看状态为「${s}」的售后单明细` })));
+/* 售后数据块只留订单量卡 */
+const afterOrderCard = computed(() => afterCards.value[0]);
+/* 两张售后类型卡上移到数据总览指标行 */
+const afterTypeCards = computed(() => afterCards.value.slice(1));
 </script>
 
 <template>
   <!-- 数据总览 + 问题类型占比：共用一块白色面板 -->
   <div class="qc-ov-panel">
     <QcSectionHead title="数据总览" :range="rangeOv" :custom="customOv" :on-range="(r: RangeKey) => (rangeOv = r)" :on-custom="(d: DateRange) => (customOv = d)" />
-    <div class="qc-flat-grid cols-4">
+    <div class="qc-flat-grid cols-6">
       <div class="flat-card">
         <div class="k">监控系列编码数</div>
         <div class="v">{{ ovCodes.toLocaleString() }}</div>
@@ -148,6 +149,19 @@ const afterStatusItems = computed(() => AFTER_STATUSES.map((s) => ({ label: s, v
       <div class="flat-card">
         <div class="k">监控编码订单量</div>
         <div class="v">{{ ovTotals.orders.toLocaleString() }}</div>
+      </div>
+      <div
+        v-for="i in afterTypeCards"
+        :key="i.label"
+        class="flat-card type-card after-card"
+        :class="{ clickable: !!props.onPickAfter }"
+        :title="props.onPickAfter ? i.tip : undefined"
+        @click="props.onPickAfter?.(i.seed)"
+      >
+        <div class="k"><i class="type-dot" :style="{ background: i.color }" />{{ i.label }}</div>
+        <div class="v">{{ i.value.toLocaleString() }}</div>
+        <div class="after-sess">关联会话数量 <b>{{ i.sess.toLocaleString() }}</b></div>
+        <div class="after-sess">问题会话数量 <b>{{ i.prob.toLocaleString() }}</b></div>
       </div>
       <div class="flat-card" title="聊天风险率 = 聊天问题命中次数 ÷ 周期订单量">
         <div class="k">聊天问题命中次数</div>
@@ -213,39 +227,20 @@ const afterStatusItems = computed(() => AFTER_STATUSES.map((s) => ({ label: s, v
     </div>
   </div>
 
-  <!-- 售后数据：售后状态占比行在上、订单量 / 退货退款 / 换货补发 三指标卡在下（每卡下带关联会话数量），品控-线上固定口径 -->
+  <!-- 售后数据：订单量指标卡（两张售后类型卡已上移至数据总览指标行）；每卡带关联会话数量 / 问题会话数量，品控-线上固定口径 -->
   <div v-if="online" class="qc-ov-panel">
-    <div class="qc-sec-head"><div class="qc-sec-title">售后状态占比</div></div>
-    <div class="qc-flat-grid cols-3">
-      <div
-        v-for="i in afterStatusItems"
-        :key="i.label"
-        class="flat-card dept-card"
-        :class="{ clickable: !!props.onPickAfter }"
-        :title="props.onPickAfter ? i.tip : undefined"
-        @click="props.onPickAfter?.(i.seed)"
-      >
-        <div class="k"><i class="type-dot" :style="{ background: i.color }" />{{ i.label }}</div>
-        <div class="v">
-          {{ i.value.toLocaleString() }}
-          <span class="dept-pct">{{ sharePct(i.value, afterBrief.total) }}</span>
-        </div>
-      </div>
-    </div>
-    <div class="qc-ov-divider" />
     <QcSectionHead title="售后数据" :range="rangeAfter" :custom="customAfter" :on-range="(r: RangeKey) => (rangeAfter = r)" :on-custom="(d: DateRange) => (customAfter = d)" />
     <div class="qc-flat-grid cols-3">
       <div
-        v-for="i in afterCards"
-        :key="i.label"
         class="flat-card type-card after-card"
         :class="{ clickable: !!props.onPickAfter }"
-        :title="props.onPickAfter ? i.tip : undefined"
-        @click="props.onPickAfter?.(i.seed)"
+        :title="props.onPickAfter ? afterOrderCard.tip : undefined"
+        @click="props.onPickAfter?.(afterOrderCard.seed)"
       >
-        <div class="k"><i class="type-dot" :style="{ background: i.color }" />{{ i.label }}</div>
-        <div class="v">{{ i.value.toLocaleString() }}</div>
-        <div class="after-sess">关联会话数量 <b>{{ i.sess.toLocaleString() }}</b></div>
+        <div class="k"><i class="type-dot" :style="{ background: afterOrderCard.color }" />{{ afterOrderCard.label }}</div>
+        <div class="v">{{ afterOrderCard.value.toLocaleString() }}</div>
+        <div class="after-sess">关联会话数量 <b>{{ afterOrderCard.sess.toLocaleString() }}</b></div>
+        <div class="after-sess">问题会话数量 <b>{{ afterOrderCard.prob.toLocaleString() }}</b></div>
       </div>
     </div>
   </div>
