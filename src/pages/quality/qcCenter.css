@@ -1970,8 +1970,6 @@
    仅补两处本页特有：子行比率字重同预警徽章、三维均值子行三段左对齐等距 */
 .qc-center-page .qc-sl-ov .after-sess .rate { font-weight: var(--fw-semibold); }
 .qc-center-page .qc-sl-ov .qc-sl-ov-dims { display: flex; align-items: center; gap: 14px; }
-/* 小类态卡片无更下级：取消手型，仅标题返回钮回大类 */
-.qc-center-page .qc-sl-ov .type-card.no-drill { cursor: default; }
 /* 店铺列表看板饼图带数值图例：基础层 104px 列wrap 规格仅适无值图例，带值须单列不折行、数值右对齐成列；
    盒宽放宽到容纳 190px 环图＋单列图例（pie-wrap 默认 flex-start，环图贴左不随图例宽窄抖动） */
 .qc-center-page .qc-sl-ov .qc-share-pie { width: 460px; }
@@ -2237,8 +2235,32 @@
 .qc-center-page .qd-att .tx i { font-style: normal; font-size: 11px; color: var(--color-text-3); }
 .qc-center-page .qd-imgs { display: flex; gap: 10px; }
 .qc-center-page .qd-img { width: 64px; height: 64px; border-radius: 6px; background: linear-gradient(135deg, #d8dce3, #b9bfc9); }
-.qc-center-page .qd-flow { position: relative; padding-left: 18px; font-size: var(--fs-base); color: var(--color-text-2); margin-bottom: 14px; }
-.qc-center-page .qd-flow i { position: absolute; left: 0; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
+/* 详情标题状态芯片（图一实心紫转交/图二实心红驳回） */
+.qc-center-page .qd-st { padding: 2px 8px; border-radius: 6px; color: #fff; font-size: 12px; font-weight: 600; vertical-align: 2px; }
+.qc-center-page .qd-st.zf { background: #8b5cf6; }
+.qc-center-page .qd-st.bh { background: #f5484d; }
+/* 处理流程时间轴（参考钉钉）：左轨点＋连接线，节点名＋时间右置＋处理人行＋说明 */
+.qc-center-page .qf-list { background: #f4f5fa; border-radius: 10px; padding: 16px; }
+.qc-center-page .qf-node { display: flex; gap: 10px; }
+.qc-center-page .qf-rail { flex: none; display: flex; flex-direction: column; align-items: center; width: 10px; }
+.qc-center-page .qf-rail i { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); margin-top: 5px; }
+.qc-center-page .qf-rail b { flex: 1; width: 1px; background: #d8dce6; margin: 4px 0; }
+.qc-center-page .qf-node.reject .qf-rail i { background: #f5484d; }
+.qc-center-page .qf-node.revoke .qf-rail i { background: #86909c; }
+.qc-center-page .qf-node.current .qf-rail i { background: #fff; box-shadow: inset 0 0 0 2px var(--primary); }
+.qc-center-page .qf-main { flex: 1; min-width: 0; padding-bottom: 16px; }
+.qc-center-page .qf-node:last-child .qf-main { padding-bottom: 2px; }
+.qc-center-page .qf-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.qc-center-page .qf-head b { font-size: var(--fs-base); font-weight: var(--fw-medium); color: var(--color-text-1); }
+.qc-center-page .qf-node.reject .qf-head b { color: #f5484d; }
+.qc-center-page .qf-node.revoke .qf-head b { color: #86909c; }
+.qc-center-page .qf-node.current .qf-head b { color: var(--primary); }
+.qc-center-page .qf-head span { font-size: 12px; color: var(--color-text-3); font-variant-numeric: tabular-nums; }
+.qc-center-page .qf-person { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: var(--color-text-2); }
+.qc-center-page .qf-desc { margin-top: 8px; font-size: 12px; color: var(--color-text-3); line-height: 1.6; }
+/* 撤销确认/驳回原因弹窗内文 */
+.qc-center-page .qc-todo-confirm { font-size: var(--fs-base); color: var(--color-text-2); line-height: 1.7; }
+.qc-center-page .qc-todo-rejta { height: 96px; }
 .qc-center-page .qd-foot { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 10px; padding: 12px 0; background: #fff; }
 /* 多人任务处理人钻取（图三左） */
 .qc-center-page .qc-todo-handlers { padding: 16px; }

@@ -8,7 +8,7 @@ import { avaColor } from '../permission/data';
 import type { Member } from '../permission/data';
 import { IconXsm } from '../permission/permIcons';
 
-const props = defineProps<{ source: Member[]; title?: string; initialIds?: Set<string> }>();
+const props = defineProps<{ source: Member[]; title?: string; initialIds?: Set<string>; /** 单选（转交场景）：点选即替换，分组批量不生效 */ single?: boolean }>();
 const emit = defineEmits<{ (e: 'close'): void; (e: 'confirm', members: Member[]): void }>();
 
 const valid = computed(() => props.source.filter((m) => m.status !== 'pending'));
@@ -16,19 +16,21 @@ const selectedIds = ref<Set<string>>(new Set(props.initialIds ?? []));
 const selected = computed(() => valid.value.filter((m) => selectedIds.value.has(m.id)));
 
 const toggle = (id: string) => {
+  if (props.single) { selectedIds.value = new Set([id]); return; }
   const next = new Set(selectedIds.value);
   if (next.has(id)) next.delete(id);
   else next.add(id);
   selectedIds.value = next;
 };
 const bulk = (ids: string[], checked: boolean) => {
+  if (props.single) return;
   const next = new Set(selectedIds.value);
   ids.forEach((id) => { if (checked) next.add(id); else next.delete(id); });
   selectedIds.value = next;
 };
 const confirm = () => {
   if (!selected.value.length) { pushToast('请至少选择一名成员', 'error'); return; }
-  emit('confirm', selected.value);
+  emit('confirm', props.single ? selected.value.slice(0, 1) : selected.value);
   emit('close');
 };
 </script>
@@ -39,7 +41,7 @@ const confirm = () => {
     <div class="member-transfer">
       <MemberPickPanel :members="valid" :selected-ids="selectedIds" :on-toggle="toggle" :on-bulk="bulk" />
       <div class="member-transfer-right">
-        <div class="mtr-head">已选择({{ selected.length }}/1000)</div>
+        <div class="mtr-head">已选择({{ selected.length }}/{{ props.single ? 1 : 1000 }})</div>
         <div class="mtr-body">
           <div v-if="!selected.length" class="mtr-empty">暂未选择成员</div>
           <div v-for="m in selected" :key="m.id" class="mtr-selected">
