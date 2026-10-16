@@ -8,11 +8,11 @@ import { avaColor } from '../permission/data';
 import type { Member } from '../permission/data';
 import { IconXsm } from '../permission/permIcons';
 
-const props = defineProps<{ source: Member[] }>();
+const props = defineProps<{ source: Member[]; title?: string; initialIds?: Set<string> }>();
 const emit = defineEmits<{ (e: 'close'): void; (e: 'confirm', members: Member[]): void }>();
 
 const valid = computed(() => props.source.filter((m) => m.status !== 'pending'));
-const selectedIds = ref<Set<string>>(new Set());
+const selectedIds = ref<Set<string>>(new Set(props.initialIds ?? []));
 const selected = computed(() => valid.value.filter((m) => selectedIds.value.has(m.id)));
 
 const toggle = (id: string) => {
@@ -35,7 +35,7 @@ const confirm = () => {
 
 <template>
   <div class="qc-perm-scope">
-    <Modal title="分配成员" sub="选择成员" size="xl" @close="emit('close')">
+    <Modal :title="props.title ?? '分配成员'" sub="选择成员" size="xl" @close="emit('close')">
     <div class="member-transfer">
       <MemberPickPanel :members="valid" :selected-ids="selectedIds" :on-toggle="toggle" :on-bulk="bulk" />
       <div class="member-transfer-right">

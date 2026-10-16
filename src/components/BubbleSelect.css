@@ -42,6 +42,16 @@
   color: #8b92a1;
   transition: transform 0.15s;
 }
+/* 快捷清空 ×：实心灰圆，仅当前值≠复位值时显示，点击复位并立即重查 */
+.bselect .bselect-clear {
+  flex: none;
+  display: inline-flex;
+  color: var(--color-text-3);
+  cursor: pointer;
+}
+.bselect .bselect-clear:hover {
+  color: var(--color-text-2);
+}
 .bselect.open .bselect-arrow {
   transform: rotate(180deg);
 }

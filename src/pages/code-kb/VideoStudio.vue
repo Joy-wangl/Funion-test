@@ -76,7 +76,9 @@ const prefOpen = ref(false);
 const ratioCls = (r: string) => (r === '智能' ? 'smart' : 'r' + r.replace(':', 'x'));
 
 const prompt = ref('');
-const promptPh = computed(() => (isImg.value ? '描述想要的画面效果，例如：突出卖点、干净背景' : tab.value === '复刻' ? '描述要替换的内容，例如：把视频中的商品换成所选商品' : '描述想要的视频效果，例如：突出卖点、节奏轻快'));
+const promptPh = computed(() => (isImg.value
+  ? (tab.value === '复刻' ? '描述复刻要求，例如：参考原图构图与色调，替换为上传的商品图' : '描述想要的画面效果，例如：突出卖点、干净背景')
+  : tab.value === '复刻' ? '描述要替换的内容，例如：把视频中的商品换成所选商品' : '描述想要的视频效果，例如：突出卖点、节奏轻快'));
 const product = ref<CbProduct | null>(null);
 const pickOpen = ref(false);
 const pickKw = ref('');
@@ -150,6 +152,25 @@ const dropVideo = () => {
   video.value = null;
 };
 
+/* 复刻·生图参考原图：复刻＝以原图为参考、结合上传图/商品图出片，故参考图单列一槽（同参考视频单槽模型） */
+const refImage = ref<Shot | null>(null);
+const refImgInput = ref<HTMLInputElement | null>(null);
+const onRefImage = (e: Event) => {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file || !file.type.startsWith('image/')) return;
+  if (refImage.value && isBlob(refImage.value.url)) URL.revokeObjectURL(refImage.value.url);
+  const fr = new FileReader();
+  fr.onload = () => { refImage.value = { url: String(fr.result), name: file.name }; };
+  fr.readAsDataURL(file);
+  addMenuOpen.value = false;
+};
+const dropRefImage = () => {
+  if (refImage.value && isBlob(refImage.value.url)) URL.revokeObjectURL(refImage.value.url);
+  refImage.value = null;
+};
+
 /* 商品详情「Ai作图」带入：切创作视图生图态；带商品身份时走「选择商品」同一模型（叠堆卡展示），保证两入口展示一致 */
 watch(vsImgHandoff, (v) => {
   if (!v) return;
@@ -172,10 +193,14 @@ watch(vsImgHandoff, (v) => {
 
 const addMenuOpen = ref(false);
 const libPopOpen = ref(false);
-const addOptions = computed(() => (tab.value === '生成' || isImg.value ? ['上传图片', '选择商品'] : ['上传参考视频', '上传图片', '选择商品']));
+const addOptions = computed(() => {
+  if (tab.value === '生成') return ['上传图片', '选择商品'];
+  return isImg.value ? ['上传参考图', '上传图片', '选择商品'] : ['上传参考视频', '上传图片', '选择商品'];
+});
 const onAddOption = (opt: string) => {
   if (opt === '上传图片') imgInput.value?.click();
   else if (opt === '上传参考视频') videoInput.value?.click();
+  else if (opt === '上传参考图') refImgInput.value?.click();
   else { pickOpen.value = true; }
   if (opt !== '选择商品') addMenuOpen.value = false;
 };
@@ -204,6 +229,8 @@ interface GenRecord {
   productImages: Shot[];
   images: Shot[];
   video: Shot | null;
+  /** 复刻·生图：被复刻的参考原图（与上传图/商品图结合出复刻结果） */
+  refImage: Shot | null;
   resultImages: Shot[];
   resultVideo: Shot | null;
   kind: '视频' | '图片';
@@ -220,6 +247,7 @@ const persistShot = (s: Shot | null): Shot | null => (s && !isBlob(s.url) ? s : 
 const scrubRecord = (r: GenRecord): GenRecord => ({
   ...r,
   video: persistShot(r.video),
+  refImage: persistShot(r.refImage ?? null),
   resultVideo: persistShot(r.resultVideo),
   images: r.images.filter((s) => !isBlob(s.url)),
   resultImages: r.resultImages.filter((s) => !isBlob(s.url)),
@@ -471,7 +499,7 @@ const seedRecords = (): GenRecord[] => {
       id, mode: '生成', prompt: '', ratio: null, duration: '5秒', fps: '30fps',
       resolution: null, count: null, sizeW: null, sizeH: null,
       createdAt: hoursAgo(1), productId: pid, productName: p?.name ?? null, productCover: p?.cover ?? null,
-      productImages: pImgs.map((s) => ({ ...s })), images: [], video: null,
+      productImages: pImgs.map((s) => ({ ...s })), images: [], video: null, refImage: null,
       resultImages: [], resultVideo: null, kind: '图片', status: '已完成',
       ...o,
     } as GenRecord;
@@ -506,6 +534,7 @@ const seedRecords = (): GenRecord[] => {
     base('gen-9002', 'TB-7201', {
       mode: '复刻', kind: '图片', prompt: '按商品图 1:1 复刻成套主图', ratio: null,
       resolution: '标清 1.5K', count: pool7201.length, createdAt: hoursAgo(6),
+      refImage: pool8801[0] ? { url: pool8801[0].url, name: '参考原图·竞品成套主图' } : null,
       resultImages: pool7201.map((s) => ({ ...s })),
     }),
     base('gen-9003', 'TB-5101', {
@@ -527,6 +556,7 @@ const seedRecords = (): GenRecord[] => {
     base('gen-9006', 'SP-5201', {
       mode: '复刻', kind: '图片', prompt: '按淘宝同款主图复刻视频号小店套图', ratio: null,
       resolution: '标清 1.5K', count: pool5201.length, createdAt: hoursAgo(28),
+      refImage: pool8802[0] ? { url: pool8802[0].url, name: '参考原图·淘宝同款主图' } : null,
       resultImages: pool5201.map((s) => ({ ...s })),
     }),
     base('gen-9007', 'TB-3101', {
@@ -575,7 +605,7 @@ const generating = ref<string | null>(null);
 
 const doGenerate = (src: {
   mode: Tab; prompt: string; ratio: string | null; duration: string; fps: string;
-  product: CbProduct | null; productImages: Shot[]; images: Shot[]; video: Shot | null;
+  product: CbProduct | null; productImages: Shot[]; images: Shot[]; video: Shot | null; refImage: Shot | null;
   kind: '视频' | '图片'; resolution: string | null; count: number | null; sizeW: number | null; sizeH: number | null;
 }, key: string) => {
   generating.value = key;
@@ -598,6 +628,7 @@ const doGenerate = (src: {
     productImages: src.productImages.map((s) => ({ ...s })),
     images: src.images.map((s) => ({ ...s })),
     video: src.video ? { ...src.video } : null,
+    refImage: src.refImage ? { ...src.refImage } : null,
     resultImages: [],
     resultVideo: null,
     kind: src.kind,
@@ -626,10 +657,13 @@ const doGenerate = (src: {
   }, 2200);
 };
 
-/* 内容不完整（缺图/视频源）时生成按钮不可点，首页与创作中心停靠条一致 */
+/* 内容不完整（缺图/视频源）时生成按钮不可点，首页与创作中心停靠条一致；复刻·生图须参考原图＋上传图/商品图齐备 */
 const canSend = computed(() => {
-  if (tab.value === '生成' || isImg.value) return !!product.value || images.value.length > 0;
-  return !!video.value && !!product.value;
+  if (tab.value === '复刻') {
+    if (isImg.value) return !!refImage.value && (!!product.value || images.value.length > 0);
+    return !!video.value && !!product.value;
+  }
+  return !!product.value || images.value.length > 0;
 });
 const generate = () => {
   if (generating.value || !canSend.value) return;
@@ -637,6 +671,7 @@ const generate = () => {
   doGenerate({
     mode: tab.value, prompt: prompt.value.trim(), ratio: ratioEditable.value ? ratio.value : null, duration: duration.value, fps: fps.value,
     product: product.value, productImages: productImgs.value, images: images.value.map((im) => ({ url: im.url, name: im.name })), video: video.value,
+    refImage: refImage.value,
     kind: isImg.value ? '图片' : '视频',
     resolution: isImg.value ? resolution.value : null,
     count: isImg.value && tab.value === '生成' ? genCount.value : null,
@@ -652,6 +687,7 @@ const regen = (r: GenRecord) => {
   doGenerate({
     mode: r.mode, prompt: r.prompt, ratio: r.ratio, duration: r.duration, fps: r.fps,
     product: cbProducts.find((p) => p.id === r.productId) ?? null, productImages: r.productImages, images: r.images, video: r.video,
+    refImage: r.refImage ?? null,
     kind: r.kind, resolution: r.resolution, count: r.count, sizeW: r.sizeW, sizeH: r.sizeH,
   }, r.id);
 };
@@ -670,6 +706,7 @@ const reedit = (r: GenRecord) => {
   prodExpanded.value = false;
   images.value = r.images.map((im) => ({ id: ++imgSeq, url: im.url, name: im.name }));
   video.value = r.video;
+  refImage.value = r.refImage ? { ...r.refImage } : null;
   outKind.value = r.kind === '图片' ? '生图' : '视频';
   if (r.count) {
     if (r.count <= 4) { imgCount.value = r.count; customCount.value = ''; } else customCount.value = String(r.count);
@@ -787,6 +824,7 @@ const onCardBlur = (e: FocusEvent) => {
   composerOn.value = false;
 };
 const pillAtt = computed<RecAtt | null>(() => {
+  if (refImage.value) return { url: refImage.value.url, video: false, name: refImage.value.name };
   const p = productImgs.value[0];
   if (p) return { url: p.url, video: false, name: p.name };
   const im = images.value[0];
@@ -808,6 +846,7 @@ const toTop = () => document.querySelector('.vs-scroll')?.scrollTo({ top: 0, beh
 interface RecAtt { url: string | null; video: boolean; name: string }
 const recAtts = (r: GenRecord): RecAtt[] => {
   const list: RecAtt[] = [];
+  if (r.refImage) list.push({ url: r.refImage.url, video: false, name: r.refImage.name });
   const srcs = r.productImages.length ? r.productImages : r.productCover ? [{ url: r.productCover, name: r.productName || '商品' }] : [];
   for (const im of srcs) list.push({ url: im.url, video: false, name: im.name });
   for (const im of r.images) list.push({ url: im.url, video: false, name: im.name });
@@ -1209,12 +1248,19 @@ const closePreview = () => { previewList.value = []; previewIdx.value = 0; };
       <div class="vs-inputrow" :class="product && prodExpanded ? 'stacked' : ''">
         <div class="vs-tiles">
           <span class="vs-tilewrap">
-            <button type="button" class="vs-tile add" title="添加图片、商品或参考视频" @click="toggleAdd">
+            <button type="button" class="vs-tile add" title="添加图片、商品或参考视频/参考图" @click="toggleAdd">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
             </button>
             <div v-if="addMenuOpen" class="vs-pop add-pop">
               <button v-for="opt in addOptions" :key="opt" type="button" class="vs-pop-item" @click="onAddOption(opt)">{{ opt }}</button>
             </div>
+          </span>
+          <span v-if="refImage" class="vs-tilewrap">
+            <button type="button" class="vs-tile img" :title="`参考原图·${refImage.name}`">
+              <img :src="refImage.url" :alt="refImage.name" />
+              <span class="vs-tile-tag">参考</span>
+            </button>
+            <button type="button" class="vs-tile-x" title="移除参考图" @click="dropRefImage">×</button>
           </span>
           <span v-if="product" class="vs-tilewrap prod">
             <template v-if="!prodExpanded">
@@ -1377,6 +1423,7 @@ const closePreview = () => { previewList.value = []; previewIdx.value = 0; };
 
     <input ref="imgInput" type="file" accept="image/*" multiple hidden @change="onImages" />
     <input ref="videoInput" type="file" accept="video/*" hidden @change="onVideo" />
+    <input ref="refImgInput" type="file" accept="image/*" hidden @change="onRefImage" />
 
     <Teleport to="body">
       <div v-if="preview" class="vs-pvmask" role="dialog" aria-modal="true" :aria-label="preview.name" @click.self="closePreview">

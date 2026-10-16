@@ -90,7 +90,7 @@ const typeCfgTarget = ref<FbScene | null>(null);
 const openTypeCreate = () => { typeCfgTarget.value = null; typeCfgOpen.value = true; };
 const openTypeEdit = (g: FbScene) => { typeCfgTarget.value = g; typeCfgOpen.value = true; };
 const removeType = (g: FbScene) => {
-  if (g.goodsKb) { pushToast('「商品信息咨询」为固定场景类型，不可删除', 'warning'); return; }
+  if (g.goodsKb) { pushToast(`「${g.name}」为固定场景类型，不可删除`, 'warning'); return; }
   if (g.subs.length) { pushToast(`类型「${g.name}」下还有 ${g.subs.length} 个场景，请先删除或迁移`, 'warning'); return; }
   askConfirm('删除场景类型', `删除场景类型「${g.name}」？删除后不可恢复`, () => {
     const i = fbScenes.indexOf(g);
@@ -99,10 +99,10 @@ const removeType = (g: FbScene) => {
     pushToast('场景类型已删除');
   });
 };
-/* 左卡竖排三点菜单：编辑/删除（删除危险红） */
+/* 左卡竖排三点菜单：编辑/删除（删除危险红）；固定场景类型仅开放编辑，删除入口不下发 */
 const typeMenu = (g: FbScene): MoreActionItem[] => [
   { label: '编辑', onClick: () => openTypeEdit(g) },
-  { label: '删除', danger: true, onClick: () => removeType(g) },
+  ...(g.goodsKb ? [] : [{ label: '删除', danger: true, onClick: () => removeType(g) }]),
 ];
 
 /* ---------- Esc：确认弹窗（配置抽屉 Esc 由共享组件自管） ---------- */
@@ -139,7 +139,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onEsc));
             <div class="sc2-tc-head">
               <b :title="g.name">{{ g.name }}</b>
               <span class="sc2-tc-count">{{ g.goodsKb ? '固定场景' : `${g.subs.length} 场景` }}</span>
-              <MoreActions v-if="!g.goodsKb" dot vertical :items="typeMenu(g)" />
+              <MoreActions dot vertical :items="typeMenu(g)" />
             </div>
             <p v-if="g.semDef" class="sc2-tc-def" :title="g.semDef">{{ g.semDef }}</p>
             <div class="sc2-tc-chips">

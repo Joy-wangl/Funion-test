@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /* ---------- 权限管理（品控-线上）：组织树钻取 + 成员角色与账号状态 ---------- */
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import BubbleSelect from '../../components/BubbleSelect.vue';
 import { ONLINE_MEMBERS } from './qcOnlineData';
 import { pushToast } from '../../components/toast';
 
@@ -27,6 +28,29 @@ const visibleTree = computed(() => {
 const members = computed(() => (sel.value
   ? ONLINE_MEMBERS.filter((m) => m.dept === sel.value || m.dept.startsWith(`${sel.value}/`))
   : ONLINE_MEMBERS));
+
+/* 分页：项目统一 ib-pagination 模式，默认 20 条/页（行源＝成员清单） */
+const page = ref(1);
+const pageSize = ref(20);
+const jumpVal = ref('1');
+const pageCount = computed(() => Math.max(1, Math.ceil(members.value.length / pageSize.value)));
+const pageMembers = computed(() => members.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value));
+const pageList = computed((): (number | 'gap')[] => {
+  const total = pageCount.value;
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const cur = page.value;
+  if (cur <= 6) return [1, 2, 3, 4, 5, 6, 'gap', total];
+  if (cur >= total - 5) return [1, 'gap', total - 5, total - 4, total - 3, total - 2, total - 1, total];
+  return [1, 'gap', cur - 1, cur, cur + 1, 'gap', total];
+});
+const onPageSize = (v: string) => { pageSize.value = parseInt(v, 10) || 20; page.value = 1; };
+const onJump = () => {
+  const n = parseInt(jumpVal.value, 10);
+  if (!Number.isNaN(n)) page.value = Math.min(Math.max(1, n), pageCount.value);
+  jumpVal.value = String(page.value);
+};
+watch(sel, () => { page.value = 1; jumpVal.value = '1'; });
+watch(page, (v) => { jumpVal.value = String(v); });
 
 const STATUS_DOT: Record<string, string> = { 正常: '#1f9d55', 冻结: '#e5484d', 未添加: '#b6bcc8' };
 const ROLE_META: Record<string, { bg: string; color: string }> = {
@@ -81,7 +105,7 @@ const roleMeta = (r: string) => ROLE_META[r] ?? { bg: '#eef4ff', color: '#4f7cff
             </tr>
           </thead>
           <tbody>
-            <tr v-for="m in members" :key="m.name">
+            <tr v-for="m in pageMembers" :key="m.name">
               <td class="col-name"><div>{{ m.name }}</div></td>
               <td><span class="qc-pm-dot" :style="{ color: STATUS_DOT[m.status] }"><i :style="{ background: STATUS_DOT[m.status] }" /><b>{{ m.status }}</b></span></td>
               <td>{{ m.dept }}</td>
@@ -103,6 +127,23 @@ const roleMeta = (r: string) => ROLE_META[r] ?? { bg: '#eef4ff', color: '#4f7cff
             </tr>
           </tbody>
         </table>
+        <div v-if="pageCount > 1" class="ib-pagination">
+          <div class="ib-pageinfo">共 {{ members.length }} 条</div>
+          <BubbleSelect class-name="ib-page-size" :value="`${pageSize}条/页`" :options="['20条/页', '50条/页', '100条/页']" @change="onPageSize" />
+          <div class="ib-pages">
+            <button class="ib-pagebtn nav" :disabled="page <= 1" @click="page--">‹</button>
+            <template v-for="(p, i) in pageList" :key="i">
+              <span v-if="p === 'gap'" class="ib-pagedots">…</span>
+              <button v-else class="ib-pagebtn" :class="p === page ? 'active' : ''" @click="page = p">{{ p }}</button>
+            </template>
+            <button class="ib-pagebtn nav" :disabled="page >= pageCount" @click="page++">›</button>
+          </div>
+          <div class="ib-jump">
+            <span>前往</span>
+            <input v-model="jumpVal" class="ib-jump-input" @keyup.enter="onJump">
+            <span>页</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>

@@ -77,7 +77,7 @@ const editingKey = ref<{ groupId: string; subId: string } | null>(null);
 const dType = ref('');
 const dName = ref('');
 const dAct = ref<FbAct>('智能回复');
-/* AI 回复提示语：处置为智能回复时必填，引导 AI 如何生成回复 */
+/* AI 回复提示语：处置为智能回复/转商品知识库回复时必填，引导 AI 如何生成回复 */
 const dAiPrompt = ref('');
 /* 回复话术：处置为致歉引导时必填，命中后直接发出的固定话术 */
 const dReplyScript = ref('');
@@ -147,7 +147,7 @@ const submitScene = () => {
   if (!name) { pushToast('请填写场景名称', 'warning'); return; }
   if (!qTags.state.tags.length) { pushToast('请添加提示语', 'warning'); return; }
   const aiPrompt = dAiPrompt.value.trim();
-  if (dAct.value === '智能回复' && !aiPrompt) { pushToast('请填写 AI 回复提示语', 'warning'); return; }
+  if ((dAct.value === '智能回复' || dAct.value === '转商品知识库回复') && !aiPrompt) { pushToast('请填写 AI 回复提示语', 'warning'); return; }
   const replyScript = dReplyScript.value.trim();
   if (dAct.value === '致歉引导' && !replyScript) { pushToast('请填写回复话术', 'warning'); return; }
   const conds = { ...dConds, sceneStages: [...dConds.sceneStages], orderStates: [...dConds.orderStates], autoSend: [...dConds.autoSend] };
@@ -292,7 +292,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
             </div>
           </div>
 
-          <!-- ③ 命中后处置：处置方式 + AI 回复提示语（智能回复必填）；回复内容不前置配置 -->
+          <!-- ③ 命中后处置：处置方式 + AI 回复提示语（智能回复/转商品知识库回复必填）；回复内容不前置配置 -->
           <div class="sc-block">
             <div class="sc-block-head"><i>3</i><b>命中后处置</b></div>
             <div class="sc-act-pick">
@@ -304,10 +304,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
                 @click="dAct = a"
               >{{ a }}</button>
             </div>
-            <!-- 智能回复：引导 AI 如何生成回复的提示语（必填） -->
-            <template v-if="dAct === '智能回复'">
+            <!-- 智能回复 / 转商品知识库回复：引导 AI 如何生成回复的提示语（必填；后者回复内容源为商品知识库条目） -->
+            <template v-if="dAct === '智能回复' || dAct === '转商品知识库回复'">
               <div class="sc-sec-head"><span>AI 回复提示语<i class="sc-req">*</i></span></div>
-              <textarea v-model="dAiPrompt" class="qa-textarea sc-ai-prompt" rows="3" maxlength="500" placeholder="如：先安抚等件情绪，再告知订单页查询路径，承诺长时间未更新可代催" />
+              <textarea
+                v-model="dAiPrompt" class="qa-textarea sc-ai-prompt" rows="3" maxlength="500"
+                :placeholder="dAct === '转商品知识库回复' ? '如：按命中的商品知识条目答复参数与使用注意，未收录时告知可转人工核实' : '如：先安抚等件情绪，再告知订单页查询路径，承诺长时间未更新可代催'"
+              />
             </template>
             <!-- 致歉引导：命中后直接发出的固定回复话术（必填） -->
             <template v-else-if="dAct === '致歉引导'">

@@ -32,7 +32,7 @@
   --color-fill: #fbfcfe; /* 控件 / 表头浅填充 */
   --color-fill-2: #f2f3f7; /* 分组 / 悬浮填充 */
   --color-bg: #f5f7fb; /* 页面底色 */
-  --color-bg-header: #ececf4;
+  --color-bg-header: #f1f2f6;
   --color-bg-sidebar: #fafafc;
 
   /* ── 字号层级（辅助 / 正文 / 副标题 / 模块标题 / 弹窗标题） ── */

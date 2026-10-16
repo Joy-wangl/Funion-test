@@ -3,14 +3,13 @@ import { DEFAULT_CUSTOM_RANGE, type DateRange, type RangeKey } from './qcCenterD
 
 export type SortKey =
   | 'orders' | 'refundRate' | 'afterSales' | 'chatRiskHits'
-  | 'refundCount' | 'afterRate'
-  | 'chatTotal' | 'chatRisk' | 'chatRate';
+  | 'afterRate'
+  | 'chatTotal' | 'chatRisk' | 'chatRate'
+  | 'reviewTotal' | 'reviewBad' | 'reviewRate';
 
-/** 订单数据复合列可选排序指标 */
+/** 订单数据复合列可选排序指标（线上口径：订单 + 售后单 + 售后率，退款订单已下线不再提供） */
 export const ORDER_SORT_METRICS: { key: SortKey; label: string }[] = [
   { key: 'orders', label: '订单量' },
-  { key: 'refundCount', label: '退款订单数' },
-  { key: 'refundRate', label: '退款率' },
   { key: 'afterSales', label: '售后单数' },
   { key: 'afterRate', label: '售后率' },
 ];
@@ -22,11 +21,20 @@ export const CHAT_SORT_METRICS: { key: SortKey; label: string }[] = [
   { key: 'chatRate', label: '风险率' },
 ];
 
+/** 评价数据复合列可选排序指标 */
+export const REVIEW_SORT_METRICS: { key: SortKey; label: string }[] = [
+  { key: 'reviewTotal', label: '评价数' },
+  { key: 'reviewBad', label: '差评数' },
+  { key: 'reviewRate', label: '差评占比' },
+];
+
 /** 系列编码列表筛选条件（草稿/生效分离，与任务中心等模块交互一致）；标签四维与品控 2.0 编码标签同源 */
 export type SeriesFilter = {
   q: string;
   platform: string;
   type: string;
+  /** 问题类型小类（穿梭框下钻）：null = 大类口径 */
+  sub: string | null;
   dept: string;
   duty: string;
   range: RangeKey;
@@ -40,7 +48,9 @@ export type SeriesFilter = {
   operator: string;
   /** 线上壳：问题编码状态筛选（全部 / 有问题编码 / 无问题编码） */
   pcode: string;
-  /** 线上壳：数值区间（空串 = 不限），订单量/退款率(%)/售后单/聊天风险 */
+  /** 线上壳：问题来源（全部来源 / 客服打标 / 系统稽查）＝问题小类的标记来源 */
+  psrc: string;
+  /** 线上壳：数值区间（空串 = 不限），订单量/退款率(%)/售后率(%)/风险率(%) */
   ordersMin: string;
   ordersMax: string;
   rateMin: string;
@@ -55,6 +65,7 @@ export const DEFAULT_SERIES_FILTER: SeriesFilter = {
   q: '',
   platform: '全部平台',
   type: '全部类型',
+  sub: null,
   dept: '全部部门',
   duty: '全部部门',
   range: 'custom',
@@ -65,6 +76,7 @@ export const DEFAULT_SERIES_FILTER: SeriesFilter = {
   group: '全部组别',
   operator: '全部运维',
   pcode: '全部',
+  psrc: '全部来源',
   ordersMin: '',
   ordersMax: '',
   rateMin: '',
@@ -96,10 +108,13 @@ import CascadeSelect from '../../components/CascadeSelect.vue';
 import SortTh from '../../components/SortTh.vue';
 import QcDateRangePicker from './QcDateRangePicker.vue';
 import QcGroupShuttle from './QcGroupShuttle.vue';
+import QcTypeShuttle from './QcTypeShuttle.vue';
 import QcSeriesRow from './QcSeriesRow.vue';
 
 const props = defineProps<{
   series: QcCenterSeries[];
+  /** 模拟接口请求中：查询钮禁用＋表体降透明 */
+  loading?: boolean;
   /** null = 未排序（数据默认顺序） */
   sortKey: SortKey | null;
   sortDesc: boolean;
@@ -125,6 +140,8 @@ const props = defineProps<{
   onPickType?: (s: QcCenterSeries, type: string) => void;
   /** 问题涉及部门标签点击：打开详情抽屉并选中该部门关联的全部问题类型 */
   onPickDept?: (s: QcCenterSeries, dept: string) => void;
+  /** 品控-线上：操作列「关联ID」点击，按系列下商品编码跳店铺商品列表查询 */
+  onCodes?: (codes: string[]) => void;
 }>();
 
 const expanded = ref<Set<string>>(new Set());
@@ -147,8 +164,12 @@ const chatMetric = computed<SortKey | null>(() => {
   const k = props.sortKey;
   return k && CHAT_SORT_METRICS.some((m) => m.key === k) ? k : null;
 });
+const reviewMetric = computed<SortKey | null>(() => {
+  const k = props.sortKey;
+  return k && REVIEW_SORT_METRICS.some((m) => m.key === k) ? k : null;
+});
 /* 复合列头点击出指标气泡：再点列头或点外部收起，选定后隐藏；同指标再选＝切换升降序 */
-const openPick = ref<'order' | 'chat' | null>(null);
+const openPick = ref<'order' | 'chat' | 'review' | null>(null);
 const onPickDoc = (e: MouseEvent) => {
   if (openPick.value && !(e.target as Element).closest('.qc-pick-th')) openPick.value = null;
 };
@@ -162,14 +183,14 @@ const onPickDir = (k: SortKey, desc: boolean) => {
   openPick.value = null;
 };
 
-/* 问题涉及部门联动（线上壳）：问题类型下拉仅列该部门负责类型，行命中类型/部门列按该部门收敛 */
+/* 问题涉及部门联动（线上壳）：问题类型穿梭左列仅列该部门负责类型，行命中类型/部门列按该部门收敛 */
 const typesOfDept = (d: string) => QC_PROBLEM_TYPES.filter((t) => PROBLEM_DEPT[t] === d);
 const typeOptions = computed(() => (!props.online || props.draft.dept === '全部部门'
-  ? ['全部类型', ...QC_PROBLEM_TYPES]
-  : ['全部类型', ...typesOfDept(props.draft.dept)]));
+  ? QC_PROBLEM_TYPES
+  : typesOfDept(props.draft.dept)));
 const onDeptChange = (v: string) => {
   const stale = props.online && v !== '全部部门' && props.draft.type !== '全部类型' && !typesOfDept(v).includes(props.draft.type);
-  props.onDraft(stale ? { dept: v, type: '全部类型' } : { dept: v });
+  props.onDraft(stale ? { dept: v, type: '全部类型', sub: null } : { dept: v });
 };
 const rowScope = computed(() => (props.online && props.scopeDept && props.scopeDept !== '全部部门' ? props.scopeDept : undefined));
 
@@ -209,106 +230,160 @@ watch(page, (v) => { jumpVal.value = String(v); });
   <div class="qc-head">
     <div class="qc-title">
       监控列表
-      <span class="qc-desc">共 {{ series.length }} 个系列 · 展开查看各平台数据与下属商品编码</span>
     </div>
   </div>
   <div class="sg-filter">
     <div class="sg-grid">
       <div class="sg-field">
         <label>搜索</label>
-        <input
-          class="sg-input"
-          placeholder="请输入店铺 / 系列编码 / 商品编码"
-          :value="draft.q"
-          @input="props.onDraft({ q: ($event.target as HTMLInputElement).value })"
-        >
+        <span class="sg-inputwrap">
+          <input
+            class="sg-input"
+            placeholder="请输入店铺 / 系列编码 / 商品编码"
+            :value="draft.q"
+            @input="props.onDraft({ q: ($event.target as HTMLInputElement).value })"
+          >
+          <button v-if="draft.q" type="button" class="sg-clear" title="清除" @click="(props.onDraft({ q: '' }), props.onQuery())">
+            <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+          </button>
+        </span>
       </div>
       <div class="sg-field">
         <label>平台</label>
-        <BubbleSelect class-name="sg-select" :value="draft.platform" :options="['全部平台', ...QC_PLATFORMS]" @change="(v: string) => props.onDraft({ platform: v })" />
+        <BubbleSelect class-name="sg-select" clearable :value="draft.platform" :options="['全部平台', ...QC_PLATFORMS]" @change="(v: string) => props.onDraft({ platform: v })" @clear="props.onQuery()" />
       </div>
       <div v-if="!online" class="sg-field">
         <label>标签</label>
-        <CascadeSelect
-          class-name="sg-select"
-          multiple
-          searchable
-          :groups="tagGroups"
-          :values="draft.tags"
-          all-label="全部标签"
-          @multi-change="(v: string[]) => props.onDraft({ tags: v })"
-        />
+        <span class="sg-inputwrap">
+          <CascadeSelect
+            class-name="sg-select"
+            multiple
+            searchable
+            :groups="tagGroups"
+            :values="draft.tags"
+            all-label="全部标签"
+            @multi-change="(v: string[]) => props.onDraft({ tags: v })"
+          />
+          <button v-if="draft.tags.length" type="button" class="sg-clear" title="清除" @click="(props.onDraft({ tags: [] }), props.onQuery())">
+            <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+          </button>
+        </span>
       </div>
       <div v-if="!online" class="sg-field">
         <label>健康等级</label>
-        <BubbleSelect class-name="sg-select" :value="draft.tagHealth" :options="['全部等级', 'A', 'B', 'C', 'D']" @change="(v: string) => props.onDraft({ tagHealth: v })" />
+        <BubbleSelect class-name="sg-select" clearable :value="draft.tagHealth" :options="['全部等级', 'A', 'B', 'C', 'D']" @change="(v: string) => props.onDraft({ tagHealth: v })" @clear="props.onQuery()" />
       </div>
       <div v-if="!online" class="sg-field">
         <label>判定方式</label>
-        <BubbleSelect class-name="sg-select" :value="draft.tagJudge" :options="['全部方式', JUDGE_LABEL.rule, JUDGE_LABEL.ai]" @change="(v: string) => props.onDraft({ tagJudge: v })" />
+        <BubbleSelect class-name="sg-select" clearable :value="draft.tagJudge" :options="['全部方式', JUDGE_LABEL.rule, JUDGE_LABEL.ai]" @change="(v: string) => props.onDraft({ tagJudge: v })" @clear="props.onQuery()" />
       </div>
       <div class="sg-field">
         <label>问题类型</label>
-        <BubbleSelect class-name="sg-select" :value="draft.type" :options="typeOptions" @change="(v: string) => props.onDraft({ type: v })" />
+        <span class="sg-inputwrap">
+          <QcTypeShuttle
+            class-name="sg-select"
+            :ptype="draft.type === '全部类型' ? null : draft.type"
+            :sub="draft.sub"
+            :types="typeOptions"
+            @change="(t: string | null, s: string | null) => props.onDraft({ type: t ?? '全部类型', sub: s })"
+          />
+          <button v-if="draft.type !== '全部类型' || draft.sub" type="button" class="sg-clear" title="清除" @click="(props.onDraft({ type: '全部类型', sub: null }), props.onQuery())">
+            <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+          </button>
+        </span>
       </div>
       <div class="sg-field">
         <label>问题涉及部门</label>
-        <BubbleSelect class-name="sg-select" :value="draft.dept" :options="['全部部门', ...QC_DEPTS]" @change="onDeptChange" />
+        <BubbleSelect class-name="sg-select" clearable :value="draft.dept" :options="['全部部门', ...QC_DEPTS]" @change="onDeptChange" @clear="props.onQuery()" />
       </div>
       <div class="sg-field">
         <label>责任部门</label>
-        <BubbleSelect class-name="sg-select" :value="draft.duty" :options="['全部部门', ...QC_DEPTS]" @change="(v: string) => props.onDraft({ duty: v })" />
+        <BubbleSelect class-name="sg-select" clearable :value="draft.duty" :options="['全部部门', ...QC_DEPTS]" @change="(v: string) => props.onDraft({ duty: v })" @clear="props.onQuery()" />
       </div>
       <div v-if="online" class="sg-field">
         <label>组别 / 运维人员</label>
-        <QcGroupShuttle
-          class-name="sg-select"
-          :group="draft.group"
-          :operator="draft.operator"
-          @change="(g: string, o: string) => props.onDraft({ group: g, operator: o })"
-        />
+        <span class="sg-inputwrap">
+          <QcGroupShuttle
+            class-name="sg-select"
+            :group="draft.group"
+            :operator="draft.operator"
+            @change="(g: string, o: string) => props.onDraft({ group: g, operator: o })"
+          />
+          <button v-if="draft.group !== '全部组别' || draft.operator !== '全部运维'" type="button" class="sg-clear" title="清除" @click="(props.onDraft({ group: '全部组别', operator: '全部运维' }), props.onQuery())">
+            <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+          </button>
+        </span>
       </div>
       <div v-if="online" class="sg-field">
         <label>订单量</label>
-        <span class="qc-numpair">
-          <input class="sg-input" placeholder="最小" :value="draft.ordersMin" @input="props.onDraft({ ordersMin: ($event.target as HTMLInputElement).value })">
-          <i>~</i>
-          <input class="sg-input" placeholder="最大" :value="draft.ordersMax" @input="props.onDraft({ ordersMax: ($event.target as HTMLInputElement).value })">
+        <span class="sg-inputwrap">
+          <span class="qc-numpair">
+            <input class="sg-input" placeholder="最小" :value="draft.ordersMin" @input="props.onDraft({ ordersMin: ($event.target as HTMLInputElement).value })">
+            <i>~</i>
+            <input class="sg-input" placeholder="最大" :value="draft.ordersMax" @input="props.onDraft({ ordersMax: ($event.target as HTMLInputElement).value })">
+          </span>
+          <button v-if="draft.ordersMin || draft.ordersMax" type="button" class="sg-clear" title="清除" @click="(props.onDraft({ ordersMin: '', ordersMax: '' }), props.onQuery())">
+            <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+          </button>
         </span>
       </div>
       <div v-if="online" class="sg-field">
         <label>退款率（%）</label>
-        <span class="qc-numpair">
-          <input class="sg-input" placeholder="最小" :value="draft.rateMin" @input="props.onDraft({ rateMin: ($event.target as HTMLInputElement).value })">
-          <i>~</i>
-          <input class="sg-input" placeholder="最大" :value="draft.rateMax" @input="props.onDraft({ rateMax: ($event.target as HTMLInputElement).value })">
+        <span class="sg-inputwrap">
+          <span class="qc-numpair">
+            <input class="sg-input" placeholder="最小" :value="draft.rateMin" @input="props.onDraft({ rateMin: ($event.target as HTMLInputElement).value })">
+            <i>~</i>
+            <input class="sg-input" placeholder="最大" :value="draft.rateMax" @input="props.onDraft({ rateMax: ($event.target as HTMLInputElement).value })">
+          </span>
+          <button v-if="draft.rateMin || draft.rateMax" type="button" class="sg-clear" title="清除" @click="(props.onDraft({ rateMin: '', rateMax: '' }), props.onQuery())">
+            <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+          </button>
         </span>
       </div>
       <div v-if="online" class="sg-field">
-        <label>售后单</label>
-        <span class="qc-numpair">
-          <input class="sg-input" placeholder="最小" :value="draft.asMin" @input="props.onDraft({ asMin: ($event.target as HTMLInputElement).value })">
-          <i>~</i>
-          <input class="sg-input" placeholder="最大" :value="draft.asMax" @input="props.onDraft({ asMax: ($event.target as HTMLInputElement).value })">
+        <label>售后率（%）</label>
+        <span class="sg-inputwrap">
+          <span class="qc-numpair">
+            <input class="sg-input" placeholder="最小" :value="draft.asMin" @input="props.onDraft({ asMin: ($event.target as HTMLInputElement).value })">
+            <i>~</i>
+            <input class="sg-input" placeholder="最大" :value="draft.asMax" @input="props.onDraft({ asMax: ($event.target as HTMLInputElement).value })">
+          </span>
+          <button v-if="draft.asMin || draft.asMax" type="button" class="sg-clear" title="清除" @click="(props.onDraft({ asMin: '', asMax: '' }), props.onQuery())">
+            <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+          </button>
         </span>
       </div>
       <div v-if="online" class="sg-field">
-        <label>聊天风险</label>
-        <span class="qc-numpair">
-          <input class="sg-input" placeholder="最小" :value="draft.crMin" @input="props.onDraft({ crMin: ($event.target as HTMLInputElement).value })">
-          <i>~</i>
-          <input class="sg-input" placeholder="最大" :value="draft.crMax" @input="props.onDraft({ crMax: ($event.target as HTMLInputElement).value })">
+        <label>风险率（%）</label>
+        <span class="sg-inputwrap">
+          <span class="qc-numpair">
+            <input class="sg-input" placeholder="最小" :value="draft.crMin" @input="props.onDraft({ crMin: ($event.target as HTMLInputElement).value })">
+            <i>~</i>
+            <input class="sg-input" placeholder="最大" :value="draft.crMax" @input="props.onDraft({ crMax: ($event.target as HTMLInputElement).value })">
+          </span>
+          <button v-if="draft.crMin || draft.crMax" type="button" class="sg-clear" title="清除" @click="(props.onDraft({ crMin: '', crMax: '' }), props.onQuery())">
+            <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+          </button>
         </span>
       </div>
       <div class="sg-field">
         <label>日期区间</label>
-        <QcDateRangePicker :custom="draft.custom" :on-change="(d) => props.onDraft({ custom: d })" />
+        <span class="sg-inputwrap">
+          <QcDateRangePicker :custom="draft.custom" :on-change="(d) => props.onDraft({ custom: d })" />
+          <button v-if="draft.custom.start !== DEFAULT_CUSTOM_RANGE.start || draft.custom.end !== DEFAULT_CUSTOM_RANGE.end" type="button" class="sg-clear" title="清除" @click="(props.onDraft({ custom: DEFAULT_CUSTOM_RANGE }), props.onQuery())">
+            <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+          </button>
+        </span>
       </div>
       <div v-if="online" class="sg-field">
         <label>问题编码</label>
-        <BubbleSelect class-name="sg-select" :value="draft.pcode" :options="['全部', '有问题编码', '无问题编码']" @change="(v: string) => props.onDraft({ pcode: v })" />
+        <BubbleSelect class-name="sg-select" clearable :value="draft.pcode" :options="['全部', '有问题编码', '无问题编码']" @change="(v: string) => props.onDraft({ pcode: v })" @clear="props.onQuery()" />
       </div>
-      <div class="sg-field-actions" :class="{ 'sg-acts-row': online }">
+      <div v-if="online" class="sg-field">
+        <label>问题来源</label>
+        <BubbleSelect class-name="sg-select" :value="draft.psrc" :options="['全部来源', '客服打标', '系统稽查']" @change="(v: string) => props.onDraft({ psrc: v })" />
+      </div>
+      <div class="sg-field-actions" :class="{ 'sg-acts-wide': online }">
         <button v-if="online" class="sg-btn" @click="pushToast('已下载导入模板，上传后自动解析')">
           导入
         </button>
@@ -318,14 +393,14 @@ watch(page, (v) => { jumpVal.value = String(v); });
         <button class="sg-btn" @click="props.onReset">
           重置
         </button>
-        <button class="sg-btn primary" @click="props.onQuery">
+        <button class="sg-btn primary" :disabled="props.loading" @click="props.onQuery">
           查询
         </button>
       </div>
     </div>
   </div>
   <div class="qc-body">
-    <table class="table qc-wide">
+    <table class="table qc-wide" :class="{ 'is-loading': props.loading }">
       <thead>
         <tr>
           <th style="width: 40px" />
@@ -373,12 +448,27 @@ watch(page, (v) => { jumpVal.value = String(v); });
             <SortTh label="聊天风险" width="90px" :state="sortState('chatRiskHits')" @sort="props.onToggleSort('chatRiskHits')" />
             <th style="width: 110px">聊天风险率</th>
           </template>
+          <SortTh v-if="online" class="qc-pick-th" label="评价数据" width="150px" :state="sortState(reviewMetric)" @sort="openPick = openPick === 'review' ? null : 'review'">
+            <span v-if="openPick === 'review'" class="qc-sort-pick-menu">
+              <span
+                v-for="m in REVIEW_SORT_METRICS" :key="m.key"
+                class="qc-sort-pick-opt" :class="{ active: m.key === reviewMetric }"
+                @click.stop="onPickMetric(m.key)"
+              >
+                {{ m.label }}
+                <span class="qc-sort-pick-dir">
+                  <span class="qc-dir-txt" :class="{ on: sortState(m.key) === 'asc' }" @click.stop="onPickDir(m.key, false)">升序</span>
+                  <span class="qc-dir-txt" :class="{ on: sortState(m.key) === 'desc' }" @click.stop="onPickDir(m.key, true)">降序</span>
+                </span>
+              </span>
+              <span v-if="sortState(reviewMetric) !== 'none'" class="qc-sort-pick-clear" @click.stop="props.onClearSort(); openPick = null">清除排序</span>
+            </span>
+          </SortTh>
           <th style="width: 230px">上架平台</th>
           <th>命中问题类型</th>
           <th v-if="!online" style="width: 90px">健康等级</th>
           <th v-if="!online" style="width: 180px">命中标签</th>
-          <th style="width: 230px">问题涉及部门</th>
-          <th style="width: 110px">责任部门</th>
+          <th style="width: 260px">问题涉及部门</th>
           <th v-if="online" style="width: 100px">运维归属</th>
           <th style="width: 120px">操作</th>
         </tr>
@@ -400,15 +490,16 @@ watch(page, (v) => { jumpVal.value = String(v); });
             :scope-dept="rowScope"
             :on-pick-type="(t: string) => props.onPickType?.(s, t)"
             :on-pick-dept="(d: string) => props.onPickDept?.(s, d)"
+            :on-codes="props.onCodes"
           />
         </template>
-        <tr v-if="rows.length === 0">
-          <td :colspan="online ? 10 : 14" style="text-align: center; color: var(--text-4); padding: 40px 0">无匹配系列</td>
+        <tr v-if="rows.length === 0 && !props.loading">
+          <td :colspan="online ? 10 : 13" style="text-align: center; color: var(--text-4); padding: 40px 0">无匹配系列</td>
         </tr>
       </tbody>
     </table>
   </div>
-  <div v-if="online" class="ib-pagination">
+  <div v-if="online && pageCount > 1" class="ib-pagination">
     <div class="ib-pageinfo">共 {{ series.length }} 条</div>
     <BubbleSelect class-name="ib-page-size" :value="`${pageSize}条/页`" :options="['20条/页', '50条/页', '100条/页']" @change="onPageSize" />
     <div class="ib-pages">

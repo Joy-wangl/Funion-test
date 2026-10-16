@@ -9,6 +9,7 @@ import TokenManage from './pages/token-manage/TokenManage.vue';
 import ShunMai from './pages/shunmai/ShunMai.vue';
 import KnowledgeBase from './pages/knowledge/KnowledgeBase.vue';
 import QualityCenter from './pages/quality/QualityCenter.vue';
+import QcAuditCalc from './pages/quality/QcAuditCalc.vue';
 import AppCenter from './pages/app-center/AppCenter.vue';
 import OpsCenter from './pages/ops-center/OpsCenter.vue';
 import PublishProgress from './pages/ops-center/PublishProgress.vue';
@@ -139,6 +140,16 @@ defineExpose({ toggleSidebar });
       <template v-else-if="activeTabKey === 'knowledge'">
         <main class="app-content">
           <KnowledgeBase />
+        </main>
+      </template>
+      <!-- 计算说明：顶部独立应用（品控壳样式作用域，实际值可手动输入即时重算） -->
+      <template v-else-if="activeTabKey === 'audit-calc'">
+        <main class="app-content qc-standalone">
+          <div class="pm-page qc-page qc-center-page qc-mode-page">
+            <div class="qc-main">
+              <QcAuditCalc />
+            </div>
+          </div>
         </main>
       </template>
     </div>

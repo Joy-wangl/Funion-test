@@ -2,7 +2,7 @@
   display: flex;
   align-items: flex-end;
   height: 100%;
-  gap: 4px;
+  gap: 6px;
   margin-left: 12px;
   padding: 0 12px;
   overflow-x: auto;
@@ -38,27 +38,27 @@
   gap: 8px;
   align-self: flex-end;
   height: 40px;
-  padding: 0 18px;
+  padding: 0 16px;
   border: none;
   border-radius: 12px 12px 0 0;
   background: transparent;
   font-size: var(--fs-base);
-  color: #465064;
+  color: #5a6474;
   cursor: pointer;
   flex-shrink: 0;
   white-space: nowrap;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 
 .top-tabs-item:hover {
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.6);
   color: #1d2129;
 }
 
 .top-tabs-item.is-active {
   background: #fff;
   color: #1d2129;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 /* 激活 tab 底部左右外扩裙边（凹弧衔接标签条底） */

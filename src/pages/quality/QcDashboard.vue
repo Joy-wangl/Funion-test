@@ -6,6 +6,7 @@ import {
   DEFAULT_CUSTOM_RANGE,
   PROBLEM_TYPE_COLOR,
   QC_DEPTS,
+  QC_PLATFORMS,
   junkStatusOf,
   markedJunkCount,
   orderTrendData,
@@ -22,10 +23,12 @@ import {
   type RangeKey,
 } from './qcCenterData';
 import {
-  AFTER_TYPE_EXCH_RESHIP,
   ONLINE_DEPT_COUNTS,
   ONLINE_OV,
+  ONLINE_PLAT_DEPT_COUNTS,
+  ONLINE_PLAT_TYPE_COUNTS,
   ONLINE_TYPE_COUNTS,
+  deptShareTypeCounts,
   onlineAfterBrief,
   onlineAfterSessionBrief,
   onlineHitCats,
@@ -38,6 +41,7 @@ import PieChart from './PieChart.vue';
 import ProblemTrendChart from './ProblemTrendChart.vue';
 import StatusTag from './StatusTag.vue';
 import QcSectionHead from './QcSectionHead.vue';
+import BubbleSelect from '../../components/BubbleSelect.vue';
 
 const props = defineProps<{
   /** 品控-线上壳：看板走线上固定口径，不随时间范围变化 */
@@ -70,11 +74,30 @@ const shareTotals = computed(() => (props.online
   ? { orders: ONLINE_OV.orders }
   : rangeEventTotals(rangeShare.value, customShare.value)));
 const deptCounts = computed(() => (props.online ? ONLINE_DEPT_COUNTS : rangeDeptCounts(rangeShare.value, customShare.value)));
+/* 部门下拉（品控-线上）：只看当前部门的问题类型占比与部门占比，默认全部 */
+const shareDept = ref('全部');
+const deptOpts = ['全部', ...QC_DEPTS];
+const onShareDept = (v: string) => { shareDept.value = v; detailType.value = null; };
+/* 平台下拉（品控-线上）：与部门下拉同排，只看当前平台的问题类型占比与部门占比，默认全部平台 */
+const sharePlat = ref('全部平台');
+const platOpts = ['全部平台', ...QC_PLATFORMS];
+const onSharePlat = (v: string) => { sharePlat.value = v; detailType.value = null; };
 const trend = computed(() => (props.online ? onlineTrend() : problemTrendData(rangeTrend.value, customTrend.value)));
 const trendOrders = computed(() => (props.online ? onlineOrderTrend() : orderTrendData(rangeTrend.value, customTrend.value)));
 
+/* 线上类型占比口径：部门、平台双下拉组合收敛（未选则回全局口径）；
+   部门选中＝只展示该部门负责的问题类型（deptShareTypeCounts），平台选中＝按平台拆分 */
+const onlineShareSource = computed(() => {
+  const dept = shareDept.value;
+  const plat = sharePlat.value;
+  if (dept !== '全部') return deptShareTypeCounts(dept, plat);
+  return plat === '全部平台' ? ONLINE_TYPE_COUNTS : (ONLINE_PLAT_TYPE_COUNTS[plat] ?? {});
+});
+/* 线上部门占比口径：平台下拉收敛（未选回全局部门口径） */
+const onlineDeptView = computed(() => (sharePlat.value === '全部平台' ? ONLINE_DEPT_COUNTS : ONLINE_PLAT_DEPT_COUNTS[sharePlat.value]));
+
 const shareItems = computed(() => (props.online
-  ? Object.entries(ONLINE_TYPE_COUNTS).map(([label, value]) => ({
+  ? Object.entries(onlineShareSource.value).map(([label, value]) => ({
     label,
     value,
     color: PROBLEM_TYPE_COLOR[label] || '#4f7cff',
@@ -84,84 +107,74 @@ const shareItems = computed(() => (props.online
     value: shareCounts.value[r.type] ?? 0,
     color: PROBLEM_TYPE_COLOR[r.type] || '#4f7cff',
   }))));
-const deptItems = computed(() => QC_DEPTS.map((d) => ({
-  label: d,
-  value: deptCounts.value[d] ?? 0,
-  color: DEPT_COLOR[d] || '#4f7cff',
-})));
+const deptItems = computed(() => QC_DEPTS
+  .filter((d) => !props.online || shareDept.value === '全部' || d === shareDept.value)
+  .map((d) => ({
+    label: d,
+    value: props.online ? (onlineDeptView.value[d] ?? 0) : (deptCounts.value[d] ?? 0),
+    color: DEPT_COLOR[d] || '#4f7cff',
+  })));
 const deptTotal = computed(() => deptItems.value.reduce((s, i) => s + i.value, 0));
-const shareTotal = computed(() => shareItems.value.reduce((s, i) => s + i.value, 0));
 
-/* 问题类型占比下钻（品控-线上）：点击饼图扇区/图例进入该类型的二级子问题环形图，返回回到全部问题类型 */
+/* 问题类型占比明细态（2026-10-15 下钻定稿）：大类视图点击卡片/扇区下钻，标题改「←返回 + 当前大类名」，
+   卡片区/环图展示该大类全部小类的数量/占比；返回恢复大类视图。下钻态全局口径，不随平台/部门筛选 */
 const SUB_COLORS = ['#e5484d', '#f76b15', '#7c3aed', '#4f7cff', '#12a594', '#e93d82', '#d46b08', '#1f9d55'];
-const drillType = ref<string | null>(null);
-const drillItems = computed(() => {
-  if (!props.online || !drillType.value) return null;
-  const cat = onlineHitCats().find((c) => c.name === drillType.value);
+const detailType = ref<string | null>(null);
+const detailItems = computed(() => {
+  if (!props.online || !detailType.value) return null;
+  const cat = onlineHitCats().find((c) => c.name === detailType.value);
   if (!cat) return null;
-  // 下钻态底部面包屑已标大类，图例/气泡只展示子名，去掉「XX类-」前缀避免重复
+  // 明细态标题已标大类，卡片/图例只展示子名，去掉「XX类-」前缀避免重复
   const prefix = `${cat.name}类-`;
   return cat.subs.map((s, i) => ({ label: s.name.startsWith(prefix) ? s.name.slice(prefix.length) : s.name, value: s.hits, color: SUB_COLORS[i % SUB_COLORS.length] }));
 });
-const pieItems = computed(() => drillItems.value ?? shareItems.value);
+const pieItems = computed(() => detailItems.value ?? shareItems.value);
+const cardTotal = computed(() => pieItems.value.reduce((s, i) => s + i.value, 0));
 const trendSeries = computed(() => trend.value.series.map((s) => ({ ...s, color: PROBLEM_TYPE_COLOR[s.type] || '#4f7cff' })));
 
-/* 售后模块（品控-线上固定口径）：订单量卡留在「售后数据」块，两张售后类型卡上移至「数据总览」指标行；
-   每张卡带「关联会话数量」「问题会话数量」两子行 */
-const rangeAfter = ref<RangeKey>('custom');
-const customAfter = ref<DateRange>({ ...DEFAULT_CUSTOM_RANGE });
-const AFTER_TYPE_COLOR: Record<string, string> = { '退货退款/退款': '#e6455c', 换货: '#ff9a2e', 补发: '#4f7cff' };
+/* 售后模块（品控-线上固定口径）：「售后数据」块已整体下线（2026-10-06）；原两张售后类型卡 2026-10-07 按用户
+   「合并改为售后订单数，现在有点重复了」并为单卡：值＝售后单总数，子行＝关联会话数量＋问题会话预警占比 */
 const afterBrief = computed(() => onlineAfterBrief());
 const afterSess = computed(() => onlineAfterSessionBrief());
-/* 值取售后类型口径（退货退款/仅退款＝退货退款；换货/补发合并）；
-   sess＝订单发生退换货时存在会话的关联会话数（订单量卡为周期会话总数），prob＝关联会话中命中问题的会话数 */
-const afterCards = computed(() => {
-  const t = afterBrief.value.types;
+const afterCard = computed(() => {
   const s = afterSess.value;
-  return [
-    { label: '订单量', value: ovTotals.value.orders, color: '#4f7cff', sess: s.sessions, prob: s.probSessions, seed: {} as AfterJump, tip: '查看周期内全部售后单明细' },
-    { label: '退货退款/仅退款', value: t['退货退款/退款'] ?? 0, color: AFTER_TYPE_COLOR['退货退款/退款'], sess: s.refund, prob: s.probRefund, seed: { type: '退货退款/退款' } as AfterJump, tip: '查看退货退款 / 仅退款售后单明细' },
-    { label: '换货/补发', value: (t['换货'] ?? 0) + (t['补发'] ?? 0), color: AFTER_TYPE_COLOR['换货'], sess: s.exchReship, prob: s.probExchReship, seed: { type: AFTER_TYPE_EXCH_RESHIP } as AfterJump, tip: '查看换货 / 补发售后单明细' },
-  ];
+  const sess = s.refund + s.exchReship;
+  const prob = s.probRefund + s.probExchReship;
+  return {
+    value: afterBrief.value.total,
+    sess,
+    prob,
+    rate: sess ? (prob / sess) * 100 : 0,
+    tip: '查看售后单明细',
+  };
 });
-/* 售后数据块只留订单量卡 */
-const afterOrderCard = computed(() => afterCards.value[0]);
-/* 两张售后类型卡上移到数据总览指标行 */
-const afterTypeCards = computed(() => afterCards.value.slice(1));
 </script>
 
 <template>
   <!-- 数据总览 + 问题类型占比：共用一块白色面板 -->
   <div class="qc-ov-panel">
     <QcSectionHead title="数据总览" :range="rangeOv" :custom="customOv" :on-range="(r: RangeKey) => (rangeOv = r)" :on-custom="(d: DateRange) => (customOv = d)" />
-    <div class="qc-flat-grid cols-6">
+    <div class="qc-flat-grid cols-5">
       <div class="flat-card">
         <div class="k">监控系列编码数</div>
         <div class="v">{{ ovCodes.toLocaleString() }}</div>
-      </div>
-      <div class="flat-card" title="风险占比 = 风险品数量 ÷ 监控系列编码数">
-        <div class="k">风险品数量</div>
-        <div class="v">
-          {{ ovJunk.toLocaleString() }}
-          <span class="dept-pct">{{ `${((ovJunk / ovCodes) * 100).toFixed(1)}%` }}</span>
-        </div>
       </div>
       <div class="flat-card">
         <div class="k">监控编码订单量</div>
         <div class="v">{{ ovTotals.orders.toLocaleString() }}</div>
       </div>
       <div
-        v-for="i in afterTypeCards"
-        :key="i.label"
-        class="flat-card type-card after-card"
+        class="flat-card after-card"
         :class="{ clickable: !!props.onPickAfter }"
-        :title="props.onPickAfter ? i.tip : undefined"
-        @click="props.onPickAfter?.(i.seed)"
+        :title="props.onPickAfter ? afterCard.tip : undefined"
+        @click="props.onPickAfter?.({})"
       >
-        <div class="k"><i class="type-dot" :style="{ background: i.color }" />{{ i.label }}</div>
-        <div class="v">{{ i.value.toLocaleString() }}</div>
-        <div class="after-sess">关联会话数量 <b>{{ i.sess.toLocaleString() }}</b></div>
-        <div class="after-sess">问题会话数量 <b>{{ i.prob.toLocaleString() }}</b></div>
+        <div class="k">售后订单数</div>
+        <div class="v">{{ afterCard.value.toLocaleString() }}</div>
+        <div class="after-sess sess-row">
+          <span>关联会话数量 <b>{{ afterCard.sess.toLocaleString() }}</b></span>
+          <span class="sess-warn" :title="`问题会话数量 ${afterCard.prob.toLocaleString()}`"><i class="sess-warn-ico">!</i>{{ afterCard.rate.toFixed(1) }}%</span>
+        </div>
       </div>
       <div class="flat-card" title="聊天风险率 = 聊天问题命中次数 ÷ 周期订单量">
         <div class="k">聊天问题命中次数</div>
@@ -170,41 +183,60 @@ const afterTypeCards = computed(() => afterCards.value.slice(1));
           <span class="dept-pct">{{ ovTotals.orders ? `${((ovTotals.chatHits / ovTotals.orders) * 100).toFixed(1)}%` : '0.0%' }}</span>
         </div>
       </div>
+      <div class="flat-card" title="风险占比 = 风险品数量 ÷ 监控系列编码数">
+        <div class="k">风险品数量</div>
+        <div class="v">
+          {{ ovJunk.toLocaleString() }}
+          <span class="dept-pct">{{ `${((ovJunk / ovCodes) * 100).toFixed(1)}%` }}</span>
+        </div>
+      </div>
     </div>
     <div class="qc-ov-divider" />
-    <QcSectionHead title="问题类型占比" :range="rangeShare" :custom="customShare" :on-range="(r: RangeKey) => (rangeShare = r)" :on-custom="(d: DateRange) => (customShare = d)" />
+    <QcSectionHead title="问题类型占比" :range="rangeShare" :custom="customShare" :on-range="(r: RangeKey) => (rangeShare = r)" :on-custom="(d: DateRange) => (customShare = d)">
+      <template #title>
+        <template v-if="detailType">
+          <button type="button" class="qc-detail-back" title="返回全部大类" @click="detailType = null">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6" /></svg>
+          </button>
+          <b class="qc-detail-name">{{ detailType }}</b>
+        </template>
+        <template v-else>问题类型占比</template>
+      </template>
+      <template v-if="online && !detailType">
+        <BubbleSelect class-name="sg-select qc-share-plat" :value="sharePlat" :options="platOpts" @change="onSharePlat" />
+        <BubbleSelect class-name="sg-select qc-share-dept" :value="shareDept" :options="deptOpts" @change="onShareDept" />
+      </template>
+    </QcSectionHead>
     <div class="qc-share-row">
       <div class="qc-flat-grid cols-3 qc-share-cards">
         <div
-          v-for="i in shareItems"
+          v-for="i in pieItems"
           :key="i.label"
           class="flat-card type-card"
-          :title="`查看「${i.label}」相关系列编码`"
-          @click="props.onPickType(i.label)"
+          :title="detailType ? `查看「${detailType}」相关系列编码` : `查看「${i.label}」问题小类`"
+          @click="detailType ? props.onPickType(detailType) : (detailType = i.label)"
         >
+          <button
+            v-if="online && !detailType"
+            type="button"
+            class="qc-card-detail"
+            title="选中该问题类型进入列表"
+            @click.stop="props.onPickType(i.label)"
+          >明细</button>
           <div class="k"><i class="type-dot" :style="{ background: i.color }" />{{ i.label }}</div>
           <div class="v">
             {{ i.value }}
-            <span class="dept-pct">{{ shareTotal ? `${((i.value / shareTotal) * 100).toFixed(1)}%` : '0.0%' }}</span>
+            <span class="dept-pct">{{ cardTotal ? `${((i.value / cardTotal) * 100).toFixed(1)}%` : '0.0%' }}</span>
           </div>
         </div>
       </div>
       <div class="qc-share-pie">
-        <button v-if="drillType" type="button" class="qc-pie-back" @click="drillType = null">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6" /></svg>
-          返回
-        </button>
         <PieChart
           :items="pieItems"
           :total-orders="shareTotals.orders"
-          :drillable="!!online && !drillType"
-          :on-drill="(l: string) => (drillType = l)"
+          :drillable="!!online && !detailType"
+          :on-drill="(l: string) => (detailType = l)"
         />
-        <div v-if="drillType" class="qc-pie-crumb">
-          <a @click.prevent="drillType = null">全部问题类型</a>
-          <i>/</i>
-          <b>{{ drillType }}</b>
-        </div>
       </div>
     </div>
     <div class="qc-ov-divider" />
@@ -223,24 +255,6 @@ const afterTypeCards = computed(() => afterCards.value.slice(1));
           {{ i.value }}
           <span class="dept-pct">{{ deptTotal ? `${((i.value / deptTotal) * 100).toFixed(1)}%` : '0.0%' }}</span>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 售后数据：订单量指标卡（两张售后类型卡已上移至数据总览指标行）；每卡带关联会话数量 / 问题会话数量，品控-线上固定口径 -->
-  <div v-if="online" class="qc-ov-panel">
-    <QcSectionHead title="售后数据" :range="rangeAfter" :custom="customAfter" :on-range="(r: RangeKey) => (rangeAfter = r)" :on-custom="(d: DateRange) => (customAfter = d)" />
-    <div class="qc-flat-grid cols-3">
-      <div
-        class="flat-card type-card after-card"
-        :class="{ clickable: !!props.onPickAfter }"
-        :title="props.onPickAfter ? afterOrderCard.tip : undefined"
-        @click="props.onPickAfter?.(afterOrderCard.seed)"
-      >
-        <div class="k"><i class="type-dot" :style="{ background: afterOrderCard.color }" />{{ afterOrderCard.label }}</div>
-        <div class="v">{{ afterOrderCard.value.toLocaleString() }}</div>
-        <div class="after-sess">关联会话数量 <b>{{ afterOrderCard.sess.toLocaleString() }}</b></div>
-        <div class="after-sess">问题会话数量 <b>{{ afterOrderCard.prob.toLocaleString() }}</b></div>
       </div>
     </div>
   </div>

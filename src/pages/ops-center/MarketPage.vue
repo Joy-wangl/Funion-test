@@ -21,6 +21,23 @@ interface MkRow {
   sales: number;
   crawler: string;
   time: string;
+  /** 顺买价（元，两位小数展示） */
+  price: number;
+  /** 是否完善：商品信息字段齐全度（已完善/未完善） */
+  complete: boolean;
+  /** 内部匹配：高置信度内部商品命中清单（平台/店铺/商品名称/商品ID/主卖系列编码/融合分/SKU 匹配度），空数组=无命中 */
+  match: MkMatch[];
+}
+/** 命中内部商品：抽屉列表行字段（img 为内部商品主图） */
+interface MkMatch {
+  img: string;
+  plat: string;
+  shop: string;
+  title: string;
+  goodsId: string;
+  series: string;
+  fuse: number;
+  sku: number;
 }
 
 /* 市场商机：顶 tab 淘宝顺买 / 视频号商机；视频号商机聚合小店商机＋推荐商机两模块，下方子 tab 切换 */
@@ -47,14 +64,20 @@ const cf = useColField('market', {
   get fields() {
     return isXd.value
       ? [
-          { key: 'product', label: '商品信息', pct: 50 },
-          { key: 'sales', label: '销量', pct: 13 },
-          { key: 'time', label: '创建人/创建时间', pct: 21 },
+          { key: 'product', label: '商品信息', pct: 28 },
+          { key: 'complete', label: '是否完善', pct: 7 },
+          { key: 'price', label: '顺买价', pct: 7 },
+          { key: 'sales', label: '销量', pct: 8 },
+          { key: 'ct', label: '创建人/创建时间', pct: 12 },
+          { key: 'match', label: '内部匹配', pct: 22 },
         ]
       : [
-          { key: 'product', label: '商品信息', pct: 50 },
-          { key: 'sales', label: '销量', pct: 13 },
-          { key: 'time', label: '抓取人/抓取时间', pct: 21 },
+          { key: 'product', label: '商品信息', pct: 28 },
+          { key: 'complete', label: '是否完善', pct: 7 },
+          { key: 'price', label: '顺买价', pct: 7 },
+          { key: 'sales', label: '销量', pct: 8 },
+          { key: 'ct', label: '抓取人/抓取时间', pct: 12 },
+          { key: 'match', label: '内部匹配', pct: 22 },
         ];
   },
   fixedRight: [{ key: 'actions', label: '操作', pct: 12 }],
@@ -77,14 +100,27 @@ const { midCols } = cf;
 const { midCols: vhMid } = cfVh;
 
 const taobaoRows: MkRow[] = [
-  { id: 't1', name: '【10A抗菌】桂枫3.0Pro玻尿酸凉感深睡重力被 夏凉被', img: ecMain(0), plat: '淘宝', shop: '白屿家居小铺', sales: 1286, crawler: '李昀川', time: '2026-08-23 18:42:10' },
-  { id: 't2', name: '免打孔置物架卫生间浴室壁挂收纳架厨房杂物架', img: ecMain(1), plat: '淘宝', shop: '乐居家品旗舰店', sales: 3542, crawler: '王思远', time: '2026-08-23 16:21:33' },
-  { id: 't3', name: '316不锈钢保温杯大容量车载水杯男女便携直饮', img: ecMain(2), plat: '淘宝', shop: '臻品厨具专营店', sales: 867, crawler: '王思远', time: '2026-08-23 11:35:20' },
+  { id: 't1', name: '【10A抗菌】桂枫3.0Pro玻尿酸凉感深睡重力被 夏凉被', img: ecMain(0), plat: '淘宝', shop: '白屿家居小铺', sales: 1286, crawler: '李昀川', time: '2026-08-23 18:42:10', price: 19.9, complete: true, match: [
+    { img: ecMain(7), plat: '抖音', shop: '锦致生活旗舰店', title: '休闲宽松连帽卫衣女秋季新款外套上衣 百搭通勤', goodsId: 'SP-10284752', series: 'ZH-LMWD-0921', fuse: 86.4, sku: 72.1 },
+    { img: ecMain(9), plat: '淘宝', shop: '云朵优品旗舰店', title: '连帽卫衣女宽松bf风长袖上衣 慵懒风外套', goodsId: 'SP-10284509', series: 'ZH-LMWD-0921', fuse: 65.3, sku: 51.8 },
+  ] },
+  { id: 't2', name: '免打孔置物架卫生间浴室壁挂收纳架厨房杂物架', img: ecMain(1), plat: '淘宝', shop: '乐居家品旗舰店', sales: 3542, crawler: '王思远', time: '2026-08-23 16:21:33', price: 9.9, complete: true, match: [] },
+  { id: 't3', name: '316不锈钢保温杯大容量车载水杯男女便携直饮', img: ecMain(2), plat: '淘宝', shop: '臻品厨具专营店', sales: 867, crawler: '王思远', time: '2026-08-23 11:35:20', price: 15.8, complete: false, match: [
+    { img: ecMain(6), plat: '拼多多', shop: '谷麦甄选旗舰店', title: '坚果燕麦片早餐代餐冲饮 500g×2袋 无蔗糖', goodsId: 'SP-10451263', series: 'ZH-JGYM-0512', fuse: 78.2, sku: 61.5 },
+  ] },
 ];
 const xiaodianRows: MkRow[] = [
-  { id: 'x1', name: '致奇（送辅助液）明星同款叶黄素艾草蒸汽眼罩20贴', img: ecMain(3), plat: '视频号', shop: '朵拉优选日用', sales: 2173, crawler: '李昀川', time: '2026-08-23 18:40:55' },
-  { id: 'x2', name: '智能感应夜灯人体感应小夜灯卧室床头起夜灯', img: ecMain(4), plat: '视频号', shop: '暖光照明工厂店', sales: 489, crawler: '陈晓', time: '2026-08-23 15:07:48' },
+  { id: 'x1', name: '致奇（送辅助液）明星同款叶黄素艾草蒸汽眼罩20贴', img: ecMain(3), plat: '视频号', shop: '朵拉优选日用', sales: 2173, crawler: '李昀川', time: '2026-08-23 18:40:55', price: 12.9, complete: true, match: [] },
+  { id: 'x2', name: '智能感应夜灯人体感应小夜灯卧室床头起夜灯', img: ecMain(4), plat: '视频号', shop: '暖光照明工厂店', sales: 489, crawler: '陈晓', time: '2026-08-23 15:07:48', price: 6.8, complete: false, match: [
+    { img: ecMain(8), plat: '抖音', shop: '轻享好物旗舰店', title: '便携式迷你榨汁杯家用小型果汁机', goodsId: 'SP-10763211', series: 'ZH-ZBJ-0331', fuse: 74.6, sku: 58.9 },
+  ] },
 ];
+/* 销量展示口径同市场商机工作台：百位取整「已售N+」，过万取整「已售N万+」 */
+const salesTxt = (n: number) => (n >= 10000 ? `已售${Math.floor(n / 10000)}万+` : `已售${Math.floor(n / 100) * 100}+`);
+/* 内部匹配列表态命中数：match 为高置信度内部商品命中清单，命中计清单长度（列表仅展示 命中：N / 无命中） */
+const hitCount = (r: MkRow) => r.match.length;
+/* 查看内部商品：抽屉展示命中内部商品清单 */
+const matchDrawer = ref<MkRow | null>(null);
 
 /* 视频号推荐商机：热度指数为近30日区间值（如 51-55）；top 为同类目近期推荐排名，null 未上榜 */
 interface VhRow {
@@ -112,8 +148,8 @@ const vhRows: VhRow[] = [
 /* 排序取值：价格/区间均取首个数字（区间下限） */
 const loOf = (s: string) => { const m = s.match(/\d+(\.\d+)?/); return m ? parseFloat(m[0]) : 0; };
 
-/* 筛选：商品信息 / 店铺名称 / 抓取人 / 抓取时间 */
-const empty = { info: '', shop: '', crawler: '', from: '2026-08-23', to: '2026-08-29' };
+/* 筛选：商品信息 / 店铺名称 / 抓取人 / 抓取时间 / 是否完善 / 匹配状态 */
+const empty = { info: '', shop: '', crawler: '', from: '2026-08-23', to: '2026-08-29', complete: '全部', match: '全部状态' };
 const filter = ref({ ...empty });
 const applied = ref({ ...empty });
 const timeSort = ref<'none' | 'asc' | 'desc'>('none');
@@ -138,6 +174,7 @@ const switchTab = (k: TabKey) => {
   vhApplied.value = { ...vhEmpty };
   vhSortKey.value = null;
   vhSortDir.value = 'asc';
+  matchDrawer.value = null;
 };
 
 /* 视频号推荐商机：筛选（草稿＋查询生效）＋单列排序（价格/曝光热度/成交热度/top，三态循环） */
@@ -186,6 +223,10 @@ const list = computed(() => {
     if (applied.value.crawler && !r.crawler.includes(applied.value.crawler)) return false;
     if (applied.value.from && r.time.slice(0, 10) < applied.value.from) return false;
     if (applied.value.to && r.time.slice(0, 10) > applied.value.to) return false;
+    if (applied.value.complete === '已完善' && !r.complete) return false;
+    if (applied.value.complete === '未完善' && r.complete) return false;
+    if (applied.value.match === '已匹配' && !r.match.length) return false;
+    if (applied.value.match === '未匹配' && r.match.length) return false;
     return true;
   });
   if (salesSort.value !== 'none') arr.sort((a, b) => (a.sales - b.sales) * (salesSort.value === 'asc' ? 1 : -1));
@@ -457,6 +498,14 @@ const goApp = inject<(key: string) => void>('goApp');
             <label>{{ isXd ? '创建时间' : '抓取时间' }}</label>
             <DateRangePicker v-model:from="filter.from" v-model:to="filter.to" placeholder="请选择日期范围" />
           </div>
+          <div class="sg-field">
+            <label>是否完善</label>
+            <BubbleSelect class-name="sg-select" :value="filter.complete" :options="['全部', '已完善', '未完善']" @change="(v) => filter = { ...filter, complete: v }" />
+          </div>
+          <div class="sg-field">
+            <label>匹配状态</label>
+            <BubbleSelect class-name="sg-select" :value="filter.match" :options="['全部状态', '已匹配', '未匹配']" @change="(v) => filter = { ...filter, match: v }" />
+          </div>
         </template>
         <!-- 视频号推荐商机：独立查询条件（商品信息/店铺名称/商品类目） -->
         <template v-else>
@@ -499,8 +548,8 @@ const goApp = inject<(key: string) => void>('goApp');
               <th :style="{ width: '4%' }"><input type="checkbox" /></th>
               <!-- 列占比均衡：各列宽度和恒为 100%（fixed 布局余宽会被首列吸收），商品信息按 tab 微调 -->
               <template v-for="c in midCols" :key="c.key">
-                <SortTh v-if="c.key === 'sales'" label="销量" width="13%" :state="salesSort" @sort="toggleSalesSort" />
-                <SortTh v-else-if="c.key === 'time'" :label="(isXd ? '创建人/创建时间' : '抓取人/抓取时间')" width="21%" :state="timeSort" @sort="toggleTimeSort" />
+                <SortTh v-if="c.key === 'sales'" label="销量" width="8%" :state="salesSort" @sort="toggleSalesSort" />
+                <SortTh v-else-if="c.key === 'ct'" :label="(isXd ? '创建人/创建时间' : '抓取人/抓取时间')" width="12%" :state="timeSort" @sort="toggleTimeSort" />
                 <th v-else :style="{ width: `${c.pct}%` }">{{ c.label }}</th>
               </template>
               <th :style="{ width: '12%' }">操作</th>
@@ -515,23 +564,37 @@ const goApp = inject<(key: string) => void>('goApp');
                     <img class="sg-thumb" :src="r.img" alt="" />
                     <div class="sg-ginfo">
                       <div class="sg-gtitle mk-gtitle"><Ellipsis :text="r.name" /></div>
-                      <!-- 商品信息单元格样式同内部商机（图二）：标题黑色单行＋店铺灰字行带平台 LOGO；不展示商品ID/竞品链接 -->
+                      <!-- 店铺副行＝平台 LOGO＋店铺名（「店铺：」标签文字已按用户指令删除，勿恢复标签） -->
                       <div class="ib-meta">
-                        店铺：
                         <span class="store-logo"><img :src="PLATFORM_LOGO[r.plat]" alt="" /></span>
                         {{ r.shop }}
                       </div>
                     </div>
                   </div>
                 </td>
-                <td v-else-if="c.key === 'sales'">{{ r.sales }}</td>
-                <td v-else-if="c.key === 'time'">
-                  <div class="mk-ct">{{ r.crawler }}</div>
+                <td v-else-if="c.key === 'complete'">
+                  <span class="mk-cmp-tag" :class="r.complete ? 'ok' : 'off'">{{ r.complete ? '已完善' : '未完善' }}</span>
+                </td>
+                <td v-else-if="c.key === 'price'"><span class="mk-price">{{ r.price.toFixed(2) }}</span></td>
+                <td v-else-if="c.key === 'sales'">{{ salesTxt(r.sales) }}</td>
+                <td v-else-if="c.key === 'ct'">
+                  <div>{{ r.crawler }}</div>
                   <div class="mk-ct-t">{{ r.time }}</div>
+                </td>
+                <td v-else-if="c.key === 'match'">
+                  <!-- 内部匹配列表态：仅暴露命中数量（命中：N / 无命中），命中清单通过操作列「查看内部商品」抽屉查看 -->
+                  <span v-if="r.match.length" class="mk-hits">命中：{{ hitCount(r) }}</span>
+                  <span v-else class="mk-nomatch">无命中</span>
                 </td>
               </template>
               <td class="actions-col">
-                <a href="#" @click.prevent="opsGo?.('search')">全网搜索</a>
+                <!-- 操作随完善/匹配态分发：已完善=详情+添加到，未完善=全网搜索；查看内部商品仅命中时展示，打开命中清单抽屉 -->
+                <template v-if="r.complete">
+                  <a href="#" @click.prevent="pushToast('商品详情：演示环境暂不可用')">详情</a>
+                  <a href="#" @click.prevent="pushToast('已添加到商品创建')">添加到</a>
+                </template>
+                <a v-else href="#" @click.prevent="opsGo?.('search')">全网搜索</a>
+                <a v-if="r.match.length" href="#" @click.prevent="matchDrawer = r">查看内部商品</a>
               </td>
             </tr>
           </tbody>
@@ -805,5 +868,54 @@ const goApp = inject<(key: string) => void>('goApp');
         </div>
       </div>
     </Teleport>
+
+    <!-- 内部商品命中抽屉：查看内部商品打开；行按图二复合格样式＝主图＋标题＋商品ID＋平台LOGO店铺名，其余列主卖系列编码/融合分/SKU匹配度/操作（详情+添加到，同列表口径）；点击空白遮罩关闭；表列均分 -->
+    <div v-if="matchDrawer" class="mk-hit-mask" @click="matchDrawer = null"></div>
+    <div v-if="matchDrawer" class="mk-hit-drawer">
+      <div class="mk-hit-head">
+        <div class="mk-hit-tt">
+          <h3>内部商品命中</h3>
+          <span>{{ matchDrawer.name }} · 命中 {{ matchDrawer.match.length }} 个内部商品</span>
+        </div>
+        <button class="mk-hit-close" title="关闭" @click="matchDrawer = null">×</button>
+      </div>
+      <div class="mk-hit-body">
+        <table class="sg-table mk-hit-table">
+          <thead>
+            <tr>
+              <th>商品信息</th>
+              <th>主卖系列编码</th>
+              <th>融合分</th>
+              <th>SKU匹配度</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(m, i) in matchDrawer.match" :key="i">
+              <td>
+                <div class="sg-goods">
+                  <img class="sg-thumb" :src="m.img" alt="" />
+                  <div class="sg-ginfo">
+                    <div class="sg-gtitle mk-gtitle"><Ellipsis :text="m.title" /></div>
+                    <div class="ib-meta">商品ID：{{ m.goodsId }}</div>
+                    <div class="ib-meta">
+                      <span class="store-logo"><img :src="PLATFORM_LOGO[m.plat]" alt="" /></span>
+                      {{ m.shop }}
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td>{{ m.series }}</td>
+              <td><span class="mk-hit-score">{{ m.fuse.toFixed(1) }}%</span></td>
+              <td><span class="mk-hit-score">{{ m.sku.toFixed(1) }}%</span></td>
+              <td class="actions-col">
+                <a href="#" @click.prevent="pushToast('商品详情：演示环境暂不可用')">详情</a>
+                <a href="#" @click.prevent="pushToast('已添加到商品创建')">添加到</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </template>

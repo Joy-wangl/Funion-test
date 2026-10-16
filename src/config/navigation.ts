@@ -32,4 +32,5 @@ export const navigation: TabConfig[] = [
   { key: 'token-manage', label: '令牌管理', menus: [] },
   { key: 'shunmai', label: '顺买商机', menus: [] },
   { key: 'knowledge', label: '知识库', menus: [] },
+  { key: 'audit-calc', label: '计算说明', menus: [] },
 ];

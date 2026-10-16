@@ -155,6 +155,14 @@ const chipCounts = computed(() => {
 const chipAllCount = computed(() => chipCountRows.value.length);
 /** 状态行：固定全枚举，不随类型收敛（切类型 tab 后执行状态维度恒在，避免「状态消失」观感） */
 const statusOpts = STATUS_ORDER;
+/* 状态行计数忽略状态维度自身与 chip 维度：点任一状态即得将命中行数，chip 为最底层筛选不反噬上层（与类型行计数同范式） */
+const statusCountRows = computed(() => flatAll.value.filter((r) => passCond(r, { ...applied.value, chip: '全部' }, 'status')));
+const statusCounts = computed(() => {
+  const m: Record<string, number> = {};
+  for (const r of statusCountRows.value) m[r.sub.status] = (m[r.sub.status] ?? 0) + 1;
+  return m;
+});
+const statusAllCount = computed(() => statusCountRows.value.length);
 
 const snapshot = (nextTab: string, nextChip?: string): FlatFilter => ({
   tab: nextTab,
@@ -377,7 +385,7 @@ watch(pageCount, (v) => { if (page.value > v) page.value = v; });
       </button>
     </div>
     <div class="tc-statusrow">
-      <button type="button" class="tc-statuspill" :class="applied.tab === 'all' ? 'active' : ''" @click="onTab('all')">全部</button>
+      <button type="button" class="tc-statuspill" :class="applied.tab === 'all' ? 'active' : ''" @click="onTab('all')">全部({{ statusAllCount }})</button>
       <button
         v-for="s in statusOpts"
         :key="s.key"
@@ -386,7 +394,7 @@ watch(pageCount, (v) => { if (page.value > v) page.value = v; });
         :class="applied.tab === s.key ? 'active' : ''"
         @click="onTab(s.key)"
       >
-        {{ s.text }}
+        {{ s.text }}({{ statusCounts[s.key] ?? 0 }})
       </button>
     </div>
   </div>

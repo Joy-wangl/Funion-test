@@ -3,7 +3,7 @@
 import { computed, ref } from 'vue';
 import type { ChatSession } from './data';
 
-const props = defineProps<{ s: ChatSession; showSub?: boolean; /** 场景级已选小类：隐藏气泡内小类快选并按其过滤 */ subFilter?: string | null }>();
+const props = defineProps<{ s: ChatSession; showSub?: boolean; /** 场景级已选小类：隐藏气泡内小类快选并按其过滤 */ subFilter?: string | null; /** 小类快选外置到容器左栏：气泡内不再重复展示 */ hideSubs?: boolean }>();
 
 const hitsOnly = ref(false);
 /* 二级子问题下钻（品控-线上）：按命中子问题过滤会话气泡 */
@@ -43,7 +43,7 @@ const highlightParts = (text: string, phs: string[]): Part[] => {
 
 <template>
   <div class="session-bubbles">
-    <div v-if="showSub && subChips.length && !subFilter" class="b-subs">
+    <div v-if="showSub && subChips.length && !subFilter && !hideSubs" class="b-subs">
       <span class="b-sub" :class="{ on: !subSel }" @click="subSel = null; hitsOnly = false">全部</span>
       <span
         v-for="c in subChips"

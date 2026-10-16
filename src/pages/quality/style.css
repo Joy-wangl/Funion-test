@@ -23,47 +23,63 @@
   top: 0;
   height: calc(100vh - var(--header-height));
   overflow-y: auto;
+  scrollbar-width: none; /* 只保留滚动交互，隐藏原生滚动条 */
   background: #fff;
   border-right: 1px solid #e8ebf1;
-  padding: 14px 12px;
+  padding: 16px 12px 20px;
   transition: width 0.2s, padding 0.2s, border 0.2s;
 }
+.qc-side::-webkit-scrollbar { display: none; }
 .qc-page .qc-side.collapsed {
   width: 0;
   padding: 0;
   border-right: none;
   overflow: hidden;
 }
-.qc-side-brand { font-size: 17px; font-weight: 800; color: #202532; padding: 6px 10px 2px; line-height: 1.2; }
-.qc-side-brand span { display: block; font-size: 12px; color: #9aa1ae; font-weight: 400; margin-top: 4px; }
+.qc-side-brand { font-size: 16px; font-weight: 700; color: #202532; padding: 6px 10px 2px; line-height: 1.2; letter-spacing: 0.2px; }
+.qc-side-brand span { display: block; font-size: 12px; color: #9aa1ae; font-weight: 400; margin-top: 4px; letter-spacing: 0; }
 .qc-page .qc-grp { font-size: 12px; color: #9aa1ae; padding: 14px 12px 8px; }
+/* 导航条目：40px 行高 + 8px 圆角，弱对比分层（默认灰字 / 悬浮浅灰底 / 选中浅蓝底），图标常态置灰随状态着色 */
 .qc-page .qc-nav {
-  padding: 12px 12px;
-  border-radius: 10px;
-  margin: 4px 0;
-  color: #4f5665;
+  padding: 0 10px;
+  border-radius: 8px;
+  margin: 2px 0;
+  color: #4a5263;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 46px;
-  font-size: 15px;
+  min-height: 40px;
+  font-size: 14px;
+  font-weight: 400;
+  transition: background 0.15s, color 0.15s;
 }
-.qc-page .qc-nav:hover { background: #f5f8ff; }
-.qc-page .qc-nav.active { background: #eef3ff; color: #4f7cff; font-weight: 700; }
-.qc-page .qc-nav-ico { width: 18px; flex: 0 0 18px; text-align: center; }
+.qc-page .qc-nav:hover { background: #f4f6fa; color: #303849; }
+.qc-page .qc-nav:hover .qc-nav-ico { color: #6b7280; }
+.qc-page .qc-nav.active { background: #eef3ff; color: #4f7cff; font-weight: 500; }
+.qc-page .qc-nav.active .qc-nav-ico { color: #4f7cff; }
+.qc-page .qc-nav-ico { width: 18px; flex: 0 0 18px; text-align: center; color: #98a0b3; transition: color 0.15s; }
 .qc-page .qc-nav-text { flex: 1; min-width: 0; }
 /* 品控-线上壳：侧栏图标化 + 权限管理分组（父级+子导航） */
 .qc-page .qcon-side .qc-nav-ico { width: 16px; flex: 0 0 16px; display: inline-flex; align-items: center; justify-content: center; }
 .qc-page .qcon-side .qc-nav-ico svg { display: block; }
+/* 品控-线上壳侧栏呼吸感：分组不发丝线、以留白分段（父级上加一段段距）；导航条目与子导航上下间距放宽一档 */
+.qc-page .qcon-side .qc-nav { margin: 4px 0; }
+.qc-page .qcon-side .qc-nav-parent { margin-top: 12px; }
+.qc-page .qcon-side .qc-subnav-wrap { gap: 4px; margin: 4px 0 8px 20px; }
+/* 分组父级：字重略抬形成层级；子视图激活时父级仅着色不加底（克制递进） */
+.qc-page .qc-nav-parent { font-weight: 500; color: #3d4657; }
 .qc-page .qc-nav-parent.child { background: transparent; color: #4f7cff; }
 .qc-page .qc-nav-parent.child .qc-nav-ico,
 .qc-page .qc-nav-parent.child .qc-nav-arrow { color: #4f7cff; }
-.qc-page .qc-nav-arrow { margin-left: auto; display: inline-flex; color: #9aa1ae; transition: transform .18s; }
+.qc-page .qc-nav-arrow { margin-left: auto; display: inline-flex; color: #b8bfca; transition: transform .18s, color .15s; }
+.qc-page .qc-nav:hover .qc-nav-arrow { color: #8a92a1; }
 .qc-page .qc-nav-arrow.open { transform: rotate(90deg); }
-.qc-page .qc-subnav-wrap { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 6px; }
-.qc-page .qc-nav.qc-subnav { min-height: 40px; padding: 10px 12px; border-radius: 8px; font-size: 13.5px; color: #6b7280; margin: 0; justify-content: center; }
+/* 子导航：留白缩进体现层级，不画发丝树线；34px 行高比父级轻一档 */
+.qc-page .qc-subnav-wrap { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 6px 20px; padding-left: 10px; }
+.qc-page .qc-nav.qc-subnav { min-height: 34px; padding: 0 10px; border-radius: 7px; font-size: 13px; color: #6b7280; margin: 0; justify-content: flex-start; font-weight: 400; }
 .qc-page .qc-nav.qc-subnav .qc-nav-text { flex: 0 0 auto; }
+.qc-page .qc-nav.qc-subnav:hover { background: #f4f6fa; color: #303849; }
 .qc-page .qc-nav.qc-subnav.active { background: #eef3ff; color: #4f7cff; font-weight: 500; }
 .qc-page .qc-badge {
   min-width: 20px;
@@ -200,6 +216,13 @@
 .qc-page .tag.rv.blue { background: var(--primary-light); color: var(--primary); }
 /* 首列内芯片（问题编码状态/无归属）与文字行左缘对齐：抵消 .tag 基类 2px 外边距 */
 .qc-page .col-name .tag { margin: 0; }
+/* 问题处理人工标记生效平台：描边红芯片（与实心红「问题编码」状态标签区分），悬浮出标记明细 */
+.qc-page .qc-mark { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 4px; }
+.qc-page .qc-mark-lb { font-size: 11px; color: var(--text-4); }
+.qc-page .qc-mark-plat { padding: 0 6px; border: 1px solid #ffd8d2; border-radius: 4px; background: #fff; font-size: 11px; line-height: 18px; color: var(--danger); white-space: nowrap; }
+/* 展开矩阵平台行：平台芯片在上，问题编码标记置于平台下方左对齐 */
+.qc-page .qc-mx-plat { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.qc-page .qc-mx-plat .tag { margin: 0; }
 
 /* 操作栏：竖排（td 保持 table-cell，仅子元素 block） */
 .qc-page .qc-op-col { white-space: nowrap; }
@@ -377,18 +400,26 @@
 .qc-page .s-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 34px 10px 12px;
+  gap: 10px 18px;
+  padding: 10px 12px;
   cursor: pointer;
   font-size: 12px;
   flex-wrap: wrap;
   position: relative;
 }
 .qc-page .s-head:hover { background: #fcfdff; }
+/* 商品维度会话卡：隐藏店铺段后，命中类型标签独占第二行（售后单仍在首行右侧） */
+.qc-page .s-head.no-shop .s-hits { order: 1; flex: 0 0 100%; }
+.qc-page .s-head.no-shop .s-right { order: 0; }
 .qc-page .s-id { font-weight: 600; color: var(--text-2); }
 .qc-page .s-time { color: var(--text-3); }
 .qc-page .s-msgs { color: var(--text-3); }
-.qc-page .s-hits { display: inline-flex; gap: 4px; }
+/* 命中问题类型行：独占一行，左对齐与会话编号对齐 */
+.qc-page .s-hits { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 100%; margin-top: 4px; order: 1; }
+.qc-page .s-hit-label { color: var(--text-3); font-size: 12px; margin-right: 4px; }
+/* 客服打标行：独占一行，位于命中问题类型下方 */
+.qc-page .s-cs-tag { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 100%; margin-top: 2px; order: 2; }
+.qc-page .s-cs-tag .tag.blue { background: #e6f4ff; color: #1677ff; border: 1px solid #91caff; }
 .qc-page .s-orders {
   display: inline-flex; align-items: center; padding: 1px 8px;
   border: 1px solid #ffe1c0; border-radius: 6px; background: #fff8f0;
@@ -403,12 +434,14 @@
   flex-shrink: 0;
 }
 .qc-page .s-link:hover { text-decoration: underline; }
+/* 售后单链接 + 全屏图标组：order 0 留在首行，margin-left auto 顶到行尾右侧（与店铺/会话编号同行） */
 .qc-page .s-right {
   margin-left: auto;
   display: flex;
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
+  order: 0;
 }
 
 .qc-page .session-bubbles {
@@ -455,11 +488,8 @@
 .qc-page .bubble-row.support .b-text { background: var(--primary-light); border-color: transparent; }
 .qc-page .drawer-sessions .session-bubbles { background: var(--fill-1); }
 
-/* 会话头部“全屏”图标：固定卡片右上角 */
+/* 会话头部”全屏”图标：与售后单按钮同组右对齐 */
 .qc-page .s-full {
-  position: absolute;
-  top: 8px;
-  right: 10px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -468,6 +498,7 @@
   border-radius: 6px;
   color: var(--text-3);
   cursor: pointer;
+  flex-shrink: 0;
 }
 .qc-page .s-full:hover { color: var(--primary); background: var(--fill-1); }
 
@@ -522,34 +553,67 @@
   gap: 10px;
   background: #fbfcfe;
 }
-/* 模态框内会话气泡不限高 */
+/* 模态框内会话气泡不限高；快选行已有下分割线，气泡区不再带上分割线避免双线 */
 .chat-modal-body .session-bubbles {
   max-height: none;
   overflow-y: visible;
+  border-top: 0;
 }
 
-/* 全屏弹窗头部：字段标签化（平台/店铺/会话编号…）让用户感知信息含义 */
-.qc-page .chat-modal-head { padding: 12px 16px; font-size: 12px; gap: 8px 14px; }
-.qc-page .chat-modal-head .s-meta,
+/* 全屏弹窗左栏字段标签化（会话编号/时间/订单/消息数 对齐两列） */
 .qc-page .s-head .s-meta { display: inline-flex; align-items: center; gap: 5px; color: var(--text-2); }
-.qc-page .chat-modal-head .s-meta > i,
 .qc-page .s-head .s-meta > i { font-style: normal; color: var(--text-4); }
-.qc-page .chat-modal-head .s-meta > i::after,
 .qc-page .s-head .s-meta > i::after { content: '：'; }
 /* 平台与店铺统一展示：官方图标＋店铺名灰字（接待账号卡语言），取代平台徽标＋店铺字段两段 */
 .qc-page .s-head .s-shop { display: inline-flex; align-items: center; gap: 8px; color: var(--color-text-3); }
 .qc-page .s-head .s-shop .plat-logo { width: 20px; height: 20px; border-radius: 6px; }
-.qc-page .chat-modal-head .s-id { font-size: var(--fs-base); }
-.qc-page .chat-modal-head .x { margin-left: auto; }
-/* 底部操作栏：上一个/下一个会话切换按钮 */
-.qc-page .chat-modal-foot {
+/* 首行信息成列对齐：店铺段与三组数据各设最小宽，标题统一左起、内容跨卡上下成列 */
+.qc-page .s-head .s-shop { min-width: 150px; }
+.qc-page .s-head .s-meta.m-id { min-width: 140px; }
+.qc-page .s-head .s-meta.m-time { min-width: 172px; }
+.qc-page .s-head .s-meta.m-order { min-width: 142px; }
+/* 查看聊天记录弹窗：加宽容纳左侧会话信息栏，右栏仅会话气泡；高度随内容自适应避免左栏留白 */
+.qc-page .chat-modal.cm-wide { position: relative; width: 980px; height: 84vh; }
+.qc-page .cm-close { position: absolute; top: 12px; right: 12px; z-index: 5; display: flex; cursor: pointer; color: var(--text-3); }
+.qc-page .cm-close:hover { color: var(--text-1); }
+.qc-page .cm-cols { flex: 1; display: flex; min-height: 0; }
+.qc-page .cm-cols .chat-modal-body { min-width: 0; }
+.qc-page .cm-side {
+  width: 300px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border-right: 1px solid #e8ebf1;
+  background: #f7f8fa;
+  overflow-y: auto;
+}
+.qc-page .cm-side-plat { display: flex; align-items: center; gap: 8px; font-size: var(--fs-base); font-weight: 600; color: var(--text-1); }
+.qc-page .cm-side-plat .plat-logo { width: 22px; height: 22px; border-radius: 6px; }
+.qc-page .cm-side-fields { display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
+.qc-page .cm-f { display: flex; gap: 8px; min-width: 0; }
+.qc-page .cm-f > i { flex: none; width: 56px; font-style: normal; color: var(--text-4); }
+.qc-page .cm-f > span { color: var(--text-2); word-break: break-all; }
+.qc-page .cm-f > b { font-size: var(--fs-base); color: var(--text-1); word-break: break-all; }
+.qc-page .cm-side-hits { display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
+.qc-page .cm-side-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.qc-page .cm-side-subs { display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
+.qc-page .cm-side-subs .b-subs { margin-bottom: 0; }
+/* 左栏底部操作区：会话切换＋导出锚定左栏底边，避免左栏下缘死白 */
+.qc-page .cm-side-foot {
+  margin-top: auto;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  padding: 10px 16px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 12px;
   border-top: 1px solid #e8ebf1;
-  background: #fff;
 }
+.qc-page .cm-side-foot .cm-nav button { padding: 0 10px; }
+.qc-page .cm-side-foot .cm-idx { min-width: 36px; }
+.qc-page .cm-side-foot .cm-export { margin-left: 0; }
 .qc-page .cm-nav { display: inline-flex; align-items: center; gap: 8px; }
 .qc-page .cm-nav button {
   height: 30px;
@@ -578,44 +642,79 @@
 }
 .qc-page .cm-export:hover { border-color: var(--primary); color: var(--primary); }
 
-/* 命中问题类型编辑条 */
-.qc-page .cm-hits {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 10px 16px;
-  border-bottom: 1px solid #e8ebf1;
-  background: #fff;
-  font-size: 12px;
-}
+/* 命中问题类型编辑（左栏）：标签行 + 类型标签 + 两级添加选择器 */
 .qc-page .cm-hits-label { color: var(--text-3); }
-.qc-page .cm-hits .tag { display: inline-flex; align-items: center; gap: 5px; }
+.qc-page .cm-side-tags .tag { display: inline-flex; align-items: center; gap: 5px; }
 .qc-page .cm-x { font-style: normal; cursor: pointer; opacity: 0.65; }
 .qc-page .cm-x:hover { opacity: 1; }
-.qc-page .cm-add { position: relative; display: inline-flex; }
+.qc-page .cm-add { display: inline-flex; }
 .qc-page .cm-add > a { color: var(--primary); cursor: pointer; }
 .qc-page .cm-add > a:hover { text-decoration: underline; }
-.qc-page .cm-add-pop {
+/* 穿梭添加：悬浮气泡绝对定位覆盖在弹窗内容层之上（不占左栏流，打开不引起弹窗内容变化） */
+.qc-page .cm-shuttle {
   position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 90;
+  z-index: 60;
+  width: 340px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 150px;
-  max-height: 240px;
-  overflow-y: auto;
+  gap: 8px;
+  padding: 10px;
   background: #fff;
   border: 1px solid #e8ebf1;
   border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(26, 34, 56, 0.12);
-  padding: 6px;
+  box-shadow: 0 10px 30px rgba(26, 34, 56, 0.14);
 }
-.qc-page .cm-add-pop a { padding: 6px 10px; border-radius: 7px; font-size: 12px; color: #445066; cursor: pointer; white-space: nowrap; }
-.qc-page .cm-add-pop a:hover { background: #f5f8ff; color: var(--primary); }
-.qc-page .cm-add-pop .cm-none { padding: 6px 10px; font-size: 12px; color: var(--text-4); }
+.qc-page .cm-shuttle-selected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.qc-page .cm-shuttle-tag {
+  padding: 3px 9px;
+  border: 1px solid #e8ebf1;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 12px;
+  color: #445066;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+}
+.qc-page .cm-shuttle-tag:hover { border-color: var(--primary); color: var(--primary); }
+.qc-page .cm-shuttle-cols { display: flex; gap: 0; }
+.qc-page .cm-shuttle-col {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.qc-page .cm-shuttle-col + .cm-shuttle-col { border-left: 1px solid #eef1f6; }
+.qc-page .cm-shuttle-title {
+  font-size: 12px;
+  color: var(--text-3);
+  padding: 0 8px 6px;
+}
+.qc-page .cm-shuttle-list {
+  flex: 1;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 0 4px;
+}
+.qc-page .cm-shuttle-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: #445066;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.qc-page .cm-shuttle-item:hover { background: #f2f5fa; }
+.qc-page .cm-shuttle-item.active { background: #f2f5fa; color: #4f7cff; font-weight: 600; }
+.qc-page .cm-shuttle-item.checked { color: #4f7cff; font-weight: 600; }
+.qc-page .cm-shuttle-check { width: 12px; flex: none; font-size: 12px; text-align: center; }
+.qc-page .cm-shuttle-empty { padding: 12px 8px; font-size: 12px; color: var(--text-4); text-align: center; }
+.qc-page .cm-shuttle-foot { display: flex; gap: 8px; }
 
 /* 命中短语高亮 */
 .qc-page .b-text mark,
@@ -661,7 +760,8 @@
 .qc-page .prob-bubble {
   display: none;
   position: absolute;
-  top: calc(100% + 6px);
+  /* 气泡盒顶缘上移 4px 与 +N 芯片底缘重叠、透明 border-top 留出 6px 视觉间隙：斜向移入不脱 hover，可点选标签 */
+  top: calc(100% - 4px);
   right: 0;
   z-index: 70;
   flex-wrap: wrap;
@@ -671,15 +771,29 @@
   padding: 8px;
   background: #fff;
   border: 1px solid #e8ebf1;
+  border-top: 10px solid transparent;
+  background-clip: padding-box;
   border-radius: 10px;
   box-shadow: 0 10px 30px rgba(26, 34, 56, 0.12);
 }
 .qc-page .prob-tags .prob-more:hover .prob-bubble { display: flex; }
 
+/* 上架平台折叠：默认前 3 个平台芯片，超出「+N」灰芯片，悬浮气泡展示剩余平台 */
+.qc-page .plat-chips .plat-more { position: relative; cursor: default; align-self: center; }
+.qc-page .plat-chips .plat-more:hover .prob-bubble { display: flex; }
+/* 平台气泡左缘对齐 +N 芯片、向右延伸（基础 .prob-bubble 为右对齐向左延伸，平台列居表格中段向左会压评价数据列） */
+.qc-page .plat-chips .plat-more .prob-bubble { right: auto; left: 0; }
+/* 命中问题类型 +N 气泡同上架平台口径：左缘对齐 +N 向右延伸（列居表格中段，向左会压评价/平台列） */
+.qc-page .prob-tags .hit-more .prob-bubble { right: auto; left: 0; }
+/* 右缘空间不足翻转：悬浮测算左对齐气泡右缘超出可视右界时改右对齐、向左展开（靠右列防裁切） */
+.qc-page .prob-tags .prob-more.bubble-left .prob-bubble { right: 0; left: auto; }
+
 /* 系列详情抽屉加宽（平台矩阵列较多） */
 .qc-center-page .drawer.qc-series-drawer { width: 960px; }
-/* 品控-线上壳带细分场景左栏与小类快选，整体加宽缓解拥挤 */
-.qc-center-page .drawer.qc-series-drawer.qc-d-online { width: 1360px; }
+/* 品控-线上壳带细分场景左栏与小类快选，整体加宽缓解拥挤；售后明细列多再提一档宽度防单号/时间折行 */
+.qc-center-page .drawer.qc-series-drawer.qc-d-online { width: min(1600px, 96vw); transition: width 0.18s ease; }
+/* SKU 导轨收起：抽屉等量收窄（导轨 260→60 省 200），主列宽度保持不变、空间真正节约 */
+.qc-center-page .drawer.qc-series-drawer.qc-d-online.qc-rail-collapsed { width: min(1400px, 96vw); }
 /* 抽屉头部商品主图：文字占位圆改电商主图（圆角方缩略同商品图语言） */
 .qc-center-page .drawer.qc-series-drawer .detail-hero .av { border-radius: 10px; object-fit: cover; background: #fff; border: 1px solid #eef1f6; }
 /* 商品编码切换并入头部信息模块：模块内右对齐，不再单独占行割裂 */
@@ -782,8 +896,18 @@
 .qc-page .b-sub:hover { background: #e8eaee; }
 .qc-page .b-sub.on { background: #eef4ff; color: #4f7cff; }
 .qc-page .b-sub.on b { color: #4f7cff; }
+/* 命中小类快选：右侧顶部横向展示 */
+.qc-page .cm-body-subs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid #f0f2f5;
+}
 /* 长会话内部滚动，避免擑爆页面 */
 .qc-page .b-list { max-height: 340px; overflow-y: auto; padding-right: 4px; }
+/* 查看聊天记录弹窗内会话列表放宽限高，弹窗高度随内容自适应 */
+.qc-page .chat-modal-body .b-list { max-height: 520px; }
 
 /* 聊天记录核查：商品编码展开后的会话卡片列表 */
 .qc-page .chat-code-sessions { display: flex; flex-direction: column; gap: 10px; }
@@ -794,33 +918,9 @@
 .qc-after-orders-drawer .drawer-head .ao-export { margin-left: auto; }
 .qc-after-orders-drawer .drawer-head .x { margin-left: 12px; }
 
-/* 查询条件区：复用全局 sg-filter / sg-grid 语言，三列适配抽屉宽度；申请时间为合一单框日期区间（同问题商品时间范围） */
+/* 查询条件区：复用全局 sg-filter / sg-grid 语言，三列适配抽屉宽度；申请时间为 Ant 风格日历区间选择器（QcDateRangePicker） */
 .qc-ao-panel .sg-filter { margin-bottom: 14px; box-shadow: none; }
 .qc-ao-panel .sg-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.qc-ao-panel .ao-range {
-  display: inline-flex;
-  align-items: center;
-  width: 100%;
-  height: 40px;
-  border: 1px solid #e4e8ef;
-  border-radius: 10px;
-  background: #fbfcfe;
-  transition: 0.15s;
-}
-.qc-ao-panel .ao-range:focus-within { border-color: #a9bcff; box-shadow: 0 0 0 3px rgba(79, 124, 255, 0.08); }
-.qc-ao-panel .ao-range > i { flex: none; font-style: normal; color: #9aa2b1; }
-.qc-ao-panel .ao-date {
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-  border: none;
-  border-radius: 0;
-  background: none;
-  padding: 0 10px;
-  font-size: var(--fs-base);
-  color: #465064;
-  outline: none;
-}
 
 /* 明细表：两行单元格与平台图标 */
 .qc-ao-panel .ao-table .ao-wrap { white-space: normal; word-break: break-all; line-height: 1.5; }
@@ -829,8 +929,8 @@
 .qc-ao-panel .ao-plat { display: inline-flex; align-items: center; gap: 6px; }
 /* 平台列带出店铺名称行：店铺与平台一对一，灰辅字随行展示不另加列（同会话卡店铺语言） */
 .qc-ao-panel .ao-table .ao-shop { margin-top: 2px; font-size: var(--fs-aux); color: var(--color-text-3); }
-/* 售后列表页「售后类型/售后原因」原因行：次级字号、最多两行截断，悬浮 title 展示完整原因 */
-.qc-as-page .ao-table .ao-reason {
+/* 售后列表页与抽屉售后面板共用「售后类型/售后原因」原因行：次级字号、最多两行截断，悬浮 title 展示完整原因 */
+.ao-table .ao-reason {
   max-width: 240px;
   font-size: var(--fs-aux);
   color: var(--color-text-2);
@@ -841,6 +941,133 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+/* 订单/售后单号合并单列：上订单、下售后；标签等长（两字）单号左缘自然对齐 */
+.ao-table .ao-nos > div { display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
+.ao-table .ao-nos > div + div { margin-top: 3px; }
+.ao-table .ao-no-lb { flex: none; width: 2em; font-size: var(--fs-aux); color: var(--color-text-3); }
+/* ---------- 售后列表页「售后概览」看板：整宽指标卡带 + 左占比卡片阵 + 右趋势/饼图（口径随查询条件）
+   三个维度各自白壳豆腐块、块间留间隔；壳内灰卡语言同 .qc-ov-panel ---------- */
+/* TOP 卡值为文本（类型名/小类名），字号小于数值卡 */
+.qc-center-page .qc-as-ov .flat-card .v.qc-as-ov-txt { font-size: 20px; }
+.qc-as-ov .flat-card .after-sess {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #e4e8ef;
+  font-size: var(--fs-aux);
+  color: var(--color-text-3);
+}
+.qc-as-ov .flat-card .after-sess b { font-size: var(--fs-base); font-weight: 600; color: #445066; margin: 0 2px; }
+/* 概览三豆腐块（原排版形态＋块间间隔）：整宽指标卡带在上，占比拆解在左、趋势分布在右；
+   三个维度各自成白壳豆腐块，块间 12px 间隔划分维度 */
+.qc-as-ov {
+  display: grid;
+  /* 左占比块占比收窄、右侧趋势/饼图块按容器比例放大展示空间（大屏至多 680、窄屏保底 420） */
+  grid-template-columns: minmax(0, 1fr) clamp(420px, 32%, 680px);
+  gap: 12px;
+  align-items: stretch;
+  margin-bottom: 24px;
+}
+.qc-as-ov > .qc-as-block:first-child { grid-column: 1 / -1; }
+/* 每块自带白面板语言（原 .qc-ov-panel token），内部纵向撑满、卡片行等分 */
+.qc-as-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  background: #fff;
+  border: 1px solid #e8ebf1;
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(26, 34, 56, .05);
+  padding: 18px 20px 20px;
+}
+.qc-center-page .qc-as-block .qc-sec-head { margin: 0; }
+/* 白壳内指标卡取灰底（同数据总览 .qc-ov-panel 语言），拉伸等高后卡内留白居中；灰卡不带阴影（基础层 flat-card 阴影在此去除） */
+.qc-center-page .qc-as-block .flat-card {
+  background: #f7f8fa;
+  border: none;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.qc-center-page .qc-as-block .flat-card:hover { box-shadow: none; }
+/* 加 .qc-center-page 前缀提升优先级：style.css 先于 qcCenter.css 加载，等权规则会被基础层盖回 */
+.qc-center-page .qc-as-block .qc-flat-grid { flex: 1; grid-auto-rows: 1fr; gap: 12px; margin-bottom: 0; }
+.qc-as-ov-sec { display: flex; flex-direction: column; gap: 10px; flex: 1; min-width: 0; }
+.qc-center-page .qc-as-ov-sec .qc-flat-grid { flex: 1; grid-auto-rows: 1fr; gap: 12px; margin-bottom: 0; }
+/* 问题大类占比卡头查询条件组（时间档+平台+责任部门）：整组右对齐，规格同数据总览区块头 */
+.qc-as-box-tools { display: flex; align-items: center; gap: 8px; margin-left: auto; align-self: center; flex: none; }
+.qc-center-page .qc-as-box-h .sg-select {
+  width: 112px; height: 32px; flex: none; padding: 0 12px;
+  border: 1px solid #e4e8ef; border-radius: 8px; background: #fff;
+}
+.qc-center-page .qc-as-box-h .sg-select:hover { border-color: #c9d4ea; }
+.qc-center-page .qc-as-box-h .sg-select .bselect-trigger { font-size: 12px; color: #445066; }
+/* 卡片阵内卡头＝色点＋名称（同数据总览 type-card，但不可点故不挂 .type-card） */
+.qc-center-page .qc-as-ov .flat-card .k { display: flex; align-items: center; gap: 6px; }
+@media (max-width: 1280px) {
+  .qc-as-ov { grid-template-columns: minmax(0, 1fr); }
+}
+/* 两级页面：一级＝售后概览、二级＝售后列表；页头返回钮仅图标+文字（无描边无底色），概览入口可点（灰卡无边框，悬浮以底色加深示意） */
+.qc-as-head { display: flex; align-items: center; gap: 12px; }
+.qc-as-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: var(--fs-aux);
+  color: #445066;
+  cursor: pointer;
+  flex: none;
+}
+.qc-as-back:hover { color: #232b3a; }
+.qc-center-page .qc-as-ov .flat-card.clickable { cursor: pointer; }
+.qc-center-page .qc-as-ov .flat-card.clickable:hover { background: #f1f3f7; }
+.qc-as-ov-empty { padding: 56px 0; text-align: center; font-size: var(--fs-aux); color: var(--color-text-3); }
+.qc-as-box {
+  min-width: 0;
+  background: #f7f8fa;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.qc-as-box-h {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: #202532;
+  margin-bottom: 12px;
+}
+/* 第三块：售后趋势折线盒 + 平台售后占比饼盒，两盒等高撑满 */
+.qc-as-block .qc-as-box { flex: 1; display: flex; flex-direction: column; }
+/* 趋势折线：按日单量（悬浮列 title 给当日单量；折线层不拦截指针，否则悬浮列失效） */
+.qc-as-block .qc-as-days { flex: 1; height: auto; min-height: 110px; }
+/* 平台售后占比饼图：图例单列整行（名称不折行、数值右对齐），解除基础层 104px 定宽与 190px 限高 */
+.qc-center-page .qc-as-block .pie-wrap { justify-content: center; min-width: 0; }
+.qc-center-page .qc-as-block .pie-svg { flex: none; }
+.qc-center-page .qc-as-block .pie-legend { flex-wrap: nowrap; width: auto; max-height: none; gap: 8px 14px; min-width: 0; flex: 1; }
+.qc-center-page .qc-as-block .pie-leg { white-space: nowrap; }
+.qc-center-page .qc-as-block .pie-leg-v { margin-left: auto; padding-left: 12px; color: var(--color-text-3); }
+.qc-as-days { position: relative; display: flex; height: 96px; }
+.qc-as-days .qc-as-line { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.qc-as-days .d { flex: 1; min-width: 3px; height: 100%; cursor: pointer; }
+.qc-as-days-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: var(--fs-aux);
+  color: var(--color-text-3);
+}
+/* 售后趋势图例：全部 + 各售后类型色点 */
+.qc-as-trend-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 10px; font-size: var(--fs-aux); color: var(--color-text-2); }
+.qc-as-trend-leg { display: inline-flex; align-items: center; gap: 6px; }
+.qc-as-trend-leg i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+/* 悬浮竖向导引线：定位到最近日期，不拦截指针 */
+.qc-as-trend-guide { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed #8a94a6; opacity: 0.55; pointer-events: none; z-index: 5; }
+
 .qc-ao-panel .ao-foot {
   display: flex;
   align-items: center;

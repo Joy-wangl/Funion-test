@@ -14,14 +14,18 @@ import { useColField } from './colFields';
 import './ReviewAppealPage.css';
 
 /* 嵌入其它壳（品控中心）时由壳自带页头，隐藏运营中心面包屑 */
-defineProps<{ hideHead?: boolean }>();
+const props = defineProps<{ hideHead?: boolean }>();
 
-/* 列表字段管理：订单详情置首、操作固定右；CSS 类驱动宽 sticky=false */
-const cf = useColField('reviewAppeal', {
+/* 列表字段管理：操作固定右；CSS 类驱动宽 sticky=false。
+   店铺信息/订单详情的先后顺序仅品控-线上壳（hide-head 嵌入）调换，运营中心壳保持原序；
+   两壳列配置 scope 分开，避免同会话内列序互相串味 */
+const leadFields = props.hideHead
+  ? [{ key: 'shop', label: '店铺信息' }, { key: 'order', label: '订单详情' }]
+  : [{ key: 'order', label: '订单详情' }, { key: 'shop', label: '店铺信息' }];
+const cf = useColField(props.hideHead ? 'reviewAppeal-qc' : 'reviewAppeal', {
   fixedLeft: [],
   fields: [
-    { key: 'order', label: '订单详情' },
-    { key: 'shop', label: '店铺信息' },
+    ...leadFields,
     { key: 'content', label: '评价内容' },
     { key: 'ratedAt', label: '评价信息' },
     { key: 'appealTime', label: '申诉信息' },

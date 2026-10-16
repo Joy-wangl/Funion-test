@@ -18,6 +18,10 @@ const props = defineProps<{
   subFilter?: string | null;
   /** 提供时关联售后渲染为「售后单」按钮，点击前往对应售后单信息（缺省仍展示单号 chip） */
   onAfter?: (no: string) => void;
+  /** 商品维度：隐藏店铺段（logo+店名），命中类型标签独占第二行 */
+  hideShop?: boolean;
+  /** 客服打标：sessionId → csTag 映射（只读展示，同命中问题类型样式） */
+  csTagMap?: Record<string, string>;
 }>();
 
 const open = ref(false);
@@ -31,23 +35,32 @@ const chipTags = computed(() => {
   const src = hits.map((h) => (props.showSub ? h.sub ?? h.type : h.type));
   return [...new Set(src)];
 });
+/* 客服打标：只读展示，同命中问题类型样式 */
+const csTag = computed(() => (props.csTagMap ? props.csTagMap[cur.value.id] : undefined));
 </script>
 
 <template>
   <div class="session-card">
-    <div class="s-head" @click="open = !open">
+    <div class="s-head" :class="{ 'no-shop': hideShop }" @click="open = !open">
       <span class="arrow" :class="{ open }" style="display: inline-flex">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6" /></svg>
       </span>
-      <span class="s-shop"><PlatLogo :platform="cur.platform" />{{ SHOP_NAME[cur.platform] }}</span>
-      <span class="s-meta"><i>会话编号</i><b class="s-id">{{ cur.id }}</b></span>
-      <span class="s-meta"><i>会话时间</i>{{ cur.startedAt }}</span>
-      <span class="s-meta"><i>关联订单</i>{{ cur.orderId }}</span>
-      <span class="s-meta"><i>消息数</i>{{ cur.messages.length }} 条</span>
+      <span v-if="!hideShop" class="s-shop"><PlatLogo :platform="cur.platform" />{{ SHOP_NAME[cur.platform] }}</span>
+      <span class="s-meta m-id"><i>会话编号</i><b class="s-id">{{ cur.id }}</b></span>
+      <span class="s-meta m-time"><i>会话时间</i>{{ cur.startedAt }}</span>
+      <span class="s-meta m-order"><i>关联订单</i>{{ cur.orderId }}</span>
       <span v-if="cur.hits.length" class="s-hits">
+        <span class="s-hit-label">命中问题：</span>
         <span v-for="t in chipTags" :key="t" class="tag red">{{ t }}</span>
       </span>
-      <span v-else class="tag green">无命中</span>
+      <span v-else class="s-hits">
+        <span class="s-hit-label">命中问题：</span>
+        <span class="tag green">无命中</span>
+      </span>
+      <span v-if="csTag" class="s-cs-tag">
+        <span class="s-hit-label">客服打标：</span>
+        <span class="tag blue">{{ csTag }}</span>
+      </span>
       <span class="s-right">
         <a
           v-if="orders.length && onAfter"
@@ -58,9 +71,9 @@ const chipTags = computed(() => {
         <span v-else-if="orders.length" class="s-orders" :title="`关联售后单：${orders.join('、')}`">
           关联售后: {{ orders[0] }}<i v-if="orders.length > 1">等 {{ orders.length }} 单</i>
         </span>
-      </span>
-      <span class="s-full" title="全屏查看" @click.stop="onFullScreen ? onFullScreen() : (full = true)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" /></svg>
+        <span class="s-full" title="全屏查看" @click.stop="onFullScreen ? onFullScreen() : (full = true)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" /></svg>
+        </span>
       </span>
     </div>
     <SessionBubbles v-if="open" :s="cur" :show-sub="showSub" :sub-filter="subFilter" />
@@ -73,6 +86,7 @@ const chipTags = computed(() => {
       :on-update-hits="(_id: string, h: ChatHit[]) => (localHits = h)"
       :show-sub="showSub"
       :sub-filter="subFilter"
+      :cs-tag-map="csTagMap"
     />
   </div>
 </template>

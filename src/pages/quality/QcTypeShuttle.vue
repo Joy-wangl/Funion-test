@@ -14,15 +14,20 @@ const props = defineProps<{
   ptype: string | null;
   sub: string | null;
   className?: string;
+  /** 左列大类可选范围（问题涉及部门联动收敛）：缺省全量大类 */
+  types?: string[];
+  /** 右列小类词表来源（评价列表等平台口径词表）：缺省取命中问题管理小类 */
+  subsOf?: (t: string) => string[];
 }>();
 const emit = defineEmits<{ (e: 'change', ptype: string | null, sub: string | null): void }>();
 
 const open = ref(false);
 const rootRef = ref<HTMLDivElement | null>(null);
 const menuRef = ref<HTMLDivElement | null>(null);
+const typeList = computed(() => props.types ?? QC_PROBLEM_TYPES);
 /* 右列跟随的大类：默认落到当前选中大类，未选时落到第一个大类 */
-const active = ref(QC_PROBLEM_TYPES[0] ?? '');
-const subs = computed(() => (active.value ? subsOfType(active.value) : []));
+const active = ref(typeList.value[0] ?? '');
+const subs = computed(() => (active.value ? (props.subsOf ?? subsOfType)(active.value) : []));
 const triggerText = computed(() => (!props.ptype ? ALL_TYPE : props.sub ? `${props.ptype} / ${props.sub}` : props.ptype));
 
 const pos = ref<{ top: number; left: number; up: boolean } | null>(null);
@@ -60,7 +65,7 @@ watch(open, (v) => {
     document.removeEventListener('mousedown', onDocDown);
     return;
   }
-  active.value = props.ptype ?? (QC_PROBLEM_TYPES[0] ?? '');
+  active.value = props.ptype ?? (typeList.value[0] ?? '');
   document.addEventListener('mousedown', onDocDown);
   requestAnimationFrame(() => { updatePos(); nextTick(fit); });
   window.addEventListener('resize', updatePos);
@@ -124,7 +129,7 @@ const pickSub = (s: string) => {
               <span class="casc-check">{{ !props.ptype ? '✓' : '' }}</span>{{ ALL_TYPE }}
             </div>
             <div
-              v-for="t in QC_PROBLEM_TYPES"
+              v-for="t in typeList"
               :key="t"
               class="casc-item group"
               :class="{ active: active === t, selected: props.ptype === t }"

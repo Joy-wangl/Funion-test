@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /* ---------- 部门管理（品控-线上）：部门清单 + 成员归属 + 分配成员/移除 ---------- */
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import BubbleSelect from '../../components/BubbleSelect.vue';
 import { QC_PERM_DEPTS, type QcDeptMember } from './qcOnlineData';
 import { INITIAL_MEMBERS } from '../permission/data';
 import type { Member } from '../permission/data';
@@ -18,6 +19,32 @@ const list = computed(() => {
   return depts.value.filter((d) => !kw || d.name.includes(kw));
 });
 const curDept = computed(() => depts.value.find((d) => d.name === cur.value) ?? null);
+
+/* 分页：项目统一 ib-pagination 模式，默认 20 条/页（行源＝当前部门成员表） */
+const page = ref(1);
+const pageSize = ref(20);
+const jumpVal = ref('1');
+const deptMembers = computed(() => curDept.value?.members ?? []);
+const pageCount = computed(() => Math.max(1, Math.ceil(deptMembers.value.length / pageSize.value)));
+const pageMembers = computed(() => deptMembers.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value));
+const pageList = computed((): (number | 'gap')[] => {
+  const total = pageCount.value;
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const cur = page.value;
+  if (cur <= 6) return [1, 2, 3, 4, 5, 6, 'gap', total];
+  if (cur >= total - 5) return [1, 'gap', total - 5, total - 4, total - 3, total - 2, total - 1, total];
+  return [1, 'gap', cur - 1, cur, cur + 1, 'gap', total];
+});
+const onPageSize = (v: string) => { pageSize.value = parseInt(v, 10) || 20; page.value = 1; };
+const onJump = () => {
+  const n = parseInt(jumpVal.value, 10);
+  if (!Number.isNaN(n)) page.value = Math.min(Math.max(1, n), pageCount.value);
+  jumpVal.value = String(page.value);
+};
+watch(cur, () => { page.value = 1; jumpVal.value = '1'; });
+/* 成员移除后若当前页超界则回退到末页 */
+watch(pageCount, () => { if (page.value > pageCount.value) page.value = pageCount.value; });
+watch(page, (v) => { jumpVal.value = String(v); });
 
 const assignOpen = ref(false);
 const removeTarget = ref<QcDeptMember | null>(null);
@@ -90,7 +117,7 @@ const doRemove = () => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(m, i) in curDept?.members ?? []" :key="`${m.name}-${i}`">
+              <tr v-for="(m, i) in pageMembers" :key="`${m.name}-${i}`">
                 <td class="c-name">{{ m.name }}</td>
                 <td>
                   <div v-if="m.roles.length" class="role-tags">
@@ -103,11 +130,28 @@ const doRemove = () => {
                 <td>{{ m.at }}</td>
                 <td><a class="qc-perm-rm" @click="removeTarget = m">移除</a></td>
               </tr>
-              <tr v-if="!curDept?.members.length">
+              <tr v-if="!deptMembers.length">
                 <td colspan="5"><div class="empty tight">暂无成员</div></td>
               </tr>
             </tbody>
           </table>
+          <div v-if="pageCount > 1" class="ib-pagination">
+            <div class="ib-pageinfo">共 {{ deptMembers.length }} 条</div>
+            <BubbleSelect class-name="ib-page-size" :value="`${pageSize}条/页`" :options="['20条/页', '50条/页', '100条/页']" @change="onPageSize" />
+            <div class="ib-pages">
+              <button class="ib-pagebtn nav" :disabled="page <= 1" @click="page--">‹</button>
+              <template v-for="(p, i) in pageList" :key="i">
+                <span v-if="p === 'gap'" class="ib-pagedots">…</span>
+                <button v-else class="ib-pagebtn" :class="p === page ? 'active' : ''" @click="page = p">{{ p }}</button>
+              </template>
+              <button class="ib-pagebtn nav" :disabled="page >= pageCount" @click="page++">›</button>
+            </div>
+            <div class="ib-jump">
+              <span>前往</span>
+              <input v-model="jumpVal" class="ib-jump-input" @keyup.enter="onJump">
+              <span>页</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

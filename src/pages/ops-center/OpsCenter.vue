@@ -17,6 +17,7 @@ import type { StStrategy } from './strategyData';
 import MovePage from './MovePage.vue';
 import AiAssistantPage from './AiAssistantPage.vue';
 import MsgBell from './MsgBell.vue';
+import PlatLoginEntry from './PlatLoginEntry.vue';
 import { shopAcctReq } from '../../components/globalMsgData';
 import { amOfflineCount } from '../permission/accountData';
 import MemberManagement from '../permission/MemberManagement.vue';
@@ -337,7 +338,7 @@ const onMsgJump = (id: string) => {
       </aside>
 
       <div class="ops-right">
-        <div class="ops-topbar"><MsgBell @jump="onMsgJump" /></div>
+        <div class="ops-topbar"><PlatLoginEntry /><MsgBell @jump="onMsgJump" /></div>
         <main class="main">
         <div class="content">
           <section :class="pageCls('dashboard')">

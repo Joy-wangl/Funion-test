@@ -14,7 +14,9 @@ defineProps<{
 
 <template>
   <div class="qc-sec-head">
-    <div class="qc-sec-title">{{ title }}</div>
+    <div class="qc-sec-title"><slot name="title">{{ title }}</slot></div>
+    <slot name="before-range" />
     <QcRangeToggle :value="range" :custom="custom" :on-change="onRange" :on-custom="onCustom" />
+    <slot />
   </div>
 </template>

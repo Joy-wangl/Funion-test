@@ -20,8 +20,13 @@ const props = defineProps<{
   selectable?: boolean;
   selected?: string | null;
   onSelect?: (label: string) => void;
+  /** 点入态：点击扇区/图例回调外部跳转（如代入条件进列表），不做显隐切换 */
+  pickable?: boolean;
+  onPick?: (label: string) => void;
   /** 图例追加「次数 · 占比」数值列 */
   showValue?: boolean;
+  /** 数值列单位（缺省次） */
+  valueUnit?: string;
   /** 环心总量文案（缺省问题数） */
   totalLabel?: string;
 }>();
@@ -44,7 +49,13 @@ const pick = (label: string) => {
   if (props.drillable && props.onDrill) {
     hidden.value = new Set();
     props.onDrill(label);
-  } else toggle(label);
+    return;
+  }
+  if (props.pickable && props.onPick) {
+    props.onPick(label);
+    return;
+  }
+  toggle(label);
 };
 const moveTip = (label: string) => (e: MouseEvent) => {
   const rect = wrapRef.value?.getBoundingClientRect();
@@ -120,7 +131,8 @@ const tipItem = computed(() => {
       <div class="pie-tip-line">
         <i :style="{ background: tipItem.color }" />
         {{ tipItem.label }}
-        <b>{{ sharePct(tipItem.value) }}</b>
+        <b>{{ tipItem.value.toLocaleString() }} {{ valueUnit ?? '次' }}</b>
+        <span>{{ sharePct(tipItem.value) }}</span>
       </div>
       <div v-if="totalOrders" class="pie-tip-risk">订单风险率 {{ riskPct(tipItem.value) }}</div>
     </div>
@@ -130,12 +142,12 @@ const tipItem = computed(() => {
         :key="i.label"
         class="pie-leg"
         :class="{ off: hidden.has(i.label), on: selectable && selected === i.label }"
-        :title="selectable ? (selected === i.label ? `取消选择「${i.label}」` : `切换至「${i.label}」`) : drillable ? `查看「${i.label}」子问题` : hidden.has(i.label) ? `显示「${i.label}」` : `隐藏「${i.label}」`"
+        :title="selectable ? (selected === i.label ? `取消选择「${i.label}」` : `切换至「${i.label}」`) : pickable ? `查看「${i.label}」明细` : drillable ? `查看「${i.label}」子问题` : hidden.has(i.label) ? `显示「${i.label}」` : `隐藏「${i.label}」`"
         @click="pick(i.label)"
       >
         <i :style="{ background: hidden.has(i.label) ? '#d5d9e0' : i.color }" />
         {{ i.label }}
-        <span v-if="showValue" class="pie-leg-v">{{ i.value }} 次 · {{ sharePct(i.value) }}</span>
+        <span v-if="showValue" class="pie-leg-v">{{ i.value }} {{ valueUnit ?? '次' }} · {{ sharePct(i.value) }}</span>
       </span>
     </div>
   </div>

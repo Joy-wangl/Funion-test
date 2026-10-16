@@ -11,7 +11,7 @@
 import { reactive } from 'vue';
 
 /** 命中后处置方式 */
-export const FB_ACTS = ['智能回复', '转人工', '致歉引导'] as const;
+export const FB_ACTS = ['智能回复', '转人工', '致歉引导', '转商品知识库回复'] as const;
 export type FbAct = (typeof FB_ACTS)[number];
 
 /** 当前演示登录人：新建场景类型/场景的创建人；todayStr=当日串（创建时间） */

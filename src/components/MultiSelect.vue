@@ -17,6 +17,8 @@ const props = defineProps<{
   searchable?: boolean;
   /** 「全部」选项行文案（如「全部」）：置于菜单首行，点击清空已选；提供时隐藏全选/清空菜单头 */
   allLabel?: string;
+  /** 隐藏菜单头全选/清空（必选至少一项等批量操作无意义的枚举） */
+  hideBatch?: boolean;
 }>();
 const emit = defineEmits<{ (e: 'change', value: string[]): void }>();
 
@@ -40,7 +42,7 @@ const updatePos = () => {
   if (!el) return;
   const r = el.getBoundingClientRect();
   const rows = shown.value.length + (props.allLabel ? 1 : 0);
-  const contentH = rows * 33 + (props.allLabel ? 12 : 52) + (props.searchable ? 40 : 0);
+  const contentH = rows * 33 + (props.allLabel || props.hideBatch ? 12 : 52) + (props.searchable ? 40 : 0);
   const spaceBelow = window.innerHeight - r.bottom - 6;
   const spaceAbove = r.top - 6;
   const up = contentH > spaceBelow && spaceAbove > spaceBelow;
@@ -109,7 +111,7 @@ const toggleAll = () => emit('change', allChecked.value ? [] : [...props.options
           <span class="msel-check">{{ value.length ? '' : '✓' }}</span>
           <span class="msel-label">{{ allLabel }}</span>
         </div>
-        <div v-if="!allLabel" class="msel-head">
+        <div v-if="!allLabel && !hideBatch" class="msel-head">
           <span class="msel-head-btn" @click="toggleAll">全选</span>
           <span class="msel-head-btn" @click="emit('change', [])">清空</span>
         </div>

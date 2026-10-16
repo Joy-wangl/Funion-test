@@ -69,7 +69,6 @@ const filtered = computed(() => {
   <div class="qc-head">
     <div class="qc-title">
       问题商品
-      <span class="qc-desc">共 {{ filtered.length }} 个问题商品编码</span>
     </div>
   </div>
   <div v-if="cfgOpen" class="sg-filter">

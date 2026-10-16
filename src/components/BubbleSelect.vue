@@ -53,8 +53,12 @@ const props = defineProps<{
   renamable?: boolean;
   /** 可删除：选项 hover 尾部出垃圾桶，点击抛 delete(value)（联动范围由使用方决定） */
   deletable?: boolean;
+  /** 可清空：当前值≠复位值时触发器内显示 ×，点击抛 change(复位值)（查询条件快捷清空） */
+  clearable?: boolean;
+  /** 清空复位值（缺省取首选项，即「全部…」默认口径） */
+  resetValue?: string;
 }>();
-const emit = defineEmits<{ (e: 'change', value: string): void; (e: 'rename', oldValue: string, newValue: string): void; (e: 'delete', value: string): void }>();
+const emit = defineEmits<{ (e: 'change', value: string): void; (e: 'rename', oldValue: string, newValue: string): void; (e: 'delete', value: string): void; (e: 'clear'): void }>();
 
 const norm = (o: string | BubbleOption): BubbleOption =>
   typeof o === 'string' ? { value: o, label: o } : o;
@@ -86,6 +90,15 @@ const currentLabel = computed(() => opts.value.find((o) => o.value === current.v
 const currentOpt = computed(() => opts.value.find((o) => o.value === current.value));
 /* 当前值不在选项中 → 视为功能标题占位，灰色展示且不可作为选择项 */
 const isPlaceholder = computed(() => !opts.value.some((o) => o.value === current.value));
+
+/* 快捷清空：复位值缺省＝首选项（「全部…」）；当前值≠复位值才显示 × */
+const resetTarget = computed(() => props.resetValue ?? (opts.value[0]?.value ?? ''));
+const showClear = computed(() => !!props.clearable && !props.disabled && current.value !== resetTarget.value);
+const onClear = () => {
+  if (props.value === undefined) inner.value = resetTarget.value;
+  emit('change', resetTarget.value);
+  emit('clear');
+};
 
 /* 浮层设计理念：菜单 Teleport 到 body、fixed 定位，永不被弹窗/抽屉等 overflow 容器裁剪；
    下方空间不足时自动向上展开，滚动/缩放时跟随触发器重新定位 */
@@ -223,6 +236,9 @@ const onSearchEnter = () => {
           aria-hidden="true"
         ><path :d="BUBBLE_ICON_PATHS[currentOpt.icon]" fill="currentColor" /></svg>
         <span :style="currentOpt?.color ? { color: currentOpt.color } : undefined">{{ currentLabel }}</span>
+      </span>
+      <span v-if="showClear" class="bselect-clear" title="清空" @click.stop="onClear">
+        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
       </span>
       <svg class="bselect-arrow" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
         <path d="M2.5 4.5 L6 8 L9.5 4.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />

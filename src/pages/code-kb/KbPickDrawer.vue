@@ -23,7 +23,6 @@ watch(() => props.open, (v) => {
   sel.value = [];
 });
 
-const product = computed(() => cbProductMap[props.productId] ?? null);
 const codes = computed(() => (curSeries.value ? productsOfSeries(curSeries.value.id) : []));
 const typeCount = (id: string) => materialsOfProduct(id).filter((m) => m.type === props.type).length;
 

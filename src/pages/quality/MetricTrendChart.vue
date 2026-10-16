@@ -51,7 +51,9 @@ const onMove = (e: MouseEvent) => {
   const fx = ((e.clientX - rect.left) / rect.width) * W;
   const i = Math.max(0, Math.min(n.value - 1, Math.round(((fx - L) / (W - L - R)) * (n.value - 1))));
   const wr = wrap.getBoundingClientRect();
-  hover.value = { i, px: (x(i) / W) * rect.width, py: Math.max(8, Math.min(e.clientY - wr.top, wr.height - 8)) };
+  /* 气泡垂直方向收在图区内：居中跟随鼠标但上下不越界，避免被弹层滚动区裁切 */
+  const half = (12 + 18 * (1 + visible.value.length)) / 2;
+  hover.value = { i, px: (x(i) / W) * rect.width, py: Math.max(half + 4, Math.min(e.clientY - wr.top, wr.height - half - 4)) };
 };
 const wrapW = () => wrapRef.value?.clientWidth ?? 800;
 
