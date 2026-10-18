@@ -1409,9 +1409,17 @@
 
 /* 列表列宽：六列固定布局，编码列与名称列加宽 */
 .ops-center .bl-table { table-layout: fixed; }
-.ops-center .bl-table th:nth-child(1) { width: 12%; }
-.ops-center .bl-table th:nth-child(2) { width: 20%; }
-.ops-center .bl-table th:nth-child(3) { width: 30%; }
-.ops-center .bl-table th:nth-child(4) { width: 10%; }
-.ops-center .bl-table th:nth-child(5) { width: 16%; }
-.ops-center .bl-table th:nth-child(6) { width: 12%; }
+.ops-center .bl-table th:nth-child(1) { width: 42%; }
+.ops-center .bl-table th:nth-child(2) { width: 14%; }
+.ops-center .bl-table th:nth-child(3) { width: 24%; }
+.ops-center .bl-table th:nth-child(4) { width: 20%; }
+/* 商品信息单元格：复用内部商机 .ib-product 三行语言（图 + 名称 + 商品ID + 店铺平台标），列内不撑最小宽 */
+.ops-center .bl-table .ib-product,
+.ops-center .bl-detail-prod { min-width: 0; }
+.ops-center .bl-table .ib-pname,
+.ops-center .bl-detail-prod .ib-pname { max-width: none; margin-bottom: 4px; }
+/* 无商品回显（编码类未命中商品行）：灰底占位图块保持单元格同构 */
+.ops-center .bl-thumb-ph { background: var(--color-fill); border-color: var(--color-border); }
+.ops-center .bl-pinfo { min-width: 0; flex: 1; }
+/* 添加人 / 添加时间合并列：人名正文 + 时间次级灰行 */
+.ops-center .bl-who { font-size: var(--fs-base); color: var(--color-text-2); line-height: 1.6; }

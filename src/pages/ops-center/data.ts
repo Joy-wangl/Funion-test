@@ -322,9 +322,15 @@ export const internalProducts: ProductRow[] = [
   },
 ];
 
+/** 内部商机商品的系列编码（运营管理「系列编码」列同源口径）：XL-220 + 行序；黑品库按系列编码检索/回显商品复用 */
+export const productSeriesCode = (pid: string): string => {
+  const i = internalProducts.findIndex((p) => p.pid === pid);
+  return i >= 0 ? `XL-220${i + 1}` : '';
+};
+
 /** 运营管理（待上架 / ID数据）表格数据：与原 HTML 一致，音响行缩略图保留 height=440 原样；附带查询条件列演示值 */
 const OM_EXTRAS: Record<string, string>[] = internalProducts.map((row, i) => ({
-  系列编码: `XL-220${i + 1}`,
+  系列编码: productSeriesCode(row.pid),
   /* 销售额：按近7日销量×客单价演示口径折算 */
   销售额: `¥${Math.round(Number(row.week7) * 39.9).toLocaleString('zh-CN')}`,
   运营组: ['运营一组', '运营二组', '运营三组'][i % 3],
