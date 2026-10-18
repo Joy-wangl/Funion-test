@@ -436,16 +436,23 @@ const reviews = computed(() => (props.allReviews ?? onlineReviewsOf(props.series
 /* 核心指标三组卡（订单/聊天/评价）：与监控列表行级三复合列同口径——
    订单组随编码 tab 与时间窗口收敛；会话总数/评价数/差评数按系列简报随窗口缩放（会话总数不低于风险会话） */
 const afterRate = computed(() => (stats.value.orders ? afterOrders.value.length / stats.value.orders : 0));
+/* 商品维度：会话/评价简报原为系列全平台口径，按该商品所在平台的订单占比折算，避免总览指标跨平台虚高；系列编码维度保持 1 不变 */
+const platShare = computed(() => {
+  if (!props.product) return 1;
+  const all = props.series.codes.reduce((s, c) => s + c.platforms.reduce((x, p) => x + p.orders, 0), 0);
+  const mine = props.series.codes.reduce((s, c) => s + c.platforms.filter((p) => platMatch(p.platform)).reduce((x, p) => x + p.orders, 0), 0);
+  return all ? mine / all : 1;
+});
 const chatBrief = computed(() => {
   const b = onlineChatBrief(props.series);
   const risk = sessions.value.length;
-  const total = Math.max(risk, Math.round(b.total * rangeRatio.value));
+  const total = Math.max(risk, Math.round(b.total * platShare.value * rangeRatio.value));
   return { total, risk, rate: total ? risk / total : 0 };
 });
 const reviewBrief = computed(() => {
   const b = onlineReviewBrief(props.series);
-  const total = Math.round(b.total * rangeRatio.value);
-  const bad = Math.min(total, Math.round(b.bad * rangeRatio.value));
+  const total = Math.round(b.total * platShare.value * rangeRatio.value);
+  const bad = Math.min(total, Math.round(b.bad * platShare.value * rangeRatio.value));
   return { total, bad, rate: total ? bad / total : 0 };
 });
 const kpiRateCls = (v: number) => (v < 0.03 ? 'ok' : v < 0.05 ? 'warn' : 'bad');
@@ -1195,6 +1202,7 @@ const noneText = computed(() => (selCode.value
                     v-else-if="scene === 'after'"
                     embedded
                     :series="series"
+                    :all-after-orders="props.allAfterOrders"
                     :ptype="activeType"
                     :psub="activeSub"
                     :platform="afterPlatScope"

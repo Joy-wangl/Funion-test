@@ -6770,20 +6770,39 @@
 .ops-center .msg-bell-btn { position: relative; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: #fff; color: var(--color-text-2); cursor: pointer; transition: color .15s, border-color .15s; }
 .ops-center .msg-bell-btn:hover { color: var(--color-primary); border-color: var(--color-primary); }
 .ops-center .msg-badge { position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--color-danger); color: #fff; font-size: 10px; line-height: 16px; text-align: center; }
-/* 第三方账号登录状态入口：与消息铃铛同款 34px 白底描边按钮；集合式 icon（2×2 圆角方块），
-   存在未登录平台时右上角红点提示；悬浮面板逐平台展示官方 logo + 登录态标签 */
-.ops-center .plat-login { position: relative; }
-.ops-center .plat-login-btn { position: relative; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: #fff; color: var(--color-text-2); cursor: pointer; transition: color .15s, border-color .15s; }
-.ops-center .plat-login-btn:hover { color: var(--color-primary); border-color: var(--color-primary); }
-.ops-center .plat-login-dot { position: absolute; top: -4px; right: -4px; width: 9px; height: 9px; border-radius: 50%; background: var(--color-danger); border: 1.5px solid #fff; }
-.ops-center .plat-login-panel { position: absolute; top: 40px; right: 0; z-index: 60; width: 172px; padding: 6px; background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); }
-.ops-center .plat-login-row { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 8px; }
-.ops-center .plat-login-row:hover { background: var(--color-fill-2); }
+/* 顶栏左组：第三方登录状态 + 店铺登录失效提醒同排左靠（margin-right:auto 把铃铛钉在右端，无失效店铺时也不跑位） */
+.ops-center .ops-topbar-left { display: flex; align-items: center; gap: 10px; margin-right: auto; min-width: 0; }
+/* 第三方账号（买家号）登录状态：浅色底胶囊容器平铺；
+   已登录仅平台 logo，未登录 logo + 未登录标签（标签内状态点闪烁）；平台名称收进 hover title */
+.ops-center .plat-login { display: flex; align-items: center; gap: 14px; flex: none; padding: 5px 12px; border-radius: 999px; background: #f7f8fa; }
+.ops-center .plat-login-item { display: inline-flex; align-items: center; gap: 6px; }
 .ops-center .plat-login-logo { width: 18px; height: 18px; border-radius: 4px; object-fit: cover; flex: none; }
-.ops-center .plat-login-name { flex: 1; min-width: 0; font-size: var(--fs-base); color: var(--color-text-2); }
-.ops-center .plat-login-st { flex: none; padding: 1px 8px; border-radius: 999px; font-size: 12px; line-height: 18px; }
-.ops-center .plat-login-st.on { background: var(--color-success-light); color: var(--color-success); }
+.ops-center .plat-login-st { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: 999px; font-size: 12px; line-height: 18px; }
 .ops-center .plat-login-st.off { background: #ffece8; color: var(--color-danger); }
+.ops-center .plat-login-blink { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: plat-login-blink 1s ease-in-out infinite; }
+@keyframes plat-login-blink { 0%, 100% { opacity: 1; } 50% { opacity: .15; } }
+/* 店铺登录失效提醒：浅红芯片（平台 logo + 店铺名 + 闪烁状态点），点击走掉店桥进账号管理抽屉；
+   超出 3 家收进「+N」，悬浮 120ms 延迟展开右列面板列其余店铺 */
+.ops-center .shop-login-alert { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ops-center .shop-alert-chip { display: inline-flex; align-items: center; gap: 6px; flex: none; height: 26px; padding: 0 10px; border: 1px solid #ffd6d0; border-radius: 999px; background: var(--color-danger-light); color: var(--color-danger); font-size: var(--fs-aux); cursor: pointer; transition: border-color .15s, background .15s; }
+.ops-center .shop-alert-chip:hover { border-color: var(--color-danger); }
+.ops-center .shop-alert-chip .nm { max-width: 132px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ops-center .shop-alert-chip .st { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.ops-center .shop-alert-logo { width: 14px; height: 14px; border-radius: 3px; object-fit: cover; flex: none; display: block; }
+.ops-center .shop-alert-blink { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: plat-login-blink 1s ease-in-out infinite; }
+.ops-center .shop-alert-more { position: relative; display: inline-flex; flex: none; }
+.ops-center .shop-alert-chip.more { padding: 0 9px; font-weight: var(--fw-medium); }
+.ops-center .shop-alert-panel { position: absolute; top: calc(100% + 6px); left: 0; z-index: 130; display: flex; flex-direction: column; gap: 2px; min-width: 236px; padding: 6px; border: 1px solid var(--color-border-2); border-radius: 10px; background: #fff; box-shadow: 0 8px 24px rgba(26, 34, 56, .12); }
+.ops-center .shop-alert-row { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 0; border-radius: 8px; background: transparent; font-size: var(--fs-aux); color: var(--color-text); text-align: left; cursor: pointer; }
+.ops-center .shop-alert-row:hover { background: var(--color-danger-light); }
+.ops-center .shop-alert-row .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ops-center .shop-alert-row .st { display: inline-flex; align-items: center; gap: 4px; flex: none; color: var(--color-danger); }
+/* 顶栏「执行中」状态：当前账号在途竞店抓取任务才渲染（无任务不占位），铃铛左侧蓝底胶囊＋呼吸点；
+   多任务在途尾随 ·N 计数；悬浮 title 提示保持淘宝账号登录 */
+.ops-center .ops-run-badge { display: inline-flex; align-items: center; gap: 6px; flex: none; height: 26px; padding: 0 10px; border: 1px solid var(--color-primary-10); border-radius: 999px; background: var(--color-primary-light); color: var(--color-primary); font-size: var(--fs-aux); cursor: default; }
+.ops-center .ops-run-logo { width: 14px; height: 14px; border-radius: 3px; object-fit: cover; flex: none; display: block; }
+.ops-center .ops-run-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: plat-login-blink 1s ease-in-out infinite; }
+.ops-center .ops-run-n { font-weight: var(--fw-medium); }
 .ops-center .msg-panel { position: absolute; top: 40px; right: 0; z-index: 60; width: 680px; background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); overflow: hidden; }
 .ops-center .msg-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 14px; font-size: 17px; font-weight: 700; color: var(--color-text); }
 .ops-center .msg-head a { font-size: var(--fs-base); font-weight: 400; color: var(--color-primary); cursor: pointer; }

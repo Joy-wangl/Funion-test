@@ -3,7 +3,7 @@
 import { computed, ref, watch } from 'vue';
 import {
   AFTER_TYPES, AFTER_PLATFORMS, EVIDENCE_START, EVIDENCE_END, afterJumpSeed, scanAfterOrders, sliceAfterOrders, onlineSeriesOfCode, onlineSessionsOf, patchOnlineSession, hitSubDepts, subsOfType,
-  type AfterScan, type AfterOrderRow,
+  shopGoodOfCode, shopGoodSkus, type AfterScan, type AfterOrderRow, type ShopGood,
 } from './qcOnlineData';
 import { DEPT_COLOR, PROBLEM_TYPE_COLOR, QC_PROBLEM_TYPES, QC_DEPTS, type DateRange, type RangeKey } from './qcCenterData';
 import { SHOP_NAME, type ChatHit, type ChatMessage, type ChatSession } from './data';
@@ -14,10 +14,13 @@ import ChatFullModal from './ChatFullModal.vue';
 import PieChart from './PieChart.vue';
 import QcSectionHead from './QcSectionHead.vue';
 import QcRangeToggle from './QcRangeToggle.vue';
+import QcDateRangePicker from './QcDateRangePicker.vue';
+import QcSeriesDrawer from './QcSeriesDrawer.vue';
+import QcTypeShuttle from './QcTypeShuttle.vue';
 
 const ALL = { type: '全部类型', platform: '全部平台', sess: '全部' };
 const GO_DEFAULT = '全部组别 / 全部运维';
-const blank = () => ({ go: GO_DEFAULT, type: ALL.type, platform: ALL.platform, sess: ALL.sess, ptype: null as string | null, sub: null as string | null, dept: '全部部门', from: '', to: '' });
+const blank = () => ({ go: GO_DEFAULT, type: ALL.type, platform: ALL.platform, sess: ALL.sess, ptype: null as string | null, sub: null as string | null, dept: '全部部门', from: '', to: '', kw: '' });
 const applied = ref(blank());
 
 /* 问题大类占比下钻态：null＝大类视图，值＝当前下钻的问题大类（与监控列表/评价列表同交互） */
@@ -31,11 +34,25 @@ const openList = (seed: Partial<ReturnType<typeof blank>> = {}) => {
   const next = { ...applied.value, ...seed };
   applied.value = { ...next };
   tier.value = 'list';
+  syncDraft();
 };
 const backToOv = () => {
   applied.value = { ...ovSnap.value };
   tier.value = 'ov';
 };
+
+/* 二级列表页查询条件（按列表列内容配置）：单号/编码关键词、平台、售后类型、问题类型、问题小类（随类型级联）、申请时间；查询/重置同排右对齐。
+   草稿态独立于生效条件：概览入口代入的维度（大类/部门/会话）不被查询/重置覆盖 */
+const blankDraft = () => ({ kw: '', platform: ALL.platform, type: ALL.type, ptype: null as string | null, sub: null as string | null, from: '', to: '' });
+const draft = ref(blankDraft());
+const syncDraft = () => {
+  const a = applied.value;
+  draft.value = { kw: a.kw, platform: a.platform, type: a.type, ptype: a.ptype, sub: a.sub, from: a.from, to: a.to };
+};
+const onAsQuery = () => {
+  applied.value = { ...applied.value, kw: draft.value.kw.trim(), platform: draft.value.platform, type: draft.value.type, ptype: draft.value.ptype, sub: draft.value.sub, from: draft.value.from, to: draft.value.to };
+};
+const onAsReset = () => { draft.value = blankDraft(); onAsQuery(); };
 
 /* 数据概览售后数据卡跳转：预选类型 / 状态后立即生效，消费后清空种子（侧栏直达不带筛选）；跳转即入二级列表页 */
 watch(afterJumpSeed, (s) => {
@@ -43,13 +60,14 @@ watch(afterJumpSeed, (s) => {
   ovSnap.value = blank();
   applied.value = { ...blank(), ...s };
   tier.value = 'list';
+  syncDraft();
   afterJumpSeed.value = null;
 }, { immediate: true });
 
 const toQuery = (f: ReturnType<typeof blank>) => {
   const [g, o] = f.go.split(' / ');
   /* 状态/关键词筛选已下线，但查询口径仍需显式传「全部状态」/空串，否则 matchAfter 会按未定义状态过滤掉全部售后单 */
-  return { group: g, operator: o, type: f.type, platform: f.platform, status: '全部状态', kw: '', sess: f.sess, ptype: f.ptype, sub: f.sub, dept: f.dept, from: f.from, to: f.to };
+  return { group: g, operator: o, type: f.type, platform: f.platform, status: '全部状态', kw: f.kw, sess: f.sess, ptype: f.ptype, sub: f.sub, dept: f.dept, from: f.from, to: f.to };
 };
 
 /* 查询生效时全量扫描一次：累计命中数 / 小类计数 / 每系列命中数，分页切片再回生成取行 */
@@ -114,17 +132,21 @@ const afterWindow = (range: RangeKey, custom: DateRange): [string, string] => {
 };
 const ovRange = ref<RangeKey>('custom');
 const ovCustom = ref<DateRange>({ ...AFTER_FULL_RANGE });
+/* 概览头部平台切换（下拉 BubbleSelect，与其它模块一致）：只滤概览四卡与其钻取入口；占比带/右列各有独立平台口径 */
+const ovPlat = ref<'全部平台' | (typeof AFTER_PLATFORMS)[number]>('全部平台');
+const OV_PLAT_OPTS: ('全部平台' | (typeof AFTER_PLATFORMS)[number])[] = ['全部平台', ...AFTER_PLATFORMS];
+const onOvPlat = (v: string) => { ovPlat.value = v as '全部平台' | (typeof AFTER_PLATFORMS)[number]; };
 const catRange = ref<RangeKey>('custom');
 const catCustom = ref<DateRange>({ ...AFTER_FULL_RANGE });
 const catPlat = ref('全部平台');
 const catDept = ref('全部');
-const CAT_PLAT_OPTS = ['全部平台', ...AFTER_PLATFORMS] as string[];
+const CAT_PLAT_OPTS = OV_PLAT_OPTS;
 const CAT_DEPT_OPTS = ['全部', ...QC_DEPTS];
 const onCatPlat = (v: string) => { catPlat.value = v; asDetail.value = null; };
 const onCatDept = (v: string) => { catDept.value = v; asDetail.value = null; };
 const ovScan = computed(() => {
   const [from, to] = afterWindow(ovRange.value, ovCustom.value);
-  return scanAfterOrders(toQuery({ ...applied.value, from, to }));
+  return scanAfterOrders(toQuery({ ...applied.value, platform: ovPlat.value, from, to }));
 });
 const catScan = computed(() => {
   const [from, to] = afterWindow(catRange.value, catCustom.value);
@@ -231,16 +253,17 @@ const dayAxis = computed(() => {
 /* 平台售后占比饼图：周期内各平台申请单量（色同平台口径 OV_PLAT_COLORS） */
 const platPieItems = computed(() => ov.value.plats.map((p) => ({ label: p.label, value: p.count, color: OV_PLAT_COLORS[p.label] ?? '#4f7cff' })));
 
-/* 概览入口点入二级列表：代入对应维度条件（会话/类型/小类/大类/平台/申请日），小类回查所属大类供穿梭控件回显 */
+/* 概览入口点入二级列表：代入对应维度条件（会话/类型/小类/大类/平台/申请日），小类回查所属大类供穿梭控件回显；
+   概览四卡入口另代入头部平台切换口径，保证钻取列表与卡面数字同口径 */
 const ptypeOfSub = (s: string) => QC_PROBLEM_TYPES.find((t) => subsOfType(t).includes(s)) ?? null;
-const listAll = () => openList();
-const listSess = () => openList({ sess: '有会话' });
-const listTopType = () => { if (topType.value) openList({ type: topType.value.label }); };
+const listAll = () => openList({ platform: ovPlat.value });
+const listSess = () => openList({ sess: '有会话', platform: ovPlat.value });
+const listTopType = () => { if (topType.value) openList({ type: topType.value.label, platform: ovPlat.value }); };
 const listTopSub = () => {
   const s = topSub.value;
   if (!s) return;
   const pt = ptypeOfSub(s.label);
-  openList(pt ? { ptype: pt, sub: s.label } : { ptype: s.label, sub: null });
+  openList(pt ? { ptype: pt, sub: s.label, platform: ovPlat.value } : { ptype: s.label, sub: null, platform: ovPlat.value });
 };
 const listCat = (label: string) => openList({ ptype: label, sub: null });
 /* 责任部门卡点击：代入责任部门条件进列表（展示该部门下关联问题小类的售后单），同评价列表部门卡交互 */
@@ -267,6 +290,44 @@ const onModalHits = (id: string, hits: ChatHit[]) => {
   patchOnlineSession(id, hits);
   sessVer.value += 1;
 };
+
+/* 操作列「商品详情」：售后单商品编码经 shopGoodOfCode 归属店铺商品，复用系列详情抽屉的商品维度（SKU 导轨/三场景明细） */
+const prodRow = ref<AfterOrderRow | null>(null);
+const prodSeries = computed(() => (prodRow.value ? onlineSeriesOfCode(prodRow.value.code) : null));
+const prodGood = computed(() => (prodRow.value ? shopGoodOfCode(prodRow.value.code) : null));
+const prodSessions = computed(() => (prodSeries.value ? onlineSessionsOf(prodSeries.value).slice() : []));
+const AS_THUMBS = ['/products/main.png', '/products/serum.png', '/products/hairpin.png'];
+const prodCtx = computed(() => {
+  const g = prodGood.value as ShopGood | null;
+  if (!g) return null;
+  const skuRows = shopGoodSkus(g);
+  const skuSeries: Record<string, string[]> = {};
+  const skuThumbs: Record<string, string> = {};
+  skuRows.forEach((r, i) => {
+    (skuSeries[r.name] ||= []).push(...r.series);
+    skuThumbs[r.name] = AS_THUMBS[i % AS_THUMBS.length];
+  });
+  Object.keys(skuSeries).forEach((k) => { skuSeries[k] = [...new Set(skuSeries[k])]; });
+  const skuSales: Record<string, number> = {};
+  Object.keys(skuSeries).forEach((k) => {
+    let h = 0;
+    const s = `${g.id}-${k}`;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 9973;
+    skuSales[k] = 120 + (h % 1860);
+  });
+  return {
+    name: g.name,
+    thumb: AS_THUMBS[Number(g.id) % AS_THUMBS.length],
+    skus: [...new Set(skuRows.map((r) => r.name))],
+    skuSeries,
+    skuThumbs,
+    skuSales,
+    skuCodeCount: skuRows.length,
+    platform: prodRow.value?.platform ?? '',
+    goodId: g.id,
+    listedAt: g.listedAt,
+  };
+});
 
 /* 客服打标映射：sessionId → csTag（供 ChatFullModal 左栏只读展示，取当前页售后单） */
 const csTagMap = computed(() => {
@@ -298,7 +359,6 @@ const exportSession = () => {
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
       返回售后概览
     </button>
-    <div class="qc-title">售后列表</div>
   </div>
   <div class="qc-ao-panel qc-as-page">
     <!-- 一级页面：售后概览看板（与列表同口径）；无命中时不展示（空态文案兜底）
@@ -306,7 +366,10 @@ const exportSession = () => {
          概览各入口可点：代入对应维度条件进入二级列表页 -->
     <div v-if="tier === 'ov' && scan.total" class="qc-as-ov">
       <div class="qc-as-block">
-        <QcSectionHead title="售后概览" :range="ovRange" :custom="ovCustom" :on-range="(r: RangeKey) => (ovRange = r)" :on-custom="(d: DateRange) => (ovCustom = d)" />
+        <QcSectionHead title="售后概览" :range="ovRange" :custom="ovCustom" :on-range="(r: RangeKey) => (ovRange = r)" :on-custom="(d: DateRange) => (ovCustom = d)">
+          <!-- 平台切换：与其它模块一致的下拉（BubbleSelect），选项同问题大类占比卡平台下拉 -->
+          <BubbleSelect class-name="sg-select" :value="ovPlat" :options="OV_PLAT_OPTS" @change="onOvPlat" />
+        </QcSectionHead>
         <div class="qc-flat-grid cols-4">
           <div class="flat-card clickable" title="点击查看售后列表" @click="listAll">
             <div class="k">售后单量</div>
@@ -460,6 +523,62 @@ const exportSession = () => {
     <div v-if="tier === 'ov' && !scan.total" class="qc-as-ov-empty">当前查询条件下无售后数据</div>
 
     <div v-if="tier === 'list'" class="qc-body">
+      <!-- 列表页查询条件（按列内容配置）：单号/编码、平台、售后类型、问题类型、问题小类（级联）、申请时间；查询/重置同排右对齐 -->
+      <div class="sg-filter qc-as-filter">
+        <div class="sg-grid">
+          <div class="sg-field">
+            <label>单号/编码</label>
+            <span class="sg-inputwrap">
+              <input
+                class="sg-input"
+                placeholder="订单 / 售后单号 / 系列编码"
+                :value="draft.kw"
+                @input="draft.kw = ($event.target as HTMLInputElement).value"
+                @keyup.enter="onAsQuery"
+              >
+              <button v-if="draft.kw" type="button" class="sg-clear" title="清除" @click="(draft.kw = '', onAsQuery())">
+                <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+              </button>
+            </span>
+          </div>
+          <div class="sg-field">
+            <label>平台</label>
+            <BubbleSelect class-name="sg-select" clearable :value="draft.platform" :options="['全部平台', ...AFTER_PLATFORMS]" @change="(v: string) => (draft.platform = v)" @clear="onAsQuery" />
+          </div>
+          <div class="sg-field">
+            <label>售后类型</label>
+            <BubbleSelect class-name="sg-select" clearable :value="draft.type" :options="['全部类型', ...AFTER_TYPES]" @change="(v: string) => (draft.type = v)" @clear="onAsQuery" />
+          </div>
+          <!-- 问题类型/小类两级：左列大类、右列小类穿梭（同监控列表/店铺列表口径） -->
+          <div class="sg-field">
+            <label>问题类型</label>
+            <span class="sg-inputwrap">
+              <QcTypeShuttle
+                class-name="sg-select"
+                :ptype="draft.ptype"
+                :sub="draft.sub"
+                @change="(t: string | null, s: string | null) => { draft.ptype = t; draft.sub = s; }"
+              />
+              <button v-if="draft.ptype || draft.sub" type="button" class="sg-clear" title="清除" @click="draft.ptype = null; draft.sub = null; onAsQuery()">
+                <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+              </button>
+            </span>
+          </div>
+          <div class="sg-field">
+            <label>申请时间</label>
+            <QcDateRangePicker
+              :custom="{ start: draft.from || EVIDENCE_START, end: draft.to || EVIDENCE_END }"
+              :min="EVIDENCE_START"
+              :max="EVIDENCE_END"
+              :on-change="(d: DateRange) => { draft.from = d.start; draft.to = d.end; }"
+            />
+          </div>
+          <div class="sg-field-actions">
+            <button class="sg-btn" @click="onAsReset">重置</button>
+            <button class="sg-btn primary" @click="onAsQuery">查询</button>
+          </div>
+        </div>
+      </div>
       <table class="table ao-table" :class="{ 'is-loading': loading }">
         <thead>
           <tr>
@@ -468,7 +587,7 @@ const exportSession = () => {
             <th>系列编码</th>
             <th>售后类型 / 售后原因</th>
             <th>客服标签</th>
-            <th>问题小类</th>
+            <th>问题类型</th>
             <th>申请时间</th>
             <th>操作</th>
           </tr>
@@ -493,12 +612,12 @@ const exportSession = () => {
               <div class="ao-reason" :title="o.reason">{{ o.reason }}</div>
             </td>
             <td class="ao-cs"><span v-if="o.csTag" class="tag">{{ o.csTag }}</span><span v-else class="ao-dim">—</span></td>
-            <td><span class="tag">{{ o.psub || o.ptype }}</span></td>
+            <td><span class="tag">{{ o.ptype || o.psub }}</span></td>
             <td class="ao-wrap">{{ o.appliedAt }}</td>
             <td>
               <div class="qc-op-col">
+                <a @click="prodRow = o">商品详情</a>
                 <a v-if="o.sessionId" @click="openSession(o)">查看会话</a>
-                <span v-else class="ao-dim">—</span>
               </div>
             </td>
           </tr>
@@ -542,5 +661,17 @@ const exportSession = () => {
     :on-export="exportSession"
     :cs-tag-map="csTagMap"
     show-sub
+  />
+
+  <!-- 商品详情抽屉：操作列「商品详情」按售后单商品编码归属店铺商品，商品维度打开 -->
+  <QcSeriesDrawer
+    v-if="prodRow && prodSeries && prodCtx"
+    :key="`${prodRow.afterNo}-${prodRow.code}`"
+    :series="prodSeries"
+    :product="prodCtx"
+    :on-close="() => (prodRow = null)"
+    :all-sessions="prodSessions"
+    :on-update-hits="onModalHits"
+    :online="true"
   />
 </template>

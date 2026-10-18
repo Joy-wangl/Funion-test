@@ -122,7 +122,7 @@ const pickSub = (s: string) => {
       </svg>
     </button>
     <Teleport to="body">
-      <div v-if="open" ref="menuRef" class="casc-menu" :style="menuStyle">
+      <div v-if="open" ref="menuRef" class="casc-menu qc-ts-menu" :style="menuStyle">
         <div class="casc-cols">
           <div class="casc-col">
             <div class="casc-item" :class="{ selected: !props.ptype }" @click="pickAllType">

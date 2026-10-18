@@ -8,12 +8,13 @@ import { avaColor } from '../permission/data';
 import type { Member } from '../permission/data';
 import { IconXsm } from '../permission/permIcons';
 
-const props = defineProps<{ source: Member[]; title?: string; initialIds?: Set<string>; /** 单选（转交场景）：点选即替换，分组批量不生效 */ single?: boolean }>();
-const emit = defineEmits<{ (e: 'close'): void; (e: 'confirm', members: Member[]): void }>();
+const props = defineProps<{ source: Member[]; title?: string; initialIds?: Set<string>; /** 单选（转交场景）：点选即替换，分组批量不生效 */ single?: boolean; /** 选人同时必填的原因（转交原因）：传入标签即出现原因输入框 */ reasonLabel?: string; reasonPh?: string }>();
+const emit = defineEmits<{ (e: 'close'): void; (e: 'confirm', members: Member[], reason: string): void }>();
 
 const valid = computed(() => props.source.filter((m) => m.status !== 'pending'));
 const selectedIds = ref<Set<string>>(new Set(props.initialIds ?? []));
 const selected = computed(() => valid.value.filter((m) => selectedIds.value.has(m.id)));
+const reason = ref('');
 
 const toggle = (id: string) => {
   if (props.single) { selectedIds.value = new Set([id]); return; }
@@ -30,7 +31,9 @@ const bulk = (ids: string[], checked: boolean) => {
 };
 const confirm = () => {
   if (!selected.value.length) { pushToast('请至少选择一名成员', 'error'); return; }
-  emit('confirm', props.single ? selected.value.slice(0, 1) : selected.value);
+  const rs = reason.value.trim();
+  if (props.reasonLabel && !rs) { pushToast(`请填写${props.reasonLabel}`, 'error'); return; }
+  emit('confirm', props.single ? selected.value.slice(0, 1) : selected.value, rs);
   emit('close');
 };
 </script>
@@ -51,6 +54,11 @@ const confirm = () => {
           </div>
         </div>
       </div>
+    </div>
+    <!-- 选人同时必填原因（转交场景）：转入人可见，并写入处理流程节点 -->
+    <div v-if="props.reasonLabel" class="sg-field qc-am-reason">
+      <label>{{ props.reasonLabel }}<span class="qc-tc-req">*</span></label>
+      <textarea v-model="reason" class="sg-input qc-tc-textarea qc-todo-rejta" maxlength="100" :placeholder="props.reasonPh ?? `请填写${props.reasonLabel}`" />
     </div>
     <template #foot>
       <button class="btn" @click="emit('close')">取消</button>

@@ -20,6 +20,8 @@ const props = defineProps<{
   series: MetricSeriesDef[];
   /** 隐藏的维度 key（图例点击切换） */
   hidden: Set<string>;
+  /** 优化任务区间色带（垫在折线下）：i0/i1 为标签下标闭区间 */
+  band?: { i0: number; i1: number; text: string } | null;
 }>();
 
 const hover = ref<{ i: number; px: number; py: number } | null>(null);
@@ -44,6 +46,11 @@ const lFmt = computed(() => lefts.value[0]?.format ?? ((v: number) => Math.round
 const rFmt = computed(() => rights.value[0]?.format ?? ((v: number) => `${Math.round(v * 100)}%`));
 const fracs = [0, 0.25, 0.5, 0.75, 1];
 const step = computed(() => Math.max(1, Math.ceil(n.value / 8)));
+/* ---------- 优化任务区间色带：区间端点向两侧扩半步并钳在绘图区；标签居中且钳位防溢出 ---------- */
+const halfStep = computed(() => (n.value > 1 ? (W - L - R) / (n.value - 1) / 2 : 0));
+const bandX0 = computed(() => (props.band ? Math.max(L, Math.min(x(props.band.i0) - halfStep.value, W - R)) : 0));
+const bandX1 = computed(() => (props.band ? Math.min(W - R, Math.max(x(props.band.i1) + halfStep.value, L)) : 0));
+const bandTx = computed(() => Math.max(L + 90, Math.min((bandX0.value + bandX1.value) / 2, W - R - 90)));
 const onMove = (e: MouseEvent) => {
   const wrap = wrapRef.value;
   const rect = wrap?.querySelector('svg')?.getBoundingClientRect();
@@ -93,6 +100,12 @@ function smoothPath(pts: { x: number; y: number }[]): string {
       </g>
       <text v-if="lMax > 0" :x="L" :y="T - 6" class="ax-cap">数量</text>
       <text v-if="rMax > 0" :x="W - R" :y="T - 6" text-anchor="end" class="ax-cap ax-r">比率</text>
+      <g v-if="band && n > 1 && bandX1 > bandX0" class="mt-band">
+        <rect :x="bandX0" :y="T" :width="bandX1 - bandX0" :height="H - T - B" />
+        <line :x1="bandX0" :x2="bandX0" :y1="T" :y2="H - B" />
+        <line :x1="bandX1" :x2="bandX1" :y1="T" :y2="H - B" />
+        <text :x="bandTx" :y="T + 14" text-anchor="middle" class="mt-band-lb">{{ band.text }}</text>
+      </g>
       <g v-for="s in visible" :key="s.key">
         <path v-if="n > 1" :d="smoothPath(s.points.map((v, i) => ({ x: x(i), y: yOf(s)(v) })))" fill="none" :stroke="s.color" stroke-width="2.2" />
         <circle v-for="(v, i) in s.points" :key="i" :cx="x(i)" :cy="yOf(s)(v)" :r="hover?.i === i ? 4 : 2.4" :fill="s.color" />

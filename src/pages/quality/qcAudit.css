@@ -6,6 +6,10 @@
 /* 权重配置：整模块背景一体化——外层单块白底面板承载标题+分组+操作条，内部分组去盒改发丝线分隔 */
 .qc-center-page .qc-au-onewrap { gap: 0; padding: 18px 20px 20px; background: #fff; border: 1px solid #eef1f6; border-radius: 12px; }
 .qc-center-page .qc-au-onewrap .qc-au-head { padding-bottom: 14px; }
+/* 页首平台切换：下划线 tab 行（同店铺列表页首平台行 .tc-typerow 语言）＋官方图标＋平台名；与下方总分分组发丝线分隔 */
+.qc-center-page .qc-au-platbar { padding-bottom: 12px; border-bottom: 1px solid #f2f4f8; }
+.qc-center-page .qc-au-platbar .tc-typeitem { display: inline-flex; align-items: center; gap: 6px; }
+.qc-center-page .qc-au-platbar .plat-logo { width: 16px; height: 16px; border-radius: 4px; object-fit: cover; flex: none; }
 .qc-center-page .qc-au-onewrap .qc-au-card { padding: 16px 0; background: transparent; border: 0; border-radius: 0; }
 .qc-center-page .qc-au-onewrap .qc-au-card + .qc-au-card { border-top: 1px solid #f2f4f8; }
 .qc-center-page .qc-au-onewrap .qc-au-foot { margin-top: 4px; padding-top: 14px; border-top: 1px solid #f2f4f8; }
@@ -77,6 +81,16 @@
 .qc-center-page .qc-au-wtbl th:not(:first-child), .qc-center-page .qc-au-wtbl td:not(:first-child) { text-align: center; }
 .qc-center-page .qc-au-mono { font-variant-numeric: tabular-nums; }
 .qc-center-page .qc-au-tag { display: inline-block; padding: 2px 8px; border-radius: var(--radius-sm); font-size: var(--fs-aux); font-weight: var(--fw-medium); }
+/* 适用平台列：官方图标＋平台名行内芯片；全平台通用（编码维度预留）走灰标签 */
+.qc-center-page .qc-au-platchip { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-base); color: var(--color-text-2); white-space: nowrap; }
+.qc-center-page .qc-au-platchip .plat-logo { width: 16px; height: 16px; border-radius: 4px; object-fit: cover; flex: none; }
+.qc-center-page .qc-au-allplat { display: inline-block; padding: 2px 8px; border-radius: var(--radius-sm); font-size: var(--fs-aux); font-weight: var(--fw-medium); background: #f2f3f5; color: #8b92a1; }
+/* 抽屉表单适用平台：四平台图标胶囊单选（同 .qc-au-pill 语言＋官方图标），选中态主色浅底 */
+.qc-center-page .qc-au-platpills { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.qc-center-page .qc-au-platpill { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 0; border-radius: 999px; background: #f2f3f5; font-size: var(--fs-base); color: #596273; cursor: pointer; transition: 0.15s; }
+.qc-center-page .qc-au-platpill:hover { color: var(--color-primary); }
+.qc-center-page .qc-au-platpill.on { background: #eef4ff; color: #4f7cff; font-weight: var(--fw-medium); }
+.qc-center-page .qc-au-platpill .plat-logo { width: 16px; height: 16px; border-radius: 4px; object-fit: cover; flex: none; }
 /* 开关 */
 .qc-center-page .qc-au-switch { position: relative; flex: none; width: 34px; height: 18px; padding: 0; border: 0; border-radius: 999px; background: #dfe4ec; cursor: pointer; transition: background 0.15s; }
 .qc-center-page .qc-au-switch i { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18); transition: left 0.15s; }
@@ -91,36 +105,33 @@
 /* 白底横幅 */
 .qc-center-page .qc-au-banner { display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; background: #fff; border: 1px solid #eef1f6; border-radius: 10px; font-size: var(--fs-base); line-height: 1.7; color: var(--color-text-2); }
 .qc-center-page .qc-au-banner-ico { flex: none; width: 18px; height: 18px; margin-top: 2px; border-radius: 50%; background: var(--color-primary-light); color: var(--color-primary); font-size: 12px; font-weight: 700; line-height: 18px; text-align: center; }
-/* 弹窗 */
-.qc-center-page .qc-au-mask { position: fixed; inset: 0; z-index: 120; background: rgba(17, 22, 34, 0.45); display: flex; align-items: center; justify-content: center; }
-.qc-center-page .qc-au-modal { width: 520px; max-height: 80vh; overflow: auto; background: #fff; border-radius: 14px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2); }
-.qc-center-page .qc-au-modal-hd { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 12px; font-size: 15px; font-weight: 600; color: var(--color-text); }
-.qc-center-page .qc-au-modal-x { border: 0; background: none; font-size: 20px; line-height: 1; color: var(--color-text-3); cursor: pointer; }
-.qc-center-page .qc-au-modal-x:hover { color: var(--color-text); }
-.qc-center-page .qc-au-modal-bd { display: flex; flex-direction: column; gap: 10px; padding: 4px 20px 16px; }
-.qc-center-page .qc-au-modal-bd .qc-au-lab { margin-top: 6px; }
-.qc-center-page .qc-au-inp { width: 100%; height: 34px; }
-/* 配置式豁免条件：指标下拉 + 比较符 + 阈值步进器 + 单位一行排布，多条件以「或」衔接；
-   规则名称由配置自动生成（灰字预览），弹窗内不再出现自由文本输入 */
-.qc-center-page .qc-au-conds { display: flex; flex-direction: column; gap: 8px; }
-.qc-center-page .qc-au-cond { display: flex; align-items: center; gap: 8px; }
-.qc-center-page .qc-au-cond-or { margin-left: 2px; font-size: var(--fs-aux); line-height: 16px; color: var(--color-text-3); }
-/* 白底描边下拉盒（BubbleSelect 触发器撑满），与问题处理弹窗下拉同语言 */
-.qc-center-page .qc-au-sel { height: 32px; padding: 0 10px; background: #fff; border: 1px solid #e0e5ee; border-radius: 8px; color: var(--color-text-2); transition: border-color .15s; }
-.qc-center-page .qc-au-sel:hover { border-color: #c7d6fb; }
-.qc-center-page .qc-au-sel.m { flex: 1; min-width: 0; }
-.qc-center-page .qc-au-sel.op { flex: none; width: 64px; }
-.qc-center-page .qc-au-sel.st { flex: none; width: 110px; }
+/* 豁免规则表单抽屉：标签居上 + 红星必填 + 全宽下拉 + 行式条件组（同自动化配置「新建任务」表单语言） */
+.qc-center-page .drawer.qc-au-dr { width: 640px; }
+.qc-center-page .qc-au-dr .sg-field { margin-bottom: 16px; }
+.qc-center-page .qc-au-dr .sg-field:last-child { margin-bottom: 0; }
+.qc-center-page .qc-au-req { margin-left: 2px; color: #ff6a6f; }
 .qc-center-page .qc-au-unit { flex: none; font-size: var(--fs-base); color: var(--color-text-3); }
-.qc-center-page .qc-au-cond-x { flex: none; width: 22px; height: 22px; border: 0; border-radius: 6px; background: #f2f3f5; color: #8b92a1; font-size: 14px; line-height: 1; cursor: pointer; }
-.qc-center-page .qc-au-cond-x:hover { background: #ffe9e9; color: #e5484d; }
-.qc-center-page .qc-au-cond-add { align-self: flex-start; border: 0; background: none; padding: 0; font-size: var(--fs-base); color: var(--color-primary); cursor: pointer; }
-.qc-center-page .qc-au-cond-add:hover { color: var(--color-primary-hover, #3d6ae8); }
-.qc-center-page .qc-au-cond-gen { font-size: var(--fs-aux); color: var(--color-text-3); }
-.qc-center-page .qc-au-mode-row { display: flex; align-items: center; gap: 10px; }
-.qc-center-page .qc-au-modal-sw { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: var(--fs-base); color: var(--color-text-2); }
-.qc-center-page .qc-au-modal-ft { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 20px 16px; border-top: 1px solid #f2f4f8; }
-.qc-center-page .qc-au-modal-ft .sg-btn { min-width: 88px; justify-content: center; }
+/* 条件组：当/或 + 指标 + 运算符 + 阈值盒 + 删除；列宽定死保证各行严格对齐 */
+.qc-center-page .qc-au-rows { display: flex; flex-direction: column; gap: 8px; }
+.qc-center-page .qc-au-row { display: flex; align-items: center; gap: 8px; }
+.qc-center-page .qc-au-when { flex: none; width: 40px; text-align: center; font-size: var(--fs-base); color: #4a5468; }
+.qc-center-page .qc-au-row .sg-select { height: 40px; padding: 0 12px; border: 1px solid #e4e8ef; border-radius: 10px; font-size: var(--fs-base); color: #1f2733; }
+.qc-center-page .qc-au-row .qc-au-metric { flex: none; width: 150px; }
+.qc-center-page .qc-au-row .qc-au-op { flex: none; width: 88px; }
+/* 数值盒：输入 + 单位（单位以发丝线分隔，同自动化配置阈值盒） */
+.qc-center-page .qc-au-val { flex: 1 1 0%; min-width: 0; display: flex; align-items: center; height: 40px; padding-left: 12px; border: 1px solid #e4e8ef; border-radius: 10px; background: #fbfcfe; transition: border-color .15s; }
+.qc-center-page .qc-au-val:focus-within { border-color: #a9bcff; }
+.qc-center-page .qc-au-val input { flex: 1; min-width: 0; height: 100%; border: 0; background: none; outline: none; font-size: var(--fs-base); color: #1f2733; }
+.qc-center-page .qc-au-vunit { flex: none; align-self: center; height: 16px; margin-left: 6px; padding: 0 12px; border-left: 1px solid #e4e8ef; line-height: 16px; font-size: var(--fs-base); color: #8a94a4; }
+.qc-center-page .qc-au-val-short { flex: none; width: 200px; }
+.qc-center-page .qc-au-del { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 0; border-radius: 10px; background: none; color: #e6455c; cursor: pointer; opacity: .75; }
+.qc-center-page .qc-au-del:hover { opacity: 1; background: rgb(230 69 92 / 8%); }
+.qc-center-page .qc-au-addcond { height: 40px; padding: 0 16px; border: 1px solid #e4e8ef; border-radius: 10px; background: #fff; font-size: var(--fs-base); color: #4a5468; cursor: pointer; transition: color .15s, border-color .15s; }
+.qc-center-page .qc-au-addcond:hover { border-color: var(--color-primary); color: var(--color-primary); }
+/* 规则名称由条件自动生成：只读盒着浅底 */
+.qc-center-page .qc-au-readonly { background: #f5f6f8; cursor: default; }
+.qc-center-page .qc-au-swrow { display: flex; align-items: center; gap: 10px; height: 40px; }
+.qc-center-page .qc-au-swtext { font-size: var(--fs-base); color: var(--color-text-3); }
 /* 计算说明：雷达 + 过程 两列 */
 .qc-center-page .qc-au-grid { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 16px; align-items: start; }
 .qc-center-page .qc-au-radar { display: block; width: 100%; height: auto; }

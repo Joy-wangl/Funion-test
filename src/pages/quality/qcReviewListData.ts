@@ -3,6 +3,7 @@
    评级含「挺好的」与「不够好」，差评带平台差评小类标签（品质/运营/快递三分，共 9 类） ---------- */
 import { raReviews } from '../ops-center/reviewAppealData';
 import type { Platform } from './data';
+import { reviewSkuCodesOf } from './qcOnlineData';
 
 export interface QcReview {
   id: string;
@@ -28,6 +29,10 @@ export interface QcReview {
   skuThumb: string;
   /** SKU 销量：按「商品ID-SKU名」哈希的确定性演示值 */
   skuSales: number;
+  /** 评价 SKU 关联的商品编码（同店铺商品 SKU 表商品编码口径） */
+  goodsCode: string;
+  /** 评价 SKU 关联的系列编码（系列简称，一个 SKU 可关联多个系列） */
+  seriesCodes: string[];
 }
 
 /* 确定性演示销量：商品 2000–19999，SKU 120–1979（口径同店铺商品抽屉 SKU 卡销量） */
@@ -141,6 +146,7 @@ const genReviews = (): QcReview[] => {
       const extra = first ? s.total - 1 : s.total;
       const extraBad = first ? Math.max(0, s.bad - 1) : s.bad;
       const skuThumb = IMGS[(IMGS.indexOf(p.thumb) + si + 1) % IMGS.length];
+      const skuCodes = reviewSkuCodesOf(p.id, si);
       for (let i = 0; i < extra; i++) {
         const bad = i < extraBad;
         const seq = idx++;
@@ -173,6 +179,8 @@ const genReviews = (): QcReview[] => {
           productSales: rvProductSales(p.id),
           skuThumb,
           skuSales: rvSkuSales(p.id, s.name),
+          goodsCode: skuCodes.code,
+          seriesCodes: skuCodes.series,
         });
       }
       first = false;
@@ -187,6 +195,7 @@ export const qcReviews: QcReview[] = [
     const seed = RV_PRODUCTS.find((p) => p.id === r.productId);
     const sku = r.productSku || seed?.skus[0]?.name || '默认规格';
     const thumb = r.productThumb || seed?.thumb || '';
+    const skuCodes = reviewSkuCodesOf(r.productId, seed ? Math.max(0, seed.skus.findIndex((k) => k.name === sku)) : 0);
     return {
       id: r.id,
       shopName: r.shopName,
@@ -206,6 +215,8 @@ export const qcReviews: QcReview[] = [
       productSales: rvProductSales(r.productId),
       skuThumb: IMGS[(IMGS.indexOf(thumb) + 1) % IMGS.length],
       skuSales: rvSkuSales(r.productId, sku),
+      goodsCode: skuCodes.code,
+      seriesCodes: skuCodes.series,
     };
   }),
   ...genReviews(),

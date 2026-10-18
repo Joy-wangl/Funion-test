@@ -2,6 +2,7 @@
  * 顺买商机 - 数据层
  * 与业务层解耦：设备连接态、账号登录态、抓取任务、抓取数据各自独立
  */
+import { computed, ref } from 'vue';
 
 export type SmTaskStatus = 'queued' | 'running' | 'paused' | 'success' | 'fail' | 'canceled';
 export interface SmTask {
@@ -108,6 +109,11 @@ export const smTasksSeed: SmTask[] = [
   { id: 'T009', name: '纯棉休闲衬衫抓取', topic: '纯棉休闲衬衫', targetCount: 40, status: 'success', successCount: 40, failCount: 0, createdAt: '2026-08-24 11:18', startedAt: '2026-08-24 11:20', finishedAt: '2026-08-24 11:47' },
   { id: 'T010', name: '加绒打底裤抓取', topic: '加绒打底裤', targetCount: 35, status: 'paused', successCount: 9, failCount: 0, createdAt: '2026-08-23 16:33', startedAt: '2026-08-23 16:35' },
 ];
+
+/** 竞店抓取任务会话单源：顺买页与市场商机设备面板共用同一份在途状态（顶栏「执行中」状态同源派生） */
+export const smTasks = ref<SmTask[]>(smTasksSeed.map((t) => ({ ...t })));
+/** 执行中任务：顶栏「执行中」状态入口的展示条件，空＝无在途任务不展示 */
+export const smRunningTasks = computed(() => smTasks.value.filter((t) => t.status === 'running'));
 
 export const smRecordsSeed: SmRecord[] = [
   { id: 'R001', platform: '淘宝顺买', title: '无印良品毛巾超强吸水速干7A抗菌', price: 14.8, shop: '天猫无印良品赫图专卖店', scraper: '白语', time: '2026-09-03 16:04:32', status: 'success', taskId: 'T001' },

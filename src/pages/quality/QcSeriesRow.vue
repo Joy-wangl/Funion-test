@@ -21,7 +21,7 @@ import {
   seriesTagBrief,
   type TagBrief,
 } from '../quality2/qc2Data';
-import { codeMarkPlatforms, codeOwnMarkPlatforms, isHitCanceled, onlineChatBrief, onlineOwnerOf, onlineReviewBrief, onlineSessionsOf, seriesMarkPlatforms, seriesProblemCodes, setSeriesProblemMarks, type ProblemMark } from './qcOnlineData';
+import { codeMarkPlatforms, codeOwnMarkPlatforms, isHitCanceled, onlineChatBrief, onlineOwnerOf, onlineReviewBrief, onlineSessionsOf, seriesMarkPlatforms, seriesOptOf, seriesProblemCodes, setSeriesProblemMarks, type ProblemMark } from './qcOnlineData';
 import { pushToast } from '../../components/toast';
 import type { Platform, PlatformStat } from './data';
 import PlatLogo from './PlatLogo.vue';
@@ -50,9 +50,16 @@ const props = defineProps<{
   onPickDept?: (dept: string) => void;
   /** 品控-线上：点击操作列「关联ID」，按系列下商品编码跳转店铺商品列表查询 */
   onCodes?: (codes: string[]) => void;
+  /** 品控-线上：点击操作列「优化任务」，按该系列发起编码优化待办 */
+  onOpt?: () => void;
+  /** 品控-线上：优化中行点击操作列「查看优化任务」，打开关联待办详情抽屉 */
+  onViewOpt?: () => void;
 }>();
 
 const codeTab = ref<string>('all');
+
+/* 系列级优化任务态：系列下任一商品优化中＝挂「优化任务」标签＋操作列「查看优化任务」；无标签＝「创建优化任务」 */
+const optInfo = computed(() => seriesOptOf(props.series));
 
 const selCode = computed(() => (codeTab.value === 'all' ? null : props.series.codes.find((c) => c.code === codeTab.value) ?? null));
 const owner = computed(() => onlineOwnerOf(props.series.seriesCode));
@@ -324,6 +331,10 @@ const platTagBrief = (pl: Platform): TagBrief | null => {
       <div v-if="online && hasProblemCode">
         <span class="tag rv red">问题编码</span>
       </div>
+      <!-- 优化任务标签：系列下任一商品优化中时挂橙标签（同店铺商品口径），title 悬浮优化周期 -->
+      <div v-if="online && optInfo?.status === '优化中'">
+        <span class="qc-sg-opttag" :title="`优化任务周期 ${optInfo.task.start} ~ ${optInfo.task.openEnd ? '至今（达到指标后结束）' : optInfo.task.end}`"><i></i>优化任务</span>
+      </div>
     </td>
     <td v-if="online" class="col-name qc-order-data">
       <div><span class="qc-cd-lb">订单总数：</span><span class="qc-cd-v">{{ series.orders.toLocaleString() }}</span></div>
@@ -460,6 +471,8 @@ const platTagBrief = (pl: Platform): TagBrief | null => {
         <a @click="props.onTrend">趋势图</a>
         <a @click="openAct">问题处理</a>
         <a v-if="online" :title="`按系列下 ${series.codes.length} 个关联ID 查询对应商品`" @click="onCodesJump">关联ID</a>
+        <a v-if="online && optInfo?.status === '优化中' && props.onViewOpt" title="查看优化任务关联待办的发起人与处理人" @click="props.onViewOpt">查看优化任务</a>
+        <a v-else-if="online && props.onOpt" title="发起编码优化任务" @click="props.onOpt">创建优化任务</a>
       </div>
     </td>
   </tr>

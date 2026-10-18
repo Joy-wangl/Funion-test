@@ -1,25 +1,34 @@
 <script setup lang="ts">
-/* ---------- 稽查模型配置 · 权重配置：总分三维权重 + 出分门槛 + 维度指标权重/档位线 ---------- */
+/* ---------- 稽查模型配置 · 权重配置：页首平台切换（各平台权重不一致）＋总分三维权重 + 出分门槛 + 维度指标权重/档位线 ---------- */
 import { computed, ref } from 'vue';
-import { DEFAULT_WEIGHTS, type AuditDim, type AuditGate, type AuditWeights } from './qcAuditData';
+import { AUDIT_PLATS, PLATFORM_PRESETS, type AuditDim, type AuditGate, type AuditPlat, type AuditWeights } from './qcAuditData';
+import { SHOP_LOGO } from './qcOnlineData';
 import { pushToast } from '../../components/toast';
 
 const KEY = 'funion:auditWeights';
 /* 旧版门槛为全局字段：读取时回填为三维同值，保持已存配置不丢 */
 type LegacyWeights = Pick<AuditWeights, 'dims' | 'indicators'> & Partial<Record<'cycleDays' | 'minOrders' | 'minReviews' | 'minChats', number>> & { gates?: Record<AuditDim, AuditGate> };
-const load = (): AuditWeights => {
+/* 存储按平台分键：funion:auditWeights:<平台>；无后缀旧键视为淘宝 */
+const keyOf = (p: AuditPlat) => (p === '淘宝' ? KEY : `${KEY}:${p}`);
+const load = (p: AuditPlat): AuditWeights => {
   let parsed: LegacyWeights | null = null;
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(keyOf(p));
     if (raw) parsed = JSON.parse(raw) as LegacyWeights;
-  } catch { /* 损坏回退默认 */ }
-  const base: LegacyWeights = parsed ?? { ...structuredClone(DEFAULT_WEIGHTS), cycleDays: 30, minOrders: 30, minReviews: 30, minChats: 100 };
+  } catch { /* 损坏回退预设 */ }
+  if (!parsed) return structuredClone(PLATFORM_PRESETS[p]);
+  const base: LegacyWeights = parsed;
   if (base.gates) return { dims: base.dims, indicators: base.indicators, gates: base.gates };
   const g: AuditGate = { cycleDays: base.cycleDays ?? 30, minOrders: base.minOrders ?? 30, minReviews: base.minReviews ?? 30, minChats: base.minChats ?? 100 };
   return { dims: base.dims, indicators: base.indicators, gates: { 商品: { ...g }, 物流: { ...g }, 服务: { ...g } } };
 };
 
-const w = ref<AuditWeights>(load());
+/* 各平台配置独立持有：切换页签即整页换口径，编辑态切换先回滚 */
+const plat = ref<AuditPlat>('淘宝');
+const byPlat = ref<Record<AuditPlat, AuditWeights>>(
+  AUDIT_PLATS.reduce((acc, p) => ({ ...acc, [p]: load(p) }), {} as Record<AuditPlat, AuditWeights>),
+);
+const w = computed(() => byPlat.value[plat.value]);
 const DIMS: AuditDim[] = ['商品', '物流', '服务'];
 const CYCLE_OPTS = [30, 60, 90];
 /* 三维指标权重并列分组：分段胶囊 tab 切换、单组展示（色点沿用体验分三维趋势色） */
@@ -44,14 +53,14 @@ const save = () => {
     const s = indSum(d);
     if (s !== 100) return pushToast(`${d}分维度内指标权重合计需为 100%（当前 ${s}%），请调整后再保存`);
   }
-  localStorage.setItem(KEY, JSON.stringify(w.value));
+  localStorage.setItem(keyOf(plat.value), JSON.stringify(w.value));
   editing.value = false;
   snapshot = null;
-  pushToast('稽查权重配置已保存');
+  pushToast(`「${plat.value}」权重配置已保存`);
 };
 const reset = () => {
-  w.value = structuredClone(DEFAULT_WEIGHTS);
-  pushToast('已恢复默认权重配置');
+  byPlat.value[plat.value] = structuredClone(PLATFORM_PRESETS[plat.value]);
+  pushToast(`已恢复「${plat.value}」默认权重配置`);
 };
 
 /* 默认只读态：编辑入口进入编辑，取消回滚快照，保存成功后回到只读 */
@@ -59,9 +68,16 @@ const editing = ref(false);
 let snapshot: AuditWeights | null = null;
 const startEdit = () => { snapshot = JSON.parse(JSON.stringify(w.value)) as AuditWeights; editing.value = true; };
 const cancelEdit = () => {
-  if (snapshot) w.value = snapshot;
+  if (snapshot) byPlat.value[plat.value] = snapshot;
   snapshot = null;
   editing.value = false;
+  closeTip();
+};
+/* 平台切换：编辑中先回滚当前平台改动，避免快照跨平台串味 */
+const setPlat = (p: AuditPlat) => {
+  if (p === plat.value) return;
+  if (editing.value) cancelEdit();
+  plat.value = p;
   closeTip();
 };
 
@@ -85,6 +101,21 @@ const toggleTip = (e: MouseEvent, key: string) => {
     <div class="qc-head qc-au-head">
       <div class="qc-title">权重配置</div>
       <button v-if="!editing" type="button" class="sg-btn primary sm" @click="startEdit">编辑</button>
+    </div>
+    <!-- 页首平台切换：下划线 tab（同店铺列表页首平台行语言）＋官方图标；各平台权重独立配置、切换即生效 -->
+    <div class="qc-au-platbar">
+      <div class="tc-typerow">
+        <button
+          v-for="p in AUDIT_PLATS"
+          :key="p"
+          type="button"
+          class="tc-typeitem"
+          :class="plat === p ? 'active' : ''"
+          @click="setPlat(p)"
+        >
+          <img class="plat-logo" :src="SHOP_LOGO[p]" :alt="p">{{ p }}
+        </button>
+      </div>
     </div>
     <!-- 总分权重 -->
     <div class="qc-au-card">

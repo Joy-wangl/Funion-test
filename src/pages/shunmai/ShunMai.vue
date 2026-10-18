@@ -11,7 +11,7 @@ import {
   SM_TASK_STATUS_META,
   smRecordsSeed,
   smStepsSeed,
-  smTasksSeed,
+  smTasks,
   type SmRecord,
   type SmRecordStatus,
   type SmStep,
@@ -74,7 +74,7 @@ const STEP_MARKS: SmStepMark[] = ['成功', '异常', '失败', '无效'];
 const MARK_CLASS: Record<SmStepMark, string> = { 成功: 'ok', 异常: 'warn', 失败: 'fail', 无效: 'mute' };
 
 /* ---------- 任务模块 ---------- */
-const tasks = ref<SmTask[]>([...smTasksSeed]);
+const tasks = smTasks;
 const createOpen = ref(false);
 const createName = ref('');
 const createTopic = ref('');

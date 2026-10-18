@@ -50,6 +50,10 @@ export type SeriesFilter = {
   pcode: string;
   /** 线上壳：问题来源（全部来源 / 客服打标 / 系统稽查）＝问题小类的标记来源 */
   psrc: string;
+  /** 线上壳：优化任务状态筛选（全部 / 优化中 / 已结束 / 无优化任务），口径同首列标签 */
+  opt: string;
+  /** 线上壳：是否优化过（全部 / 优化过 / 未优化过）＝旗下任一商品有优化任务或历史优化周期 */
+  ever: string;
   /** 线上壳：数值区间（空串 = 不限），订单量/退款率(%)/售后率(%)/风险率(%) */
   ordersMin: string;
   ordersMax: string;
@@ -77,6 +81,8 @@ export const DEFAULT_SERIES_FILTER: SeriesFilter = {
   operator: '全部运维',
   pcode: '全部',
   psrc: '全部来源',
+  opt: '全部',
+  ever: '全部',
   ordersMin: '',
   ordersMax: '',
   rateMin: '',
@@ -142,6 +148,10 @@ const props = defineProps<{
   onPickDept?: (s: QcCenterSeries, dept: string) => void;
   /** 品控-线上：操作列「关联ID」点击，按系列下商品编码跳店铺商品列表查询 */
   onCodes?: (codes: string[]) => void;
+  /** 品控-线上：操作列「优化任务」点击，按该系列发起编码优化待办 */
+  onOpt?: (s: QcCenterSeries) => void;
+  /** 品控-线上：操作列「查看优化任务」点击（优化中行），打开关联待办详情抽屉 */
+  onViewOpt?: (s: QcCenterSeries) => void;
 }>();
 
 const expanded = ref<Set<string>>(new Set());
@@ -383,6 +393,14 @@ watch(page, (v) => { jumpVal.value = String(v); });
         <label>问题来源</label>
         <BubbleSelect class-name="sg-select" :value="draft.psrc" :options="['全部来源', '客服打标', '系统稽查']" @change="(v: string) => props.onDraft({ psrc: v })" />
       </div>
+      <div v-if="online" class="sg-field">
+        <label>优化任务</label>
+        <BubbleSelect class-name="sg-select" :value="draft.opt" :options="['全部', '优化中', '已结束', '无优化任务']" @change="(v: string) => props.onDraft({ opt: v })" />
+      </div>
+      <div v-if="online" class="sg-field">
+        <label>是否优化过</label>
+        <BubbleSelect class-name="sg-select" :value="draft.ever" :options="['全部', '优化过', '未优化过']" @change="(v: string) => props.onDraft({ ever: v })" />
+      </div>
       <div class="sg-field-actions" :class="{ 'sg-acts-wide': online }">
         <button v-if="online" class="sg-btn" @click="pushToast('已下载导入模板，上传后自动解析')">
           导入
@@ -491,6 +509,8 @@ watch(page, (v) => { jumpVal.value = String(v); });
             :on-pick-type="(t: string) => props.onPickType?.(s, t)"
             :on-pick-dept="(d: string) => props.onPickDept?.(s, d)"
             :on-codes="props.onCodes"
+            :on-opt="props.onOpt ? () => props.onOpt?.(s) : undefined"
+            :on-view-opt="props.onViewOpt ? () => props.onViewOpt?.(s) : undefined"
           />
         </template>
         <tr v-if="rows.length === 0 && !props.loading">

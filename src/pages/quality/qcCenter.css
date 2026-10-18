@@ -99,6 +99,10 @@
 .qc-center-page .mt-tip-line b { margin-left: auto; padding-left: 10px; }
 .qc-center-page .metric-trend { width: 100%; height: auto; display: block; }
 .qc-center-page .metric-trend .ax { font-size: 10px; fill: #9aa3b2; }
+/* 优化任务区间色带：垫在折线下，橙浅底＋两端虚线＋区间标签 */
+.qc-center-page .metric-trend .mt-band rect { fill: rgba(255, 125, 0, 0.08); }
+.qc-center-page .metric-trend .mt-band line { stroke: #ff7d00; stroke-dasharray: 4 4; opacity: 0.55; }
+.qc-center-page .metric-trend .mt-band-lb { font-size: 12px; font-weight: 600; fill: #ff7d00; }
 .qc-center-page .mt-tip {
   position: absolute;
   z-index: 30;
@@ -1713,6 +1717,9 @@
 .qc-center-page .qc-sg-prod { display: flex; align-items: center; gap: 12px; min-width: 260px; }
 .qc-center-page .qc-sg-prod-thumb { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; border: 1px solid #edf0f4; background: #fff; flex: none; }
 .qc-center-page .qc-sg-prod-info { min-width: 0; }
+/* 优化任务标签：周期含今天时商品信息列店铺行下展示（橙浅底芯片＋色点，title 悬浮周期） */
+.qc-center-page .qc-sg-opttag { display: inline-flex; align-items: center; gap: 6px; width: fit-content; margin-top: 6px; padding: 2px 8px; border-radius: 4px; background: #fff7e8; color: #ff7d00; font-size: 12px; font-weight: var(--fw-medium); }
+.qc-center-page .qc-sg-opttag i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .qc-center-page .qc-sg-prod-name { font-size: var(--fs-aux); color: #445066; font-weight: 500; line-height: 20px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qc-center-page .qc-sg-prod-meta { font-size: var(--fs-aux); color: #8891a2; line-height: 19px; }
 /* 商品卡元信息标签定宽对齐（同列表 .qc-cd-lb 规范）：值左缘同列 */
@@ -1965,6 +1972,8 @@
 /* 分布卡行（店铺数＋S/A/B/C/D 各评级店铺数）：整卡可点入二级列表，卡头评级字母色片沿用表格 .qc-sl-grade 的分色语言（色值内联自 GRADE_COLOR 单一出口） */
 .qc-center-page .qc-sl-grades .flat-card { cursor: pointer; }
 .qc-center-page .qc-sl-grades .flat-card .k { display: flex; align-items: center; gap: 6px; }
+/* 数据总览可点卡（订单/聊天/评价/问题命中）：整卡可点跳对应列表，指针手型；hover 底色沿用 .qc-ov-panel .flat-card:hover */
+.qc-center-page .qc-sl-ov .flat-card.link { cursor: pointer; }
 .qc-center-page .qc-sl-gchip { font-style: normal; width: 18px; height: 18px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: var(--fw-semibold); flex: none; }
 /* 店铺列表看板：总览卡子行直接复用「售后订单数卡」的 .after-card + .after-sess 语言（虚线上边框＋灰标签＋加粗值，比率靠右），
    仅补两处本页特有：子行比率字重同预警徽章、三维均值子行三段左对齐等距 */
@@ -2034,7 +2043,7 @@
 .qc-center-page .qc-todo-pill .bdg { min-width: 17px; height: 17px; padding: 0 5px; border-radius: 999px; background: #f5484d; color: #fff; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
 /* 筛选行：左类型下划线页签＋两 icon 钮；右搜索/日期/状态/发起待办 */
 .qc-center-page .qc-todo-filter { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: nowrap; }
-.qc-center-page .qc-todo-filter .tc-typerow { gap: 26px; flex: 0 1 auto; min-width: 0; }
+.qc-center-page .qc-todo-filter .tc-typerow { gap: 26px; flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; }
 /* 类型展示不完时的折叠态：「待办类型」文字标（同页签字号、不可点）＋列设置 icon＋「···」更多钮，三者沿用页签行 26px 间距 */
 .qc-center-page .qc-todo-morelabel { flex: none; font-size: var(--fs-base); color: #445066; white-space: nowrap; }
 .qc-center-page .qc-todo-morewrap { position: relative; flex: none; display: inline-flex; }
@@ -2051,6 +2060,10 @@
 .qc-center-page .qc-todo-search { width: 220px; }
 .qc-center-page .qc-todo-search > .sg-input { padding-right: 46px; background: #f4f5fa; border-color: transparent; font-size: 13px; }
 .qc-center-page .qc-todo-search .mag { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #8891a2; pointer-events: none; }
+/* 筛选收起钮（默认收起态）：图标＋下划线，同系列抽屉关联商品合并搜索收起语言；展开态 .qc-todo-filt 横排全部输入 */
+.qc-center-page .qc-todo-fs-fold { flex: none; display: inline-flex; align-items: center; justify-content: flex-start; width: 96px; height: 40px; padding: 0 8px; border: none; border-bottom: 1px solid #e4e8ef; border-radius: 0; background: transparent; color: #98a0ae; cursor: pointer; }
+.qc-center-page .qc-todo-fs-fold:hover { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+.qc-center-page .qc-todo-filt { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
 .qc-center-page .qc-todo-search .sg-clear { right: 28px; }
 .qc-center-page .qc-todo-fright .sg-select { width: 108px; border-color: transparent; background: transparent; }
 .qc-center-page .qc-todo-new { display: inline-flex; align-items: center; gap: 6px; border: 0; background: var(--primary); color: #fff; border-radius: 8px; padding: 0 16px; height: 32px; font-size: var(--fs-base); font-weight: var(--fw-medium); cursor: pointer; white-space: nowrap; }
@@ -2078,15 +2091,47 @@
 .qc-center-page .qc-todo-card .td-prog-bar b { display: block; height: 100%; border-radius: 2px; background: var(--primary); }
 .qc-center-page .qc-todo-card .td-prog em { font-style: normal; font-size: 12px; color: #8891a2; font-variant-numeric: tabular-nums; }
 .qc-center-page .qc-todo-card .td-body { margin-top: 10px; font-size: 13px; line-height: 1.75; color: #445066; }
-/* 卡面附件 chips（发起待办时上传的附件）：语言同抽屉上传区 .qc-tc-file——图缩略/视紫/文灰＋名称省略＋大小灰字；无附件整行不渲染 */
-.qc-center-page .qc-todo-card .td-files { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-.qc-center-page .qc-todo-card .td-file { display: inline-flex; align-items: center; gap: 8px; max-width: 280px; padding: 5px 10px 5px 5px; background: #f5f6f8; border-radius: 8px; }
-.qc-center-page .qc-todo-card .td-file .th { flex: none; width: 28px; height: 28px; border-radius: 6px; object-fit: cover; }
-.qc-center-page .qc-todo-card .td-file .th.kind { display: inline-flex; align-items: center; justify-content: center; background: #e8ebf1; color: #596273; font-size: 12px; font-weight: 600; }
-.qc-center-page .qc-todo-card .td-file .th.kind.video { background: #ece9ff; color: #7c3aed; }
-.qc-center-page .qc-todo-card .td-file .nm { min-width: 0; font-size: 13px; color: var(--color-text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.qc-center-page .qc-todo-card .td-file .sz { flex: none; font-size: 12px; color: var(--color-text-3); }
-.qc-center-page .qc-todo-card .td-foot { display: flex; align-items: center; margin-top: 14px; }
+/* 卡面附件芯片：文档走灰底芯片＝描边文档图标(色随类型)＋两行(名称省略＋类型·大小)；附件行自成高度（48px），不随商品卡撑大 */
+.qc-center-page .qc-todo-card .td-file { display: inline-flex; align-items: center; gap: 10px; height: 48px; max-width: 280px; padding: 0 14px 0 12px; background: #f5f6f8; border-radius: 10px; }
+/* 文档芯片图标＋文字共用规格（卡面/上传区/详情附件通用）：描边图标色随类型，文字两行首行名称省略次行类型·大小 */
+.qc-center-page .tf-ic { flex: none; display: inline-flex; align-items: center; justify-content: center; }
+.qc-center-page .tf-tx { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.qc-center-page .tf-tx b { display: block; font-size: var(--fs-aux); font-weight: var(--fw-medium); color: var(--color-text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qc-center-page .tf-tx i { font-style: normal; font-size: var(--fs-aux); color: var(--color-text-3); white-space: nowrap; }
+/* 图/视缩略图：附件行 48 方图圆角（与文档芯片同行同高），视频为深色底＋白色播放三角；不带名称与大小 */
+.qc-center-page .qc-todo-card .td-thumb { flex: none; width: 48px; height: 48px; border-radius: 8px; object-fit: cover; }
+.qc-center-page .qc-todo-card .td-thumb.video { display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #454b59, #262a33); color: #fff; }
+/* 商品卡片（参考图一）：圆角灰底＝白底描边图＋三行（名称黑体常规/商品ID/店铺＝平台官方图标＋店名）；卡高 64 定义整行素材高度
+   卡面与详情抽屉「关联商品」共用同一套规格（选择器不限定卡面），抽屉内为可点按钮：点击跳店铺商品并按商品ID查询 */
+.qc-center-page .td-good { display: flex; align-items: center; gap: 10px; height: 64px; min-width: 0; max-width: 100%; padding: 8px 10px; border: 0; border-radius: 10px; background: #f5f6f8; font: inherit; text-align: left; }
+.qc-center-page .td-good .tg-thumb { flex: none; width: 48px; height: 48px; border-radius: 8px; object-fit: cover; background: #fff; border: 1px solid #edf0f4; }
+.qc-center-page .td-good .tg-info { display: flex; flex-direction: column; min-width: 0; }
+/* 商品名称超出以…展示（同主列表省略+title 口径）：名称限宽 140px，超出单行省略，悬浮 title 看全文；卡宽由商品ID行兜住不被名称撑开 */
+.qc-center-page .td-good .tg-name { min-width: 0; max-width: 140px; font-size: var(--fs-aux); font-weight: var(--fw-regular, 400); color: var(--color-text-1); line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qc-center-page .td-good .tg-sub { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: var(--fs-aux); line-height: 15px; color: var(--color-text-3); }
+.qc-center-page .td-good .tg-sub em { flex: none; font-style: normal; }
+.qc-center-page .td-good .tg-sub b { font-weight: var(--fw-regular, 400); color: var(--color-text-2); }
+.qc-center-page .td-good .tg-plat { flex: none; display: inline-flex; align-items: center; }
+.qc-center-page .td-good .tg-plat img { width: 14px; height: 14px; border-radius: 4px; }
+.qc-center-page .td-good .tg-shop { min-width: 0; color: var(--color-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qc-center-page button.td-good { cursor: pointer; }
+.qc-center-page button.td-good:hover { background: #eceff4; }
+.qc-center-page button.td-good:hover .tg-name { color: var(--primary); }
+/* 店铺优化范围芯片：平台官方图标＋店铺名灰底芯片（店铺优化卡面替代商品卡），高同附件行 48 */
+.qc-center-page .qc-todo-card .td-shop { display: inline-flex; align-items: center; gap: 8px; height: 48px; max-width: 280px; padding: 0 14px 0 10px; background: #f5f6f8; border-radius: 10px; }
+.qc-center-page .qc-todo-card .td-shop .ts-plat { flex: none; display: inline-flex; align-items: center; }
+.qc-center-page .qc-todo-card .td-shop .ts-plat img { width: 18px; height: 18px; border-radius: 5px; }
+.qc-center-page .qc-todo-card .td-shop b { min-width: 0; font-size: var(--fs-aux); font-weight: var(--fw-medium); color: var(--color-text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 详情抽屉「关联商品」区：与附件/图片同为发丝线分段，商品卡纵向排列 */
+.qc-center-page .qd-goods { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+/* 素材瓷砖：统一包裹层承载溢出遮罩；超出五个时第五块顶黑色遮罩＋N */
+.qc-center-page .qc-todo-card .td-tile { position: relative; display: inline-flex; min-width: 0; max-width: 100%; }
+.qc-center-page .qc-todo-card .td-more { position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: rgba(23, 26, 33, 0.55); color: #fff; font-style: normal; font-size: 13px; font-weight: var(--fw-medium); font-variant-numeric: tabular-nums; }
+.qc-center-page .qc-todo-card .td-foot { display: flex; align-items: flex-end; gap: 12px; margin-top: 14px; }
+.qc-center-page .qc-todo-card .td-main { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-width: 0; }
+/* 素材换行两行：范围行（商品卡/店铺芯片）＋附件行（文件/视频/图片）纵向堆叠，行内横向排布 */
+.qc-center-page .qc-todo-card .td-meta { display: flex; flex-direction: column; gap: 10px; min-width: 0; max-width: 100%; }
+.qc-center-page .qc-todo-card .td-row { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 10px; min-width: 0; max-width: 100%; }
 .qc-center-page .qc-todo-card .td-who { display: flex; align-items: center; gap: 8px; }
 .qc-center-page .qc-todo-card .td-ava { flex: none; width: 22px; height: 22px; border-radius: 50%; color: #fff; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
 .qc-center-page .qc-todo-card .td-name { font-size: 13px; color: #445066; }
@@ -2104,6 +2149,24 @@
 .qc-center-page .qc-todo-create .drawer-body { display: flex; flex-direction: column; gap: 18px; }
 .qc-center-page .qc-todo-create .sg-field > label { display: flex; align-items: center; gap: 4px; font-size: var(--fs-base); color: var(--color-text-2); font-weight: var(--fw-medium); margin-bottom: 8px; }
 .qc-center-page .qc-tc-req { color: #f5484d; }
+/* 待办类型预设芯片（商品优化等入口带入，只读展示） */
+.qc-center-page .qc-tc-typechip { display: inline-flex; align-items: center; width: fit-content; padding: 4px 10px; border-radius: 6px; background: var(--color-primary-light); color: var(--color-primary); font-size: 13px; font-weight: var(--fw-medium); }
+/* 商品编码芯片：首位「全部」＋逐个编码；无底色虚线描边，选中改主色实线描边 */
+.qc-center-page .qc-tc-codechips { display: flex; flex-wrap: wrap; gap: 8px; max-height: 168px; overflow-y: auto; scrollbar-width: none; }
+.qc-center-page .qc-tc-codechips::-webkit-scrollbar { display: none; }
+.qc-center-page .qc-tc-codechip { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 10px; border: 1px dashed #d6dce6; border-radius: 6px; background: #fff; color: var(--color-text-2); font-size: var(--fs-base); font-variant-numeric: tabular-nums; cursor: pointer; }
+.qc-center-page .qc-tc-codechip:hover { border-color: var(--color-text-3); color: var(--color-text-1); }
+.qc-center-page .qc-tc-codechip.on { border-style: solid; border-color: var(--color-primary); color: var(--color-primary); font-weight: var(--fw-medium); }
+.qc-center-page .qc-tc-codechip.on:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.qc-center-page .qc-tc-codechip svg { flex: none; }
+/* 放宽售后结束方式单行复合：结束方式下拉＋子档下拉＋分值/天数盒或日期区间同排（日期区间吃余宽，禁独占整行竖堆） */
+.qc-center-page .qc-tc-endrow { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.qc-center-page .qc-tc-endrow .sg-select { flex: none; width: 150px; }
+.qc-center-page .qc-tc-endrow .drp-trigger { flex: 1; min-width: 220px; width: auto; }
+.qc-center-page .qc-tc-score { display: flex; align-items: center; flex: none; width: 160px; height: 40px; border: 1px solid #e4e8ef; border-radius: 10px; background: #fbfcfe; }
+.qc-center-page .qc-tc-score:focus-within { border-color: #a9bcff; }
+.qc-center-page .qc-tc-score input { flex: 1; min-width: 0; height: 100%; padding: 0 12px; border: 0; outline: none; background: none; font-size: var(--fs-base); color: var(--color-text-1); }
+.qc-center-page .qc-tc-sunit { display: flex; align-items: center; align-self: stretch; flex: none; padding: 0 12px; border-left: 1px solid #e4e8ef; color: #8a94a4; font-size: var(--fs-base); }
 .qc-center-page .qc-tc-count { margin-left: auto; font-size: 12px; color: var(--color-text-3); font-weight: 400; font-variant-numeric: tabular-nums; }
 .qc-center-page .sg-field .sg-input.qc-tc-textarea { height: 168px; padding: 10px 12px; resize: none; line-height: 1.6; font-family: inherit; }
 /* 优先级：平铺 selectable chips（特急/紧急/高优/低优/普通），选中=同色描边+浅底+medium，未选中空心灰字 */
@@ -2138,15 +2201,29 @@
 .qc-center-page .qc-tc-chip { display: inline-block; max-width: 160px; padding: 2px 8px; border-radius: 6px; background: #eef2f8; color: #445066; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
 .qc-center-page .qc-tc-chip.more { max-width: none; background: #e5e6eb; color: #4e5969; }
 .qc-center-page .qc-tc-ava { flex: none; width: 22px; height: 22px; border-radius: 50%; color: #fff; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
-/* 最迟处理时间弹层：左月历（复用 .qc-cal 语言，过去日禁选）＋右时/分双列滚选（隐藏滚动条） */
+/* 发送人（图一样式）：虚线圆人形 icon＋灰字「添加成员」无外框；已选成员头像排按钮左侧，超出 +N 芯片 */
+.qc-center-page .qc-tc-sendrow { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-height: 40px; }
+.qc-center-page .qc-tc-sendadd { display: inline-flex; align-items: center; gap: 10px; border: none; background: transparent; padding: 0; color: var(--color-placeholder, #98a0b3); font-size: var(--fs-base); cursor: pointer; }
+.qc-center-page .qc-tc-sendadd .sa-circle { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: 1px dashed #c9cdd4; border-radius: 50%; color: inherit; }
+.qc-center-page .qc-tc-sendadd:hover { color: var(--primary); }
+.qc-center-page .qc-tc-sendadd:hover .sa-circle { border-color: var(--primary); }
+/* 最迟处理时间弹层：左月历（复用 .qc-cal 语言，过去日禁选）＋右时/分双列滚选（隐藏滚动条）；
+   该字段为表单末项，向下展开会被抽屉滚动体裁掉（裁掉部分压在底栏上点不到），改为向上展开整面板可见可点 */
 .qc-center-page .qc-tc-dlbox { position: relative; }
-.qc-center-page .qc-tc-dlpop { left: 0; right: auto; display: flex; align-items: flex-start; gap: 12px; width: max-content; padding: 12px; }
+.qc-center-page .qc-tc-dlpop { left: 0; right: auto; top: auto; bottom: calc(100% + 6px); display: flex; align-items: flex-start; gap: 12px; width: max-content; padding: 12px; }
 .qc-center-page .qc-tc-tm { display: flex; gap: 8px; }
 .qc-center-page .qc-tc-tm .col { width: 64px; max-height: 252px; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 2px; border: 1px solid #eef1f6; border-radius: 8px; padding: 4px; }
 .qc-center-page .qc-tc-tm .col::-webkit-scrollbar { display: none; }
 .qc-center-page .qc-tc-tm button { border: 0; background: none; border-radius: 6px; padding: 5px 0; font-size: var(--fs-aux); color: var(--color-text-2); cursor: pointer; font-variant-numeric: tabular-nums; }
 .qc-center-page .qc-tc-tm button:hover { background: var(--color-primary-light-2); color: var(--color-primary); }
 .qc-center-page .qc-tc-tm button.on { background: var(--color-primary); color: #fff; }
+/* 系列编码模糊查询输入：候选层复用 .qc-date-pop 底（全宽内滚藏条）；行 hover 浅底主色字；空态/截断提示居中灰字 */
+.qc-center-page .qc-tc-sbox { position: relative; }
+.qc-center-page .qc-tc-spop { left: 0; right: 0; width: auto; padding: 4px; max-height: 232px; overflow-y: auto; scrollbar-width: none; }
+.qc-center-page .qc-tc-spop::-webkit-scrollbar { display: none; }
+.qc-center-page .qc-tc-srow { display: block; width: 100%; border: 0; background: none; text-align: left; padding: 7px 10px; border-radius: 6px; font-size: var(--fs-aux); color: var(--color-text-2); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qc-center-page .qc-tc-srow:hover { background: var(--color-primary-light-2); color: var(--color-primary); }
+.qc-center-page .qc-tc-sempty { padding: 10px 12px; font-size: var(--fs-aux); color: var(--color-text-3); text-align: center; }
 /* 关联商品弹窗：搜索＋勾选列表（隐藏滚动条） */
 .qc-center-page .qc-tc-goods { display: flex; flex-direction: column; gap: 12px; }
 .qc-center-page .qc-tc-gsearch { width: 260px; }
@@ -2198,9 +2275,7 @@
 .qc-center-page .sg-hit-foot .sg-btn { margin-left: 8px; }
 
 /* ---------- 我发起三态（参考图一/二/三）：详情分栏＋多人任务处理人钻取 ---------- */
-.qc-center-page .qc-todo-page.split { display: flex; align-items: stretch; }
-.qc-center-page .qc-todo-main { flex: 1; min-width: 0; }
-.qc-center-page .qc-todo-page.split .qc-todo-main { border-right: 1px solid var(--color-border-2); }
+.qc-center-page .qc-todo-main { min-width: 0; }
 .qc-center-page .qc-todo-card.clickable { cursor: pointer; }
 /* 我发起卡芯片浅底色档（收件桶驳回/转交仍实心） */
 .qc-center-page .qc-todo-card .td-st.cz { background: #e8f3ff; color: #4d8df6; }
@@ -2210,7 +2285,8 @@
 .qc-center-page .qc-todo-card .td-avas { display: inline-flex; flex: none; }
 .qc-center-page .qc-todo-card .td-avas .td-ava + .td-ava { margin-left: -8px; box-shadow: 0 0 0 2px #fff; }
 /* 右详情分栏 */
-.qc-center-page .qc-todo-detail { position: relative; width: 46%; min-width: 420px; padding: 18px 24px 12px; background: #fff; overflow-y: auto; scrollbar-width: none; }
+/* 详情本体＝抽屉右pane（flex:1 内滚藏条）；宽度由抽屉容器控制 */
+.qc-center-page .qc-todo-detail { position: relative; flex: 1; min-width: 0; padding: 18px 24px 12px; background: #fff; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; }
 .qc-center-page .qd-close { position: absolute; top: 14px; right: 16px; width: 26px; height: 26px; border: 0; border-radius: 6px; background: none; color: var(--color-text-3); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .qc-center-page .qd-close:hover { background: var(--color-fill-2); color: var(--color-text-1); }
 .qc-center-page .qd-id { font-size: 12px; color: var(--color-text-3); margin-bottom: 14px; }
@@ -2230,25 +2306,34 @@
 .qc-center-page .qd-lab2 { font-size: 12px; color: var(--color-text-3); margin-bottom: 8px; }
 .qc-center-page .qd-atts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
 .qc-center-page .qd-att { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 8px; background: #f5f6f8; }
-.qc-center-page .qd-att .ic { flex: none; width: 26px; height: 26px; border-radius: 6px; background: #4d8df6; display: inline-flex; align-items: center; justify-content: center; }
-.qc-center-page .qd-att .tx b { display: block; font-size: 12px; font-weight: var(--fw-medium); color: var(--color-text-1); }
+.qc-center-page .qd-att .ic { flex: none; display: inline-flex; align-items: center; justify-content: center; }
+.qc-center-page .qd-att .tx { min-width: 0; flex: 1; }
+.qc-center-page .qd-att .tx b { display: block; font-size: 12px; font-weight: var(--fw-medium); color: var(--color-text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .qc-center-page .qd-att .tx i { font-style: normal; font-size: 11px; color: var(--color-text-3); }
 .qc-center-page .qd-imgs { display: flex; gap: 10px; }
 .qc-center-page .qd-img { width: 64px; height: 64px; border-radius: 6px; background: linear-gradient(135deg, #d8dce3, #b9bfc9); }
+/* 详情图片区真实缩略图：图片取 files 原图、视频复用卡面播放缩略语言，均与占位盒同尺寸 */
+.qc-center-page .qd-img.real { object-fit: cover; background: none; }
+.qc-center-page .qd-imgs .td-thumb { width: 64px; height: 64px; }
 /* 详情标题状态芯片（图一实心紫转交/图二实心红驳回） */
 .qc-center-page .qd-st { padding: 2px 8px; border-radius: 6px; color: #fff; font-size: 12px; font-weight: 600; vertical-align: 2px; }
 .qc-center-page .qd-st.zf { background: #8b5cf6; }
 .qc-center-page .qd-st.bh { background: #f5484d; }
-/* 处理流程时间轴（参考钉钉）：左轨点＋连接线，节点名＋时间右置＋处理人行＋说明 */
-.qc-center-page .qf-list { background: #f4f5fa; border-radius: 10px; padding: 16px; }
-.qc-center-page .qf-node { display: flex; gap: 10px; }
-.qc-center-page .qf-rail { flex: none; display: flex; flex-direction: column; align-items: center; width: 10px; }
-.qc-center-page .qf-rail i { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); margin-top: 5px; }
-.qc-center-page .qf-rail b { flex: 1; width: 1px; background: #d8dce6; margin: 4px 0; }
-.qc-center-page .qf-node.reject .qf-rail i { background: #f5484d; }
-.qc-center-page .qf-node.revoke .qf-rail i { background: #86909c; }
-.qc-center-page .qf-node.current .qf-rail i { background: #fff; box-shadow: inset 0 0 0 2px var(--primary); }
-.qc-center-page .qf-main { flex: 1; min-width: 0; padding-bottom: 16px; }
+/* 处理流程时间轴（钉钉节点式）：头像即节点＋右下状态角标＋节点间细竖线；首行节点名＋时间右对齐，次行处理人＋括号结果/说明 */
+.qc-center-page .qf-list { background: #fff; border: 1px solid var(--color-border-2); border-radius: 10px; padding: 16px; }
+.qc-center-page .qf-node { display: flex; gap: 12px; }
+.qc-center-page .qf-ava { position: relative; flex: none; display: flex; flex-direction: column; align-items: center; }
+.qc-center-page .qf-ava .td-ava { flex: none; width: 34px; height: 34px; border-radius: 8px; color: #fff; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+.qc-center-page .qf-badge { position: absolute; top: 24px; left: 24px; width: 14px; height: 14px; border-radius: 50%; background: #00b42a; box-shadow: 0 0 0 2px #fff; }
+.qc-center-page .qf-badge::before { content: ''; position: absolute; left: 4px; top: 2.5px; width: 4px; height: 7px; border-right: 1.5px solid #fff; border-bottom: 1.5px solid #fff; transform: rotate(40deg); }
+.qc-center-page .qf-node.reject .qf-badge, .qc-center-page .qf-node.revoke .qf-badge { background: #f5484d; }
+.qc-center-page .qf-node.revoke .qf-badge { background: #86909c; }
+.qc-center-page .qf-node.reject .qf-badge::before, .qc-center-page .qf-node.revoke .qf-badge::before { left: 3.5px; top: 6px; width: 7px; height: 0; border: 0; border-top: 1.5px solid #fff; transform: rotate(45deg); }
+.qc-center-page .qf-node.reject .qf-badge::after, .qc-center-page .qf-node.revoke .qf-badge::after { content: ''; position: absolute; left: 3.5px; top: 6px; width: 7px; height: 0; border-top: 1.5px solid #fff; transform: rotate(-45deg); }
+.qc-center-page .qf-node.current .qf-badge { background: #fff; box-shadow: 0 0 0 2px #fff, inset 0 0 0 2px var(--primary); }
+.qc-center-page .qf-node.current .qf-badge::before { content: none; }
+.qc-center-page .qf-line { flex: 1; width: 1px; background: #d8dce6; margin: 6px 0; }
+.qc-center-page .qf-main { flex: 1; min-width: 0; padding-bottom: 18px; }
 .qc-center-page .qf-node:last-child .qf-main { padding-bottom: 2px; }
 .qc-center-page .qf-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .qc-center-page .qf-head b { font-size: var(--fs-base); font-weight: var(--fw-medium); color: var(--color-text-1); }
@@ -2256,16 +2341,23 @@
 .qc-center-page .qf-node.revoke .qf-head b { color: #86909c; }
 .qc-center-page .qf-node.current .qf-head b { color: var(--primary); }
 .qc-center-page .qf-head span { font-size: 12px; color: var(--color-text-3); font-variant-numeric: tabular-nums; }
-.qc-center-page .qf-person { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: var(--color-text-2); }
-.qc-center-page .qf-desc { margin-top: 8px; font-size: 12px; color: var(--color-text-3); line-height: 1.6; }
+.qc-center-page .qf-person { margin-top: 6px; font-size: 12px; color: var(--color-text-2); line-height: 1.6; }
+.qc-center-page .qf-person i { font-style: normal; color: var(--color-text-3); }
+.qc-center-page .qf-reason { margin-top: 4px; font-size: 12px; color: var(--color-text-3); line-height: 1.6; }
 /* 撤销确认/驳回原因弹窗内文 */
 .qc-center-page .qc-todo-confirm { font-size: var(--fs-base); color: var(--color-text-2); line-height: 1.7; }
+/* 选人弹窗内的必填原因（转交原因）：与选人区留白分隔，其余复用 sg-field/textarea 规格 */
+.qc-center-page .qc-am-reason { margin-top: 18px; }
 .qc-center-page .qc-todo-rejta { height: 96px; }
-.qc-center-page .qd-foot { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 10px; padding: 12px 0; background: #fff; }
-/* 多人任务处理人钻取（图三左） */
+.qc-center-page .qd-foot { position: sticky; bottom: 0; margin-top: auto; display: flex; justify-content: flex-end; gap: 10px; padding: 12px 0; background: #fff; }
+/* 多人任务处理人列（抽屉左pane）：抽屉＝处理人列｜详情本体，复用 .pm-page .drawer 壳语言 */
+.qc-center-page .drawer.qc-todo-page-drawer { width: 620px; flex-direction: row; align-items: stretch; }
+.qc-center-page .drawer.qc-todo-page-drawer.multi { width: 960px; }
 .qc-center-page .qc-todo-handlers { padding: 16px; }
+.qc-center-page .drawer.qc-todo-page-drawer .qc-todo-handlers { flex: none; width: 340px; border-right: 1px solid var(--color-border-2); overflow-y: auto; scrollbar-width: none; }
 .qc-center-page .qh-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 4px 14px; }
 .qc-center-page .qh-head b { font-size: 15px; font-weight: 600; color: var(--color-text-1); }
+.qc-center-page .drawer.qc-todo-page-drawer .qh-head b { flex: 1; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .qc-center-page .qh-cnt { font-size: 12px; color: var(--color-text-3); background: #f2f3f5; border-radius: 10px; padding: 2px 8px; }
 .qc-center-page .qh-filter { display: flex; gap: 10px; margin-bottom: 12px; }
 .qc-center-page .qh-filter .qc-todo-search { flex: 1; }
@@ -2287,3 +2379,64 @@
 .qc-center-page .qh-act.zf { background: #8b5cf6; }
 .qc-center-page .qh-act.bh { background: #f5484d; }
 .qc-center-page .qh-act.yx { background: #c9cdd4; }
+/* 优化任务关联待办详情抽屉：主体与待办页详情分栏同构，直接复用 qd-/qf-/qh- 类；多人态顶部处理人卡横排可切换 */
+.qc-center-page .drawer.qc-todo-detail-drawer { width: 600px; }
+/* 历史优化任务页签：抽屉转横向两栏（图二结构），最左轨＝全高任务选择列，右侧 drawer-body＝选中任务详情；抽屉整体加宽 */
+.qc-center-page .drawer.qc-todo-detail-drawer.qdh-wide { width: 960px; }
+/* 行态用 grid 而非 flex-row：底栏 drawer-foot 必须留在右列底部（关闭按钮置底），禁被 flex-row 挤成右侧竖列 */
+.qc-center-page .drawer.qc-todo-detail-drawer.qdh-row { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; align-items: stretch; }
+.qc-center-page .drawer.qc-todo-detail-drawer.qdh-row .qdh-rail { grid-column: 1; grid-row: 1 / 3; }
+.qc-center-page .drawer.qc-todo-detail-drawer.qdh-row .drawer-body { grid-column: 2; grid-row: 1; min-height: 0; }
+.qc-center-page .drawer.qc-todo-detail-drawer.qdh-row .drawer-foot { grid-column: 2; grid-row: 2; }
+/* 详情列只留滚动交互、隐藏原生滚动条（禁露灰色竖条） */
+.qc-center-page .qc-todo-detail-drawer .drawer-body { scrollbar-width: none; }
+.qc-center-page .qc-todo-detail-drawer .drawer-body::-webkit-scrollbar { display: none; }
+.qc-center-page .qdh-rail { flex: none; width: 300px; padding: 16px; border-right: 1px solid var(--color-border-2); overflow-y: auto; scrollbar-width: none; }
+.qc-center-page .qdh-rail .qh-head b { font-size: var(--fs-base); }
+.qc-center-page .qdh-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; font-weight: var(--fw-medium); color: var(--color-text-1); line-height: 18px; margin-bottom: 6px; }
+.qc-center-page .qdh-detail { min-width: 0; }
+.qc-center-page .qdd-handlers { padding: 14px 16px; border: 1px solid var(--color-border-2); border-radius: 10px; margin-bottom: 18px; }
+.qc-center-page .qdd-handlers .qh-head b { font-size: var(--fs-base); }
+.qc-center-page .qdd-handlers .qh-list { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; }
+.qc-center-page .qdd-handlers .qh-card { flex: none; width: 230px; }
+/* ---------- 待办·待处理·右侧抽屉（参考图 待办/待处理/处理）：消息id 灰带＋内容区＋底部固定处理输入区 ---------- */
+.qc-center-page .drawer.qc-todo-handle-drawer { width: 890px; }
+.qc-center-page .qhd-idbar { flex: none; padding: 12px 32px; background: #fff; font-size: 12px; color: var(--color-text-3); }
+.qc-center-page .qhd-body { padding: 26px 32px 20px; }
+/* 蜜蜂插件全局 .qd-body 带灰底/内边距泄漏：查看态内容区三抽屉统一复位为白底无包裹 */
+.qc-center-page .qc-todo-handle-drawer .qd-body,
+.qc-center-page .qc-todo-page-drawer .qd-body,
+.qc-center-page .qc-todo-detail-drawer .qd-body { flex: none; overflow: visible; padding: 0; display: block; gap: 0; background: #fff; }
+/* 查看态图一消息id灰带：详情抽屉内容区顶通栏（处理抽屉自有 qhd-idbar） */
+.qc-center-page .qc-todo-page-drawer .qd-id { margin: -18px -24px 14px; padding: 12px 24px; background: #f5f6f8; }
+.qc-center-page .qc-todo-detail-drawer .qd-id { margin: -20px -20px 18px; padding: 12px 20px; background: #f5f6f8; }
+.qc-center-page .qhd-body .qd-title { font-size: 18px; }
+.qc-center-page .qhd-body .qd-sender .qd-ava { width: 36px; height: 36px; }
+.qc-center-page .qhd-div { height: 1px; background: var(--color-border-2); margin: 20px 0; }
+.qc-center-page .qhd-imgs { display: flex; flex-wrap: wrap; gap: 12px; }
+.qc-center-page .qhd-img { width: 96px; height: 96px; border-radius: 8px; object-fit: cover; }
+.qc-center-page .qhd-img.video { display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #454b59, #262a33); color: #fff; }
+/* 底部固定处理输入区：灰底分区（与上方白底内容区划清界限）＋处理标签＋白色输入卡（内嵌上传钮/已传芯片）＋取消/提交 */
+.qc-center-page .qhd-fix { flex: none; padding: 14px 32px 16px; background: #f5f6f8; border-top: 1px solid var(--color-border); box-shadow: 0 -6px 16px rgba(31, 35, 41, 0.05); }
+/* 查看态底栏：白底＋顶部分割线，动作按钮靠最右 */
+.qc-center-page .qhd-bar { flex: none; padding: 12px 32px; background: #fff; border-top: 1px solid var(--color-border); }
+.qc-center-page .qhd-bar .qhd-foot { margin-top: 0; }
+.qc-center-page .qhd-fixlab { font-size: 14px; font-weight: var(--fw-semibold); color: var(--color-text-1); margin-bottom: 10px; }
+/* 转交人选择行：标签＋气泡下拉（禁原生 select），与输入卡同宽语言 */
+.qc-center-page .qhd-pick { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.qc-center-page .qhd-picklab { flex: none; font-size: 13px; color: var(--color-text-2); }
+.qc-center-page .qhd-picklab .qhd-star { font-style: normal; color: #f5484d; margin-left: 2px; }
+.qc-center-page .qhd-pickbs { width: 240px; }
+.qc-center-page .qhd-compose { background: #fff; border: 1px solid var(--color-border-2); border-radius: 8px; padding: 10px 12px; }
+.qc-center-page .qhd-compose:focus-within { border-color: var(--primary); }
+.qc-center-page .qhd-compose textarea { display: block; width: 100%; min-height: 92px; border: 0; outline: none; resize: none; background: transparent; font-size: 13px; line-height: 1.7; color: var(--color-text-1); }
+.qc-center-page .qhd-uprow { display: flex; gap: 10px; }
+.qc-center-page .qhd-up { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 1px solid var(--color-border-2); border-radius: 6px; background: #fff; font-size: 12px; color: var(--color-text-2); cursor: pointer; }
+.qc-center-page .qhd-up:hover { color: var(--primary); border-color: var(--primary); }
+.qc-center-page .qhd-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.qc-center-page .qhd-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 240px; padding: 4px 8px; border-radius: 6px; background: #f5f6f8; font-size: 12px; color: var(--color-text-2); }
+.qc-center-page .qhd-chip b { font-weight: var(--fw-medium); color: var(--color-text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qc-center-page .qhd-chip i { font-style: normal; font-size: 11px; color: var(--color-text-3); }
+.qc-center-page .qhd-chip em { font-style: normal; cursor: pointer; color: var(--color-text-3); }
+.qc-center-page .qhd-chip em:hover { color: #f5484d; }
+.qc-center-page .qhd-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }

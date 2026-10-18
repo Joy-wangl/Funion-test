@@ -33,6 +33,12 @@
   border-left: 1px solid #eef1f6;
 }
 
+/* 问题类型穿梭（QcTypeShuttle，菜单带 .qc-ts-menu）：大类/小类全量铺开、内容不滚动无滚动条 */
+.casc-menu.qc-ts-menu .casc-col {
+  max-height: none;
+  overflow: visible;
+}
+
 .casc-item {
   display: flex;
   align-items: center;

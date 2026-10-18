@@ -624,6 +624,8 @@ export const AFTER_TYPE_EXCH_RESHIP = '换货/补发';
 /** 数据概览售后数据卡跳转售后列表的预选筛选；消费后即清空，避免侧栏直达误带筛选 */
 export interface AfterJump { type?: string; status?: string }
 export const afterJumpSeed = shallowRef<AfterJump | null>(null);
+/** 店铺列表看板·评价数据卡跳转评价列表：消费后直入二级列表并清空 */
+export const reviewJumpSeed = shallowRef<boolean>(false);
 const AFTER_REASONS: Record<string, string[]> = {
   '退货退款/退款': [
     '质量问题',
@@ -1514,7 +1516,15 @@ export interface ShopGood {
   sessions: number; riskSessions: number;
   reviews: number; badReviews: number;
   afterSales: number; afterRatio: number;
+  /** 优化任务（商品维度）：发起「商品优化」待办时配置的优化周期；周期内商品挂「优化任务」标签 */
+  optTask?: GoodOptTask;
+  /** 历史优化任务（详情抽屉「历史优化任务」页签）：该商品过往优化周期与处理留痕 */
+  optHistory?: OptHistoryTask[];
 }
+/** 优化任务周期（开始-结束日，闭区间）；todoId＝关联待办（待办完成进入优化阶段，操作列「优化任务」钻取详情） */
+export interface GoodOptTask { start: string; end: string; todoId?: string; /** 放宽售后·达到指标后结束：无固定结束日 */ openEnd?: boolean; }
+/** 历史优化任务留痕（任务维度）：周期/发起人/处理人/处理结果，供详情抽屉「历史优化任务」页签左列与详情切换 */
+export interface OptHistoryTask { id: string; title: string; plan?: string; start: string; end: string; owner: string; from: string; faqi: string; doneTime: string; result: string; resultAtt?: { name: string; sub: string }[]; }
 const GOOD_SPECS: string[][] = [
   ['颜色', '尺寸'], ['尺寸', '容量'], ['颜色', '规格'], ['香味', '装规'], ['颜色', '尺寸', '高度'], ['型号', '颜色'],
 ];
@@ -1562,6 +1572,59 @@ const GOOD_ROWS: GoodRow[] = [
   ['KS-5058', '轻量化羽绒服', '2026-09-16', 18, 1, 42, 1, 140, 5, 2, 0.014],
   ['KS-5058', '陶瓷餐具套装', '2026-09-24', 9, 2, 31, 0, 100, 3, 1, 0.010],
 ];
+/* 优化任务种子：idx0/3 进行中（周期含今天→列表挂标签）、idx1 已结束（供筛选与趋势优化区间演示）；按今天偏移生成防演示口径过期 */
+const isoDay = (offset: number) => { const d = new Date(); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const OPT_SEED: Record<number, GoodOptTask> = {
+  0: { start: isoDay(-4), end: isoDay(4), todoId: 'TD-007' },
+  1: { start: isoDay(-10), end: isoDay(-5), todoId: 'TD-008' },
+  3: { start: isoDay(-2), end: isoDay(2), todoId: 'TD-009' },
+  /* 编码优化类型种子：挂到未占用的商品上，使标签/趋势色带/优化任务详情同闭环可演示 */
+  5: { start: isoDay(-3), end: isoDay(5), todoId: 'TD-010' },
+  6: { start: isoDay(-2), end: isoDay(3), todoId: 'TD-011' },
+  /* 店铺优化类型种子：浅语坊(SP-4033)旗下全部商品整体挂同一店铺优化任务，闭环演示店铺列表标签/查看优化任务 */
+  23: { start: isoDay(-3), end: isoDay(4), todoId: 'TD-019' },
+  24: { start: isoDay(-3), end: isoDay(4), todoId: 'TD-019' },
+};
+/* 历史优化任务种子：云感布艺沙发(idx3)挂两期历史周期、折叠收纳箱(idx6)挂一期，供详情抽屉「历史优化任务」页签演示 */
+const OPT_HIST_SEED: Record<number, OptHistoryTask[]> = {
+  0: [
+    { id: 'OT-H4', title: '实木收纳柜抽屉滑轨差评专项整改（上期）', plan: '商品整改', start: '2026-06-10', end: '2026-07-01', owner: '熊立群–运营A组', from: '文杰–测试部', faqi: '2026-06-09 09:40:00', doneTime: '2026-06-28 17:20:00', result: '滑轨异响差评集中，已更换供应商滑轨并补装视频说明，差评由周均 4 条降至 2 条，剩余问题转入本期优化。' },
+    { id: 'OT-H5', title: '实木收纳柜包装破损专项整改', plan: '商品整改', start: '2026-03-12', end: '2026-04-02', owner: '邵雨薇–运营B组', from: '鲁梦男–测试部', faqi: '2026-03-11 15:00:00', doneTime: '2026-03-30 10:10:00', result: '外加护角与双层瓦楞纸箱覆盖全部仓发链路，运输破损会话由 9 条/周降至 2 条/周，达标结案。' },
+  ],
+  1: [
+    { id: 'OT-H6', title: '岩板餐桌尺寸描述不符专项整改', plan: '商品整改', start: '2026-04-08', end: '2026-04-29', owner: '邵雨薇–运营B组', from: '文杰–测试部', faqi: '2026-04-07 10:30:00', doneTime: '2026-04-27 16:45:00', result: '详情页补充实测尺寸表与误差说明，尺寸类售后由 14 单/月降至 5 单/月，达标结案。' },
+  ],
+  3: [
+    { id: 'OT-H1', title: '云感布艺沙发色差差评专项整改（二期）', plan: '商品整改', start: '2026-07-01', end: '2026-07-28', owner: '熊立群–运营A组', from: '鲁梦男–测试部', faqi: '2026-06-30 10:20:00', doneTime: '2026-07-05 15:40:00', result: '主图与详情页色差说明已补充第二轮实拍对比，差评新增由周均 3 条降至 1 条，未达目标转入下一期整改。', resultAtt: [{ name: '整改复盘.doc', sub: 'Word 24KB' }] },
+    { id: 'OT-H2', title: '云感布艺沙发色差差评专项整改（一期）', plan: '放宽售后', start: '2026-05-06', end: '2026-06-02', owner: '邵雨薇–运营B组', from: '鲁梦男–测试部', faqi: '2026-05-05 09:10:00', doneTime: '2026-05-30 18:05:00', result: '售后口径放宽至色差类免举证退货，售后率短期上升后回落，差评口径未改善，转入二期整改。' },
+  ],
+  4: [
+    { id: 'OT-H7', title: '棉麻四件套起球差评专项整改', plan: '商品整改', start: '2026-08-11', end: '2026-09-01', owner: '熊立群–运营A组', from: '鲁梦男–测试部', faqi: '2026-08-10 11:00:00', doneTime: '2026-08-30 14:25:00', result: '面料支数升级并在详情页明示洗涤建议，起球类差评由 6 条/月降至 2 条/月，达标结案。' },
+  ],
+  6: [
+    { id: 'OT-H3', title: '折叠收纳箱指定编码包装加固（上期）', plan: '编码整改', start: '2026-08-03', end: '2026-08-24', owner: '熊立群–运营A组', from: '文杰–测试部', faqi: '2026-08-02 14:00:00', doneTime: '2026-08-20 11:30:00', result: '包装加固方案覆盖指定编码全部在售 SKU，运输破损会话由 12 条/周降至 4 条/周。' },
+  ],
+  8: [
+    { id: 'OT-H8', title: '阳台休闲椅承重售后专项整改', plan: '放宽售后', start: '2026-05-18', end: '2026-06-15', owner: '邵雨薇–运营B组', from: '文杰–测试部', faqi: '2026-05-17 09:50:00', doneTime: '2026-06-12 15:55:00', result: '承重类售后放宽至免寄回换新，售后率回落至 3.1%，承重描述同步加注限重标识。' },
+    { id: 'OT-H9', title: '阳台休闲椅褪色差评专项整改', plan: '商品整改', start: '2026-02-24', end: '2026-03-17', owner: '熊立群–运营A组', from: '鲁梦男–测试部', faqi: '2026-02-23 14:40:00', doneTime: '2026-03-15 10:05:00', result: '户外粉体喷涂工艺升级，褪色差评由 5 条/月降至 1 条/月，达标结案。' },
+  ],
+  11: [
+    { id: 'OT-H10', title: '保温杯密封漏水土专项整改', plan: '商品整改', start: '2026-06-16', end: '2026-07-07', owner: '邵雨薇–运营B组', from: '文杰–测试部', faqi: '2026-06-15 10:15:00', doneTime: '2026-07-05 09:35:00', result: '密封圈批次全检并更换模具，漏水售后由 21 单/月降至 6 单/月，剩余个案走常规售后。', resultAtt: [{ name: '模具更换记录.xlsx', sub: 'Excel 32KB' }] },
+  ],
+  13: [
+    { id: 'OT-H11', title: '原木书架安装说明专项整改', plan: '商品整改', start: '2026-07-14', end: '2026-08-04', owner: '熊立群–运营A组', from: '鲁梦男–测试部', faqi: '2026-07-13 16:20:00', doneTime: '2026-08-02 13:45:00', result: '随箱附图文安装卡并上线安装视频，安装类咨询会话由 18 条/周降至 6 条/周。' },
+  ],
+  19: [
+    { id: 'OT-H12', title: '柔光小夜灯亮度虚标专项整改', plan: '商品整改', start: '2026-04-21', end: '2026-05-12', owner: '邵雨薇–运营B组', from: '文杰–测试部', faqi: '2026-04-20 09:25:00', doneTime: '2026-05-10 17:40:00', result: '流明参数按实测值修正并补充档位对照表，参数类差评清零，达标结案。' },
+  ],
+  27: [
+    { id: 'OT-H13', title: '云感布艺沙发（快手仓）色差专项整改', plan: '放宽售后', start: '2026-06-03', end: '2026-06-24', owner: '邵雨薇–运营B组', from: '鲁梦男–测试部', faqi: '2026-06-02 10:45:00', doneTime: '2026-06-22 15:10:00', result: '快手仓色差类售后免举证退货试运行，售后率由 2.4% 回落至 1.3%，口径推广至全仓。' },
+  ],
+  33: [
+    { id: 'OT-H14', title: '记忆棉坐垫异味差评专项整改', plan: '商品整改', start: '2026-05-25', end: '2026-06-16', owner: '熊立群–运营A组', from: '文杰–测试部', faqi: '2026-05-24 14:05:00', doneTime: '2026-06-14 11:50:00', result: '原料换用低 VOC 棉芯并增加出库前晾置工序，异味差评由 7 条/月降至 1 条/月，达标结案。', resultAtt: [{ name: '检测报.pdf', sub: 'PDF 1.2MB' }] },
+    { id: 'OT-H15', title: '记忆棉坐垫塌陷售后专项整改', plan: '放宽售后', start: '2026-02-10', end: '2026-03-03', owner: '邵雨薇–运营B组', from: '鲁梦男–测试部', faqi: '2026-02-09 09:30:00', doneTime: '2026-03-01 16:00:00', result: '塌陷类售后放宽至半年内免举证换新，售后率短期上升后稳定在 4.0%，转入密度升级评估。' },
+  ],
+};
 export const qcShopGoods = ref<ShopGood[]>(GOOD_ROWS.map((r, i) => ({
   id: String(680000000127 + i * 9173),
   shopId: r[0], name: mkProductName(r[1], i), listedAt: r[2],
@@ -1571,7 +1634,51 @@ export const qcShopGoods = ref<ShopGood[]>(GOOD_ROWS.map((r, i) => ({
   sessions: r[5], riskSessions: r[6],
   reviews: r[7], badReviews: r[8],
   afterSales: r[9], afterRatio: r[10],
+  optTask: OPT_SEED[i],
+  optHistory: OPT_HIST_SEED[i],
 })));
+
+/** 优化任务状态：周期含今天＝优化中（列表标签展示口径）；已结束/未开始不挂标签 */
+export const optStatusOf = (g: ShopGood): '优化中' | '已结束' | '未开始' | null => {
+  const t = g.optTask;
+  if (!t) return null;
+  const today = isoDay(0);
+  if (today < t.start) return '未开始';
+  if (!t.openEnd && today > t.end) return '已结束';
+  return '优化中';
+};
+
+/** 系列级优化任务态：系列下任一商品编码优化中＝系列优化中（监控列表首列标签/筛选/操作列语义）；
+    否则取首个存量任务（已结束/未开始，供筛选与趋势色带）；无任务返回 null */
+export const seriesOptOf = (s: QcCenterSeries): { status: '优化中' | '已结束' | '未开始'; task: GoodOptTask } | null => {
+  let fallback: { status: '已结束' | '未开始'; task: GoodOptTask } | null = null;
+  for (const g of seriesGoodsOf(s.codes.map((c) => c.code))) {
+    const st = optStatusOf(g);
+    if (!st || !g.optTask) continue;
+    if (st === '优化中') return { status: st, task: g.optTask };
+    if (!fallback) fallback = { status: st, task: g.optTask };
+  }
+  return fallback;
+};
+
+/** 店铺级优化任务态：店铺旗下任一商品优化中＝店铺优化中（店铺列表首列标签/筛选/操作列语义）；
+    否则取首个存量任务（已结束/未开始）；无任务返回 null。口径同 seriesOptOf，仅归属维度换成店铺 */
+export const shopOptOf = (shop: OnlineShop): { status: '优化中' | '已结束' | '未开始'; task: GoodOptTask } | null => {
+  let fallback: { status: '已结束' | '未开始'; task: GoodOptTask } | null = null;
+  for (const g of qcShopGoods.value) {
+    if (g.shopId !== shop.id) continue;
+    const st = optStatusOf(g);
+    if (!st || !g.optTask) continue;
+    if (st === '优化中') return { status: st, task: g.optTask };
+    if (!fallback) fallback = { status: st, task: g.optTask };
+  }
+  return fallback;
+};
+
+/** 是否优化过：存在优化任务（任意状态）或历史优化周期；系列/店铺维度＝旗下任一商品优化过 */
+export const optEverOf = (g: ShopGood): boolean => !!g.optTask || (g.optHistory?.length ?? 0) > 0;
+export const seriesOptEverOf = (s: QcCenterSeries): boolean => seriesGoodsOf(s.codes.map((c) => c.code)).some(optEverOf);
+export const shopOptEverOf = (shop: OnlineShop): boolean => qcShopGoods.value.some((g) => g.shopId === shop.id && optEverOf(g));
 
 /* ---------- 店铺商品 SKU 明细（只读弹窗）：按商品规格维度确定性展开，行数＝min(SKU 数, 维度笛卡尔积)；
    字段＝SKU 名称/商品编码/系列编码(数组，一个 SKU 可关联多个系列)/成本价/售价/库存数（同快捷编辑 SKU 弹窗口径，去编辑态专属字段） ---------- */
@@ -1626,6 +1733,15 @@ export const shopGoodSkus = (g: ShopGood): ShopGoodSku[] => {
   return [...seriesMap.entries()].map(([name, e]) => ({
     name, code: e.code, series: [...e.series], cost: e.cost, price: e.price, stock: e.stock,
   }));
+};
+
+/** 评价 SKU 关联的商品编码&系列编码：与店铺商品 SKU 表同源生成规则（商品编码＝mkProductCode、
+    系列编码＝系列简称池、首 SKU 关联多系列），按商品ID＋SKU 序确定性回推，供评价列表编码查询条件 */
+export const reviewSkuCodesOf = (productId: string, skuIndex: number): { code: string; series: string[] } => {
+  const gid = Number(productId) || 0;
+  const primary = SKU_SERIES[gid % SKU_SERIES.length];
+  const series = skuIndex % 3 === 0 ? [primary, SKU_SERIES[(gid + 2) % SKU_SERIES.length]] : [primary];
+  return { code: mkProductCode(gid % 17576, skuIndex + 1), series: [...new Set(series)] };
 };
 
 /* ---------- 店铺商品·问题命中类型（操作列）：风险项＝风险会话＋差评数＋售后数，

@@ -65,6 +65,51 @@ export const DEFAULT_WEIGHTS: AuditWeights = {
   ],
 };
 
+/* ---------- 平台维度权重预设（权重配置页页首平台切换：各平台权重不一致） ----------
+   淘宝＝默认口径（近30天）；抖音对标商家体验分（近90天滚动、CCR/IM 回复侧指标加权）；
+   视频号会话样本门槛下调；快手物流维度加权。维度内指标权重合计恒 100。 */
+export type AuditPlat = '淘宝' | '抖音' | '视频号' | '快手';
+export const AUDIT_PLATS: AuditPlat[] = ['淘宝', '抖音', '视频号', '快手'];
+
+const preset = (dims: Record<AuditDim, number>, weights: Record<string, number>, gates?: Partial<AuditGate>): AuditWeights => {
+  const base = structuredClone(DEFAULT_WEIGHTS);
+  base.dims = { ...dims };
+  for (const ind of base.indicators) if (weights[ind.key] != null) ind.weight = weights[ind.key];
+  if (gates) for (const d of ['商品', '物流', '服务'] as AuditDim[]) base.gates[d] = { ...base.gates[d], ...gates };
+  return base;
+};
+
+export const PLATFORM_PRESETS: Record<AuditPlat, AuditWeights> = {
+  淘宝: structuredClone(DEFAULT_WEIGHTS),
+  抖音: preset(
+    { 商品: 40, 物流: 25, 服务: 35 },
+    {
+      'prod-badrate': 30, 'prod-prerefund': 25, 'prod-chatq': 30, 'prod-chatafter': 15,
+      'logi-badrate': 30, 'logi-chat': 30, 'logi-postrefund': 40,
+      'serv-badrate': 25, 'serv-chat': 30, 'serv-after': 30, 'serv-postrefund': 15,
+    },
+    { cycleDays: 90 },
+  ),
+  视频号: preset(
+    { 商品: 45, 物流: 25, 服务: 30 },
+    {
+      'prod-badrate': 45, 'prod-prerefund': 25, 'prod-chatq': 15, 'prod-chatafter': 15,
+      'logi-badrate': 40, 'logi-chat': 30, 'logi-postrefund': 30,
+      'serv-badrate': 30, 'serv-chat': 25, 'serv-after': 30, 'serv-postrefund': 15,
+    },
+    { minChats: 50 },
+  ),
+  快手: preset(
+    { 商品: 40, 物流: 30, 服务: 30 },
+    {
+      'prod-badrate': 35, 'prod-prerefund': 30, 'prod-chatq': 20, 'prod-chatafter': 15,
+      'logi-badrate': 30, 'logi-chat': 30, 'logi-postrefund': 40,
+      'serv-badrate': 30, 'serv-chat': 20, 'serv-after': 35, 'serv-postrefund': 15,
+    },
+    { minOrders: 20 },
+  ),
+};
+
 /** 实际值 → 0-100 得分：≤满分线=100，≥零分线=0，区间线性 */
 export const scoreOf = (v: number, fullLine: number, zeroLine: number): number => {
   if (v <= fullLine) return 100;
@@ -109,7 +154,7 @@ export const gradeOf = (s: number): { name: string; color: string } => {
 
 /* ---------- 豁免机制 ---------- */
 
-export const EXEMPT_TYPES = ['新品豁免', '新店豁免', '新链接豁免', '低样本豁免', '申诉豁免'] as const;
+export const EXEMPT_TYPES = ['新品豁免', '新店豁免', '新链接豁免', '低样本豁免'] as const;
 export type ExemptType = (typeof EXEMPT_TYPES)[number];
 
 export const EXEMPT_MODES = ['免考核', '减权系数', '延迟考核'] as const;
@@ -122,19 +167,17 @@ export interface ExemptMetricDef {
   /** 简称（规则名称） */
   short: string;
   unit: string;
-  kind: 'num' | 'state';
   def: number;
 }
-/* 条件指标按类型枚举：配置式条件 = 指标 + 比较符 + 阈值（状态类指标选状态），不再手填文字 */
+/* 条件指标按类型枚举：配置式条件 = 指标 + 比较符 + 阈值，不再手填文字 */
 export const EXEMPT_METRICS: Record<ExemptType, ExemptMetricDef[]> = {
-  新品豁免: [{ key: 'shelfDays', label: '商品首次上架', short: '首次上架', unit: '天', kind: 'num', def: 15 }],
-  新店豁免: [{ key: 'openDays', label: '店铺开店时间', short: '开店时间', unit: '天', kind: 'num', def: 90 }],
+  新品豁免: [{ key: 'shelfDays', label: '商品首次上架', short: '首次上架', unit: '天', def: 15 }],
+  新店豁免: [{ key: 'openDays', label: '店铺开店时间', short: '开店时间', unit: '天', def: 90 }],
   新链接豁免: [
-    { key: 'linkDays', label: '链接创建', short: '链接创建', unit: '天', kind: 'num', def: 7 },
-    { key: 'linkOrders', label: '累计订单', short: '累计订单', unit: '笔', kind: 'num', def: 10 },
+    { key: 'linkDays', label: '链接创建', short: '链接创建', unit: '天', def: 7 },
+    { key: 'linkOrders', label: '累计订单', short: '累计订单', unit: '笔', def: 10 },
   ],
-  低样本豁免: [{ key: 'cycleOrders', label: '考核周期内有效支付订单', short: '周期订单', unit: '笔', kind: 'num', def: 30 }],
-  申诉豁免: [{ key: 'appealState', label: '差评申诉状态', short: '差评申诉', unit: '', kind: 'state', def: 0 }],
+  低样本豁免: [{ key: 'cycleOrders', label: '考核周期内有效支付订单', short: '周期订单', unit: '笔', def: 30 }],
 };
 export const METRIC_BY_KEY: Record<string, ExemptMetricDef> = Object.values(EXEMPT_METRICS)
   .flat()
@@ -142,15 +185,13 @@ export const METRIC_BY_KEY: Record<string, ExemptMetricDef> = Object.values(EXEM
 
 export const EXEMPT_OPS = ['≤', '<', '≥', '>'] as const;
 export type ExemptOp = (typeof EXEMPT_OPS)[number];
-export const EXEMPT_APPEAL_STATES = ['受理中', '审核中'] as const;
 
 export interface ExemptCond {
   metric: string;
   op: ExemptOp;
   value: number;
-  state: string;
 }
-export const defaultCondOf = (m: ExemptMetricDef): ExemptCond => ({ metric: m.key, op: '≤', value: m.def, state: EXEMPT_APPEAL_STATES[0] });
+export const defaultCondOf = (m: ExemptMetricDef): ExemptCond => ({ metric: m.key, op: '≤', value: m.def });
 export const defaultCondsOf = (t: ExemptType): ExemptCond[] => EXEMPT_METRICS[t].slice(0, 1).map(defaultCondOf);
 /* 配置生成文案：规则名称取简称+阈值，豁免条件取指标全称+比较符+阈值，多条件以「或」连接 */
 export const exemptCondText = (conds: ExemptCond[]): string =>
@@ -158,7 +199,7 @@ export const exemptCondText = (conds: ExemptCond[]): string =>
     .map((c) => {
       const d = METRIC_BY_KEY[c.metric];
       if (!d) return '';
-      return d.kind === 'state' ? `${d.label} = ${c.state}` : `${d.label} ${c.op} ${c.value} ${d.unit}`;
+      return `${d.label} ${c.op} ${c.value} ${d.unit}`;
     })
     .filter(Boolean)
     .join(' 或 ');
@@ -167,7 +208,7 @@ export const exemptNameText = (conds: ExemptCond[]): string =>
     .map((c) => {
       const d = METRIC_BY_KEY[c.metric];
       if (!d) return '';
-      return d.kind === 'state' ? `${d.short}${c.state}` : `${d.short}${c.op === '≥' || c.op === '>' ? '超过' : '不足'}${c.value}${d.unit}`;
+      return `${d.short}${c.op === '≥' || c.op === '>' ? '超过' : '不足'}${c.value}${d.unit}`;
     })
     .filter(Boolean)
     .join('或');
@@ -175,6 +216,8 @@ export const exemptNameText = (conds: ExemptCond[]): string =>
 export interface ExemptRule {
   id: string;
   type: ExemptType;
+  /** 适用平台：商品/店铺维度规则按平台独立配置（各平台豁免标准不一致）；缺省＝全平台通用（系列编码/商品编码维度预留，不区分平台） */
+  plat?: AuditPlat;
   name: string;
   /** 豁免条件描述（按 conds 配置生成） */
   cond: string;
@@ -187,12 +230,16 @@ export interface ExemptRule {
   updatedAt: string;
 }
 
+/* 默认规则按平台挂接：同类型每平台各一条、阈值独立（各平台豁免标准不一致）；编码维度规则不区分平台，暂不预设 */
 export const DEFAULT_EXEMPTS: ExemptRule[] = [
-  { id: 'ex1', type: '新品豁免', name: '首次上架不足15天', cond: '商品首次上架 ≤ 15 天', conds: [{ metric: 'shelfDays', op: '≤', value: 15, state: '' }], mode: '免考核', value: 0, enabled: true, updatedAt: '2026-10-12 09:00:00' },
-  { id: 'ex2', type: '新链接豁免', name: '链接创建不足7天或累计订单不足10笔', cond: '链接创建 ≤ 7 天 或 累计订单 < 10 笔', conds: [{ metric: 'linkDays', op: '≤', value: 7, state: '' }, { metric: 'linkOrders', op: '<', value: 10, state: '' }], mode: '免考核', value: 0, enabled: true, updatedAt: '2026-10-12 09:00:00' },
-  { id: 'ex3', type: '低样本豁免', name: '周期订单不足30笔', cond: '考核周期内有效支付订单 < 30 笔', conds: [{ metric: 'cycleOrders', op: '<', value: 30, state: '' }], mode: '免考核', value: 0, enabled: true, updatedAt: '2026-10-12 09:00:00' },
-  { id: 'ex4', type: '申诉豁免', name: '差评申诉受理中', cond: '差评申诉状态 = 受理中', conds: [{ metric: 'appealState', op: '≤', value: 0, state: '受理中' }], mode: '延迟考核', value: 7, enabled: true, updatedAt: '2026-10-12 09:00:00' },
-  { id: 'ex5', type: '新店豁免', name: '开店时间不足90天', cond: '店铺开店时间 ≤ 90 天', conds: [{ metric: 'openDays', op: '≤', value: 90, state: '' }], mode: '免考核', value: 0, enabled: true, updatedAt: '2026-10-14 09:00:00' },
+  { id: 'ex1', type: '新品豁免', plat: '淘宝', name: '首次上架不足15天', cond: '商品首次上架 ≤ 15 天', conds: [{ metric: 'shelfDays', op: '≤', value: 15 }], mode: '免考核', value: 0, enabled: true, updatedAt: '2026-10-12 09:00:00' },
+  { id: 'ex1b', type: '新品豁免', plat: '抖音', name: '首次上架不足14天', cond: '商品首次上架 ≤ 14 天', conds: [{ metric: 'shelfDays', op: '≤', value: 14 }], mode: '免考核', value: 0, enabled: true, updatedAt: '2026-10-12 09:00:00' },
+  { id: 'ex2', type: '新链接豁免', plat: '淘宝', name: '链接创建不足7天或累计订单不足10笔', cond: '链接创建 ≤ 7 天 或 累计订单 < 10 笔', conds: [{ metric: 'linkDays', op: '≤', value: 7 }, { metric: 'linkOrders', op: '<', value: 10 }], mode: '免考核', value: 0, enabled: true, updatedAt: '2026-10-12 09:00:00' },
+  { id: 'ex2b', type: '新链接豁免', plat: '抖音', name: '链接创建不足5天或累计订单不足15笔', cond: '链接创建 ≤ 5 天 或 累计订单 < 15 笔', conds: [{ metric: 'linkDays', op: '≤', value: 5 }, { metric: 'linkOrders', op: '<', value: 15 }], mode: '免考核', value: 0, enabled: true, updatedAt: '2026-10-12 09:00:00' },
+  { id: 'ex3', type: '低样本豁免', plat: '淘宝', name: '周期订单不足30笔', cond: '考核周期内有效支付订单 < 30 笔', conds: [{ metric: 'cycleOrders', op: '<', value: 30 }], mode: '免考核', value: 0, enabled: true, updatedAt: '2026-10-12 09:00:00' },
+  { id: 'ex3b', type: '低样本豁免', plat: '快手', name: '周期订单不足20笔', cond: '考核周期内有效支付订单 < 20 笔', conds: [{ metric: 'cycleOrders', op: '<', value: 20 }], mode: '免考核', value: 0, enabled: true, updatedAt: '2026-10-12 09:00:00' },
+  { id: 'ex5', type: '新店豁免', plat: '淘宝', name: '开店时间不足90天', cond: '店铺开店时间 ≤ 90 天', conds: [{ metric: 'openDays', op: '≤', value: 90 }], mode: '免考核', value: 0, enabled: true, updatedAt: '2026-10-14 09:00:00' },
+  { id: 'ex5b', type: '新店豁免', plat: '视频号', name: '开店时间不足60天', cond: '店铺开店时间 ≤ 60 天', conds: [{ metric: 'openDays', op: '≤', value: 60 }], mode: '免考核', value: 0, enabled: true, updatedAt: '2026-10-14 09:00:00' },
 ];
 
 /* ---------- 示例商品（计算说明页） ---------- */

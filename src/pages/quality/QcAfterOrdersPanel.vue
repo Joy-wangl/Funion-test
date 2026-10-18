@@ -12,6 +12,8 @@ import QcDateRangePicker from './QcDateRangePicker.vue';
 
 const props = defineProps<{
   series: QcCenterSeries;
+  /** 宿主覆盖售后单源（评价等场景自造数据口径）：缺省回退系列线上售后单；须与抽屉导轨/ pill 计数同源，禁各取一套 */
+  allAfterOrders?: OnlineAfterOrder[];
   /** 问题类型大类（系列详情售后单场景点占比条传入），缺省不限 */
   ptype?: string | null;
   /** 问题类型小类（系列详情售后单场景小类快选传入），缺省不限 */
@@ -44,7 +46,7 @@ const props = defineProps<{
 }>();
 
 const orders = computed(() => {
-  let list = onlineAfterOrdersOf(props.series);
+  let list = props.allAfterOrders ?? onlineAfterOrdersOf(props.series);
   if (props.codeScope) list = list.filter((o) => o.code === props.codeScope);
   if (props.skuOf && props.skuScope) list = list.filter((o) => props.skuOf!(o.afterNo) === props.skuScope);
   if (props.range) {
@@ -59,7 +61,7 @@ const orders = computed(() => {
 
 /* 申请时间日历可选边界：取该系列售后单实际跨度（空数据回退默认近30天轴） */
 const aoBounds = computed(() => {
-  const days = onlineAfterOrdersOf(props.series).map((o) => o.appliedAt.slice(0, 10)).sort();
+  const days = (props.allAfterOrders ?? onlineAfterOrdersOf(props.series)).map((o) => o.appliedAt.slice(0, 10)).sort();
   return days.length
     ? { min: days[0], max: days[days.length - 1] }
     : { min: DEFAULT_CUSTOM_RANGE.start, max: DEFAULT_CUSTOM_RANGE.end };

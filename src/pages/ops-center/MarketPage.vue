@@ -6,7 +6,7 @@ import DateRangePicker from '../../components/DateRangePicker.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
 import SortTh from '../../components/SortTh.vue';
 import { pushToast } from '../../components/toast';
-import { SM_TASK_STATUS_META, genTaskId, nowTime, smRecordsSeed, smTasksSeed } from '../shunmai/data';
+import { SM_TASK_STATUS_META, genTaskId, nowTime, smRecordsSeed, smTasks } from '../shunmai/data';
 import type { SmTask, SmTaskStatus } from '../shunmai/data';
 import { PLATFORM_LOGO, ecMain } from './data';
 import ColFieldPop from './ColFieldPop.vue';
@@ -308,7 +308,7 @@ const refreshDeviceStatus = () => {
 };
 
 /* ── 任务执行情况：与顺买商机任务同模型（种子快照＋本地单执行位管道），入口在设备状态面板 ── */
-const tasks = ref<SmTask[]>(smTasksSeed.map((t) => ({ ...t })));
+const tasks = smTasks;
 const taskModal = ref(false);
 /* 进度辅助：百分比 / 待抓取 / 分段宽度 / 执行时间区间（口径同顺买商机任务列表） */
 const progressPct = (t: SmTask) => (t.targetCount ? Math.round(((t.successCount + t.failCount) / t.targetCount) * 100) : 0);

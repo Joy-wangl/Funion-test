@@ -7,6 +7,8 @@ import Ellipsis from '../../components/Ellipsis.vue';
 import SortTh from '../../components/SortTh.vue';
 import { SG_STATUS_META, sgOffTagOfStatus } from './shopGoodsData';
 import type { SgStatus } from './shopGoodsData';
+import { addBlacklist, hasBlacklist } from './blacklistData';
+import { pushToast } from '../../components/toast';
 import { useAnchorPop } from '../../hooks/useAnchorPop';
 
 const props = defineProps<{
@@ -112,6 +114,13 @@ const cellText = (row: ProductRow, key: string): string => {
 /* 添加到：点击后气泡展示平台选项（滚动时跟随触发链接） */
 const { pos: addTip, open, close: closeAddTip } = useAnchorPop();
 const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
+
+/* 黑品库：操作列「添加到」下方入口，按内部商机（链接商品ID）加入 设置›黑品库；已在库提示不重复添加 */
+const addToBlacklist = (row: ProductRow) => {
+  if (hasBlacklist('内部商机', row.pid)) return pushToast('该商品已在黑品库', 'warning');
+  addBlacklist('内部商机', row.pid, row.pname);
+  pushToast('已添加到 设置-黑品库');
+};
 </script>
 
 <template>
@@ -223,6 +232,12 @@ const openAddTip = (e: MouseEvent) => open(e.currentTarget as HTMLElement);
                   @click.prevent="emit('action', row, '添加到')"
                 >
                   添加到
+                </a>
+                <a
+                  href="#"
+                  @click.prevent="addToBlacklist(row)"
+                >
+                  黑品库
                 </a>
               </template>
             </td>

@@ -646,7 +646,7 @@ export interface ScopeTotals { orders: number; refundRate: number; afterSales: n
 
 export type MetricKey = 'orders' | 'refundRate' | 'afterSales' | 'chatRisks' | 'chatRatio';
 
-function trendWindowOf(range: TrendRangeKey, custom?: DateRange): [number, number] {
+export function trendWindowOf(range: TrendRangeKey, custom?: DateRange): [number, number] {
   const n = DATE_AXIS.length;
   if (range === 'yesterday') return [n - 2, n - 2];
   if (range === 'd3') return [n - 4, n - 2];

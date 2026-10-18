@@ -19,7 +19,8 @@ import {
 } from './qcCenterData';
 import { CHAT_SESSIONS, SHOP_NAME, sessionsOf, type ChatHit, type ChatSession, type Platform, type PlatformStat } from './data';
 import { codesMatchTagFilter } from '../quality2/qc2Data';
-import { onlineSeries, onlineSeriesOfCode, onlineSessionsOf, onlineOwnerOf, onlineChatBrief, onlineReviewBrief, patchOnlineSession, seriesProblemCodes, codeCsHits, afterJumpSeed, shopGoodsJumpSeed, type AfterJump } from './qcOnlineData';
+import { onlineSeries, onlineSeriesOfCode, onlineSessionsOf, onlineOwnerOf, onlineChatBrief, onlineReviewBrief, patchOnlineSession, seriesProblemCodes, seriesOptOf, seriesOptEverOf, shopOptOf, codeCsHits, afterJumpSeed, reviewJumpSeed, shopGoodsJumpSeed, type AfterJump, type ShopGood, type OnlineShop } from './qcOnlineData';
+import { QC_TODOS, todoFromDraft } from './qcTodoData';
 import { qcGet } from './qcApi';
 import QcDashboard from './QcDashboard.vue';
 import QcSeriesList, { DEFAULT_SERIES_FILTER, type SeriesFilter, type SortKey } from './QcSeriesList.vue';
@@ -41,6 +42,9 @@ import QcAuditWeight from './QcAuditWeight.vue';
 import QcAuditExempt from './QcAuditExempt.vue';
 import QcReviewList from './QcReviewList.vue';
 import QcTodoList from './QcTodoList.vue';
+import QcOptTaskList from './QcOptTaskList.vue';
+import QcTodoCreateDrawer, { type TodoCreatePayload } from './QcTodoCreateDrawer.vue';
+import QcTodoDetailDrawer from './QcTodoDetailDrawer.vue';
 import './style.css';
 import './qcCenter.css';
 import './qcAudit.css';
@@ -48,7 +52,7 @@ import '../quality2/qc2.css';
 /* React 版 App.tsx 静态引入 OpsCenter 使 sg-* 筛选样式全局生效，此处对齐 */
 import '../ops-center/OpsCenter.css';
 
-type View = 'dashboard' | 'series' | 'cfg' | 'after' | 'hit' | 'pdef' | 'shop' | 'perm' | 'appeal' | 'audit' | 'todo';
+type View = 'dashboard' | 'series' | 'cfg' | 'after' | 'hit' | 'pdef' | 'shop' | 'perm' | 'appeal' | 'audit' | 'todo' | 'opt';
 /** 壳级模式：原功能（问题类型驱动）/ 商品标签（数据概览的标签模块切换，左侧菜单不变） */
 type Mode = 'legacy' | 'tags';
 
@@ -73,6 +77,7 @@ const NAV_ICONS: Record<string, string> = {
   after: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
   appeal: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8"/><path d="M8 13h5"/>',
   todo: '<rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
+  task: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
   hit: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
   pdef: '<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
   shop: '<path d="M12 3l2.7 5.8 6.3.8-4.6 4.3 1.2 6.2-5.6-3.1-5.6 3.1 1.2-6.2L3 9.6l6.3-.8z"/>',
@@ -91,8 +96,14 @@ const auditView = ref<AuditView>('weight');
 const shopOpen = ref(true);
 type ShopView = 'list' | 'goods';
 const shopView = ref<ShopView>('list');
+/* 任务中心父级分组：待办事项（原待办任务）/ 优化任务 子路由 */
+const taskOpen = ref(true);
 /* 店铺列表操作列「店铺商品」：带入「店铺 + 平台」查询条件跳店铺商品（种子由 QcShopGoods 消费后清空） */
 const pickShopGoods = (shopId: string) => { shopGoodsJumpSeed.value = { shopId }; shopView.value = 'goods'; };
+/* 店铺列表看板·数据总览卡跳转（用户红框注释）：订单→售后单列表、聊天→商品列表、评价→评价列表；售后/评价经种子直入二级列表 */
+const jumpAfterList = () => { afterJumpSeed.value = {}; shopOpen.value = true; view.value = 'after'; };
+const jumpGoodsList = () => { shopOpen.value = true; view.value = 'shop'; shopView.value = 'goods'; };
+const jumpReviewList = () => { reviewJumpSeed.value = true; shopOpen.value = true; view.value = 'appeal'; };
 /* 监控列表操作列「关联ID」：带入系列下商品编码跳店铺监控·店铺商品并按编码查询（种子由 QcShopGoods 消费后清空） */
 const pickSeriesGoods = (codes: string[]) => {
   shopGoodsJumpSeed.value = { q: codes.join(' ') };
@@ -112,14 +123,78 @@ const sortKey = ref<SortKey | null>('orders');
 const sortDesc = ref(true);
 const detail = ref<{ series: QcCenterSeries; code?: string; types?: string[] } | null>(null);
 const chatCtx = ref<{ codes: QcCenterCode[]; platforms: Platform[]; platform: Platform } | null>(null);
-/** 趋势图弹层上下文：系列维度 / 平台维度（数据口径不同，交互一致） */
-const trendCtx = ref<{ title: string; totals: ScopeTotals; seriesCode: string } | null>(null);
+/** 趋势图弹层上下文：系列维度 / 平台维度（数据口径不同，交互一致）；optRange＝优化任务周期（图上区间色带） */
+const trendCtx = ref<{ title: string; totals: ScopeTotals; seriesCode: string; optRange?: { start: string; end: string; openEnd?: boolean } | null } | null>(null);
 /* 品控-线上壳无标签配置菜单：切入线上态时若停留在该视图回退数据概览 */
 watch(() => props.online, (v) => {
   if (v && view.value === 'cfg') view.value = 'dashboard';
 }, { immediate: true });
 /** 售后单列表抽屉上下文（售后列表「查看详情」，逐单明细，区别于系列编码详情） */
 const afterCtx = ref<QcCenterSeries | null>(null);
+/* 编码监控-监控列表「优化任务」：预设该系列与编码优化类型，抽屉内可选全系列或指定商品编码；
+   提交后把优化周期写回编码解析出的店铺商品（挂优化中标签＋趋势色带），并落一条待办 */
+const optSeries = ref<QcCenterSeries | null>(null);
+/* 优化中行「查看优化任务」：打开关联待办详情抽屉（同店铺商品口径，不跳待办页） */
+const optTodoId = ref<string | null>(null);
+const optTodo = computed(() => QC_TODOS.find((t) => t.id === optTodoId.value) ?? null);
+/* 切换左侧菜单时关掉该抽屉，避免遮罩与详情滞留在新页面上 */
+watch(view, () => { optTodoId.value = null; });
+/* 快捷创建（监控列表「优化任务」）：落一条「我发起·待处理」待办，待办任务模块可直接查看；
+   优化周期写回编码解析出的店铺商品（挂优化中标签＋趋势色带） */
+const onSeriesOptCreated = (p: TodoCreatePayload) => {
+  if (p.optCycle) {
+    const todo = todoFromDraft({
+      title: p.title,
+      priority: p.priority,
+      body: p.body,
+      files: p.files,
+      goods: p.goods,
+      senders: p.senders,
+      deadline: p.deadline,
+      type: p.type || '系列编码优化',
+      optPlan: p.optPlan,
+      optEnd: p.optEnd,
+      optCycle: p.optCycle,
+      shops: p.shops,
+      autoTo: p.senders.length ? undefined : '接待段',
+    });
+    QC_TODOS.push(todo);
+    p.goods.forEach((gd) => { gd.optTask = { ...p.optCycle!, todoId: todo.id }; });
+  }
+  optSeries.value = null;
+};
+/* 店铺分监控-店铺列表「创建任务」：预设该店铺与店铺优化类型，抽屉内关联店铺已预选；
+   提交后把优化周期写回店铺旗下全部商品（店铺级态由 shopOptOf 派生→挂标签），并落一条「店铺优化」待办 */
+const optShop = ref<OnlineShop | null>(null);
+const onShopOptCreated = (p: TodoCreatePayload) => {
+  if (p.optCycle) {
+    const todo = todoFromDraft({
+      title: p.title,
+      priority: p.priority,
+      body: p.body,
+      files: p.files,
+      goods: p.goods,
+      senders: p.senders,
+      deadline: p.deadline,
+      type: p.type || '店铺优化',
+      optPlan: p.optPlan,
+      optEnd: p.optEnd,
+      optCycle: p.optCycle,
+      shops: p.shops,
+      autoTo: p.senders.length ? undefined : '接待段',
+    });
+    QC_TODOS.push(todo);
+    p.goods.forEach((gd) => { gd.optTask = { ...p.optCycle!, todoId: todo.id }; });
+  }
+  optShop.value = null;
+};
+/* 待办详情「关联商品」点击：跳店铺监控·店铺商品并按商品ID查询（种子由 QcShopGoods 消费后清空） */
+const onTodoJumpGoods = (g: ShopGood) => {
+  shopGoodsJumpSeed.value = { q: g.id };
+  optTodoId.value = null;
+  view.value = 'shop';
+  shopView.value = 'goods';
+};
 /** 聊天会话（上提：全屏弹窗修改命中类型后卡片 / 统计同步闭环）；线上壳按系列惰性生成（命中总数=聊天风险） */
 const chatSessions = ref<ChatSession[]>(CHAT_SESSIONS);
 const onlineSessions = ref<ChatSession[]>([]);
@@ -226,6 +301,17 @@ const filtered = computed(() => {
       const want = f.pcode === '有问题编码';
       list = list.filter((s) => (props.online ? seriesProblemCodes(s).length > 0 : seriesHasProblemCode(s)) === want);
     }
+    /* 优化任务筛选：与首列标签同口径（系列下任一商品优化中＝优化中；无任务＝无优化任务） */
+    if (f.opt !== '全部') {
+      list = list.filter((s) => {
+        const st = seriesOptOf(s)?.status ?? null;
+        if (f.opt === '无优化任务') return !st;
+        return st === f.opt;
+      });
+    }
+    /* 是否优化过：系列下任一商品有优化任务（任意状态）或历史优化周期＝优化过 */
+    if (f.ever === '优化过') list = list.filter((s) => seriesOptEverOf(s));
+    else if (f.ever === '未优化过') list = list.filter((s) => !seriesOptEverOf(s));
     /* 问题来源筛选（问题小类的标记来源）：编码命中按来源改写——客服打标＝会话客服打标(csTag 小类归大类)；
        系统稽查＝系统命中；无该来源命中的编码剔除、系列下无剩余编码则整行剔除（行内芯片/编码/部门列同口径收敛） */
     if (f.psrc !== '全部来源') {
@@ -308,10 +394,12 @@ const clearSort = () => { sortKey.value = null; };
 
 /** 平台维度趋势弹窗辅助 */
 const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
+  const s = onlineSeries().find((x) => x.seriesCode === seriesCode) ?? null;
   trendCtx.value = {
     title: `${label} · ${st.platform}`,
     totals: { orders: st.orders, refundRate: st.refundRate, afterSales: st.afterSales, chatRisks: st.chatRisks },
     seriesCode,
+    optRange: (props.online && s ? seriesOptOf(s)?.task : null) ?? null,
   };
 };
 </script>
@@ -346,7 +434,7 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
           class="qc-nav qc-subnav"
           :class="view === 'series' ? 'active' : ''"
           @click="view = 'series'; draft = { ...draft, q: '' }"
-        ><span class="qc-nav-text">监控列表</span></div>
+        ><span class="qc-nav-text">编码列表</span></div>
       </div>
       <div
         v-if="!online"
@@ -364,7 +452,7 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
         @click="view = 'series'; draft = { ...draft, q: '' }"
       >
         <span class="qc-nav-ico">▤</span>
-        <span class="qc-nav-text">监控列表</span>
+        <span class="qc-nav-text">编码列表</span>
       </div>
       <div
         v-if="online"
@@ -402,12 +490,27 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
       </div>
       <div
         v-if="online"
-        class="qc-nav"
-        :class="view === 'todo' ? 'active' : ''"
-        @click="view = 'todo'"
+        class="qc-nav qc-nav-parent"
+        :class="{ child: view === 'todo' || view === 'opt' }"
+        @click="taskOpen = !taskOpen; view = 'todo'"
       >
-        <span class="qc-nav-ico" v-html="NAV_ICON_SVG('todo')" />
-        <span class="qc-nav-text">待办任务</span>
+        <span class="qc-nav-ico" v-html="NAV_ICON_SVG('task')" />
+        <span class="qc-nav-text">任务中心</span>
+        <span class="qc-nav-arrow" :class="{ open: taskOpen }">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+        </span>
+      </div>
+      <div v-if="online && taskOpen" class="qc-subnav-wrap">
+        <div
+          class="qc-nav qc-subnav"
+          :class="view === 'todo' ? 'active' : ''"
+          @click="view = 'todo'"
+        ><span class="qc-nav-text">待办事项</span></div>
+        <div
+          class="qc-nav qc-subnav"
+          :class="view === 'opt' ? 'active' : ''"
+          @click="view = 'opt'"
+        ><span class="qc-nav-text">优化任务</span></div>
       </div>
       <div
         v-if="online"
@@ -536,6 +639,7 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
           title: `系列 ${s.name}`,
           totals: { orders: s.orders, refundRate: s.refundRate, afterSales: s.afterSales, chatRisks: s.chatRiskHits },
           seriesCode: s.seriesCode,
+          optRange: online ? seriesOptOf(s)?.task ?? null : null,
         })"
         :on-trend-stat="onTrendStat"
         :duty-map="dutyMap"
@@ -548,16 +652,27 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
           types: QC_PROBLEM_TYPES.filter((x) => PROBLEM_DEPT[x] === d),
         })"
         :on-codes="pickSeriesGoods"
+        :on-opt="online ? (s: QcCenterSeries) => (optSeries = s) : undefined"
+        :on-view-opt="online ? (s: QcCenterSeries) => (optTodoId = seriesOptOf(s)?.task.todoId ?? null) : undefined"
       />
       <QcAfterSales
         v-else-if="view === 'after'"
       />
       <!-- 评价列表：看板（指标/问题类型占比/星级分布）＋扁平评价明细列表两级结构 -->
       <QcReviewList v-else-if="view === 'appeal'" />
-      <QcTodoList v-else-if="view === 'todo'" />
+      <QcTodoList v-else-if="view === 'todo'" @jump-goods="onTodoJumpGoods" />
+      <QcOptTaskList v-else-if="view === 'opt'" />
       <QcHitManage v-else-if="view === 'hit'" />
       <QcProblemDef v-else-if="view === 'pdef'" />
-      <QcShopList v-else-if="view === 'shop' && shopView === 'list'" :on-pick-goods="pickShopGoods" />
+      <QcShopList
+        v-else-if="view === 'shop' && shopView === 'list'"
+        :on-pick-goods="pickShopGoods"
+        :on-jump-after="jumpAfterList"
+        :on-jump-goods="jumpGoodsList"
+        :on-jump-review="jumpReviewList"
+        :on-shop-opt="online ? (s: OnlineShop) => (optShop = s) : undefined"
+        :on-shop-view-opt="online ? (s: OnlineShop) => (optTodoId = shopOptOf(s)?.task.todoId ?? null) : undefined"
+      />
       <QcShopGoods v-else-if="view === 'shop' && shopView === 'goods'" />
       <QcPerm v-else-if="view === 'perm' && permView === 'member'" />
       <QcPermDept v-else-if="view === 'perm' && permView === 'dept'" />
@@ -598,6 +713,7 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
       :totals="trendCtx.totals"
       :series-code="trendCtx.seriesCode"
       :online="online"
+      :opt-range="trendCtx.optRange ?? null"
       :on-close="() => (trendCtx = null)"
     />
     <QcAfterOrdersDrawer
@@ -605,5 +721,24 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
       :series="afterCtx"
       :on-close="() => (afterCtx = null)"
     />
+    <QcTodoCreateDrawer
+      v-if="optSeries"
+      :key="optSeries.seriesCode"
+      preset-type="编码优化"
+      :preset-series="optSeries"
+      @close="optSeries = null"
+      @created="onSeriesOptCreated"
+    />
+    <!-- 店铺优化任务：店铺列表「创建任务」入口，预设店铺优化类型与关联店铺；提交后周期写回店铺旗下全部商品 -->
+    <QcTodoCreateDrawer
+      v-if="optShop"
+      :key="optShop.id"
+      preset-type="店铺优化"
+      :preset-shop="optShop"
+      @close="optShop = null"
+      @created="onShopOptCreated"
+    />
+    <!-- 优化任务详情抽屉：监控列表/店铺列表优化中行「优化任务」，展示关联待办发起人与处理人 -->
+    <QcTodoDetailDrawer v-if="optTodo" :todo="optTodo" :on-close="() => (optTodoId = null)" :on-open-good="onTodoJumpGoods" />
   </div>
 </template>

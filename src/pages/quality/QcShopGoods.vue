@@ -8,9 +8,13 @@ import DateRangePicker from '../../components/DateRangePicker.vue';
 import Modal from '../../components/Modal.vue';
 import SortTh from '../../components/SortTh.vue';
 import QcSeriesDrawer from './QcSeriesDrawer.vue';
+import QcTrendModal from './QcTrendModal.vue';
+import QcTodoCreateDrawer, { type TodoCreatePayload } from './QcTodoCreateDrawer.vue';
+import QcTodoDetailDrawer from './QcTodoDetailDrawer.vue';
+import { QC_TODOS, todoFromDraft } from './qcTodoData';
 import { DEFAULT_WEIGHTS, gradeOf, scoreOf, type AuditWeights } from './qcAuditData';
 import { qcGet } from './qcApi';
-import { GRADE_COLOR, SHOP_PLATS, qcShopGoods, qcShops, shopGoodHitTypes, shopGoodOfCode, shopGoodsJumpSeed, shopGoodSkus, shopGradeOf, shopOpsOf, onlineSeries, onlineSessionsOf, patchOnlineSession, type ShopGood, type ShopGoodSku, type ShopPlat } from './qcOnlineData';
+import { GRADE_COLOR, SHOP_PLATS, optEverOf, optStatusOf, qcShopGoods, qcShops, shopGoodHitTypes, shopGoodOfCode, shopGoodsJumpSeed, shopGoodSkus, shopGradeOf, shopOpsOf, onlineSeries, onlineSessionsOf, patchOnlineSession, type ShopGood, type ShopGoodSku, type ShopPlat } from './qcOnlineData';
 import { PROBLEM_TYPE_COLOR, type QcCenterSeries } from './qcCenterData';
 import type { ChatHit, ChatSession } from './data';
 
@@ -147,10 +151,16 @@ const productCtx = (g: ShopGood) => {
 
 /* ---------- 查询条件：搜索（商品名/商品ID/商品编码）+ 平台 + 店铺 + 运营组长 + 运营专员 + 运营助理 + 上架时间 + 命中问题类型 ---------- */
 import { QC_PROBLEM_TYPES } from './qcCenterData';
-import { shopOpsOf, type ShopOpsTrio, HIT_CAT_DEF } from './qcOnlineData';
+import { HIT_CAT_DEF } from './qcOnlineData';
 
 type PlatSel = ShopPlat | '全部平台';
 const PLAT_OPTS: PlatSel[] = ['全部平台', ...SHOP_PLATS];
+/* 优化任务查询条件：优化中＝周期含今天（列表挂标签口径）；已结束/未开始不挂标签但可查 */
+type OptSel = '全部' | '优化中' | '已结束' | '无优化任务';
+const OPT_OPTS: OptSel[] = ['全部', '优化中', '已结束', '无优化任务'];
+/* 是否优化过：存在优化任务（任意状态）或历史优化周期即算优化过 */
+type EverSel = '全部' | '优化过' | '未优化过';
+const EVER_OPTS: EverSel[] = ['全部', '优化过', '未优化过'];
 const blankF = () => ({
   q: '',
   platform: '全部平台' as PlatSel,
@@ -169,12 +179,17 @@ const blankF = () => ({
   brMax: '',
   crMin: '',
   crMax: '',
+  optTask: '全部' as OptSel,
+  ever: '全部' as EverSel,
 });
 const draft = ref(blankF());
 const applied = ref(blankF());
-/* 关键词按空格 / 逗号 / 顿号分词，任一词命中即算匹配；商品编码按其归属商品匹配（监控列表「关联ID」跳转口径） */
+/* 关键词按空格 / 逗号 / 顿号分词，任一词命中即算匹配；商品编码按其归属商品匹配（监控列表「关联ID」跳转口径）；
+   纯数字关键词只按商品ID匹配，避免编码哈希归属把无关商品带进结果 */
 const kwHit = (g: ShopGood, kw: string) =>
-  g.name.toLowerCase().includes(kw) || g.id.toLowerCase().includes(kw) || shopGoodOfCode(kw.toUpperCase())?.id === g.id;
+  g.name.toLowerCase().includes(kw)
+  || g.id.toLowerCase().includes(kw)
+  || (!/^\d+$/.test(kw) && shopGoodOfCode(kw.toUpperCase())?.id === g.id);
 /* 模糊匹配：输入值与选项值做子串包含比较（空值=不限） */
 const fuzzyMatch = (val: string, input: string) => !input || val.includes(input);
 /* 数值区间（空串=不限）：占比口径与行内复合列同源（售后占比=售后数÷订单数、差评占比=差评数÷评价数、风险占比=风险会话÷会话数，百分数一位小数） */
@@ -207,6 +222,13 @@ const filtered = computed(() => goods.value.flatMap((g) => {
   if (!inRange(pct1(g.orders ? g.afterSales / g.orders : 0), f.asMin, f.asMax)) return [];
   if (!inRange(pct1(badRatio(g)), f.brMin, f.brMax)) return [];
   if (!inRange(pct1(riskRatio(g)), f.crMin, f.crMax)) return [];
+  if (f.optTask !== '全部') {
+    const st = optStatusOf(g);
+    if (f.optTask === '无优化任务') { if (st) return []; }
+    else if (st !== f.optTask) return [];
+  }
+  if (f.ever === '优化过' && !optEverOf(g)) return [];
+  if (f.ever === '未优化过' && optEverOf(g)) return [];
   const kws = f.q.trim().toLowerCase().split(/[\s,，、]+/).filter(Boolean);
   if (kws.length && !kws.some((kw) => kwHit(g, kw))) return [];
   return [{ g, shop }];
@@ -311,9 +333,13 @@ const rowsCalc = computed(() => {
 type SgRow = { g: ShopGood; shop: NonNullable<ReturnType<typeof shopOf>> };
 const rows = ref<SgRow[]>([]);
 const loading = ref(false);
+/* 请求序号：筛选刚挂载就变更（如跳转带入商品ID）时，丢弃过期响应，避免旧结果覆盖新筛选 */
+let rowsSeq = 0;
 watch(rowsCalc, async (v) => {
+  const seq = ++rowsSeq;
   loading.value = true;
   const res = await qcGet('/qc/shop/goods', { filter: applied.value, sort: sort.value }, () => v);
+  if (seq !== rowsSeq) return;
   rows.value = res.data;
   loading.value = false;
 }, { immediate: true });
@@ -344,6 +370,55 @@ watch(page, (v) => { jumpVal.value = String(v); });
 /* ---------- SKU 信息只读弹窗：商品信息列「详」芯片入口；纯文本呈现不可编辑 ---------- */
 const skuBox = ref<{ good: ShopGood; rows: ShopGoodSku[] } | null>(null);
 const openSku = (g: ShopGood) => { skuBox.value = { good: g, rows: shopGoodSkus(g) }; };
+
+/* ---------- 商品趋势：复用趋势图弹层（四维页签＋周期切换＋五指标双轴），商品口径 totals 取行内复合列同源值；
+   带优化任务周期时图上叠加区间色带（开始-结束），用于看优化任务是否有成效 ---------- */
+const trendGood = ref<ShopGood | null>(null);
+const openTrend = (g: ShopGood) => { trendGood.value = g; };
+const goodTotals = (g: ShopGood) => ({ orders: g.orders, refundRate: g.afterRatio, afterSales: g.afterSales, chatRisks: g.riskSessions });
+
+/* ---------- 优化任务：无标签＝未创建→操作列「创建任务」打开发起抽屉（关联商品预置当前行）；
+   有标签＝关联待办已完成、进入优化阶段→操作列「优化任务」跳待办任务打开该待办详情（发起人＋处理人）。
+   提交后生成「商品优化」待办（已完成态，处理人＝收件人）并把周期与关联待办 id 写回商品 ---------- */
+const optGood = ref<ShopGood | null>(null);
+const openOpt = (g: ShopGood) => { optGood.value = g; };
+/* 有标签＝优化中：抽屉查看关联待办详情（发起人＋处理人） */
+const optTodoId = ref<string | null>(null);
+const optTodo = computed(() => QC_TODOS.find((t) => t.id === optTodoId.value) ?? null);
+const optLabel = (g: ShopGood) => (optStatusOf(g) === '优化中' ? '优化任务' : '创建任务');
+const clickOpt = (g: ShopGood) => {
+  if (optStatusOf(g) !== '优化中') { openOpt(g); return; }
+  optTodoId.value = g.optTask?.todoId ?? null;
+};
+/* 快捷创建（商品列表「创建任务」）：落一条「我发起·待处理」待办，待办任务模块可直接查看；
+   优化周期写回商品挂「优化中」标签，标签行点「优化任务」看关联待办详情 */
+const onOptCreated = (p: TodoCreatePayload) => {
+  if (p.optCycle) {
+    const todo = todoFromDraft({
+      title: p.title,
+      priority: p.priority,
+      body: p.body,
+      files: p.files,
+      goods: p.goods,
+      senders: p.senders,
+      deadline: p.deadline,
+      type: p.type || '商品优化',
+      optPlan: p.optPlan,
+      optEnd: p.optEnd,
+      optCycle: p.optCycle,
+      shops: p.shops,
+      autoTo: p.senders.length ? undefined : '接待段',
+    });
+    QC_TODOS.push(todo);
+    p.goods.forEach((gd) => { gd.optTask = { ...p.optCycle!, todoId: todo.id }; });
+  }
+  optGood.value = null;
+};
+/* 关联待办详情「关联商品」点击：关抽屉并按商品ID查询本列表（跨模块查看复用现有页面） */
+const openOptGood = (g: ShopGood) => {
+  optTodoId.value = null;
+  shopGoodsJumpSeed.value = { q: g.id };
+};
 
 /* 跳转带入条件：店铺列表「店铺商品」带「店铺 + 平台」，监控列表「关联ID」带商品编码搜索；立即生效，消费后清空种子（侧栏直达不带筛选） */
 watch(shopGoodsJumpSeed, (s) => {
@@ -509,6 +584,14 @@ watch(shopGoodsJumpSeed, (s) => {
             </button>
           </span>
         </div>
+        <div class="sg-field">
+          <label>优化任务</label>
+          <BubbleSelect class-name="sg-select" :value="draft.optTask" :options="OPT_OPTS" @change="(v: string) => (draft.optTask = v as OptSel)" />
+        </div>
+        <div class="sg-field">
+          <label>是否优化过</label>
+          <BubbleSelect class-name="sg-select" :value="draft.ever" :options="EVER_OPTS" @change="(v: string) => (draft.ever = v as EverSel)" />
+        </div>
         <div class="sg-field-actions">
           <button type="button" class="sg-btn" @click="onReset">重置</button>
           <button type="button" class="sg-btn primary" :disabled="loading" @click="onQuery">查询</button>
@@ -600,6 +683,7 @@ watch(shopGoodsJumpSeed, (s) => {
                   <div class="qc-sg-prod-name" :title="r.g.name">{{ r.g.name }}</div>
                   <div class="qc-sg-prod-meta"><span class="qc-sg-prod-lb">商品ID：</span>{{ r.g.id }}</div>
                   <div class="qc-sg-prod-meta"><span class="qc-sg-prod-logo"><img :src="SHOP_LOGO[r.shop.platform]" :alt="r.shop.platform"></span>{{ r.shop.name }}</div>
+                  <div v-if="optStatusOf(r.g) === '优化中'" class="qc-sg-opttag" :title="`优化任务周期 ${r.g.optTask?.start} ~ ${r.g.optTask?.openEnd ? '至今（达到指标后结束）' : r.g.optTask?.end}`"><i></i>优化任务</div>
                 </div>
                 <button type="button" class="qc-sg-detail" title="SKU信息" @click.stop="openSku(r.g)">详</button>
               </div>
@@ -656,7 +740,11 @@ watch(shopGoodsJumpSeed, (s) => {
             </td>
             <td class="qc-sg-date">{{ r.g.listedAt }}</td>
             <td class="qc-sg-op">
-              <div class="qc-op-col"><a @click="openScore(r.g)">详情</a></div>
+              <div class="qc-op-col">
+                <a @click="openScore(r.g)">详情</a>
+                <a @click="openTrend(r.g)">商品趋势</a>
+                <a @click="clickOpt(r.g)">{{ optLabel(r.g) }}</a>
+              </div>
             </td>
           </tr>
           <tr v-if="!loading && !rows.length">
@@ -741,5 +829,27 @@ watch(shopGoodsJumpSeed, (s) => {
       :on-update-hits="updateSessionHits"
       :online="true"
     />
+
+    <!-- 商品趋势：复用趋势图弹层（四维页签＋周期切换＋五指标双轴）；带优化任务周期时图上叠加区间色带 -->
+    <QcTrendModal
+      v-if="trendGood"
+      :title="`商品 ${trendGood.name}`"
+      :totals="goodTotals(trendGood)"
+      :good-types="hitTypesOf(trendGood)"
+      :opt-range="trendGood.optTask ?? null"
+      :on-close="() => (trendGood = null)"
+    />
+
+    <!-- 优化任务：发起「商品优化」待办（关联商品预置当前行）；发起人配置优化任务周期，提交后周期写回商品 -->
+    <QcTodoCreateDrawer
+      v-if="optGood"
+      preset-type="商品优化"
+      :preset-goods="optGood"
+      @close="optGood = null"
+      @created="onOptCreated"
+    />
+
+    <!-- 优化任务详情抽屉：有标签行点「优化任务」查看关联待办的发起人与处理人 -->
+    <QcTodoDetailDrawer v-if="optTodo" :todo="optTodo" :on-close="() => (optTodoId = null)" :on-open-good="openOptGood" />
   </div>
 </template>

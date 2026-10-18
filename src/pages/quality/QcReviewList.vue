@@ -13,6 +13,7 @@ import QcDateRangePicker from './QcDateRangePicker.vue';
 import QcTypeShuttle from './QcTypeShuttle.vue';
 import QcSeriesDrawer from './QcSeriesDrawer.vue';
 import { DEPT_COLOR, PROBLEM_TYPE_COLOR, type DateRange, type QcCenterSeries } from './qcCenterData';
+import { DEFAULT_WEIGHTS, gradeOf, scoreOf, type AuditWeights } from './qcAuditData';
 import { qcReviews, RV_TYPES, RV_TYPE_COLORS, RV_BIG_TYPE, RV_BIG_TYPES, rvProductOf, rvSkuSales, type QcReview } from './qcReviewListData';
 import { PLATFORMS, type ChatSession, type ChatHit, type Platform } from './data';
 import { qcGet } from './qcApi';
@@ -20,14 +21,24 @@ import {
   onlineSessionsOf, patchOnlineSession,
   onlineSeries,
   AFTER_TYPES, AFTER_STATUSES, REVIEW_MISS_TYPE,
-  type OnlineAfterOrder, type OnlineReview,
+  reviewJumpSeed,
+  GRADE_COLOR, shopGradeOf,
+  type OnlineAfterOrder, type OnlineReview, type ShopPlat,
 } from './qcOnlineData';
 
 const RANGE_FULL: DateRange = { start: '2026-01-01', end: '2026-12-31' };
-const blankF = () => ({ platform: '全部', range: { ...RANGE_FULL }, type: '全部', shopName: '', productId: '', hitType: '全部', dept: '全部部门' });
+const blankF = () => ({ platform: '全部', range: { ...RANGE_FULL }, type: '全部', shopName: '', productId: '', goodsCode: '', seriesCode: '', hitType: '全部', dept: '全部部门' });
 const applied = ref(blankF());
 const tier = ref<'board' | 'list'>('board');
 const ovSnap = ref(blankF());
+
+/* 店铺列表看板·评价数据卡跳转：消费种子直入二级评价列表（快照当前口径，返回钮还原），消费后清空 */
+watch(reviewJumpSeed, (on) => {
+  if (!on) return;
+  ovSnap.value = { ...applied.value };
+  tier.value = 'list';
+  reviewJumpSeed.value = false;
+}, { immediate: true });
 
 /* 命中问题类型穿梭框回显：hitType＝大类或评价小类（小类反查所属大类作左列选中） */
 const hitPtype = computed(() => {
@@ -49,6 +60,9 @@ const filteredReviews = computed(() => {
     if (f.platform !== '全部' && r.platform !== f.platform) return false;
     if (f.shopName && !r.shopName.includes(f.shopName)) return false;
     if (f.productId && !r.productId.includes(f.productId)) return false;
+    /* 商品编码/系列编码：按评价 SKU 关联编码匹配（系列编码一个 SKU 可关联多个，任一命中即保留） */
+    if (f.goodsCode && !r.goodsCode.includes(f.goodsCode)) return false;
+    if (f.seriesCode && !r.seriesCodes.some((s) => s.includes(f.seriesCode))) return false;
     if (f.hitType !== '全部') {
       const types = r.types ?? [];
       if (RV_BIG_TYPES.includes(f.hitType)) {
@@ -207,10 +221,14 @@ const deptCards = computed(() => {
   }));
 });
 
-/* 看板卡片点击：代入对应评价类型条件进入列表（快照当前口径，返回时恢复） */
+/* 看板卡片点击：代入对应条件进入列表（快照当前口径，返回时恢复）；
+   问题类型大类/小类走「命中问题类型」条件，评价类型仅承载全部/好评/差评，两个条件不重叠 */
 const gotoList = (type: string) => {
   ovSnap.value = { ...applied.value };
-  applied.value = { ...applied.value, type };
+  const isProblem = RV_BIG_TYPES.includes(type) || RV_TYPES.includes(type);
+  const next = isProblem ? { ...applied.value, hitType: type } : { ...applied.value, type };
+  applied.value = next;
+  draft.value = { ...next };
   tier.value = 'list';
 };
 /* 部门卡点击：代入责任部门条件进列表（展示该部门下关联问题小类的评价），列表筛选回显该部门 */
@@ -222,6 +240,7 @@ const gotoDept = (dept: string) => {
 };
 const backToBoard = () => {
   applied.value = { ...ovSnap.value };
+  draft.value = { ...ovSnap.value };
   tier.value = 'board';
 };
 
@@ -275,8 +294,37 @@ const drawerProduct = computed(() => {
     skuThumbs[name] = GOOD_THUMBS[i % GOOD_THUMBS.length];
     skuSales[name] = rvSkuSales(seed.id, name);
   });
-  return { name: seed.title, thumb: seed.thumb, skus, skuThumbs, skuSales, skuCodeCount: skus.length, platform: seed.platform, goodId: seed.id, listedAt: listedAtOf(seed.id) };
+  /* 场景数据派生比率：差评(1-3星)占比、售后单÷销量、风险会话占比（会话带命中即风险） */
+  const reviews = drawerBox.value.reviews;
+  const badR = reviews.length ? reviews.filter((r) => r.rating <= 3).length / reviews.length : 0;
+  const orders = skus.reduce((s, n) => s + skuSales[n], 0);
+  const afterR = orders ? drawerBox.value.afters.length / orders : 0;
+  const sess = drawerSessions.value;
+  const riskR = sess.length ? sess.filter((s) => s.hits.length > 0).length / sess.length : 0;
+  const prod = scoreOf(badR * 100, rvLineOf('prod-badrate').fullLine, rvLineOf('prod-badrate').zeroLine);
+  const logi = scoreOf(afterR * 100, rvLineOf('logi-postrefund').fullLine, rvLineOf('logi-postrefund').zeroLine);
+  const serv = scoreOf(riskR * 100, rvLineOf('serv-chat').fullLine, rvLineOf('serv-chat').zeroLine);
+  const ds = rvAuditW.dims;
+  const dsum = ds.商品 + ds.物流 + ds.服务 || 100;
+  const total = Math.round(((prod * ds.商品 + logi * ds.物流 + serv * ds.服务) / dsum) * 10) / 10;
+  const grade = gradeOf(total);
+  const exp = reviews.length ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1) : '4.5';
+  return {
+    name: seed.title, thumb: seed.thumb, skus, skuThumbs, skuSales, skuCodeCount: skus.length, platform: seed.platform, goodId: seed.id, listedAt: listedAtOf(seed.id),
+    exp,
+    expColor: GRADE_COLOR[shopGradeOf(seed.platform as ShopPlat, Number(exp))],
+    score: total,
+    scoreColor: grade.color,
+    grade: grade.name,
+  };
 });
+/* 商品分双灰卡（与店铺商品入口统一口径，抽屉头部右侧据此渲染）：体验分＝场景评价均星（5 分制，平台阈值档位色）；
+   内部商品分＝稽查模型同算法——差评占比(1-3星)/售后占比/风险占比映射三维代表指标按权重加权 */
+const rvAuditW: AuditWeights = (() => {
+  try { const raw = localStorage.getItem('funion:auditWeights'); if (raw) return JSON.parse(raw) as AuditWeights; } catch { /* 损坏回退默认 */ }
+  return structuredClone(DEFAULT_WEIGHTS);
+})();
+const rvLineOf = (key: string) => rvAuditW.indicators.find((i) => i.key === key) ?? DEFAULT_WEIGHTS.indicators.find((i) => i.key === key)!;
 /* 上架时间：按商品ID哈希确定性回推一个 2026 年内日期（演示口径），供抽屉头部上架时间/天数 */
 const listedAtOf = (id: string) => {
   const d = new Date(2026, 0, 1);
@@ -525,6 +573,14 @@ watch(page, (v) => { jumpVal.value = String(v); });
             <input v-model="draft.productId" type="text" class="sg-input" placeholder="输入商品ID搜索">
           </div>
           <div class="sg-field">
+            <label>商品编码</label>
+            <input v-model="draft.goodsCode" type="text" class="sg-input" placeholder="输入商品编码搜索">
+          </div>
+          <div class="sg-field">
+            <label>系列编码</label>
+            <input v-model="draft.seriesCode" type="text" class="sg-input" placeholder="输入系列编码搜索">
+          </div>
+          <div class="sg-field">
             <label>命中问题类型</label>
             <QcTypeShuttle
               class-name="sg-select"
@@ -536,7 +592,7 @@ watch(page, (v) => { jumpVal.value = String(v); });
           </div>
           <div class="sg-field">
             <label>评价类型</label>
-            <BubbleSelect class-name="sg-select" :value="draft.type" :options="['全部', '好评', '差评', ...RV_BIG_TYPES]" @change="(v: string) => (draft.type = v)" />
+            <BubbleSelect class-name="sg-select" :value="draft.type" :options="['全部', '好评', '差评']" @change="(v: string) => (draft.type = v)" />
           </div>
           <div class="sg-field">
             <label>责任部门</label>

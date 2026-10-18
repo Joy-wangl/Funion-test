@@ -1,17 +1,18 @@
 <script setup lang="ts">
-/* ---------- 店铺分监控·店铺列表（子路由②）：平台/店铺/体验分三维/操作（趋势图/店铺商品）
-   店铺种子与数据概览同源（qcOnlineData.qcShops）；优化任务整体下线（后续再规划） ---------- */
+/* ---------- 店铺分监控·店铺列表（子路由②）：平台/店铺/体验分三维/操作（趋势图/店铺商品/优化任务）
+   店铺种子与数据概览同源（qcOnlineData.qcShops）；优化任务闭环同店铺商品/监控列表（标签/筛选/操作列二态），仅归属维度换成店铺 ---------- */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import Modal from '../../components/Modal.vue';
 import SortTh from '../../components/SortTh.vue';
 import PieChart from './PieChart.vue';
+import QcTypeShuttle from './QcTypeShuttle.vue';
 import { CHAT_SORT_METRICS, ORDER_SORT_METRICS, REVIEW_SORT_METRICS, type SortKey } from './QcSeriesList.vue';
-import { GRADE_COLOR, SHOP_GRADES, SHOP_LOGO, SHOP_PLATS, onlineHitCats, onlineSeries, qcShops, qcShopGoods, shopGoodOfCode, shopGoodHitTypes, shopGradeOf, type OnlineShop, type ShopGood, type ShopPlat } from './qcOnlineData';
+import { GRADE_COLOR, SHOP_GRADES, SHOP_LOGO, SHOP_PLATS, onlineHitCats, onlineSeries, qcShops, qcShopGoods, shopGoodOfCode, shopGoodHitTypes, shopGradeOf, shopOptOf, shopOptEverOf, type OnlineShop, type ShopGood, type ShopPlat } from './qcOnlineData';
 import { PROBLEM_TYPE_COLOR } from './qcCenterData';
 import { qcGet } from './qcApi';
 
-defineProps<{ onPickGoods?: (shopId: string) => void }>();
+defineProps<{ onPickGoods?: (shopId: string) => void; onJumpAfter?: () => void; onJumpGoods?: () => void; onJumpReview?: () => void; onShopOpt?: (s: OnlineShop) => void; onShopViewOpt?: (s: OnlineShop) => void }>();
 
 const shops = qcShops;
 /* 综合评级：阈值同问题商品定义页 SHOP_GRADE_CFG；新店观察期不计入评级，灰标「不计入」；档位色取数据层单一出口 GRADE_COLOR */
@@ -21,7 +22,7 @@ const gradeOf = (s: OnlineShop) => shopGradeOf(s.platform, s.score);
    平台维度由页首切换器独占（各平台指标口径不一，数据按平台分区展示），不再作为查询条件下拉 ---------- */
 type PlatSel = '全部' | ShopPlat;
 const GRADE_OPTS = ['全部评级', ...SHOP_GRADES, '新店'];
-const blankF = () => ({ q: '', code: '', grade: '全部评级', hitType: '全部', hitSub: '全部' });
+const blankF = () => ({ q: '', code: '', grade: '全部评级', hitType: '全部', hitSub: '全部', opt: '全部', ever: '全部' });
 /* 问题类型/小类两级条件（看板占比卡点击代入）：大类取命中问题分类清单，小类随大类级联（标签去「XX类-」前缀，同看板下钻卡） */
 const TYPE_OPTS = ['全部', ...onlineHitCats().map((c) => c.name)];
 const subLabelOf = (catName: string, raw: string) => {
@@ -66,6 +67,15 @@ const matchExceptPlat = (s: OnlineShop): boolean => {
     if (!shopHitsOf(s).some((h) => h.type === f.hitType)) return false;
     if (f.hitSub !== '全部' && (shopSubHits(s, f.hitType).get(f.hitSub) ?? 0) <= 0) return false;
   }
+  /* 优化任务：店铺级态由旗下商品派生（shopOptOf）；无优化任务＝旗下无任何优化任务，其余按状态精确匹配（同监控列表口径） */
+  if (f.opt !== '全部') {
+    const st = shopOptOf(s)?.status ?? null;
+    if (f.opt === '无优化任务') { if (st) return false; }
+    else if (st !== f.opt) return false;
+  }
+  /* 是否优化过：旗下任一商品有优化任务（任意状态）或历史优化周期＝优化过 */
+  if (f.ever === '优化过' && !shopOptEverOf(s)) return false;
+  if (f.ever === '未优化过' && shopOptEverOf(s)) return false;
   return true;
 };
 const platCount = (p: PlatSel) => shops.value.filter((s) => (p === '全部' || s.platform === p) && matchExceptPlat(s)).length;
@@ -640,13 +650,12 @@ const sparkHoverVal = (m: SparkEntry, key: string) => { const h = sparkHoverOf(k
 
 <template>
   <div class="qc-ss-page">
-    <!-- 二级页头：返回钮＋标题（同售后列表两级页头语言）；一级看板不挂此行 -->
+    <!-- 二级页头：仅返回钮（用户 2026-10-16 点名标题不展示，侧栏已标明页名）；一级看板不挂此行 -->
     <div v-if="tier === 'list'" class="qc-head qc-as-head">
       <button type="button" class="qc-as-back" @click="backToBoard">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
         返回店铺看板
       </button>
-      <div class="qc-title">店铺列表</div>
     </div>
     <!-- 页首平台切换：下划线 tab（同任务中心类型行语言），计数括号内联，切换即生效不经查询按钮；
          首档「全部」＝跨平台总览（全部平台店铺数据），其后各平台分区 -->
@@ -667,14 +676,22 @@ const sparkHoverVal = (m: SparkEntry, key: string) => { const h = sparkHoverOf(k
           <label>综合评级</label>
           <BubbleSelect class-name="sg-select" :value="draft.grade" :options="GRADE_OPTS" @change="(v: string) => (draft.grade = v)" />
         </div>
+        <!-- 问题类型/小类两级：左列大类、右列小类穿梭（同监控列表口径）；看板小类卡点击代入后回显于此 -->
         <div class="sg-field">
           <label>问题类型</label>
-          <BubbleSelect class-name="sg-select" :value="draft.hitType" :options="TYPE_OPTS" @change="(v: string) => { draft.hitType = v; draft.hitSub = '全部'; }" />
-        </div>
-        <!-- 小类随大类级联：未选大类时不展示（无可选小类），看板小类卡点击代入后回显于此 -->
-        <div v-if="draft.hitType !== '全部'" class="sg-field">
-          <label>问题小类</label>
-          <BubbleSelect class-name="sg-select" :value="draft.hitSub" :options="subOptsOf(draft.hitType)" @change="(v: string) => (draft.hitSub = v)" />
+          <span class="sg-inputwrap">
+            <QcTypeShuttle
+              class-name="sg-select"
+              :ptype="draft.hitType === '全部' ? null : draft.hitType"
+              :sub="draft.hitSub === '全部' ? null : draft.hitSub"
+              :types="TYPE_OPTS.slice(1)"
+              :subs-of="(t: string) => subOptsOf(t).slice(1)"
+              @change="(t: string | null, s: string | null) => { draft.hitType = t ?? '全部'; draft.hitSub = s ?? '全部'; }"
+            />
+            <button v-if="draft.hitType !== '全部' || draft.hitSub !== '全部'" type="button" class="sg-clear" title="清除" @click="draft.hitType = '全部'; draft.hitSub = '全部'; onQuery()">
+              <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
+            </button>
+          </span>
         </div>
         <div class="sg-field">
           <label>编码</label>
@@ -684,6 +701,14 @@ const sparkHoverVal = (m: SparkEntry, key: string) => { const h = sparkHoverOf(k
               <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="currentColor" /><path d="m9 9 6 6M15 9l-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" /></svg>
             </button>
           </span>
+        </div>
+        <div class="sg-field">
+          <label>优化任务</label>
+          <BubbleSelect class-name="sg-select" :value="draft.opt" :options="['全部', '优化中', '已结束', '无优化任务']" @change="(v: string) => (draft.opt = v)" />
+        </div>
+        <div class="sg-field">
+          <label>是否优化过</label>
+          <BubbleSelect class-name="sg-select" :value="draft.ever" :options="['全部', '优化过', '未优化过']" @change="(v: string) => (draft.ever = v)" />
         </div>
         <div class="sg-field-actions">
           <button type="button" class="sg-btn" @click="onReset">重置</button>
@@ -728,7 +753,7 @@ const sparkHoverVal = (m: SparkEntry, key: string) => { const h = sparkHoverOf(k
             <span>服务<b>{{ boardAgg.service.toFixed(2) }}</b></span>
           </div>
         </div>
-        <div class="flat-card after-card" title="店铺旗下商品订单总数；售后率 = 售后订单 ÷ 订单总数">
+        <div class="flat-card after-card link" title="店铺旗下商品订单总数；售后率 = 售后订单 ÷ 订单总数；点击查看售后单列表" @click="onJumpAfter?.()">
           <div class="k">订单数据</div>
           <div class="v">{{ boardAgg.orders.toLocaleString() }}</div>
           <div class="after-sess sess-row">
@@ -736,7 +761,7 @@ const sparkHoverVal = (m: SparkEntry, key: string) => { const h = sparkHoverOf(k
             <span class="rate" :class="rateCls(boardAgg.afterRate)">{{ pct(boardAgg.afterRate) }}</span>
           </div>
         </div>
-        <div class="flat-card after-card" title="店铺旗下商品会话总数；风险率 = 风险会话 ÷ 会话总数">
+        <div class="flat-card after-card link" title="店铺旗下商品会话总数；风险率 = 风险会话 ÷ 会话总数；点击查看商品列表" @click="onJumpGoods?.()">
           <div class="k">聊天数据</div>
           <div class="v">{{ boardAgg.chatTotal.toLocaleString() }}</div>
           <div class="after-sess sess-row">
@@ -744,7 +769,7 @@ const sparkHoverVal = (m: SparkEntry, key: string) => { const h = sparkHoverOf(k
             <span class="rate" :class="rateCls(boardAgg.chatRate)">{{ pct(boardAgg.chatRate) }}</span>
           </div>
         </div>
-        <div class="flat-card after-card" title="店铺旗下商品评价数；差评占比 = 差评数 ÷ 评价数">
+        <div class="flat-card after-card link" title="店铺旗下商品评价数；差评占比 = 差评数 ÷ 评价数；点击查看评价列表" @click="onJumpReview?.()">
           <div class="k">评价数据</div>
           <div class="v">{{ boardAgg.reviewTotal.toLocaleString() }}</div>
           <div class="after-sess sess-row">
@@ -752,7 +777,7 @@ const sparkHoverVal = (m: SparkEntry, key: string) => { const h = sparkHoverOf(k
             <span class="rate" :class="rateCls(boardAgg.reviewRate)">{{ pct(boardAgg.reviewRate) }}</span>
           </div>
         </div>
-        <div class="flat-card after-card" title="店铺旗下商品近30天问题命中总次数（风险会话＋差评＋售后按全局占比拆包）">
+        <div class="flat-card after-card link" title="店铺旗下商品近30天问题命中总次数（风险会话＋差评＋售后按全局占比拆包）；点击查看店铺列表" @click="gotoList(applied.grade)">
           <div class="k">问题命中次数</div>
           <div class="v">{{ boardHitTotal.toLocaleString() }}</div>
           <div class="after-sess sess-row">
@@ -940,6 +965,8 @@ const sparkHoverVal = (m: SparkEntry, key: string) => { const h = sparkHoverOf(k
                 <span class="ss-top"><img v-if="platTab === '全部'" class="ss-logo" :src="SHOP_LOGO[s.platform]" :alt="s.platform">{{ s.name }}</span>
                 <span class="ss-id"><em>店铺ID：</em>{{ s.id }}</span>
                 <span class="ss-id"><em>开店时间：</em>{{ s.openAt }}</span>
+                <!-- 优化任务标签：店铺旗下任一商品优化中即挂标签（同店铺商品/监控列表口径），置于开店时间下方，title 展示优化周期 -->
+                <span v-if="shopOptOf(s)?.status === '优化中'" class="qc-sg-opttag" :title="`优化任务周期 ${shopOptOf(s)?.task.start} ~ ${shopOptOf(s)?.task.end}`"><i></i>优化任务</span>
               </div>
             </td>
             <td>
@@ -1016,6 +1043,9 @@ const sparkHoverVal = (m: SparkEntry, key: string) => { const h = sparkHoverOf(k
               <div class="qc-op-col">
                 <a @click="onPickGoods?.(s.id)">店铺商品</a>
                 <a @click="openTrend(s)">趋势图</a>
+                <!-- 优化任务二态（同店铺商品/监控列表）：优化中＝查看关联待办详情；否则＝发起店铺优化任务 -->
+                <a v-if="shopOptOf(s)?.status === '优化中' && onShopViewOpt" @click="onShopViewOpt(s)">优化任务</a>
+                <a v-else-if="onShopOpt" @click="onShopOpt(s)">创建任务</a>
               </div>
             </td>
           </tr>

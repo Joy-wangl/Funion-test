@@ -2,12 +2,14 @@
 /* ---------- 趋势图弹层：总览维度（五指标）/ 售后 / 评价 / 聊天风险维度（大类问题类型趋势）· 昨日/前3日/前7日/自定义 ---------- */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
+  DATE_AXIS,
   DEFAULT_CUSTOM_RANGE,
   PROBLEM_TYPE_COLOR,
   TREND_RANGE_LABELS,
   countTrend,
   metricTrend,
   pct,
+  trendWindowOf,
   type DateRange,
   type MetricKey,
   type ScopeTotals,
@@ -42,6 +44,10 @@ const props = defineProps<{
   /** 品控-线上：提供系列编码时展示维度切换 */
   seriesCode?: string;
   online?: boolean;
+  /** 商品维度：命中大类计数（售后/评价/聊天风险维度趋势源，替代系列记录口径） */
+  goodTypes?: { type: string; count: number }[];
+  /** 商品维度：优化任务周期（图上区间色带，看优化是否有成效）；openEnd＝放宽售后·达到指标后结束（色带画到窗口末） */
+  optRange?: { start: string; end: string; openEnd?: boolean } | null;
 }>();
 
 const dim = ref<DimKey>('overview');
@@ -76,9 +82,14 @@ onBeforeUnmount(() => bodyRef.value?.removeEventListener('wheel', onWheel));
 
 /* ---------- 维度序列：总览=五指标；售后/评价/聊天风险=该场景命中大类计数趋势 ---------- */
 const series = computed(() => (props.online && props.seriesCode ? onlineSeries().find((s) => s.seriesCode === props.seriesCode) ?? null : null));
+/** 维度切换条：系列维度或商品维度（自带命中大类）才展示 */
+const hasDims = computed(() => !!series.value || !!props.goodTypes?.length);
 const typeCounts = computed(() => {
+  if (dim.value === 'overview') return [] as { type: string; count: number }[];
+  /* 商品维度：命中大类计数直给（与列表命中 chips 同口径） */
+  if (props.goodTypes?.length) return [...props.goodTypes].sort((a, b) => b.count - a.count);
   const s = series.value;
-  if (!s || dim.value === 'overview') return [] as { type: string; count: number }[];
+  if (!s) return [] as { type: string; count: number }[];
   const m = new Map<string, number>();
   if (dim.value === 'chat') onlineSessionsOf(s).forEach((x) => x.hits.forEach((h) => m.set(h.type, (m.get(h.type) ?? 0) + 1)));
   else if (dim.value === 'after') onlineAfterOrdersOf(s).forEach((o) => m.set(o.ptype, (m.get(o.ptype) ?? 0) + 1));
@@ -110,6 +121,28 @@ const legendChips = computed(() => activeSeries.value.map((s) => ({
   fmt: s.format,
   sum: s.points.reduce((a, b) => a + b, 0),
 })));
+
+/* ---------- 优化任务区间色带：周期与当前时间窗求交（逐日=标签下标；逐时=单日落在周期内则全宽） ---------- */
+const band = computed(() => {
+  const t = props.optRange;
+  if (!t) return null;
+  const fmt = (d: string) => d.slice(5).replace('-', '/');
+  const text = `优化任务 ${fmt(t.start)}~${t.openEnd ? '至今' : fmt(t.end)}`;
+  const [wi0, wi1] = trendWindowOf(range.value, custom.value);
+  if (wi0 === wi1) {
+    const day = DATE_AXIS[wi0];
+    return day >= t.start && (t.openEnd || day <= t.end) ? { i0: 0, i1: 23, text } : null;
+  }
+  let i0 = -1;
+  let i1 = -1;
+  for (let i = wi0; i <= wi1; i++) {
+    const d = DATE_AXIS[i];
+    if (i0 < 0 && d >= t.start) i0 = i - wi0;
+    if (t.openEnd || d <= t.end) i1 = i - wi0;
+  }
+  if (i0 < 0 || i1 < 0 || i0 > i1) return null;
+  return { i0, i1, text };
+});
 </script>
 
 <template>
@@ -121,7 +154,7 @@ const legendChips = computed(() => activeSeries.value.map((s) => ({
   >
     <div ref="bodyRef">
       <div class="mt-sub-bar">
-        <div v-if="series" class="qc-range-toggle mt-dim-tabs">
+        <div v-if="hasDims" class="qc-range-toggle mt-dim-tabs">
           <button
             v-for="d in DIMS"
             :key="d.key"
@@ -168,6 +201,7 @@ const legendChips = computed(() => activeSeries.value.map((s) => ({
           :labels="data.labels"
           :series="activeSeries"
           :hidden="hidden"
+          :band="band"
         />
       </div>
     </div>
