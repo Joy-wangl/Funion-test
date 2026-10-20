@@ -22,7 +22,7 @@ const goods = qcShopGoods;
 const shopOf = (id: string) => qcShops.value.find((s) => s.id === id);
 /* 平台官方图标：复用 /logos 官方资源；视频号无素材，同店铺列表 wxLogo 口径圆角矩形字标 data-uri */
 const wxLogo = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#fa9a3e"/><text x="16" y="22" font-size="15" fill="#fff" text-anchor="middle" font-family="sans-serif">视</text></svg>');
-const SHOP_LOGO: Record<ShopPlat, string> = { 淘宝: '/logos/taobao.png', 抖音: '/logos/douyin.png', 视频号: wxLogo, 快手: '/logos/kuaishou.png' };
+const SHOP_LOGO: Record<ShopPlat, string> = { 淘宝: '/logos/taobao.png', 抖音: '/logos/douyin.png', 视频号: wxLogo, 快手: '/logos/kuaishou.png', 拼多多: '/logos/pinduoduo.png' };
 /* 商品信息复合列缩略图：/products 既有素材按商品ID取模轮转（演示口径，同运营中心商品图资源） */
 const GOOD_THUMBS = ['/products/main.png', '/products/serum.png', '/products/hairpin.png'];
 const thumbOf = (id: string) => GOOD_THUMBS[Number(id) % GOOD_THUMBS.length];
@@ -60,7 +60,7 @@ const ONLINE_SERIES = onlineSeries();
 /* 证据平台口径：品控证据 Platform 集（天猫/拼多多/抖音/京东/淘宝/快手）不含「视频号」，
    演示口径将视频号店铺商品归并到最近的短视频证据平台「抖音」，其余店铺平台与证据平台同名直传；
    保证一件商品单平台收敛后仍有数据，且头部与明细平台标签一致 */
-const EVIDENCE_PLAT: Record<ShopPlat, string> = { 淘宝: '淘宝', 抖音: '抖音', 视频号: '抖音', 快手: '快手' };
+const EVIDENCE_PLAT: Record<ShopPlat, string> = { 淘宝: '淘宝', 抖音: '抖音', 视频号: '抖音', 快手: '快手', 拼多多: '拼多多' };
 const evidencePlatOf = (g: ShopGood): string => {
   const sp = shopOf(g.shopId)?.platform;
   return sp ? EVIDENCE_PLAT[sp] : '';
@@ -499,7 +499,7 @@ watch(shopGoodsJumpSeed, (s) => {
         <div class="sg-field sg-field-hit-type" ref="hitTypeLeftRef">
           <label>命中问题类型</label>
           <div class="sg-hit-trigger" @click="hitTypeOpen = !hitTypeOpen">
-            <span class="sg-hit-label">{{ hitTypeLabel }}</span>
+            <span class="sg-hit-label" :class="{ ph: !draft.hitTypes.length }">{{ hitTypeLabel }}</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6" /></svg>
           </div>
           <div v-if="hitTypeOpen" class="sg-hit-popover">

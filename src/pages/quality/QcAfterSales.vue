@@ -2,13 +2,14 @@
 /* ---------- 售后列表（品控-线上）：逐单售后单明细（查询条件 + 明细表） ---------- */
 import { computed, ref, watch } from 'vue';
 import {
-  AFTER_TYPES, AFTER_PLATFORMS, EVIDENCE_START, EVIDENCE_END, afterJumpSeed, scanAfterOrders, sliceAfterOrders, onlineSeriesOfCode, onlineSessionsOf, patchOnlineSession, hitSubDepts, subsOfType,
+  AFTER_TYPES, AFTER_PLATFORMS, EVIDENCE_START, EVIDENCE_END, afterJumpSeed, scanAfterOrders, sliceAfterOrders, onlineSeries, onlineSeriesOfCode, onlineSessionsOf, patchOnlineSession, hitSubDepts, subsOfType,
   shopGoodOfCode, shopGoodSkus, type AfterScan, type AfterOrderRow, type ShopGood,
 } from './qcOnlineData';
-import { DEPT_COLOR, PROBLEM_TYPE_COLOR, QC_PROBLEM_TYPES, QC_DEPTS, type DateRange, type RangeKey } from './qcCenterData';
+import { DEPT_COLOR, PROBLEM_TYPE_COLOR, QC_PROBLEM_TYPES, QC_DEPTS, type DateRange, type RangeKey, type QcCenterSeries } from './qcCenterData';
 import { SHOP_NAME, type ChatHit, type ChatMessage, type ChatSession } from './data';
 import { qcGet } from './qcApi';
 import PlatLogo from './PlatLogo.vue';
+import Modal from '../../components/Modal.vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import ChatFullModal from './ChatFullModal.vue';
 import PieChart from './PieChart.vue';
@@ -19,6 +20,7 @@ import QcSeriesDrawer from './QcSeriesDrawer.vue';
 import QcTypeShuttle from './QcTypeShuttle.vue';
 
 const ALL = { type: '全部类型', platform: '全部平台', sess: '全部' };
+const SESS_OPTS = ['全部', '有会话', '无会话'];
 const GO_DEFAULT = '全部组别 / 全部运维';
 const blank = () => ({ go: GO_DEFAULT, type: ALL.type, platform: ALL.platform, sess: ALL.sess, ptype: null as string | null, sub: null as string | null, dept: '全部部门', from: '', to: '', kw: '' });
 const applied = ref(blank());
@@ -41,16 +43,16 @@ const backToOv = () => {
   tier.value = 'ov';
 };
 
-/* 二级列表页查询条件（按列表列内容配置）：单号/编码关键词、平台、售后类型、问题类型、问题小类（随类型级联）、申请时间；查询/重置同排右对齐。
-   草稿态独立于生效条件：概览入口代入的维度（大类/部门/会话）不被查询/重置覆盖 */
-const blankDraft = () => ({ kw: '', platform: ALL.platform, type: ALL.type, ptype: null as string | null, sub: null as string | null, from: '', to: '' });
+/* 二级列表页查询条件（按列表列内容配置）：单号/编码关键词、平台、售后类型、问题类型、问题小类（随类型级联）、申请时间、是否有会话；查询/重置同排右对齐。
+   草稿态独立于生效条件：概览入口代入的维度（大类/部门/组别运维）不被查询/重置覆盖；是否有会话已落为可见条件，代入后回显草稿可查可清 */
+const blankDraft = () => ({ kw: '', platform: ALL.platform, type: ALL.type, ptype: null as string | null, sub: null as string | null, sess: ALL.sess, from: '', to: '' });
 const draft = ref(blankDraft());
 const syncDraft = () => {
   const a = applied.value;
-  draft.value = { kw: a.kw, platform: a.platform, type: a.type, ptype: a.ptype, sub: a.sub, from: a.from, to: a.to };
+  draft.value = { kw: a.kw, platform: a.platform, type: a.type, ptype: a.ptype, sub: a.sub, sess: a.sess, from: a.from, to: a.to };
 };
 const onAsQuery = () => {
-  applied.value = { ...applied.value, kw: draft.value.kw.trim(), platform: draft.value.platform, type: draft.value.type, ptype: draft.value.ptype, sub: draft.value.sub, from: draft.value.from, to: draft.value.to };
+  applied.value = { ...applied.value, kw: draft.value.kw.trim(), platform: draft.value.platform, type: draft.value.type, ptype: draft.value.ptype, sub: draft.value.sub, sess: draft.value.sess, from: draft.value.from, to: draft.value.to };
 };
 const onAsReset = () => { draft.value = blankDraft(); onAsQuery(); };
 
@@ -273,17 +275,17 @@ const listDay = (label: string) => openList({ from: label, to: label });
 
 /* 关联会话：由会话发起的售后单数据层已挂 sessionId，操作列点开聊天记录全屏弹窗（与售后单抽屉同源回写） */
 const sessionModalId = ref<string | null>(null);
-/* 会话按商品编码回查所属系列（onlineSeriesOfCode 以编码为键） */
-const modalCode = ref<string | null>(null);
+/* 会话源按行自带系列编码精确取系列：商品编码跨系列重码，onlineSeriesOfCode 同键覆盖会回查错系列致会话找不到 */
+const modalSeriesCode = ref<string | null>(null);
 const sessVer = ref(0);
 const openSession = (o: AfterOrderRow) => {
-  modalCode.value = o.code;
+  modalSeriesCode.value = o.seriesCode;
   sessionModalId.value = o.sessionId ?? null;
 };
 const modalSessions = computed((): ChatSession[] => {
   void sessVer.value;
-  if (!modalCode.value) return [];
-  const s = onlineSeriesOfCode(modalCode.value);
+  if (!modalSeriesCode.value) return [];
+  const s = onlineSeries().find((x) => x.seriesCode === modalSeriesCode.value);
   return s ? onlineSessionsOf(s).slice() : [];
 });
 const onModalHits = (id: string, hits: ChatHit[]) => {
@@ -328,6 +330,67 @@ const prodCtx = computed(() => {
     listedAt: g.listedAt,
   };
 });
+
+/* ---------- 商品信息列 / 商品快照：售后单商品编码经 shopGoodOfCode 归属店铺商品，
+   SKU 按售后单序号确定性取一条（同商品详情抽屉 SKU 导轨口径），派生主图/SKU名称/商品ID/SKUID/售价 ---------- */
+interface AfterProdInfo { thumb: string; goodName: string; goodId: string; skuName: string; skuId: string; price: string; code: string; qty: number; recv: string; refund: string }
+const prodInfoCache = new Map<string, AfterProdInfo>();
+const prodInfoOf = (o: AfterOrderRow): AfterProdInfo => {
+  const hit = prodInfoCache.get(o.afterNo);
+  if (hit) return hit;
+  const g = shopGoodOfCode(o.code);
+  const goodId = g?.id ?? o.code;
+  const goodNum = Number(goodId) || 0;
+  const skuRows = g ? shopGoodSkus(g) : [];
+  const i = skuRows.length ? Number(o.afterNo.slice(-5)) % skuRows.length : 0;
+  const sku = skuRows[i];
+  /* 数量×N 按售后单尾号确定性 1-3 件；实收＝售价×数量；退款仅退货退款/退款单全额退，换货/补发为 0 */
+  const qty = (Number(o.afterNo.slice(-5)) % 3) + 1;
+  const unit = sku ? Number(sku.price) : 0;
+  const recv = unit * qty;
+  const info: AfterProdInfo = {
+    thumb: AS_THUMBS[goodNum % AS_THUMBS.length],
+    goodName: g?.name ?? '—',
+    goodId,
+    skuName: sku?.name ?? '—',
+    /* SKUID：13 位数字（商品ID 尾段 + SKU 序），同运营中心 SKU ID 形态 */
+    skuId: `1000${String(goodNum % 100000).padStart(5, '0')}${String(i + 1).padStart(4, '0')}`,
+    price: sku ? `¥${sku.price}` : '—',
+    code: o.code,
+    qty,
+    recv: recv.toFixed(2),
+    refund: (o.type === AFTER_TYPES[0] ? recv : 0).toFixed(2),
+  };
+  prodInfoCache.set(o.afterNo, info);
+  return info;
+};
+/* 操作列「商品快照」：只读展示该售后单下单时的商品与 SKU 信息 */
+const snapRow = ref<AfterOrderRow | null>(null);
+const snapInfo = computed(() => (snapRow.value ? prodInfoOf(snapRow.value) : null));
+
+/* ---------- 系列编码多值：一单可跨系列（按售后单尾号确定性追加 0-2 个系列），
+   悬浮系列芯片列出该系列旗下商品编码（series.codes，同监控列表关联ID口径） ---------- */
+interface RowSeries { name: string; codes: string[] }
+const rowSeriesCache = new Map<string, RowSeries[]>();
+const rowSeriesOf = (o: AfterOrderRow): RowSeries[] => {
+  const hit = rowSeriesCache.get(o.afterNo);
+  if (hit) return hit;
+  const list: RowSeries[] = [];
+  const push = (s: QcCenterSeries | null) => {
+    if (!s || list.some((x) => x.name === s.name)) return;
+    list.push({ name: s.name, codes: s.codes.map((c) => c.code) });
+  };
+  const prim = onlineSeriesOfCode(o.code);
+  push(prim);
+  if (prim) {
+    const all = onlineSeries();
+    const pi = Number(prim.seriesCode.slice(3)) - 1001;
+    const extra = Number(o.afterNo.slice(-5)) % 3;
+    for (let k = 1; k <= extra; k++) push(all[(pi + k * 37) % all.length] ?? null);
+  }
+  rowSeriesCache.set(o.afterNo, list);
+  return list;
+};
 
 /* 客服打标映射：sessionId → csTag（供 ChatFullModal 左栏只读展示，取当前页售后单） */
 const csTagMap = computed(() => {
@@ -573,6 +636,11 @@ const exportSession = () => {
               :on-change="(d: DateRange) => { draft.from = d.start; draft.to = d.end; }"
             />
           </div>
+          <!-- 是否有会话：数据层售后单挂 sessionId 即由会话发起；有会话行操作列露「查看会话」直开聊天全屏弹窗 -->
+          <div class="sg-field">
+            <label>是否有会话</label>
+            <BubbleSelect class-name="sg-select" :value="draft.sess" :options="SESS_OPTS" @change="(v: string) => (draft.sess = v)" />
+          </div>
           <div class="sg-field-actions">
             <button class="sg-btn" @click="onAsReset">重置</button>
             <button class="sg-btn primary" @click="onAsQuery">查询</button>
@@ -583,6 +651,7 @@ const exportSession = () => {
         <thead>
           <tr>
             <th>平台</th>
+            <th class="ao-prod-th">商品信息</th>
             <th>订单/售后单号</th>
             <th>系列编码</th>
             <th>售后类型 / 售后原因</th>
@@ -598,14 +667,45 @@ const exportSession = () => {
               <span class="ao-plat"><PlatLogo :platform="o.platform" />{{ o.platform }}</span>
               <div class="ao-shop">{{ SHOP_NAME[o.platform] }}</div>
             </td>
+            <!-- 商品信息复合列：主图＋商品名称/SKU 规格两行（同订单商品瓦片口径）；快照入口在操作列 -->
+            <td class="ao-prod">
+              <div class="qc-sg-prod">
+                <img class="qc-sg-prod-thumb" :src="prodInfoOf(o).thumb" :alt="prodInfoOf(o).goodName">
+                <div class="qc-sg-prod-info">
+                  <div class="qc-sg-prod-name" :title="prodInfoOf(o).goodName">{{ prodInfoOf(o).goodName }}</div>
+                  <div class="qc-sg-prod-meta" :title="prodInfoOf(o).skuName">{{ prodInfoOf(o).skuName }}</div>
+                  <div class="ao-prod-amt" :title="`数量 ×${prodInfoOf(o).qty}　实收 ¥${prodInfoOf(o).recv}　退款 ¥${prodInfoOf(o).refund}`">
+                    <span class="ao-prod-qty">×{{ prodInfoOf(o).qty }}</span>
+                    <span class="ao-prod-m">实收¥{{ prodInfoOf(o).recv }}</span>
+                    <span class="ao-prod-m ao-prod-refund">退款¥{{ prodInfoOf(o).refund }}</span>
+                  </div>
+                </div>
+              </div>
+            </td>
             <!-- 订单号与售后单号合并单列：上订单、下售后，标签等长使单号左缘对齐 -->
             <td class="ao-nos">
               <div><span class="ao-no-lb">订单</span><span class="qc-mono">{{ o.orderNo }}</span></div>
               <div><span class="ao-no-lb">售后</span><span class="qc-mono">{{ o.afterNo }}</span></div>
             </td>
-            <!-- 系列编码＝商品系列简称（袜子、冬季手套等），标签形式；字母+数字为商品编码 -->
-            <td>
-              <span class="tag">{{ o.seriesName }}</span>
+            <!-- 系列编码＝商品系列简称（袜子、冬季手套等），标签形式；一单可跨多个系列，超出 2 个折叠 +N；
+                 悬浮系列芯片列出该系列旗下商品编码 -->
+            <td class="ao-ser">
+              <div class="ao-ser-tags">
+                <span v-for="s in rowSeriesOf(o).slice(0, 2)" :key="s.name" class="tag ao-ser-tag">
+                  {{ s.name }}
+                  <span class="ao-ser-bub">
+                    <span v-for="c in s.codes" :key="c" class="qc-mono">{{ c }}</span>
+                  </span>
+                </span>
+                <span v-if="rowSeriesOf(o).length > 2" class="tag ao-ser-more">
+                  +{{ rowSeriesOf(o).length - 2 }}
+                  <span class="ao-ser-bub">
+                    <span v-for="s in rowSeriesOf(o).slice(2)" :key="s.name" class="ao-ser-bubrow">
+                      {{ s.name }}<span class="qc-mono">{{ s.codes.join('、') }}</span>
+                    </span>
+                  </span>
+                </span>
+              </div>
             </td>
             <td class="col-name">
               <div><span class="tag">{{ o.type }}</span></div>
@@ -617,12 +717,13 @@ const exportSession = () => {
             <td>
               <div class="qc-op-col">
                 <a @click="prodRow = o">商品详情</a>
+                <a @click="snapRow = o">商品快照</a>
                 <a v-if="o.sessionId" @click="openSession(o)">查看会话</a>
               </div>
             </td>
           </tr>
           <tr v-if="!loading && !rows.length">
-            <td colspan="8">
+            <td colspan="9">
               <div class="sg-empty-wrap">
                 <div class="sg-empty-icon">◌</div>
                 <div>暂无数据，请调整筛选条件</div>
@@ -674,4 +775,30 @@ const exportSession = () => {
     :on-update-hits="onModalHits"
     :online="true"
   />
+
+  <!-- 商品快照：操作列「商品快照」只读展示该售后单的商品与 SKU 信息 -->
+  <Modal v-if="snapRow && snapInfo" title="商品快照" :sub="`订单 ${snapRow.orderNo}`" size="md" @close="snapRow = null">
+    <div class="qc-as-snap">
+      <div class="qc-as-snap-top">
+        <img class="qc-as-snap-img" :src="snapInfo.thumb" :alt="snapInfo.goodName">
+        <div class="qc-as-snap-head">
+          <div class="qc-as-snap-name" :title="snapInfo.goodName">{{ snapInfo.goodName }}</div>
+          <div class="qc-as-snap-plat"><PlatLogo :platform="snapRow.platform" />{{ SHOP_NAME[snapRow.platform] }}</div>
+          <div class="qc-as-snap-price">{{ snapInfo.price }}</div>
+        </div>
+      </div>
+      <div class="qc-as-snap-grid">
+        <div class="qc-as-snap-f span2"><span class="k">SKU名称</span><span class="v" :title="snapInfo.skuName">{{ snapInfo.skuName }}</span></div>
+        <div class="qc-as-snap-f"><span class="k">商品ID</span><span class="v">{{ snapInfo.goodId }}</span></div>
+        <div class="qc-as-snap-f"><span class="k">SKUID</span><span class="v">{{ snapInfo.skuId }}</span></div>
+        <div class="qc-as-snap-f"><span class="k">商品编码</span><span class="v">{{ snapInfo.code }}</span></div>
+        <div class="qc-as-snap-f"><span class="k">售后单号</span><span class="v">{{ snapRow.afterNo }}</span></div>
+        <div class="qc-as-snap-f"><span class="k">售后类型</span><span class="v">{{ snapRow.type }}</span></div>
+        <div class="qc-as-snap-f"><span class="k">申请时间</span><span class="v">{{ snapRow.appliedAt }}</span></div>
+      </div>
+    </div>
+    <template #foot>
+      <button class="sg-btn primary" @click="snapRow = null">关闭</button>
+    </template>
+  </Modal>
 </template>

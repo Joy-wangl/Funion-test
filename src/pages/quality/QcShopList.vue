@@ -454,7 +454,7 @@ const gradePct = (g: string) => (boardGrades.value.graded ? `${Math.round((board
 
 /* ---------- 看板·体验分趋势（图一口径）：全部态＝各平台平均分各一条线（标题「各平台平均分趋势」），指定平台态＝该平台四维体验分均值线；
    单店序列同趋势弹窗口径 seriesOfN，逐日取均值聚合；平滑曲线＋同色渐变面积填充、底部居中图例仅名称；范围近 7/30/90 天独立切换（不与弹窗共用） ---------- */
-const PLAT_LINE_COLOR: Record<ShopPlat, string> = { 淘宝: '#ff4e26', 抖音: '#1d2129', 视频号: '#00b42a', 快手: '#f7ba1e' };
+const PLAT_LINE_COLOR: Record<ShopPlat, string> = { 淘宝: '#ff4e26', 抖音: '#1d2129', 视频号: '#00b42a', 快手: '#f7ba1e', 拼多多: '#e02e24' };
 const boardRange = ref(30);
 const BN = computed(() => boardRange.value);
 const BOARD_TREND_KEYS = ['score', 'goods', 'logistics', 'service'] as const;

@@ -24,6 +24,7 @@ export interface TabConfig {
 export const navigation: TabConfig[] = [
   { key: 'app-center', label: '应用中心', menus: [] },
   { key: 'ops-center', label: '智能运营中心', menus: [] },
+  { key: 'main-img-plugin', label: '主图外露标签', menus: [] },
   { key: 'qc-center', label: '运维管理后台', menus: [] },
   { key: 'qc-online', label: '品控-线上', menus: [] },
   { key: 'reception-center', label: '聚合接待', menus: [] },

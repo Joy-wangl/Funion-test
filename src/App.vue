@@ -12,6 +12,7 @@ import QualityCenter from './pages/quality/QualityCenter.vue';
 import QcAuditCalc from './pages/quality/QcAuditCalc.vue';
 import AppCenter from './pages/app-center/AppCenter.vue';
 import OpsCenter from './pages/ops-center/OpsCenter.vue';
+import MainImgPlugin from './pages/main-img-plugin/MainImgPlugin.vue';
 import PublishProgress from './pages/ops-center/PublishProgress.vue';
 import GlobalMsgBell from './components/GlobalMsgBell.vue';
 import ToastWrap from './components/ToastWrap.vue';
@@ -96,6 +97,10 @@ defineExpose({ toggleSidebar });
           <ReceptionCenter :sidebar-collapsed="sidebarCollapsed" />
         </main>
       </template>
+      <!-- 主图外露标签：插件入口页（本体为全局悬浮球＋编辑弹窗，浮于任意平台页之上） -->
+      <template v-else-if="activeTabKey === 'main-img-plugin'">
+        <main class="app-content" />
+      </template>
       <template v-else-if="activeTabKey === 'qc-center'">
         <main class="app-content qc-standalone">
           <QualityCenter key="qc-center" :sidebar-collapsed="sidebarCollapsed" />
@@ -155,6 +160,8 @@ defineExpose({ toggleSidebar });
     </div>
     <!-- 发布进度面板/悬浮球：全局单例（store 驱动），跨顶部 tab 持久可见 -->
     <PublishProgress />
+    <!-- 主图外露标签插件：全局悬浮球＋编辑弹窗（跨顶部 tab 常驻，模拟浏览器插件浮于平台页之上） -->
+    <MainImgPlugin :active-tab="activeTabKey" />
     <!-- 全局标准提示（横幅式 banner）统一挂载点 -->
     <ToastWrap />
     <!-- 离开蜜蜂插件（脏态）二次确认 -->

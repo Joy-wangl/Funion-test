@@ -67,9 +67,9 @@ export const DEFAULT_WEIGHTS: AuditWeights = {
 
 /* ---------- 平台维度权重预设（权重配置页页首平台切换：各平台权重不一致） ----------
    淘宝＝默认口径（近30天）；抖音对标商家体验分（近90天滚动、CCR/IM 回复侧指标加权）；
-   视频号会话样本门槛下调；快手物流维度加权。维度内指标权重合计恒 100。 */
-export type AuditPlat = '淘宝' | '抖音' | '视频号' | '快手';
-export const AUDIT_PLATS: AuditPlat[] = ['淘宝', '抖音', '视频号', '快手'];
+   视频号会话样本门槛下调；快手物流维度加权；拼多多仅退款/售后压力大，服务维度加权。维度内指标权重合计恒 100。 */
+export type AuditPlat = '淘宝' | '抖音' | '视频号' | '快手' | '拼多多';
+export const AUDIT_PLATS: AuditPlat[] = ['淘宝', '抖音', '视频号', '快手', '拼多多'];
 
 const preset = (dims: Record<AuditDim, number>, weights: Record<string, number>, gates?: Partial<AuditGate>): AuditWeights => {
   const base = structuredClone(DEFAULT_WEIGHTS);
@@ -107,6 +107,15 @@ export const PLATFORM_PRESETS: Record<AuditPlat, AuditWeights> = {
       'serv-badrate': 30, 'serv-chat': 20, 'serv-after': 35, 'serv-postrefund': 15,
     },
     { minOrders: 20 },
+  ),
+  拼多多: preset(
+    { 商品: 35, 物流: 25, 服务: 40 },
+    {
+      'prod-badrate': 40, 'prod-prerefund': 30, 'prod-chatq': 15, 'prod-chatafter': 15,
+      'logi-badrate': 35, 'logi-chat': 30, 'logi-postrefund': 35,
+      'serv-badrate': 25, 'serv-chat': 25, 'serv-after': 35, 'serv-postrefund': 15,
+    },
+    { minOrders: 30 },
   ),
 };
 
@@ -238,6 +247,7 @@ export const DEFAULT_EXEMPTS: ExemptRule[] = [
   { id: 'ex2b', type: '新链接豁免', plat: '抖音', name: '链接创建不足5天或累计订单不足15笔', cond: '链接创建 ≤ 5 天 或 累计订单 < 15 笔', conds: [{ metric: 'linkDays', op: '≤', value: 5 }, { metric: 'linkOrders', op: '<', value: 15 }], mode: '免考核', value: 0, enabled: true, updatedAt: '2026-10-12 09:00:00' },
   { id: 'ex3', type: '低样本豁免', plat: '淘宝', name: '周期订单不足30笔', cond: '考核周期内有效支付订单 < 30 笔', conds: [{ metric: 'cycleOrders', op: '<', value: 30 }], mode: '免考核', value: 0, enabled: true, updatedAt: '2026-10-12 09:00:00' },
   { id: 'ex3b', type: '低样本豁免', plat: '快手', name: '周期订单不足20笔', cond: '考核周期内有效支付订单 < 20 笔', conds: [{ metric: 'cycleOrders', op: '<', value: 20 }], mode: '免考核', value: 0, enabled: true, updatedAt: '2026-10-12 09:00:00' },
+  { id: 'ex3c', type: '低样本豁免', plat: '拼多多', name: '周期订单不足25笔', cond: '考核周期内有效支付订单 < 25 笔', conds: [{ metric: 'cycleOrders', op: '<', value: 25 }], mode: '免考核', value: 0, enabled: true, updatedAt: '2026-10-12 09:00:00' },
   { id: 'ex5', type: '新店豁免', plat: '淘宝', name: '开店时间不足90天', cond: '店铺开店时间 ≤ 90 天', conds: [{ metric: 'openDays', op: '≤', value: 90 }], mode: '免考核', value: 0, enabled: true, updatedAt: '2026-10-14 09:00:00' },
   { id: 'ex5b', type: '新店豁免', plat: '视频号', name: '开店时间不足60天', cond: '店铺开店时间 ≤ 60 天', conds: [{ metric: 'openDays', op: '≤', value: 60 }], mode: '免考核', value: 0, enabled: true, updatedAt: '2026-10-14 09:00:00' },
 ];

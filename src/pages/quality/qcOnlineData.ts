@@ -1451,15 +1451,16 @@ export const QC_PERM_MENU: QcPermMenuRow[] = [
 
 /* ---------- 店铺分评级配置（问题商品定义页配置、店铺分监控页共用）：各平台分值阈值对应 S/A/B/C/D，
    S 最优质、D 最高风险；阈值在问题商品定义页保存后就地改写，店铺分监控评级随之生效 ---------- */
-export type ShopGradePlat = '淘宝' | '抖音' | '视频号' | '快手';
+export type ShopGradePlat = '淘宝' | '抖音' | '视频号' | '快手' | '拼多多';
 export interface ShopGradeCfg { minS: number; minA: number; minB: number; minC: number; }
-export const SHOP_GRADE_PLATS: ShopGradePlat[] = ['淘宝', '抖音', '视频号', '快手'];
+export const SHOP_GRADE_PLATS: ShopGradePlat[] = ['淘宝', '抖音', '视频号', '快手', '拼多多'];
 export const SHOP_GRADES = ['S', 'A', 'B', 'C', 'D'];
 export const SHOP_GRADE_CFG: Record<ShopGradePlat, ShopGradeCfg> = {
   淘宝: { minS: 4.9, minA: 4.8, minB: 4.7, minC: 4.5 },
   抖音: { minS: 4.9, minA: 4.8, minB: 4.7, minC: 4.6 },
   视频号: { minS: 4.9, minA: 4.8, minB: 4.7, minC: 4.6 },
   快手: { minS: 4.9, minA: 4.8, minB: 4.7, minC: 4.6 },
+  拼多多: { minS: 4.9, minA: 4.8, minB: 4.7, minC: 4.6 },
 };
 export const shopGradeOf = (p: ShopGradePlat, score: number) => {
   const c = SHOP_GRADE_CFG[p];
@@ -1473,8 +1474,8 @@ export const shopGradeRows = (p: ShopGradePlat): [string, string][] => {
 export const GRADE_COLOR: Record<string, string> = { S: '#00b42a', A: '#4f7cff', B: '#ff7d00', C: '#86909c', D: '#f53f3f' };
 
 /* ---------- 店铺分监控·店铺种子（数据概览 / 店铺列表 双子路由同源）：优化任务挂店铺，创建任务会话内写回 ---------- */
-export type ShopPlat = '淘宝' | '抖音' | '视频号' | '快手';
-export const SHOP_PLATS: ShopPlat[] = ['淘宝', '抖音', '视频号', '快手'];
+export type ShopPlat = '淘宝' | '抖音' | '视频号' | '快手' | '拼多多';
+export const SHOP_PLATS: ShopPlat[] = ['淘宝', '抖音', '视频号', '快手', '拼多多'];
 export type ShopHandle = '待处理' | '紧急处理' | '优化中' | '结束监控';
 export type ShopTaskStatus = '优化中' | '待启动' | '已完成';
 export interface ShopTask { id: string; name: string; status: ShopTaskStatus; }
@@ -1502,6 +1503,10 @@ export const qcShops = ref<OnlineShop[]>([
   { id: 'KS-5028', name: '风羽家居', platform: '快手', score: 4.8, resp: '', goods: 4.9, logistics: 4.9, service: 4.6, openAt: '2024-07-07', handle: '结束监控', endedAt: '10-07', endReason: '评分回升至 A 级', endScore: 4.7, tasks: [] },
   { id: 'KS-5036', name: '蓝悦日记', platform: '快手', score: 4.65, resp: '', goods: 4.7, logistics: 4.7, service: 4.4, openAt: '2025-09-01', handle: '优化中', tasks: [{ id: 'ST-05', name: '物流体验优化·发货时效', status: '优化中' }] },
   { id: 'KS-5042', name: '山茶工作室', platform: '快手', score: 4.2, resp: '小额打款', goods: 4.3, logistics: 4.3, service: 4.0, openAt: '2024-01-19', handle: '紧急处理', tasks: [{ id: 'ST-06', name: '服务体验紧急优化专项', status: '待启动' }] },
+  { id: 'PDD-6012', name: '暮野', platform: '拼多多', score: 4.9, resp: '', goods: 4.9, logistics: 4.8, service: 5.0, openAt: '2024-06-11', handle: '结束监控', endedAt: '10-04', endReason: '评分回升至 S 级', endScore: 4.8, tasks: [] },
+  { id: 'PDD-6025', name: '澜庭优选', platform: '拼多多', score: 4.8, resp: '', goods: 4.8, logistics: 4.7, service: 4.9, openAt: '2023-10-09', handle: '结束监控', endedAt: '09-29', endReason: '人工确认结案', endScore: 4.8, tasks: [] },
+  { id: 'PDD-6033', name: '柚白', platform: '拼多多', score: 4.62, resp: '', goods: 4.7, logistics: 4.5, service: 4.6, openAt: '2025-05-16', handle: '优化中', tasks: [{ id: 'ST-07', name: '物流体验优化·揽收时效', status: '优化中' }] },
+  { id: 'PDD-6047', name: '霜序工作室', platform: '拼多多', score: 4.35, resp: '退货退款', goods: 4.4, logistics: 4.3, service: 4.2, openAt: '2024-02-27', handle: '紧急处理', tasks: [{ id: 'ST-08', name: '退货退款纠纷紧急专项', status: '待启动' }] },
   /* 新店：评分观察期，不计入评级分布/占比/均值口径，单独以「新店」卡呈现 */
   { id: 'TB-2095', name: '栖迟家居', platform: '淘宝', score: 4.8, resp: '', goods: 4.8, logistics: 4.8, service: 4.7, openAt: '2026-08-18', handle: '待处理', isNew: true, tasks: [] },
   { id: 'KS-5058', name: '南屿优选', platform: '快手', score: 4.7, resp: '', goods: 4.7, logistics: 4.7, service: 4.6, openAt: '2026-09-02', handle: '待处理', isNew: true, tasks: [] },
@@ -1571,6 +1576,15 @@ const GOOD_ROWS: GoodRow[] = [
   ['TB-2095', '原木书架', '2026-09-20', 9, 4, 28, 0, 90, 3, 1, 0.011],
   ['KS-5058', '轻量化羽绒服', '2026-09-16', 18, 1, 42, 1, 140, 5, 2, 0.014],
   ['KS-5058', '陶瓷餐具套装', '2026-09-24', 9, 2, 31, 0, 100, 3, 1, 0.010],
+  ['PDD-6012', '保温杯', '2026-03-08', 12, 1, 206, 1, 1320, 27, 17, 0.011],
+  ['PDD-6012', '实木衣架套装', '2026-06-19', 6, 2, 112, 0, 680, 14, 8, 0.012],
+  ['PDD-6025', '棉麻四件套', '2026-02-11', 16, 1, 134, 1, 910, 23, 14, 0.015],
+  ['PDD-6025', '岩板餐桌', '2026-05-23', 8, 1, 76, 1, 430, 12, 6, 0.014],
+  ['PDD-6033', '便携榨汁杯', '2026-04-14', 8, 5, 142, 5, 660, 36, 19, 0.029],
+  ['PDD-6033', '玄关换鞋凳', '2026-07-28', 7, 4, 68, 2, 340, 18, 9, 0.026],
+  ['PDD-6047', '乳胶枕', '2026-03-19', 6, 1, 196, 9, 780, 52, 33, 0.044],
+  ['PDD-6047', '厨房置物架', '2026-06-08', 12, 0, 138, 6, 520, 41, 21, 0.041],
+  ['PDD-6047', '香薰蜡烛礼盒', '2026-08-21', 10, 3, 72, 3, 300, 21, 11, 0.037],
 ];
 /* 优化任务种子：idx0/3 进行中（周期含今天→列表挂标签）、idx1 已结束（供筛选与趋势优化区间演示）；按今天偏移生成防演示口径过期 */
 const isoDay = (offset: number) => { const d = new Date(); d.setDate(d.getDate() + offset); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -1807,4 +1821,4 @@ export const seriesGoodsOf = (codes: string[]): ShopGood[] => {
 
 /* ---------- 平台官方图标：复用 /logos 官方资源；视频号无素材，同运营中心 wxLogo 口径圆角矩形字标 data-uri ---------- */
 const wxLogo = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#fa9a3e"/><text x="16" y="22" font-size="15" fill="#fff" text-anchor="middle" font-family="sans-serif">视</text></svg>');
-export const SHOP_LOGO: Record<ShopPlat, string> = { 淘宝: '/logos/taobao.png', 抖音: '/logos/douyin.png', 视频号: wxLogo, 快手: '/logos/kuaishou.png' };
+export const SHOP_LOGO: Record<ShopPlat, string> = { 淘宝: '/logos/taobao.png', 抖音: '/logos/douyin.png', 视频号: wxLogo, 快手: '/logos/kuaishou.png', 拼多多: '/logos/pinduoduo.png' };
