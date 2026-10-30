@@ -2459,7 +2459,7 @@
 .qc-center-page .qhd-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
 
 /* ---------- 售后列表·商品信息复合列（平台列后）：主图＋商品名称/SKU 规格两行（订单商品瓦片口径） ---------- */
-/* 售后列表筛选：五个条件（关键词/平台/售后类型/问题类型/申请时间/静默售后）四列排布，查询/重置与末排条件同排右对齐（三列会挤出不含条件的按钮独行） */
+/* 售后列表筛选：六个条件（关键词/平台/售后类型/问题类型/申请时间/静默售后）四列排布，查询/重置与末排条件同排右对齐（三列会挤出不含条件的按钮独行） */
 .qc-center-page .qc-as-filter .sg-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .qc-center-page .qc-as-page .ao-prod-th { width: 256px; }
 .qc-center-page .qc-as-page .ao-prod .qc-sg-prod { min-width: 0; gap: 10px; align-items: flex-start; }
