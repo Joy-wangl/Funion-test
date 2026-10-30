@@ -8,8 +8,8 @@ import { pushToast } from '../../components/toast';
 import KbCatSelect from './KbCatSelect.vue';
 import PlatLogo from '../quality/PlatLogo.vue';
 import type { Platform } from '../quality/data';
-import { KB_GUIDE_TYPES, KB_IMAGE_TYPES, KB_ITEM_STATUS_META, KB_KNOWLEDGE_TYPES, KB_SCENE_GROUPS, KB_VIDEO_TYPES, type KbMaterial } from './data';
-import { kbV2Products, type KbV2Code, type KbV2Item, type KbV2Knowledge, type KbV2Product, type KbV2Sku } from './goodsKbV2Data';
+import { KB_GUIDE_TYPES, KB_IMAGE_CATS, KB_IMAGE_TYPES, KB_ITEM_STATUS_META, KB_KNOWLEDGE_TYPES, KB_SCENE_GROUPS, KB_VIDEO_TYPES, type KbImageCat, type KbMaterial } from './data';
+import { kbV2Products, type KbV2Code, type KbV2Item, type KbV2Knowledge, type KbV2Media, type KbV2Product, type KbV2Sku } from './goodsKbV2Data';
 import './Knowledge.css';
 import './KbForm.css';
 import './GoodsKbV2.css';
@@ -171,6 +171,18 @@ const detailCodes = computed<KbV2Code[]>(() => {
   return d.kind === 'series' ? d.p.codes : d.item.codes;
 });
 const currentCode = computed(() => detailCodes.value.find((c) => c.code === activeCode.value));
+/* 抽屉顶部全局页签：基本信息 / 详情图片 */
+const detailTab = ref<'base' | 'imgs'>('base');
+const detailImages = computed(() => currentCode.value?.images ?? []);
+/* 图片信息页签：三型（基本信息/质检报告/其它）；存量素材无 cat 归其它，默认落其它保持现状可见 */
+const imgTab = ref<KbImageCat>('其它');
+const catOf = (m: KbV2Media): KbImageCat => m.cat ?? '其它';
+/* 当前页签图片（带真实下标，查看/编辑/删除沿用原索引操作） */
+const shownImages = computed(() => {
+  const c = currentCode.value;
+  if (!c) return [];
+  return c.images.map((m, i) => ({ m, i })).filter((x) => catOf(x.m) === imgTab.value);
+});
 /* ID 维度 SKU 分组：ID → SKU 页签 → 当前 SKU 下关联商品编码（系列维度仍平铺编码卡） */
 const detailSkus = computed<KbV2Sku[]>(() => (detail.value?.kind === 'item' ? detail.value.item.skus : []));
 const activeSkuCodes = computed<KbV2Code[]>(() => detailSkus.value.find((s) => s.id === activeSku.value)?.codes ?? []);
@@ -362,6 +374,8 @@ const submitMedia = () => {
     pool.push({
       label: mediaType.value, src: mediaFile.value.url, name: mediaFile.value.name,
       scenes: [...mediaScenes.value], questions: [...mQTags.state.tags], keywords: [...mKwTags.state.tags],
+      /* 图片新增归当前页签；视频/安装视频无页签维度 */
+      cat: kind === 'image' ? imgTab.value : undefined,
     });
     pushToast(`${kindName}「${mediaType.value}」已新增`);
   } else {
@@ -923,6 +937,15 @@ defineExpose({ openKnowledge });
         <button class="kb-x" title="关闭" @click="closeDetail">✕</button>
       </div>
 
+      <!-- 抽屉顶部全局页签：基本信息 / 详情图片 -->
+      <div class="kb-d-tabs">
+        <div class="kb-kn-tabs">
+          <button :class="{ active: detailTab === 'base' }" @click="detailTab = 'base'">基本信息</button>
+          <button :class="{ active: detailTab === 'imgs' }" @click="detailTab = 'imgs'">详情图片</button>
+        </div>
+      </div>
+
+      <template v-if="detailTab === 'base'">
       <!-- ID 维度下方左右分栏之左列：SKU 选择卡（主图/名称/价格/关联编码数），点选切换右列关联编码与下方内容 -->
       <div v-if="detail.kind === 'item'" class="kb-d-skurail">
         <div class="kb-d-skurail-lb">SKU</div>
@@ -979,16 +1002,27 @@ defineExpose({ openKnowledge });
             </div>
           </div>
           <div class="kb-d-sec"><span>图片信息</span></div>
+          <!-- 图片类型页签：基本信息/质检报告/其它（存量素材归其它），同商品知识下划线页签语言 -->
+          <div class="kb-kn-bar kb-img-bar">
+            <div class="kb-kn-tabs">
+              <button
+                v-for="t in KB_IMAGE_CATS"
+                :key="t"
+                :class="{ active: t === imgTab }"
+                @click="imgTab = t"
+              >{{ t }}</button>
+            </div>
+          </div>
           <div class="kb-d-media">
-            <div v-for="(m, i) in currentCode.images" :key="`${m.label}-${i}`" class="kb-media">
-              <img :src="m.src" alt="" />
+            <div v-for="x in shownImages" :key="`${x.m.label}-${x.i}`" class="kb-media">
+              <img :src="x.m.src" alt="" />
               <span class="kb-media-ops">
-                <button @click="openPreview('image', i)">查看</button>
-                <button @click="openMediaModal('image', i)">编辑</button>
-                <button class="del" @click="removeImage(i)">删除</button>
+                <button @click="openPreview('image', x.i)">查看</button>
+                <button @click="openMediaModal('image', x.i)">编辑</button>
+                <button class="del" @click="removeImage(x.i)">删除</button>
               </span>
               <!-- V2：tile 默认仅展示图片/视频类型；命中维度（精准/相似/关键词/场景）在编辑弹窗内查看与维护，不在 tile 铺开 -->
-              <span class="kb-media-label">{{ m.label }}</span>
+              <span class="kb-media-label">{{ x.m.label }}</span>
             </div>
             <button class="kb-media-add" @click="openMediaModal('image')">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
@@ -1095,6 +1129,22 @@ defineExpose({ openKnowledge });
             <div v-if="!currentCode.knowledge.length" class="kb-empty">暂无商品知识，点击「新建商品知识」创建</div>
           </div>
         </template>
+      </div>
+      </template>
+
+      <!-- 详情图片页签：当前选中编码下的全部图片，网格展示，点击调用现有放大预览 -->
+      <div v-else class="kb-d-imgs">
+        <div class="kb-d-imgs-hd">
+          <span>商品ID：{{ detail.kind === 'item' ? detail.item.id : activeCode }}</span>
+          <span>共 {{ detailImages.length }} 张（点击可放大）</span>
+        </div>
+        <div v-if="detailImages.length" class="kb-d-imgs-grid">
+          <div v-for="(img, idx) in detailImages" :key="idx" class="kb-d-img-card" @click="openPreview('image', idx)">
+            <img :src="img.src" :alt="img.label" />
+            <span>{{ img.label }}</span>
+          </div>
+        </div>
+        <div v-else class="kb-empty">当前编码暂无图片</div>
       </div>
     </aside>
   </template>

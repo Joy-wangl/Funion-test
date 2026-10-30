@@ -8,7 +8,7 @@ import MoreActions from '../../components/MoreActions.vue';
 import Modal from '../../components/Modal.vue';
 import { pushToast } from '../../components/toast';
 import { PLATFORM_LOGO } from './data';
-import { sgProducts, SG_CHIPS, JM_CHIPS, SG_STATUS_META, sgRowActions, SG_OFF_FAIL_TYPES, SG_OFF_GROUP, SG_OFF_GROUPS, sgWarnType, sgSales7, sgPrev7Avg, getSgDetail, sgHasPriceRecord } from './shopGoodsData';
+import { sgProducts, SG_CHIPS, JM_CHIPS, SG_STATUS_META, sgRowActions, SG_OFF_FAIL_TYPES, SG_OFF_GROUP, SG_OFF_GROUPS, sgWarnType, sgSales7, sgPrev7Avg, getSgDetail, sgHasPriceRecord, SG_COUPON_OPTIONS } from './shopGoodsData';
 import type { SgProduct, SgTab } from './shopGoodsData';
 import QuickSkuModal, { mkVal } from './QuickSkuModal.vue';
 import type { QuickDraftRow, QuickSpec } from './QuickSkuModal.vue';
@@ -433,17 +433,16 @@ const cfMain = useColField('shopGoods', {
   /* 淘宝 tab 无勾选列：固定左列随 canPrice 联动，钉住偏移才准确 */
   get fixedLeft() {
     return canPrice.value
-      ? [{ key: 'check', width: 44 }, { key: 'product', label: '商品信息', width: 380 }]
-      : [{ key: 'product', label: '商品信息', width: 380 }];
+      ? [{ key: 'check', width: 44 }, { key: 'product', label: '商品信息', width: 260 }]
+      : [{ key: 'product', label: '商品信息', width: 260 }];
   },
   fields: [
-    { key: 'status', label: '商品状态', width: 150 },
-    { key: 'strategy', label: '商品策略', width: 120 },
-    { key: 'trend', label: '销量趋势', width: 320 },
-    { key: 'warn', label: '预警', width: 150 },
-    { key: 'pub', label: '发布信息', width: 240 },
+    { key: 'status', label: '商品状态', width: 260 },
+    { key: 'strategy', label: '商品策略', width: 260 },
+    { key: 'trend', label: '销量趋势', width: 260 },
+    { key: 'pub', label: '发布信息', width: 260 },
   ],
-  fixedRight: [{ key: 'actions', label: '操作', width: 110 }],
+  fixedRight: [{ key: 'actions', label: '操作', width: 260 }],
 });
 const cfJm = useColField('shopGoodsJm', {
   fixedLeft: [{ key: 'check', width: 44 }, { key: 'product', label: '商品信息', width: 420 }],
@@ -641,13 +640,13 @@ const onTab = (t: SgTab) => {
           <thead>
             <tr>
               <th v-if="canPrice" :class="cfMain.stickCls('check')" :style="{ width: '44px', ...cfMain.stickStyle('check') }"><input type="checkbox" :checked="allChecked" @change="toggleAll" /></th>
-              <th :class="cfMain.stickCls('product')" :style="{ width: '380px', ...cfMain.stickStyle('product') }">商品信息</th>
+              <th :class="cfMain.stickCls('product')" :style="{ width: '260px', ...cfMain.stickStyle('product') }">商品信息</th>
               <template v-for="c in mainMid" :key="c.key">
-                <SortTh v-if="c.key === 'pub'" :class="cfMain.stickCls(c.key)" :style="cfMain.stickStyle(c.key)" label="发布信息" width="240px" :state="sortIco('pub')" @sort="toggleSort('pub')" />
-                <th v-else-if="c.key === 'trend'" :class="cfMain.stickCls(c.key)" :style="{ width: '320px', ...cfMain.stickStyle(c.key) }">销量趋势 <i class="sg-sales-hd-i" title="今日销量与前七日平均销量对比；曲线为近7日销量走势">ⓘ</i></th>
+                <SortTh v-if="c.key === 'pub'" :class="cfMain.stickCls(c.key)" :style="cfMain.stickStyle(c.key)" label="发布信息" width="260px" :state="sortIco('pub')" @sort="toggleSort('pub')" />
+                <th v-else-if="c.key === 'trend'" :class="cfMain.stickCls(c.key)" :style="{ width: '260px', ...cfMain.stickStyle(c.key) }">销量趋势 <i class="sg-sales-hd-i" title="今日销量与前七日平均销量对比；曲线为近7日销量走势">ⓘ</i></th>
                 <th v-else :class="cfMain.stickCls(c.key)" :style="{ width: `${c.width}px`, ...cfMain.stickStyle(c.key) }">{{ c.label }}</th>
               </template>
-              <th :class="cfMain.stickCls('actions')" :style="{ width: '110px', ...cfMain.stickStyle('actions') }">操作</th>
+              <th :class="cfMain.stickCls('actions')" :style="{ width: '260px', ...cfMain.stickStyle('actions') }">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -661,11 +660,11 @@ const onTab = (t: SgTab) => {
                   <div class="sg-ginfo">
                     <div class="sg-gtitle"><Ellipsis :text="p.title" /></div>
                     <div class="sg-gid">
-                      链接商品ID：<span>{{ p.linkId }}</span>
+                      链接商品ID：<span :title="String(p.linkId)">{{ p.linkId }}</span>
                       <button class="sg-copy" title="复制" @click="copy(p.linkId)">⧉</button>
                     </div>
                     <div class="sg-gid">
-                      商品ID：<span>{{ p.id }}</span>
+                      商品ID：<span :title="String(p.id)">{{ p.id }}</span>
                       <button class="sg-copy" title="复制" @click="copy(p.id)">⧉</button>
                     </div>
                   </div>
@@ -682,11 +681,36 @@ const onTab = (t: SgTab) => {
                   <div v-if="p.status === 'auditFail'" class="sg-failtag" :title="p.rejectReason">
                     审核未通过 <i class="sg-fail-i" :title="p.rejectReason">i</i>
                   </div>
-                  <div v-else-if="p.offType" class="sg-offtag" :class="isFailOff(p) ? 'fail' : 'normal'">
+                  <!-- 下架分组纯文本与预警标签同义时只留标签：仅无预警标签的下架（手动/普通平台下架）保留文本 -->
+                  <div v-else-if="p.offType && !sgWarnType(p)" class="sg-offtag" :class="isFailOff(p) ? 'fail' : 'normal'">
                     {{ SG_OFF_GROUP[p.offType] }}
                   </div>
+                  <!-- 预警并入商品状态：状态下方红色预警标签，悬浮展示具体预警内容 -->
+                  <div
+                    v-if="sgWarnType(p)"
+                    class="sg-failtag"
+                    @mouseenter="showOffPop($event, p.offReason ?? '')"
+                    @mouseleave="hideOffPop"
+                  >
+                    {{ sgWarnType(p) }} <i class="sg-fail-i">i</i>
+                  </div>
                 </td>
-                <td v-else-if="c.key === 'strategy'" :class="cfMain.stickCls(c.key)" :style="cfMain.stickStyle(c.key)">{{ p.strategy }}</td>
+                <td v-else-if="c.key === 'strategy'" :class="cfMain.stickCls(c.key)" :style="cfMain.stickStyle(c.key)">
+                  <div class="sg-kv"><span class="sg-kv-l">发布策略：</span><b>{{ p.strategy }}</b></div>
+                  <!-- 动销/优惠策略仅视频号平台关联展示 -->
+                  <template v-if="tab === '视频号'">
+                    <div class="sg-kv"><span class="sg-kv-l">动销策略：</span><b>{{ p.dsStrategy ?? '未关联' }}</b></div>
+                    <div class="sg-kv sg-kv-coupon">
+                      <span class="sg-kv-l">优惠策略：</span>
+                      <BubbleSelect
+                        class-name="sg-select sg-cp-select"
+                        :value="p.cpStrategy ?? '未关联'"
+                        :options="SG_COUPON_OPTIONS"
+                        @change="(v: string) => p.cpStrategy = v === '未关联' ? undefined : v"
+                      />
+                    </div>
+                  </template>
+                </td>
                 <td v-else-if="c.key === 'trend'" :class="cfMain.stickCls(c.key)" :style="cfMain.stickStyle(c.key)">
                   <div class="sg-sales">
                     <div class="sg-moment-top">
@@ -724,12 +748,6 @@ const onTab = (t: SgTab) => {
                     </div>
                     <div class="sg-sales-foot">前7日均 {{ s7Moment(p).avg }} · 近20日销量 {{ zero(p.sold30) }} · 总销量 {{ zero(p.sales) }}</div>
                   </div>
-                </td>
-                <td v-else-if="c.key === 'warn'" :class="cfMain.stickCls(c.key)" :style="cfMain.stickStyle(c.key)">
-                  <div v-if="p.offType && sgWarnType(p)" class="sg-offtag" :class="isFailOff(p) ? 'fail' : 'normal'" @mouseenter="showOffPop($event, p.offReason ?? '')" @mouseleave="hideOffPop">
-                    {{ sgWarnType(p) }} <i class="sg-fail-i">i</i>
-                  </div>
-                  <span v-else class="sg-dash">-</span>
                 </td>
                 <td v-else-if="c.key === 'pub'" :class="cfMain.stickCls(c.key)" :style="cfMain.stickStyle(c.key)">
                   <div class="sg-kv"><span class="sg-kv-l">发布人：</span><b>{{ p.publisher }}</b></div>

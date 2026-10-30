@@ -15,7 +15,13 @@ export interface KbMedia {
   desc: string;
   /** 命中场景（细分场景，快递咨询/商品破损 等结构化过滤面；选填多选，会话维度场景推断不依赖该字段） */
   scenes: string[];
+  /** 图片信息页签归属（基本信息/质检报告/其它）；缺省＝其它（存量素材） */
+  cat?: KbImageCat;
 }
+
+/** 图片信息页签三型：基本信息/质检报告/其它（存量素材归其它） */
+export type KbImageCat = '基本信息' | '质检报告' | '其它';
+export const KB_IMAGE_CATS: KbImageCat[] = ['基本信息', '质检报告', '其它'];
 
 /** 知识素材（支持上传：图片 / 视频 / 任意文件） */
 export interface KbMaterial {

@@ -8,11 +8,11 @@ import SortTh from '../../components/SortTh.vue';
 import PieChart from './PieChart.vue';
 import QcTypeShuttle from './QcTypeShuttle.vue';
 import { CHAT_SORT_METRICS, ORDER_SORT_METRICS, REVIEW_SORT_METRICS, type SortKey } from './QcSeriesList.vue';
-import { GRADE_COLOR, SHOP_GRADES, SHOP_LOGO, SHOP_PLATS, onlineHitCats, onlineSeries, qcShops, qcShopGoods, shopGoodOfCode, shopGoodHitTypes, shopGradeOf, shopOptOf, shopOptEverOf, type OnlineShop, type ShopGood, type ShopPlat } from './qcOnlineData';
+import { GRADE_COLOR, SHOP_GRADES, SHOP_LOGO, SHOP_PLATS, onlineHitCats, onlineSeries, optStatusOf, qcShops, qcShopGoods, shopGoodOfCode, shopGoodHitTypes, shopGradeOf, shopOptOf, shopOptEverOf, type OnlineShop, type ShopGood, type ShopPlat } from './qcOnlineData';
 import { PROBLEM_TYPE_COLOR } from './qcCenterData';
 import { qcGet } from './qcApi';
 
-defineProps<{ onPickGoods?: (shopId: string) => void; onJumpAfter?: () => void; onJumpGoods?: () => void; onJumpReview?: () => void; onShopOpt?: (s: OnlineShop) => void; onShopViewOpt?: (s: OnlineShop) => void }>();
+defineProps<{ onPickGoods?: (shopId: string) => void; onJumpAfter?: () => void; onJumpGoods?: () => void; onJumpReview?: () => void; onJumpOpt?: () => void; onShopOpt?: (s: OnlineShop) => void; onShopViewOpt?: (s: OnlineShop) => void }>();
 
 const shops = qcShops;
 /* 综合评级：阈值同问题商品定义页 SHOP_GRADE_CFG；新店观察期不计入评级，灰标「不计入」；档位色取数据层单一出口 GRADE_COLOR */
@@ -22,9 +22,12 @@ const gradeOf = (s: OnlineShop) => shopGradeOf(s.platform, s.score);
    平台维度由页首切换器独占（各平台指标口径不一，数据按平台分区展示），不再作为查询条件下拉 ---------- */
 type PlatSel = '全部' | ShopPlat;
 const GRADE_OPTS = ['全部评级', ...SHOP_GRADES, '新店'];
-const blankF = () => ({ q: '', code: '', grade: '全部评级', hitType: '全部', hitSub: '全部', opt: '全部', ever: '全部' });
+const blankF = () => ({ q: '', code: '', grade: '全部评级', hitType: '全部', hitSub: '全部', opt: '全部', ever: '全部', dim: '全部', dimG: '全部' });
 /* 问题类型/小类两级条件（看板占比卡点击代入）：大类取命中问题分类清单，小类随大类级联（标签去「XX类-」前缀，同看板下钻卡） */
 const TYPE_OPTS = ['全部', ...onlineHitCats().map((c) => c.name)];
+/* 体验维度/维度等级两级条件（体验分模块下钻卡代入）：维度标签同 DIM_FIELD 键，等级取 SHOP_GRADES */
+const DIM_OPTS = ['全部', '商品体验', '物流体验', '服务体验', '发货体验'];
+const DIM_G_OPTS = ['全部', ...SHOP_GRADES];
 const subLabelOf = (catName: string, raw: string) => {
   const p = `${catName}类-`;
   return raw.startsWith(p) ? raw.slice(p.length) : raw;
@@ -54,11 +57,23 @@ const codeHitShop = (shopId: string, raw: string): boolean => {
   if (series && series.codes.some((c) => shopGoodOfCode(c.code)?.shopId === shopId)) return true;
   return false;
 };
+/* 体验维度等级下钻：维度标签↔店铺分值字段；发货维仅拼多多店铺有值，新店或缺该维度分值视为不计入评级 */
+const DIM_FIELD: Record<string, 'goods' | 'logistics' | 'service' | 'deliver'> = { 商品体验: 'goods', 物流体验: 'logistics', 服务体验: 'service', 发货体验: 'deliver' };
+const dimGradeOf = (s: OnlineShop, key: 'goods' | 'logistics' | 'service' | 'deliver'): string | null => {
+  if (s.isNew) return null;
+  if (key === 'deliver' && s.deliver === undefined) return null;
+  return shopGradeOf(s.platform, s[key] ?? 0);
+};
 /* 除平台外的其余条件命中（切换器段内计数与列表过滤共用同一谓词，保证计数与结果同源） */
 const matchExceptPlat = (s: OnlineShop): boolean => {
   const f = applied.value;
   if (f.grade === '新店') { if (!s.isNew) return false; }
   else if (f.grade !== '全部评级') { if (s.isNew || gradeOf(s) !== f.grade) return false; }
+  /* 体验维度等级下钻（分维卡代入）：命中该维度分值判定的评级＝所选等级；新店/发货维缺值不计入 */
+  if (f.dim !== '全部' && f.dimG !== '全部') {
+    const key = DIM_FIELD[f.dim];
+    if (!key || dimGradeOf(s, key) !== f.dimG) return false;
+  }
   const kw = f.q.trim().toLowerCase();
   if (kw && !s.name.toLowerCase().includes(kw) && !s.id.toLowerCase().includes(kw)) return false;
   if (!codeHitShop(s.id, f.code)) return false;
@@ -123,13 +138,6 @@ const platAvgOf = (p: ShopPlat) => {
   const list = shops.value.filter((s) => s.platform === p && !s.isNew);
   return Math.round((list.reduce((a, s) => a + s.score, 0) / Math.max(list.length, 1)) * 100) / 100;
 };
-/* 跨平台总览态基准＝全部平台计入评级店铺均值；单平台态＝该平台均值 */
-const allAvgOf = () => {
-  const list = shops.value.filter((s) => !s.isNew);
-  return Math.round((list.reduce((a, s) => a + s.score, 0) / Math.max(list.length, 1)) * 100) / 100;
-};
-const scopeAvgOf = () => (platTab.value === '全部' ? allAvgOf() : platAvgOf(platTab.value));
-const scopeAvgLabel = computed(() => (platTab.value === '全部' ? '全平台' : platTab.value));
 type TrendKey = 'score' | 'goods' | 'logistics' | 'service' | 'platavg';
 const TREND_META: { key: TrendKey; label: string; color: string; dash?: boolean }[] = [
   { key: 'score', label: '店铺体验分', color: '#4f7cff' },
@@ -279,7 +287,7 @@ const sparkGeom = (pts: number[]) => {
   const y = (v: number) => 4 + (1 - (v - lo) / (hi - lo)) * 24;
   return { lo, hi, line: pts.map((v, i) => ((i / (pts.length - 1)) * 100).toFixed(2) + ',' + y(v).toFixed(2)).join(' ') };
 };
-const SPARK_KEYS = ['score', 'goods', 'logistics', 'service'] as const;
+const SPARK_KEYS = ['score', 'goods', 'logistics', 'service', 'deliver'] as const;
 type SparkDim = (typeof SPARK_KEYS)[number];
 
 /* ---------- 订单/聊天/评价数据复合列（2026-10-14 用户指令一比一照搬系列编码列表）：店铺旗下商品三口径汇总，
@@ -315,7 +323,9 @@ type SparkEntry = { pts: number[]; geom: ReturnType<typeof sparkGeom>; delta: nu
 const sparkCache = computed(() => {
   const m = new Map<string, SparkEntry>();
   shops.value.forEach((s) => SPARK_KEYS.forEach((k) => {
-    const pts = sparkSeries(`${s.id}-${k}`, s[k]);
+    const val = s[k];
+    if (val === undefined) return;
+    const pts = sparkSeries(`${s.id}-${k}`, val);
     m.set(`${s.id}-${k}`, { pts, geom: sparkGeom(pts), delta: Math.round((pts[SPARK_N - 1] - pts[SPARK_N - 2]) * 100) / 100 });
   }));
   return m;
@@ -357,12 +367,9 @@ const deltaCls = (d: number) => (d > 0 ? 'up' : d < 0 ? 'down' : '');
 const deltaTxt = (d: number) => (d > 0 ? `▲${d.toFixed(2)}` : d < 0 ? `▼${Math.abs(d).toFixed(2)}` : '—');
 
 /* ---------- 页首看板（白面板语言同数据概览／评价看板）：口径＝当前平台切换＋生效查询条件命中的店铺集合（与下方列表同源 filtered）；
-   总览五卡覆盖 分数／订单·售后／聊天／差评／问题命中，问题类型占比支持大类→小类下钻（点卡或点扇区，标题返回钮回大类） ---------- */
+   总览四卡覆盖 订单·售后／聊天／差评／问题命中；体验分维度（综合均值＋评级＋四维分解）统一归入下方「体验分均值与等级分布」模块 ---------- */
 const boardAgg = computed(() => {
   const list = filtered.value;
-  /* 新店不计入评级口径：均值只算计入评级店铺，与数据概览评分看板一致 */
-  const graded = list.filter((s) => !s.isNew);
-  const avg = (k: 'score' | 'goods' | 'logistics' | 'service') => graded.reduce((a, s) => a + s[k], 0) / Math.max(graded.length, 1);
   let orders = 0; let afterSales = 0; let chatTotal = 0; let chatRisk = 0; let reviewTotal = 0; let reviewBad = 0;
   list.forEach((s) => {
     const b = briefOf(s);
@@ -371,8 +378,6 @@ const boardAgg = computed(() => {
     reviewTotal += b.reviewTotal; reviewBad += b.reviewBad;
   });
   return {
-    shops: list.length, newShops: list.length - graded.length, platAvg: scopeAvgOf(),
-    score: avg('score'), goods: avg('goods'), logistics: avg('logistics'), service: avg('service'),
     orders, afterSales, afterRate: orders ? afterSales / orders : 0,
     chatTotal, chatRisk, chatRate: chatTotal ? chatRisk / chatTotal : 0,
     reviewTotal, reviewBad, reviewRate: reviewTotal ? reviewBad / reviewTotal : 0,
@@ -395,6 +400,18 @@ const boardSrc = computed(() => {
     if (n) { shops += 1; goods += n; }
   });
   return { shops, goods };
+});
+/* 优化中店铺数（当前口径下店铺级态 shopOptOf＝优化中 的去重店铺）；已完成优化＝周期已结束的优化任务数（按 todoId 去重，与优化任务列表「已结束」口径闭环）；卡点击跳任务中心·优化任务列表 */
+const boardOpt = computed(() => {
+  let active = 0;
+  const doneIds = new Set<string>();
+  filtered.value.forEach((s) => {
+    if (shopOptOf(s)?.status === '优化中') active += 1;
+    qcShopGoods.value.forEach((g) => {
+      if (g.shopId === s.id && g.optTask && optStatusOf(g) === '已结束') doneIds.add(g.optTask.todoId || g.id);
+    });
+  });
+  return { active, done: doneIds.size };
 });
 /* 下钻小类：逐店按全局小类权重拆包后按当前店铺集合求和（小类合计恒等于大类，且与店铺级小类计数同源——
    小类卡点击代入列表条件后，列表行的小类计数之和即卡上数值）；小类名去「XX类-」前缀，色板沿用数据概览下钻口径 */
@@ -442,15 +459,79 @@ const backToBoard = () => {
   }
   tier.value = 'board';
 };
-/* 店铺分布卡行：店铺数＋各评级店铺数；新店不计入评级，占比分母＝计入评级店铺（同数据概览评分看板口径） */
-const boardGrades = computed(() => {
-  const list = filtered.value;
-  const graded = list.filter((s) => !s.isNew);
+/* ---------- 看板·体验分均值与等级分布：综合＋四维均值＋各维 S-D 等级店铺数与占比；
+   平台口径＝页首页签选「全部」时由模块级下拉 dimPlat 选定，页首已选具体平台则跟随页首（下拉隐藏），模块与页面口径不脱节；
+   发货体验为拼多多独有维度，仅口径为「全部」或「拼多多」时展示该卡；等级阈值同 SHOP_GRADE_CFG 逐店按自身平台判定 ---------- */
+const DIM_PLAT_OPTS: PlatSel[] = ['全部', ...SHOP_PLATS];
+const dimPlat = ref<PlatSel>('全部');
+const dimScope = computed<PlatSel>(() => (platTab.value === '全部' ? dimPlat.value : platTab.value));
+const dimShops = computed(() => shops.value.filter((s) => (dimScope.value === '全部' || s.platform === dimScope.value) && matchExceptPlat(s)));
+type DimKey = 'goods' | 'logistics' | 'service' | 'deliver';
+interface DimStat { key: DimKey; label: string; avg: number; graded: number; counts: Record<string, number>; }
+const dimStats = computed<DimStat[]>(() => {
+  const dims: { key: DimKey; label: string }[] = [
+    { key: 'goods', label: '商品体验平均分' },
+    { key: 'logistics', label: '物流体验平均分' },
+    { key: 'service', label: '服务体验平均分' },
+  ];
+  if (dimScope.value === '全部' || dimScope.value === '拼多多') dims.push({ key: 'deliver', label: '发货体验平均分' });
+  return dims.map((d) => {
+    /* 计入评级口径同总览（新店不计入）；发货维仅统计有该维度分值的店铺 */
+    const graded = dimShops.value.filter((s) => !s.isNew && (d.key !== 'deliver' || s.deliver !== undefined));
+    const avg = graded.reduce((a, s) => a + (s[d.key] ?? 0), 0) / Math.max(graded.length, 1);
+    const counts: Record<string, number> = { S: 0, A: 0, B: 0, C: 0, D: 0 };
+    graded.forEach((s) => { counts[shopGradeOf(s.platform, s[d.key] ?? 0)] += 1; });
+    return { key: d.key, label: d.label, avg, graded: graded.length, counts };
+  });
+});
+/* 综合体验平均分卡（与四维卡同构同排）：总均值＋整体 S-D 等级店铺数与占比；等级 chip 与子行店铺数保留原分布卡行点击语义（代入评级条件进二级列表） */
+const ovStat = computed(() => {
+  const graded = dimShops.value.filter((s) => !s.isNew);
   const counts: Record<string, number> = { S: 0, A: 0, B: 0, C: 0, D: 0 };
   graded.forEach((s) => { counts[gradeOf(s)] += 1; });
-  return { total: list.length, newShops: list.length - graded.length, graded: graded.length, counts };
+  return {
+    avg: graded.reduce((a, s) => a + s.score, 0) / Math.max(graded.length, 1),
+    graded: graded.length,
+    total: dimShops.value.length,
+    newShops: dimShops.value.length - graded.length,
+    counts,
+  };
 });
-const gradePct = (g: string) => (boardGrades.value.graded ? `${Math.round((boardGrades.value.counts[g] / boardGrades.value.graded) * 100)}%` : '0%');
+
+/* ---------- 下钻交互（参考问题类型占比）：一级卡只显均值，点卡下钻该维度的 S-D 等级（店铺数＋占比），点等级代入筛选进二级列表。
+   drillKey='score' 为综合维度（代入综合评级 grade）；其余为分维（代入 dim+dimG，走列表新增体验维度/维度等级条件） ---------- */
+type DrillKey = 'score' | DimKey;
+const dimDrill = ref<DrillKey | null>(null);
+/* 口径切换（页首平台/模块下拉）后原下钻维度可能已不存在（如离开发货维），失效则回一级 */
+const drillOn = computed(() => {
+  if (!dimDrill.value) return null;
+  if (dimDrill.value === 'score') return { key: 'score' as const, label: '综合体验平均分', avg: ovStat.value.avg, graded: ovStat.value.graded, counts: ovStat.value.counts, total: ovStat.value.total, newShops: ovStat.value.newShops };
+  const st = dimStats.value.find((d) => d.key === dimDrill.value);
+  return st ? { key: st.key, label: st.label, avg: st.avg, graded: st.graded, counts: st.counts } : null;
+});
+const drillPct = (g: string) => {
+  const d = drillOn.value;
+  return d && d.graded ? `${Math.round((d.counts[g] / d.graded) * 100)}%` : '0%';
+};
+const drillNote = computed(() => {
+  const d = drillOn.value;
+  if (!d) return '';
+  return d.key === 'score'
+    ? `综合均值 ${d.avg.toFixed(2)} · 店铺 ${d.total} · 新店 ${d.newShops} · 计入评级 ${d.graded}`
+    : `${d.label.replace('平均分', '')}均值 ${d.avg.toFixed(2)} · 计入评级店铺 ${d.graded}`;
+});
+/* 点等级代入筛选进二级列表：综合维度代入综合评级；分维代入体验维度＋维度等级（快照一级口径，返回钮还原） */
+const gotoDimGradeList = (g: string) => {
+  const d = drillOn.value;
+  if (!d) return;
+  ovSnap.value = { d: { ...draft.value }, a: { ...applied.value } };
+  const next = d.key === 'score'
+    ? { ...applied.value, grade: g, dim: '全部', dimG: '全部' }
+    : { ...applied.value, grade: '全部评级', dim: d.label.replace('平均分', ''), dimG: g };
+  draft.value = { ...next };
+  applied.value = { ...next };
+  tier.value = 'list';
+};
 
 /* ---------- 看板·体验分趋势（图一口径）：全部态＝各平台平均分各一条线（标题「各平台平均分趋势」），指定平台态＝该平台四维体验分均值线；
    单店序列同趋势弹窗口径 seriesOfN，逐日取均值聚合；平滑曲线＋同色渐变面积填充、底部居中图例仅名称；范围近 7/30/90 天独立切换（不与弹窗共用） ---------- */
@@ -624,7 +705,7 @@ const onJump = () => {
   if (!Number.isNaN(n)) page.value = Math.min(Math.max(1, n), pageCount.value);
   jumpVal.value = String(page.value);
 };
-watch([applied, platTab], () => { page.value = 1; jumpVal.value = '1'; boardDetail.value = null; });
+watch([applied, platTab], () => { page.value = 1; jumpVal.value = '1'; boardDetail.value = null; dimDrill.value = null; });
 watch(page, (v) => { jumpVal.value = String(v); });
 /* 悬浮取值：折线圆点＋底部定位点＋白底取值卡（日期＋商家指标水平），卡居中悬浮点于折线上方 */
 const sparkHover = ref<{ key: string; i: number; w: number } | null>(null);
@@ -676,6 +757,15 @@ const sparkHoverVal = (m: SparkEntry, key: string) => { const h = sparkHoverOf(k
           <label>综合评级</label>
           <BubbleSelect class-name="sg-select" :value="draft.grade" :options="GRADE_OPTS" @change="(v: string) => (draft.grade = v)" />
         </div>
+        <!-- 体验维度/维度等级两级条件（体验分模块分维卡下钻代入后回显于此）：维度取分值维度，等级取该维度分值判定的 S-D 评级 -->
+        <div class="sg-field">
+          <label>体验维度</label>
+          <BubbleSelect class-name="sg-select" :value="draft.dim" :options="DIM_OPTS" @change="(v: string) => (draft.dim = v)" />
+        </div>
+        <div class="sg-field">
+          <label>维度等级</label>
+          <BubbleSelect class-name="sg-select" :value="draft.dimG" :options="DIM_G_OPTS" @change="(v: string) => (draft.dimG = v)" />
+        </div>
         <!-- 问题类型/小类两级：左列大类、右列小类穿梭（同监控列表口径）；看板小类卡点击代入后回显于此 -->
         <div class="sg-field">
           <label>问题类型</label>
@@ -718,41 +808,12 @@ const sparkHoverVal = (m: SparkEntry, key: string) => { const h = sparkHoverOf(k
     </div>
 
     <!-- 一级看板：口径＝页首平台切换＋生效查询条件（与二级列表同源 filtered）；
-         分布卡（店铺数＋各评级店铺数）在上，点击代入评级条件进二级列表 -->
+         体验分维度数据（综合均值＋评级分布＋四维分解）统一归入「体验分均值与等级分布」模块，总览仅余业务量四卡 -->
     <div v-if="tier === 'board'" class="qc-ov-panel qc-sl-ov">
-      <div class="qc-flat-grid cols-6 qc-sl-grades">
-        <div class="flat-card" title="点击查看当前范围全部店铺" @click="gotoList('全部评级')">
-          <div class="k">店铺数</div>
-          <div class="v">{{ boardGrades.total.toLocaleString() }}<span class="dept-pct">新店 {{ boardGrades.newShops }}</span></div>
-        </div>
-        <div
-          v-for="g in SHOP_GRADES"
-          :key="g"
-          class="flat-card"
-          :title="`点击查看 ${g} 级店铺（占比＝${g} 级 ÷ 计入评级店铺）`"
-          @click="gotoList(g)"
-        >
-          <div class="k"><i class="qc-sl-gchip" :style="{ color: GRADE_COLOR[g], background: GRADE_COLOR[g] + '1a' }">{{ g }}</i>级</div>
-          <div class="v">{{ boardGrades.counts[g].toLocaleString() }}<span class="dept-pct">{{ gradePct(g) }}</span></div>
-        </div>
-      </div>
-      <div class="qc-ov-divider" />
       <div class="qc-sec-head">
         <div class="qc-sec-title">店铺数据总览</div>
-        <div class="qc-rv-src" :title="`${scopeAvgLabel}全部计入评级店铺的体验分均值（不随查询条件变化，作对比基准）`">
-          <span>{{ scopeAvgLabel }}体验分均值：<b>{{ boardAgg.platAvg.toFixed(2) }}</b></span>
-        </div>
       </div>
       <div class="qc-flat-grid cols-5">
-        <div class="flat-card after-card" title="计入评级店铺的体验分均值（新店不计入）；子行为商品／物流／服务三维均值">
-          <div class="k">平均体验分</div>
-          <div class="v">{{ boardAgg.score.toFixed(2) }}</div>
-          <div class="after-sess qc-sl-ov-dims">
-            <span>商品<b>{{ boardAgg.goods.toFixed(2) }}</b></span>
-            <span>物流<b>{{ boardAgg.logistics.toFixed(2) }}</b></span>
-            <span>服务<b>{{ boardAgg.service.toFixed(2) }}</b></span>
-          </div>
-        </div>
         <div class="flat-card after-card link" title="店铺旗下商品订单总数；售后率 = 售后订单 ÷ 订单总数；点击查看售后单列表" @click="onJumpAfter?.()">
           <div class="k">订单数据</div>
           <div class="v">{{ boardAgg.orders.toLocaleString() }}</div>
@@ -785,7 +846,64 @@ const sparkHoverVal = (m: SparkEntry, key: string) => { const h = sparkHoverOf(k
             <span>涉及商品<b>{{ boardSrc.goods }}</b></span>
           </div>
         </div>
+        <div class="flat-card after-card link" title="当前口径下优化中（在途优化任务）店铺数；已完成优化＝优化任务已结束的店铺数；点击查看优化任务列表" @click="onJumpOpt?.()">
+          <div class="k">优化中店铺数</div>
+          <div class="v">{{ boardOpt.active }}</div>
+          <div class="after-sess sess-row">
+            <span>已完成优化<b>{{ boardOpt.done }}</b></span>
+          </div>
+        </div>
       </div>
+
+      <!-- 体验分均值与等级分布（下钻交互，参考问题类型占比）：一级卡只显均值，点卡下钻该维度 S-D 等级（店铺数＋占比），点等级代入筛选进二级列表；
+           页首「全部」态才显模块下拉，具体平台态跟随页首；发货体验仅全部/拼多多口径展示 -->
+      <div class="qc-ov-divider" />
+      <div class="qc-sec-head">
+        <div class="qc-sec-title">
+          <template v-if="drillOn">
+            <button type="button" class="qc-detail-back" title="返回体验分总览" @click="dimDrill = null">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6" /></svg>
+            </button>
+            <b class="qc-detail-name">{{ drillOn.label }}</b>
+          </template>
+          <template v-else>体验分均值与等级分布</template>
+        </div>
+        <div v-if="drillOn" class="qc-rv-src"><span>{{ drillNote }}</span></div>
+        <BubbleSelect v-if="!drillOn && platTab === '全部'" class-name="sg-select" :value="dimPlat" :options="DIM_PLAT_OPTS" @change="(v: string) => (dimPlat = v as PlatSel)" />
+      </div>
+      <template v-if="drillOn">
+        <div class="qc-flat-grid cols-5">
+          <div
+            v-for="g in SHOP_GRADES"
+            :key="g"
+            class="flat-card link"
+            :title="`点击查看${drillOn.label.replace('平均分', '')} ${g} 级店铺列表（占比＝${g} 级 ÷ 计入评级店铺）`"
+            @click="gotoDimGradeList(g)"
+          >
+            <div class="k"><i class="qc-sl-gchip" :style="{ color: GRADE_COLOR[g], background: GRADE_COLOR[g] + '1a' }">{{ g }}</i>{{ g }} 级</div>
+            <div class="v">{{ drillOn.counts[g] }}<span class="dept-pct">{{ drillPct(g) }}</span></div>
+          </div>
+        </div>
+      </template>
+      <template v-else>
+        <div v-if="dimStats[0]?.graded" class="qc-flat-grid" :class="dimStats.length > 3 ? 'cols-5' : 'cols-4'">
+          <div class="flat-card link" title="点击查看综合评级 S-D 等级分布（店铺数＋占比）" @click="dimDrill = 'score'">
+            <div class="k">综合体验平均分</div>
+            <div class="v">{{ ovStat.avg.toFixed(2) }}</div>
+          </div>
+          <div
+            v-for="st in dimStats"
+            :key="st.key"
+            class="flat-card link"
+            :title="`点击查看${st.label.replace('平均分', '')} S-D 等级分布（店铺数＋占比）`"
+            @click="dimDrill = st.key"
+          >
+            <div class="k">{{ st.label }}</div>
+            <div class="v">{{ st.avg.toFixed(2) }}</div>
+          </div>
+        </div>
+        <div v-else class="qc-sl-ov-empty">当前条件下暂无计入评级店铺</div>
+      </template>
 
       <template v-if="boardHitTotal">
         <div class="qc-ov-divider" />
@@ -1000,6 +1118,7 @@ const sparkHoverVal = (m: SparkEntry, key: string) => { const h = sparkHoverOf(k
               <div><span class="qc-cd-lb">商品体验：</span><span class="qc-cd-v"><b class="qc-sl-score">{{ s.goods.toFixed(2) }}</b><span class="qc-sl-delta" :class="deltaCls(sparkOf(s.id, 'goods').delta)">{{ deltaTxt(sparkOf(s.id, 'goods').delta) }}</span></span></div>
               <div><span class="qc-cd-lb">物流体验：</span><span class="qc-cd-v"><b class="qc-sl-score">{{ s.logistics.toFixed(2) }}</b><span class="qc-sl-delta" :class="deltaCls(sparkOf(s.id, 'logistics').delta)">{{ deltaTxt(sparkOf(s.id, 'logistics').delta) }}</span></span></div>
               <div><span class="qc-cd-lb">服务体验：</span><span class="qc-cd-v"><b class="qc-sl-score">{{ s.service.toFixed(2) }}</b><span class="qc-sl-delta" :class="deltaCls(sparkOf(s.id, 'service').delta)">{{ deltaTxt(sparkOf(s.id, 'service').delta) }}</span></span></div>
+              <div v-if="s.deliver !== undefined"><span class="qc-cd-lb">发货体验：</span><span class="qc-cd-v"><b class="qc-sl-score">{{ s.deliver.toFixed(2) }}</b><span class="qc-sl-delta" :class="deltaCls(sparkOf(s.id, 'deliver').delta)">{{ deltaTxt(sparkOf(s.id, 'deliver').delta) }}</span></span></div>
             </td>
             <td class="qc-order-data">
               <div><span class="qc-cd-lb">订单总数：</span><span class="qc-cd-v">{{ briefOf(s).orders.toLocaleString() }}</span></div>

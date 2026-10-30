@@ -65,6 +65,10 @@ export interface SgProduct {
   seriesCode: string;
   status: SgStatus;
   strategy: string;
+  /** 动销策略（阶梯控价）名称：仅视频号平台关联展示 */
+  dsStrategy?: string;
+  /** 优惠策略（优惠券）名称：仅视频号平台关联展示 */
+  cpStrategy?: string;
   sales: string;
   reviews: string;
   /** 近30天销量 / 曝光 */
@@ -140,6 +144,9 @@ export function sgRowActions(status: SgStatus): string[] {
       return ['还原', '彻底删除'];
   }
 }
+
+/** 店铺商品列表可用的优惠券选项（优惠策略）：提供示例数据用于下拉选择 */
+export const SG_COUPON_OPTIONS = ['未关联', '通用券10/27', '双十一大促券', '新人专享券', '满199减30', '直播间限时券', '会员日95折券'];
 
 /** 下架状态 → 下架类型映射（列表行下架副标签用） */
 const STATUS_OFF_TYPE: Partial<Record<SgStatus, SgOffType>> = {
@@ -260,7 +267,7 @@ const sgProductBase: Record<'视频号' | '淘宝', Omit<SgProduct, 'seriesCode'
     },
     {
       id: '8888777776671', title: T_MAIN, img: ecMain(10), linkId: '8888777776671',
-      status: 'selling', strategy: '默认发布策略', sales: '1,286', reviews: '342', sold30: '126', exposure: '5,602',
+      status: 'selling', strategy: '默认发布策略', dsStrategy: '短视频渠道动销提价', cpStrategy: '通用券10/27', sales: '1,286', reviews: '342', sold30: '126', exposure: '5,602',
       publisher: '自己', store: '天猫Funion旗舰店', storePlatform: '天猫', source: '内部商机',
       version: '7887998736839', operator: '张三', category: ['厨房电器', '料理机', '多功能料理机'], publishMode: '蜂联',
       publishTime: '2026-03-02 10:00:00', shelfTime: '2026-03-02 10:00:00',
@@ -274,7 +281,7 @@ const sgProductBase: Record<'视频号' | '淘宝', Omit<SgProduct, 'seriesCode'
     },
     {
       id: '8888777776673', title: T_SERUM, img: ecMain(12), linkId: '8888777776673',
-      status: 'selling', strategy: '高利润策略', sales: '866', reviews: '120', sold30: '98', exposure: '3,208',
+      status: 'selling', strategy: '高利润策略', dsStrategy: '短视频渠道动销提价', cpStrategy: '双十一大促券', sales: '866', reviews: '120', sold30: '98', exposure: '3,208',
       publisher: '李四', store: '拼多多优品店', storePlatform: '拼多多', source: '市场商机',
       version: '7887998736841', operator: '李四', category: ['美妆个护', '面部护理', '精华液'], publishMode: '蜂联',
       publishTime: '2026-05-20 08:00:00', shelfTime: '2026-05-20 08:00:00',

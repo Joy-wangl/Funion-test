@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, reactive, ref, watch } from 'vue';
 import { createTaobaoRows, createJmRows, createImgsOf, parentTasks, retrySub, PUB_NO_STRATEGY, PUB_STRATEGIES, PUB_SHOPS, PUB_ROUTE_PLATFORMS, PLATFORM_LOGO, createDetail } from './data';
+import { cpStrategies } from './strategyData';
 import { blFailReason, matchBlacklist } from './blacklistData';
 import type { BlType } from './blacklistData';
 import type { CreateRow, SubTask, PubShop } from './data';
@@ -264,6 +265,8 @@ interface PubSel {
   platform: string;
   groupOpen: boolean;
   shops: number[];
+  /** 策略启用优惠券时，记录每个店铺选择的优惠券名 */
+  coupons: Record<number, string>;
 }
 const pubOpen = ref(false);
 const pubStep = ref<1 | 2>(1);
@@ -281,6 +284,7 @@ const newPubSel = (name: string): PubSel => ({
   platform: pubPlatforms.value[0],
   groupOpen: false,
   shops: [],
+  coupons: {},
 });
 const openPubTo = (products: CreateRow[]) => {
   pubProducts.value = products;
@@ -482,6 +486,8 @@ const togglePubStrat = (name: string, on: boolean) => {
   }
 };
 const pubStrategyInfo = (name: string) => PUB_STRATEGIES.find((s) => s.name === name) ?? null;
+const strategyNeedsCoupon = (name: string) => pubStrategyInfo(name)?.useCoupon === '是';
+const shopCouponOptions = (shopName: string) => cpStrategies.filter((c) => c.shop === shopName).map((c) => c.name);
 /* 店铺互斥：记录每个店铺被哪个策略选中，其他策略内禁用并提示 */
 const shopTakenBy = computed(() => {
   const m = new Map<number, string>();
@@ -509,14 +515,25 @@ const groupAllChecked = (g: PubSel) => {
 };
 const toggleGroupShop = (g: PubSel, id: number, on: boolean) => {
   g.shops = on ? [...g.shops, id] : g.shops.filter((x) => x !== id);
+  if (!on) {
+    const { [id]: _, ...rest } = g.coupons;
+    g.coupons = rest;
+  }
 };
 const toggleGroupAll = (g: PubSel, on: boolean) => {
   const ids = groupSelectable(g).map((s) => s.id);
   g.shops = on ? [...new Set([...g.shops, ...ids])] : g.shops.filter((x) => !ids.includes(x));
+  if (!on) {
+    g.coupons = Object.fromEntries(Object.entries(g.coupons).filter(([k]) => !ids.includes(Number(k))));
+  }
 };
 /* 步骤门槛：第一步已选策略（不使用策略须填上架方式）；第二步每个策略至少选一店 */
 const pubNextEnabled = computed(() => pubSel.value.length > 0 && pubSel.value.every((g) => !!pubStrategyInfo(g.name) || g.method !== ''));
-const pubSubmitEnabled = computed(() => pubSel.value.length > 0 && pubSel.value.every((g) => g.shops.length > 0));
+const pubSubmitEnabled = computed(() => pubSel.value.length > 0 && pubSel.value.every((g) => {
+  if (g.shops.length === 0) return false;
+  if (!strategyNeedsCoupon(g.name)) return true;
+  return g.shops.every((id) => g.coupons[id]);
+}));
 const pubFootInfo = computed(() => `${pubSel.value.length} 个策略 · 共 ${pubSel.value.reduce((n, g) => n + g.shops.length, 0)} 个店铺`);
 /* 创建发布任务并模拟异步处理（商品×策略组粒度，逐店随机成功/失败） */
 const startPublishTask = (productName: string, shopIds: number[], blHit: BlType | null = null) => {
@@ -1231,7 +1248,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
           />
           <span class="cp-pub-strat-main">
             <b>{{ s.name }}</b>
-            <span class="cp-pub-strat-meta">上架方式：{{ s.pubMethod }} · 发布方式：{{ s.pubWay }} · 控利：{{ s.profitMode }} {{ s.profitRate }}</span>
+            <span class="cp-pub-strat-meta">上架方式：{{ s.pubMethod }} · 发布方式：{{ s.pubWay }} · 控利：{{ s.profitMode }} {{ s.profitRate }}{{ s.useCoupon === '是' ? ' · 需选择优惠券' : '' }}</span>
           </span>
         </label>
         <label class="cp-pub-strat" :class="noStrat ? 'on' : ''">
@@ -1301,13 +1318,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
                 :class="[
                   shopTakenBy.has(s.id) && shopTakenBy.get(s.id) !== g.name ? 'taken' : '',
                   isShopOffline(s) ? 'offline' : '',
+                  strategyNeedsCoupon(g.name) && shopCouponOptions(s.name).length === 0 ? 'nocoupon' : '',
                 ]"
               >
                 <input
                   type="checkbox"
                   class="ib-check"
                   :checked="g.shops.includes(s.id)"
-                  :disabled="(shopTakenBy.has(s.id) && shopTakenBy.get(s.id) !== g.name) || isShopOffline(s)"
+                  :disabled="(shopTakenBy.has(s.id) && shopTakenBy.get(s.id) !== g.name) || isShopOffline(s) || (strategyNeedsCoupon(g.name) && shopCouponOptions(s.name).length === 0)"
                   @change="toggleGroupShop(g, s.id, ($event.target as HTMLInputElement).checked)"
                 />
                 <img :src="pubLogo(s.platform)" alt="" />
@@ -1315,6 +1333,20 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onPubKey));
                   <span class="plat">{{ s.platform }}</span>
                   <span class="name">{{ s.name }}</span>
                 </span>
+                <!-- 需使用优惠券的策略：按店铺选择该店可用优惠券 -->
+                <template v-if="strategyNeedsCoupon(g.name) && g.shops.includes(s.id)">
+                  <template v-if="shopCouponOptions(s.name).length > 0">
+                    <span class="cp-pub-coupon">
+                      <BubbleSelect
+                        class-name="cp-pub-coupon-sel"
+                        :options="[{ value: '', label: '选择优惠券' }, ...shopCouponOptions(s.name).map((n) => ({ value: n, label: n }))]"
+                        :value="g.coupons[s.id] ?? ''"
+                        @change="(v: string) => { g.coupons[s.id] = v; }"
+                      />
+                    </span>
+                  </template>
+                  <span v-else class="cp-pub-nocoupon">该店铺暂无可用优惠券</span>
+                </template>
                 <!-- 离线店铺：禁选＋离线徽章＋前往登录入口（桥接账号管理卖家离线账号） -->
                 <template v-if="isShopOffline(s)">
                   <span class="cp-pub-offline">离线</span>

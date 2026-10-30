@@ -1,0 +1,799 @@
+/* ============ 客服工作台看板（优化提示 / 商品知识 / 标记会话）============
+   作用域：.cwb- 前缀；固定左侧纵向面板，收起态为左下角悬浮球 */
+
+/* ---- 收起态：悬浮球＝店铺体验分评级徽章（球色随档位 --gc），可拖动；点击展开 ---- */
+.cwb-fab {
+  position: fixed;
+  z-index: 600;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0) 58%),
+    var(--gc, #86909c);
+  color: #fff;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  box-shadow:
+    0 6px 16px rgba(26, 34, 56, 0.22),
+    0 0 0 4px color-mix(in srgb, var(--gc, #86909c) 20%, transparent);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.cwb-fab:hover { transform: scale(1.06); }
+.cwb-fab:active { cursor: grabbing; transform: scale(1.02); }
+.cwb-fab-g { font-size: 20px; font-weight: 700; line-height: 1; letter-spacing: 0.5px; }
+
+/* ---- 展开态：独立浮层看板（fixed 圆角卡＋阴影），头部可拖动整卡移动；不占布局、不挤压其它内容 ---- */
+.cwb-board {
+  position: fixed;
+  z-index: 600;
+  width: 450px;
+  max-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #fff;
+  border: 1px solid #e8eaef;
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(26, 34, 56, 0.18);
+  overflow: hidden;
+}
+
+.cwb-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 10px 0 16px;
+  border-bottom: 1px solid #f0f1f4;
+  cursor: move;
+  user-select: none;
+  background: linear-gradient(180deg, #fbfcfe, #fff);
+}
+.cwb-head-t { font-size: 13px; font-weight: 600; color: #33405c; }
+
+.cwb-fold {
+  margin-left: auto;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #8b93a5;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cwb-fold:hover { background: #f2f3f6; color: #465064; }
+
+/* 三模块纵向叠放为白卡片：整列独立纵向滚动，灰底衬托卡片 */
+.cwb-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  background: #f6f7f9;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.cwb-body::-webkit-scrollbar { display: none; }
+
+.cwb-mod {
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid #e8eaef;
+  border-radius: 12px;
+  background: #fff;
+}
+.cwb-mod-t {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2735;
+}
+.cwb-mod-t::before {
+  content: '';
+  flex: none;
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--color-primary, #4f7cff);
+}
+/* 商品知识头部（切换条→标题→SKU 区）放宽节奏：标题与下方 SKU 区留出分组间距 */
+.cwb-mod[data-mod='kb'] .cwb-mod-t { margin-bottom: 12px; }
+
+/* 商品知识操作钮：内联在标题行右端（不单独占底栏）；类名带 kb 前缀避标记会话 .cwb-foot 撞名 */
+.cwb-kb-acts { margin-left: auto; display: flex; gap: 8px; }
+/* 编辑入口＝纯文字链接（无底色无描边），仅字体着主色 */
+.cwb-kb-link {
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--color-primary, #4f7cff);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.cwb-kb-link:hover { text-decoration: underline; }
+.cwb-kb-foot-btn {
+  flex: none;
+  width: auto;
+  padding: 0 16px;
+  height: 26px;
+  border: none;
+  border-radius: 7px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.cwb-kb-foot-btn.primary { background: var(--color-primary, #4f7cff); color: #fff; }
+.cwb-kb-foot-btn.ghost { background: #f1f3f7; color: #465064; }
+
+.cwb-sec { margin-bottom: 18px; }
+.cwb-sec:last-child { margin-bottom: 0; }
+.cwb-sec-t {
+  font-size: 12px;
+  font-weight: 600;
+  color: #33405c;
+  margin-bottom: 8px;
+}
+
+/* 已选标签：按打标目标分组（组标题＋标签 chips），点 × 快速清除 */
+.cwb-sel-group { margin-bottom: 10px; }
+.cwb-sel-group:last-child { margin-bottom: 0; }
+.cwb-sel-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.cwb-sel-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #e9efff;
+  color: var(--color-primary, #4f7cff);
+  font-size: 12px;
+}
+.cwb-sel-tag .cwb-tag-x { font-size: 12px; color: #9db4e8; }
+.cwb-sel-tag .cwb-tag-x:hover { color: #e0483e; }
+.cwb-tag-x {
+  flex: none;
+  border: none;
+  background: transparent;
+  color: #a2a9b8;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.cwb-tag-x:hover { color: #e0483e; }
+
+/* 标签两级下钻：第一级大类等长标签（每行三枚）/ 第二级小类标签列 */
+.cwb-cat-tags {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.cwb-cat-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid #e4e8ef;
+  border-radius: 8px;
+  background: #fbfcfe;
+  color: #465064;
+  font-size: 12px;
+  cursor: pointer;
+}
+.cwb-cat-tag:hover { border-color: #c9d4ea; background: #f4f8ff; }
+.cwb-cat-name { flex: 1; min-width: 0; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+
+/* 大类各自独立收起/展开（默认收起）；dense 回填保证子标签整行带占行后大类仍按序每行三枚 */
+.cwb-cat-tags { align-items: start; grid-auto-flow: row dense; }
+/* 展开的子标签横排成整行带（跨三列），落在含该大类的行下方；超长省略＋悬浮 title 全名 */
+.cwb-sub-row { grid-column: 1 / -1; }
+.cwb-sub-row .cwb-sub {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cwb-cat-caret { flex: none; color: #a2a9b8; transition: transform 0.15s; }
+.cwb-cat-caret.shut { transform: rotate(-90deg); }
+.cwb-cat-tag.shut { background: #f5f6f9; color: #8b93a5; }
+
+.cwb-sub-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.cwb-sub {
+  padding: 3px 10px;
+  border: 1px dashed #d5dbe6;
+  border-radius: 999px;
+  background: #fff;
+  color: #7c8598;
+  font-size: 12px;
+  cursor: pointer;
+}
+.cwb-sub.on {
+  border-style: solid;
+  border-color: var(--color-primary, #4f7cff);
+  background: var(--color-primary, #4f7cff);
+  color: #fff;
+}
+
+/* 关联商品粒度：等长独立圆角按钮行（参考订单底部按钮样式） */
+.cwb-gran {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.cwb-gran button {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 0;
+  border: 1px solid #e4e8ef;
+  border-radius: 8px;
+  background: #fff;
+  color: #5b6478;
+  font-size: 12px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cwb-gran button:hover { border-color: #c9d4ea; color: #465064; }
+.cwb-gran button.on {
+  border-color: #b9ccf5;
+  background: #eef4ff;
+  color: var(--color-primary, #4f7cff);
+  font-weight: 500;
+}
+
+/* 商品编码等长标签 */
+.cwb-code-tags {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.cwb-code-tag {
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px dashed #d5dbe6;
+  border-radius: 8px;
+  background: #fff;
+  color: #7c8598;
+  font-size: 12px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+.cwb-code-tag.on {
+  border-style: solid;
+  border-color: var(--color-primary, #4f7cff);
+  background: #eef4ff;
+  color: var(--color-primary, #4f7cff);
+  font-weight: 500;
+}
+
+/* 商品编码按系列编码分组：系列编码为组标题（次级灰标），组与组之间留白分段 */
+.cwb-code-groups { display: flex; flex-direction: column; gap: 12px; }
+.cwb-code-gt {
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #5d6678;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 组内「全部」快选：与商品编码标签同语言（居中已由 .cwb-code-tag 基类提供） */
+
+.cwb-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.cwb-field label { flex: none; width: 58px; font-size: 12px; color: #8b93a5; }
+.cwb-field .cwb-sel { flex: 1; min-width: 0; }
+
+/* ---- 商品知识 ---- */
+.cwb-dim {
+  display: flex;
+  border: 1px solid #e4e8ef;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.cwb-dim button {
+  flex: 1;
+  padding: 6px 0;
+  border: none;
+  background: #fbfcfe;
+  color: #5b6478;
+  font-size: 12px;
+  cursor: pointer;
+}
+.cwb-dim button + button { border-left: 1px solid #e4e8ef; }
+.cwb-dim button.on { background: #e9efff; color: var(--color-primary, #4f7cff); font-weight: 500; }
+
+.cwb-kb-head {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: #f7f8fa;
+  margin-bottom: 10px;
+}
+.cwb-kb-img {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #e6e9ef;
+}
+.cwb-kb-img img { width: 100%; height: 100%; object-fit: cover; }
+.cwb-kb-title { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.cwb-kb-title b { font-size: 13px; font-weight: 600; }
+.cwb-kb-title span { font-size: 11px; color: #8b93a5; }
+.cwb-kb-price {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #eef0f4;
+}
+.cwb-kb-price b { font-size: 12px; }
+.cwb-kb-price span { font-size: 10px; color: #a2a9b8; }
+
+.cwb-code-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.cwb-code-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 14px;
+  border: 1px solid #e4e8ef;
+  border-radius: 8px;
+  background: #fbfcfe;
+  cursor: pointer;
+}
+.cwb-code-chip b { font-size: 12px; color: #465064; font-weight: 600; }
+.cwb-code-chip span { font-size: 10px; color: #a2a9b8; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cwb-code-chip.on { background: #e9efff; border-color: #c9d4ea; }
+.cwb-code-chip.on b { color: var(--color-primary, #4f7cff); }
+.cwb-code-chip.slim { padding: 4px 10px; }
+
+.cwb-kb-sec { margin-bottom: 18px; }
+.cwb-kb-sec-t {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #33405c;
+  margin-bottom: 10px;
+}
+.cwb-edit {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: var(--color-primary, #4f7cff);
+  font-size: 11px;
+  cursor: pointer;
+}
+.cwb-edit.cancel { margin-left: 0; color: #8b93a5; }
+
+.cwb-base-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 20px;
+}
+.cwb-base-cell { display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 20px; min-width: 0; }
+/* 标签定宽贴最长标签：值列左缘纵向对齐 */
+.cwb-base-cell .k { flex: none; width: 72px; white-space: nowrap; color: #8b93a5; }
+.cwb-base-cell .v { color: #465064; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cwb-base-inp {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid #e4e8ef;
+  border-radius: 6px;
+  background: #fbfcfe;
+  font-size: 12px;
+  color: #465064;
+  outline: none;
+}
+.cwb-base-inp:focus { border-color: #c9d4ea; }
+
+.cwb-img-tabs { display: flex; gap: 14px; margin-bottom: 8px; }
+.cwb-img-tabs button {
+  position: relative;
+  border: none;
+  background: transparent;
+  padding: 2px 0 5px;
+  color: #7c8598;
+  font-size: 12px;
+  cursor: pointer;
+}
+.cwb-img-tabs button.on { color: var(--color-primary, #4f7cff); font-weight: 600; }
+.cwb-img-tabs button.on::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 0;
+  width: 20px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--color-primary, #4f7cff);
+}
+
+.cwb-media-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.cwb-media { position: relative; width: 60px; }
+.cwb-media-img {
+  position: relative;
+  display: block;
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #e6e9ef;
+}
+.cwb-media-img img { width: 100%; height: 100%; object-fit: cover; }
+.cwb-media-img.plus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #d5dbe6;
+  background: #fbfcfe;
+  color: #a2a9b8;
+  font-size: 18px;
+}
+/* 新增瓦片可点击：悬浮着主色淡底＋虚线转主色，提示可点开上传 */
+.cwb-media.add { cursor: pointer; }
+.cwb-media.add:hover .cwb-media-img.plus { border-color: var(--color-primary, #4f7cff); background: #f2f6ff; color: var(--color-primary, #4f7cff); }
+.cwb-media.add:hover .cwb-media-t { color: var(--color-primary, #4f7cff); }
+.cwb-media-img.video .cwb-play {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(26, 34, 56, 0.55);
+  color: #fff;
+  font-size: 10px;
+  font-style: normal;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cwb-media-t {
+  display: block;
+  margin-top: 4px;
+  text-align: center;
+  font-size: 11px;
+  color: #8b93a5;
+}
+
+/* 媒体 tile 悬浮气泡：查看 / 发送到当前会话（同 kb-media-ops 语言：白底细边 shadow-lg、下方透明桥防悬浮闪断） */
+.cwb-media-ops {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: none;
+  align-items: center;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #e4e8ef;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(26, 34, 56, 0.12);
+  white-space: nowrap;
+}
+.cwb-media-ops::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 8px; }
+.cwb-media:hover .cwb-media-ops { display: flex; }
+/* 行首 tile 气泡改左对齐：居中会溢出滚动容器左缘被裁切 */
+.cwb-media-row .cwb-media:first-child .cwb-media-ops { left: 0; transform: none; }
+.cwb-media-ops button {
+  padding: 7px 12px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #465064;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cwb-media-ops button:hover { background: #eef3ff; color: #4f7cff; }
+
+/* 媒体查看预览弹窗体：图居中限高、视频叠播放角标 */
+.cwb-preview { position: relative; display: flex; align-items: center; justify-content: center; }
+.cwb-preview img { max-width: 100%; max-height: 420px; border-radius: 8px; display: block; }
+.cwb-preview-play {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(26, 34, 56, 0.55);
+  color: #fff;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 多商品订单横向商品卡片切换条（主图＋名称＋商品ID，商品粒度）；选中主色描边；本会话角标；超出横向滚动藏滚动条 */
+/* 多商品切换条：体验分下方独立白卡，等宽两列自适应不裁切（禁横向滚动） */
+.cwb-prod-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.cwb-prod-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid #e4e8ef;
+  border-radius: 10px;
+  background: #fbfcfe;
+  color: #465064;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.cwb-prod-card:hover { border-color: #c9d4ea; background: #f4f8ff; }
+.cwb-prod-card.on { border-color: var(--color-primary, #4f7cff); background: #f0f5ff; box-shadow: inset 0 0 0 1px var(--color-primary, #4f7cff); }
+.cwb-prod-card-img { width: 36px; height: 36px; flex: none; border-radius: 6px; object-fit: cover; background: #eef1f6; }
+.cwb-prod-card-info { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 3px; }
+.cwb-prod-card-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.cwb-prod-card-id { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #98a0b3; }
+.cwb-prod-card-sess {
+  position: absolute;
+  top: -7px;
+  right: 6px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--color-primary, #4f7cff);
+  color: #fff;
+  font-size: 10px;
+  font-style: normal;
+  line-height: 14px;
+}
+
+/* ID 维度：左 SKU 缩略图列 + 右主内容 */
+.cwb-id-cols { display: flex; gap: 12px; min-height: 0; }
+.cwb-sku-col { width: 44px; flex: none; }
+.cwb-sku-col-t { font-size: 12px; font-weight: 600; color: #33405c; margin-bottom: 8px; }
+
+/* SKU 导轨缩略图：小一号（40px），让位右侧信息卡 */
+.cwb-sku-thumb {
+  position: relative;
+  display: block;
+  width: 40px;
+  height: 40px;
+  padding: 2px;
+  margin-bottom: 8px;
+  border: 1px solid #e4e8ef;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  overflow: hidden;
+}
+.cwb-sku-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; display: block; }
+.cwb-sku-thumb.on { border-color: var(--color-primary, #4f7cff); background: #f4f8ff; }
+/* 当前会话 SKU 角标：缩略图左上小徽标（会话绑定，不随选中态移动） */
+.cwb-sku-sess {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 4px;
+  background: var(--color-primary, #4f7cff);
+  color: #fff;
+  font-size: 10px;
+  font-style: normal;
+  line-height: 14px;
+  pointer-events: none;
+}
+
+/* 商品知识：ID 维度纵向叠放（SKU信息→编码chips→基础信息→图片/视频）；左 SKU 导轨＋右主内容 */
+.cwb-id-main { flex: 1; min-width: 0; }
+
+/* ============ 优化提示（第三页签）：店铺分四维卡 + 放宽售后阶段条 + 商品体验分卡 + 商品雷点 chips ============ */
+.cwb-opt-sec-t { display: flex; align-items: center; gap: 8px; }
+.cwb-opt-badge {
+  margin-left: auto;
+  flex: none;
+  padding: 1px 8px;
+  border-radius: 4px;
+  background: #e6f6ec;
+  color: #2f7a4d;
+  font-size: 11px;
+  font-weight: 500;
+}
+.cwb-opt-badge.off { background: #f1f3f7; color: #8b93a5; }
+
+.cwb-opt-metrics { display: flex; gap: 8px; }
+.cwb-opt-metric {
+  flex: 1;
+  min-width: 0;
+  background: #f7f8fa;
+  border: 1px solid #eef0f4;
+  border-radius: 10px;
+  padding: 10px 4px;
+  text-align: center;
+}
+.cwb-opt-metric .k { font-size: 11px; color: #8b93a5; white-space: nowrap; }
+.cwb-opt-metric .v { margin-top: 4px; font-size: 17px; font-weight: 600; color: #33405c; }
+
+.cwb-opt-loose {
+  margin-top: 10px;
+  background: #f2fbf5;
+  border: 1px solid #d8f0e0;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.cwb-opt-loose-h { font-size: 12px; font-weight: 600; color: #2f7a4d; }
+.cwb-opt-loose-b { margin-top: 3px; font-size: 12px; color: #5a8a6c; }
+
+.cwb-opt-goods {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f7f8fa;
+  border: 1px solid #eef0f4;
+  border-radius: 10px;
+  padding: 12px;
+}
+.cwb-opt-goods-score { font-size: 26px; font-weight: 700; color: #33405c; line-height: 1; }
+.cwb-opt-goods-grade {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: #fff2e8;
+  color: #d4691f;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cwb-opt-goods-tip { flex: 1; min-width: 0; font-size: 12px; color: #8b93a5; line-height: 18px; }
+/* 安抚提示独立成行（体验分优化任务指引，位于分值卡下方） */
+.cwb-opt-goods-tip.solo { flex: none; margin-top: 8px; }
+
+.cwb-opt-mine-t { margin: 12px 0 8px; font-size: 12px; font-weight: 600; color: #33405c; }
+.cwb-opt-mines { display: flex; flex-wrap: wrap; gap: 8px; }
+.cwb-opt-mine {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #fdeeee;
+  color: #c0453f;
+  font-size: 12px;
+}
+.cwb-opt-mine b { font-weight: 600; }
+
+/* ============ 新增素材上传弹窗：虚线dropzone，点击选文件后预览 ============ */
+.cwb-add-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 200px;
+  border: 1px dashed #d5dbe6;
+  border-radius: 10px;
+  background: #fbfcfe;
+  cursor: pointer;
+  color: #a2a9b8;
+}
+.cwb-add-drop:hover { border-color: var(--color-primary, #4f7cff); background: #f2f6ff; color: var(--color-primary, #4f7cff); }
+.cwb-add-plus { font-size: 26px; line-height: 1; }
+.cwb-add-hint { font-size: 12px; }
+.cwb-add-prev { max-width: 100%; max-height: 200px; border-radius: 8px; object-fit: contain; background: #e6e9ef; }
+.cwb-add-name { font-size: 12px; color: #465064; max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ============ Modal 组件样式仅在 .pm-page 作用域定义；客服工作台看板不在其内，按同规格补 .cwb-board 作用域（预览/新增弹窗共用） ============ */
+.cwb-board .mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(29, 33, 41, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.cwb-board .modal {
+  background: #fff;
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(26, 34, 56, 0.12));
+  width: 480px;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+}
+.cwb-board .modal.md { width: 640px; max-width: 94vw; }
+.cwb-board .modal-head { padding: 18px 20px; display: flex; align-items: center; border-bottom: 1px solid #e4e8ef; }
+.cwb-board .modal-head .m-title { font-size: 16px; font-weight: 600; color: #33405c; }
+.cwb-board .modal-head .m-sub { font-size: 12px; color: #8b93a5; margin-top: 3px; }
+.cwb-board .modal-head .x { margin-left: auto; cursor: pointer; color: #8b93a5; display: flex; padding: 2px; }
+.cwb-board .modal-head .x:hover { color: #33405c; }
+.cwb-board .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+.cwb-board .modal-foot { padding: 14px 20px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #e4e8ef; }
+/* 底栏钮 flex:1 会在弹窗 footer 被拉满，弹窗内改固定宽右对齐 */
+.cwb-board .modal-foot .cwb-kb-foot-btn { flex: none; width: 96px; }
+
+/* ---- 商品知识 / 详情图片 分段胶囊页签（标题行内，替代模块标题文字） ---- */
+.cwb-kb-tabs { display: inline-flex; gap: 2px; padding: 3px; background: #f2f4f8; border-radius: 10px; }
+.cwb-kb-tabs button {
+  border: none;
+  background: transparent;
+  padding: 0 12px;
+  height: 24px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #7c8598;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cwb-kb-tabs button:hover { color: #33405c; }
+.cwb-kb-tabs button.on {
+  background: #fff;
+  color: #1f2735;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(31, 39, 53, 0.1);
+}
+
+/* ---- 详情图片页签：图型分组（分组随会话平台发布规范切换） ---- */
+/* 待补瓦片：虚线占位（无操作气泡），标签着警色 */
+.cwb-media-img.lack {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #f0c39a;
+  background: #fffaf3;
+  color: #ff9a2e;
+  font-size: 11px;
+}
+.cwb-media-t.warn { color: #ff7d00; }
+.cwb-di .cwb-media-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

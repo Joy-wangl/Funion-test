@@ -1,11 +1,12 @@
 /* =========================================================
    稽查模型配置（品控-线上）· 数据模型
-   评分口径：总分 = 商品分/物流分/服务分 三维加权（对标平台体验分三小分）
+   评分口径：总分 = 商品分/物流分/服务分 三维加权（对标平台体验分三小分）；
+   拼多多额外含发货服务分（发货及揽收时效/虚假发货/物流异常），四维加权
    维度分 = 指标得分(0-100) × 指标权重；指标得分 = 实际值对满分线/零分线线性折算
    平台规则出处见 PLATFORM_RULES（数据依据）
    ========================================================= */
 
-export type AuditDim = '商品' | '物流' | '服务';
+export type AuditDim = '商品' | '物流' | '发货' | '服务';
 
 export interface AuditIndicator {
   key: string;
@@ -44,10 +45,11 @@ export interface AuditWeights {
 }
 
 export const DEFAULT_WEIGHTS: AuditWeights = {
-  dims: { 商品: 50, 物流: 20, 服务: 30 },
+  dims: { 商品: 50, 物流: 20, 发货: 0, 服务: 30 },
   gates: {
     商品: { cycleDays: 30, minOrders: 30, minReviews: 30, minChats: 100 },
     物流: { cycleDays: 30, minOrders: 30, minReviews: 30, minChats: 100 },
+    发货: { cycleDays: 30, minOrders: 30, minReviews: 30, minChats: 100 },
     服务: { cycleDays: 30, minOrders: 30, minReviews: 30, minChats: 100 },
   },
   indicators: [
@@ -71,18 +73,28 @@ export const DEFAULT_WEIGHTS: AuditWeights = {
 export type AuditPlat = '淘宝' | '抖音' | '视频号' | '快手' | '拼多多';
 export const AUDIT_PLATS: AuditPlat[] = ['淘宝', '抖音', '视频号', '快手', '拼多多'];
 
-const preset = (dims: Record<AuditDim, number>, weights: Record<string, number>, gates?: Partial<AuditGate>): AuditWeights => {
+const preset = (dims: Record<AuditDim, number>, weights: Record<string, number>, gates?: Partial<AuditGate>, extra?: AuditIndicator[]): AuditWeights => {
   const base = structuredClone(DEFAULT_WEIGHTS);
   base.dims = { ...dims };
   for (const ind of base.indicators) if (weights[ind.key] != null) ind.weight = weights[ind.key];
-  if (gates) for (const d of ['商品', '物流', '服务'] as AuditDim[]) base.gates[d] = { ...base.gates[d], ...gates };
+  if (extra) base.indicators.push(...structuredClone(extra));
+  if (gates) for (const d of ['商品', '物流', '发货', '服务'] as AuditDim[]) base.gates[d] = { ...base.gates[d], ...gates };
   return base;
 };
+
+/* 拼多多发货服务分指标（调研口径：2026 年物流考核改为「发货及揽收时效」，16 点前订单当日 24 点前发货并揽收；
+   虚假发货单列判定；物流轨迹超 24 小时未更新计入物流异常率） */
+const PDD_SHIP_INDICATORS: AuditIndicator[] = [
+  { key: 'ship-timeout', name: '发货超时率', dim: '发货', src: '订单数据', weight: 30, fullLine: 0.5, zeroLine: 5, platform: '拼多多 发货时效考核·发货超时率（16点前订单当日24点前发货）' },
+  { key: 'ship-pickup', name: '揽收超时率', dim: '发货', src: '订单数据', weight: 30, fullLine: 0.5, zeroLine: 5, platform: '拼多多 发货及揽收时效考核·揽收超时率（16点前订单当日24点前揽收）' },
+  { key: 'ship-fake', name: '虚假发货率', dim: '发货', src: '订单数据', weight: 20, fullLine: 0.1, zeroLine: 2, platform: '拼多多 虚假发货判定·虚假发货率' },
+  { key: 'ship-abnormal', name: '物流异常率', dim: '发货', src: '订单数据', weight: 20, fullLine: 0.5, zeroLine: 5, platform: '拼多多 物流异常率·物流轨迹超24小时未更新' },
+];
 
 export const PLATFORM_PRESETS: Record<AuditPlat, AuditWeights> = {
   淘宝: structuredClone(DEFAULT_WEIGHTS),
   抖音: preset(
-    { 商品: 40, 物流: 25, 服务: 35 },
+    { 商品: 40, 物流: 25, 发货: 0, 服务: 35 },
     {
       'prod-badrate': 30, 'prod-prerefund': 25, 'prod-chatq': 30, 'prod-chatafter': 15,
       'logi-badrate': 30, 'logi-chat': 30, 'logi-postrefund': 40,
@@ -91,7 +103,7 @@ export const PLATFORM_PRESETS: Record<AuditPlat, AuditWeights> = {
     { cycleDays: 90 },
   ),
   视频号: preset(
-    { 商品: 45, 物流: 25, 服务: 30 },
+    { 商品: 45, 物流: 25, 发货: 0, 服务: 30 },
     {
       'prod-badrate': 45, 'prod-prerefund': 25, 'prod-chatq': 15, 'prod-chatafter': 15,
       'logi-badrate': 40, 'logi-chat': 30, 'logi-postrefund': 30,
@@ -100,7 +112,7 @@ export const PLATFORM_PRESETS: Record<AuditPlat, AuditWeights> = {
     { minChats: 50 },
   ),
   快手: preset(
-    { 商品: 40, 物流: 30, 服务: 30 },
+    { 商品: 40, 物流: 30, 发货: 0, 服务: 30 },
     {
       'prod-badrate': 35, 'prod-prerefund': 30, 'prod-chatq': 20, 'prod-chatafter': 15,
       'logi-badrate': 30, 'logi-chat': 30, 'logi-postrefund': 40,
@@ -109,15 +121,112 @@ export const PLATFORM_PRESETS: Record<AuditPlat, AuditWeights> = {
     { minOrders: 20 },
   ),
   拼多多: preset(
-    { 商品: 35, 物流: 25, 服务: 40 },
+    { 商品: 30, 物流: 20, 发货: 20, 服务: 30 },
     {
       'prod-badrate': 40, 'prod-prerefund': 30, 'prod-chatq': 15, 'prod-chatafter': 15,
       'logi-badrate': 35, 'logi-chat': 30, 'logi-postrefund': 35,
       'serv-badrate': 25, 'serv-chat': 25, 'serv-after': 35, 'serv-postrefund': 15,
     },
     { minOrders: 30 },
+    PDD_SHIP_INDICATORS,
   ),
 };
+
+/** 平台评分维度：拼多多含发货服务分四维，其余平台三维 */
+export const dimsOfPlat = (p: AuditPlat): AuditDim[] => (p === '拼多多' ? ['商品', '物流', '发货', '服务'] : ['商品', '物流', '服务']);
+
+/* ---------- 对标平台指标提示（分平台文案） ----------
+   同一内部指标在不同平台对标的官方考核项名称/口径不一致，故按平台各存一份提示文案。
+   依据各平台体验分考核机制调研（见 PLATFORM_RULES 与文末来源）：
+   · 淘宝 店铺真实体验分＝宝贝质量（首次品退率、商品差评率）＋物流速度（48h揽收及时率、到货时长、物流异常率、物流差评率）＋服务保障（旺旺3分钟人工响应率、旺旺满意度、退款处理时长、平台求助率）
+   · 抖音 商家体验分＝商品体验（商品综合评分、CCR综合负向反馈率品质标签、质量退货率）＋物流体验（揽收及时率、订单配送时长、物流品退率、异常订单率）＋服务体验（投诉率、纠纷商责率、IM三分钟回复率、仅退款/退货退款自主完结时长、IM不满意率）
+   · 视频号（微信小店）店铺体验分＝5分制，服务体验（占比高）＋商品体验（近90天品质退款率、商品差评率）＋物流体验（近90天及时发货率、物流服务好评率）
+   · 快手 店铺体验分＝商品体验（商品质量差评率、品质退款率）＋物流体验（揽收及时率、配送时长、物流差评率）＋服务体验（IM三分钟回复率、IM不满意率、不服务率、平台求助率、纠纷退款率）
+   · 拼多多 消费者服务体验分＝0-5分，商品体验（商品差评率、品质退款率）＋物流体验（物流差评率、物流异常率）＋发货服务（发货及揽收时效、虚假发货率、物流异常率）＋售后体验（退款处理时长、自主完结时长）＋纠纷体验（平台介入率、纠纷商责率）
+   未在表内的指标（如拼多多发货服务分四项，仅存在于拼多多）回退到指标自带 platform 文案。 */
+export const PLATFORM_INDICATOR_HINTS: Record<string, Partial<Record<AuditPlat, string>>> = {
+  'prod-badrate': {
+    淘宝: '宝贝质量·商品差评率',
+    抖音: '商品体验·综合负向反馈率（CCR 品质标签）／商品差评率',
+    视频号: '商品体验·商品差评率（近90天）',
+    快手: '商品体验·商品质量差评率',
+    拼多多: '商品体验·商品差评率',
+  },
+  'prod-prerefund': {
+    淘宝: '宝贝质量·首次品退率',
+    抖音: '商品体验·质量退货率',
+    视频号: '商品体验·品质退款率（近90天）',
+    快手: '商品体验·商品品质退款率',
+    拼多多: '商品体验·品质退款率',
+  },
+  'prod-chatq': {
+    淘宝: '宝贝质量·商品差评率 的会话侧验证',
+    抖音: '商品体验·CCR 品质标签（负向反馈）的会话侧验证',
+    视频号: '商品体验·品质退款／差评 的会话侧验证',
+    快手: '商品体验·商品质量差评率 的会话侧验证',
+    拼多多: '商品体验·品质退款率 的会话侧验证',
+  },
+  'prod-chatafter': {
+    淘宝: '宝贝质量·首次品退率 的会话侧验证',
+    抖音: '商品体验·质量退货率 的会话侧验证',
+    视频号: '商品体验·品质退款率 的会话侧验证',
+    快手: '商品体验·品质退款率 的会话侧验证',
+    拼多多: '售后体验·品质退款 的会话侧验证',
+  },
+  'logi-badrate': {
+    淘宝: '物流速度·物流差评率',
+    抖音: '物流体验·物流差评／异常订单率',
+    视频号: '物流体验·物流服务好评率（反向）',
+    快手: '物流体验·物流差评率',
+    拼多多: '物流体验·物流差评率',
+  },
+  'logi-chat': {
+    淘宝: '物流速度·物流异常率／到货时长 的会话侧验证',
+    抖音: '物流体验·异常订单率／配送时长 的会话侧验证',
+    视频号: '物流体验·及时发货／物流好评 的会话侧验证',
+    快手: '物流体验·揽收及时率／配送时长 的会话侧验证',
+    拼多多: '物流体验·物流异常率 的会话侧验证',
+  },
+  'logi-postrefund': {
+    淘宝: '物流速度·到货时长超期／物流品退',
+    抖音: '物流体验·物流品退率／订单配送时长',
+    视频号: '物流体验·及时发货率（超期退款）',
+    快手: '物流体验·配送时长超期退款',
+    拼多多: '物流体验·物流品退率',
+  },
+  'serv-badrate': {
+    淘宝: '服务保障·旺旺满意度（反向）',
+    抖音: '服务体验·IM 不满意率',
+    视频号: '服务体验·服务差评率',
+    快手: '服务体验·IM 不满意率',
+    拼多多: '售后体验·服务差评率',
+  },
+  'serv-chat': {
+    淘宝: '服务保障·旺旺3分钟人工响应率',
+    抖音: '服务体验·IM 三分钟回复率',
+    视频号: '服务体验·客服响应／满意率',
+    快手: '服务体验·IM 三分钟回复率／不服务率',
+    拼多多: '售后体验·客服响应率',
+  },
+  'serv-after': {
+    淘宝: '服务保障·退款处理时长／平台求助率',
+    抖音: '服务体验·仅退款／退货退款自主完结时长、纠纷商责率',
+    视频号: '服务体验·退款处理时长',
+    快手: '服务体验·纠纷退款率／平台求助率',
+    拼多多: '售后体验·退款处理时长、纠纷体验·平台介入率',
+  },
+  'serv-postrefund': {
+    淘宝: '服务保障·退款处理时长／平台求助率',
+    抖音: '服务体验·已发货退款自主完结时长',
+    视频号: '服务体验·退款处理时长',
+    快手: '服务体验·平台求助率／退款处理时长',
+    拼多多: '售后体验·退款处理时长、纠纷体验·纠纷商责率',
+  },
+};
+
+/** 取某指标在当前平台下的对标提示文案；无分平台文案时回退指标自带 platform 字段 */
+export const platformHintOf = (ind: AuditIndicator, plat: AuditPlat): string =>
+  PLATFORM_INDICATOR_HINTS[ind.key]?.[plat] ?? ind.platform;
 
 /** 实际值 → 0-100 得分：≤满分线=100，≥零分线=0，区间线性 */
 export const scoreOf = (v: number, fullLine: number, zeroLine: number): number => {
@@ -140,11 +249,11 @@ export const dimScoreOf = (w: AuditWeights, dim: AuditDim, metrics: Record<strin
   return total ? Math.round((acc / total) * 10) / 10 : null;
 };
 
-/** 总分 = 各维度分 × 总分权重 / 100 */
+/** 总分 = 各维度分 × 总分权重 / 100（维度取权重配置实际持有的键，零权重/无指标维度自动跳过） */
 export const totalScoreOf = (w: AuditWeights, metrics: Record<string, number>): number | null => {
   let acc = 0;
   let total = 0;
-  (['商品', '物流', '服务'] as AuditDim[]).forEach((dim) => {
+  (Object.keys(w.dims) as AuditDim[]).forEach((dim) => {
     const d = dimScoreOf(w, dim, metrics);
     if (d == null) return;
     acc += d * w.dims[dim];
@@ -315,7 +424,7 @@ export const PLATFORM_RULES: PlatformRule[] = [
   {
     platform: '拼多多',
     system: '消费者服务体验分',
-    dims: '商品体验 ＋ 物流体验 ＋ 售后体验 ＋ 纠纷体验（多维构成，按行业排名出分）',
+    dims: '商品体验 ＋ 物流体验 ＋ 发货服务（发货及揽收时效：16点前订单当日24点前发货并揽收；虚假发货率；物流轨迹超24小时未更新的物流异常率）＋ 售后体验 ＋ 纠纷体验（多维构成，按行业排名出分）',
     cycle: '滚动周期按行业排名计算，官方未公开固定权重与统一文档',
     audit: '平台介入/纠纷按商责判定，纳入体验分并影响活动门槛与资源位',
     source: '拼多多商家后台 · 数据中心 · 消费者服务体验分',

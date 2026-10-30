@@ -41,6 +41,7 @@ import QcPermRole from './QcPermRole.vue';
 import QcAuditWeight from './QcAuditWeight.vue';
 import QcAuditExempt from './QcAuditExempt.vue';
 import QcReviewList from './QcReviewList.vue';
+import QcViolation from './QcViolation.vue';
 import QcTodoList from './QcTodoList.vue';
 import QcOptTaskList from './QcOptTaskList.vue';
 import QcTodoCreateDrawer, { type TodoCreatePayload } from './QcTodoCreateDrawer.vue';
@@ -52,7 +53,7 @@ import '../quality2/qc2.css';
 /* React 版 App.tsx 静态引入 OpsCenter 使 sg-* 筛选样式全局生效，此处对齐 */
 import '../ops-center/OpsCenter.css';
 
-type View = 'dashboard' | 'series' | 'cfg' | 'after' | 'hit' | 'pdef' | 'shop' | 'perm' | 'appeal' | 'audit' | 'todo' | 'opt';
+type View = 'dashboard' | 'series' | 'cfg' | 'after' | 'hit' | 'pdef' | 'shop' | 'violation' | 'perm' | 'appeal' | 'audit' | 'todo' | 'opt';
 /** 壳级模式：原功能（问题类型驱动）/ 商品标签（数据概览的标签模块切换，左侧菜单不变） */
 type Mode = 'legacy' | 'tags';
 
@@ -81,6 +82,7 @@ const NAV_ICONS: Record<string, string> = {
   hit: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
   pdef: '<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>',
   shop: '<path d="M12 3l2.7 5.8 6.3.8-4.6 4.3 1.2 6.2-5.6-3.1-5.6 3.1 1.2-6.2L3 9.6l6.3-.8z"/>',
+  violation: '<path d="M12 3l8 3v6c0 4.6-3.2 8-8 9.5C7.2 20 4 16.6 4 12V6z"/><path d="M12 8v4.5"/><circle cx="12" cy="16" r=".6" fill="currentColor" stroke="none"/>',
   perm: '<path d="M12 3l7 3v6c0 4.4-2.9 7.5-7 9-4.1-1.5-7-4.6-7-9V6Z"/><path d="m9.3 11.8 2 2 3.4-3.6"/>',
   audit: '<path d="M12 3v18"/><path d="M4 7h16"/><path d="M6 7l-2.6 5.6a3.2 3.2 0 0 0 6.4 0L7.2 7"/><path d="M18 7l-2.6 5.6a3.2 3.2 0 0 0 6.4 0L19.2 7"/>',
 };
@@ -96,6 +98,10 @@ const auditView = ref<AuditView>('weight');
 const shopOpen = ref(true);
 type ShopView = 'list' | 'goods';
 const shopView = ref<ShopView>('list');
+/* 违规监控父级分组（店铺监控下方）：数据看板 / 违规记录 子路由 */
+const vioOpen = ref(true);
+type VioView = 'board' | 'list';
+const vioView = ref<VioView>('board');
 /* 任务中心父级分组：待办事项（原待办任务）/ 优化任务 子路由 */
 const taskOpen = ref(true);
 /* 店铺列表操作列「店铺商品」：带入「店铺 + 平台」查询条件跳店铺商品（种子由 QcShopGoods 消费后清空） */
@@ -104,6 +110,7 @@ const pickShopGoods = (shopId: string) => { shopGoodsJumpSeed.value = { shopId }
 const jumpAfterList = () => { afterJumpSeed.value = {}; shopOpen.value = true; view.value = 'after'; };
 const jumpGoodsList = () => { shopOpen.value = true; view.value = 'shop'; shopView.value = 'goods'; };
 const jumpReviewList = () => { reviewJumpSeed.value = true; shopOpen.value = true; view.value = 'appeal'; };
+const jumpOptList = () => { taskOpen.value = true; view.value = 'opt'; };
 /* 监控列表操作列「关联ID」：带入系列下商品编码跳店铺监控·店铺商品并按编码查询（种子由 QcShopGoods 消费后清空） */
 const pickSeriesGoods = (codes: string[]) => {
   shopGoodsJumpSeed.value = { q: codes.join(' ') };
@@ -491,6 +498,30 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
       <div
         v-if="online"
         class="qc-nav qc-nav-parent"
+        :class="{ child: view === 'violation' }"
+        @click="vioOpen = !vioOpen; view = 'violation'; vioView = 'board'"
+      >
+        <span class="qc-nav-ico" v-html="NAV_ICON_SVG('violation')" />
+        <span class="qc-nav-text">违规监控</span>
+        <span class="qc-nav-arrow" :class="{ open: vioOpen }">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+        </span>
+      </div>
+      <div v-if="online && vioOpen" class="qc-subnav-wrap">
+        <div
+          class="qc-nav qc-subnav"
+          :class="view === 'violation' && vioView === 'board' ? 'active' : ''"
+          @click="view = 'violation'; vioView = 'board'"
+        ><span class="qc-nav-text">数据看板</span></div>
+        <div
+          class="qc-nav qc-subnav"
+          :class="view === 'violation' && vioView === 'list' ? 'active' : ''"
+          @click="view = 'violation'; vioView = 'list'"
+        ><span class="qc-nav-text">违规记录</span></div>
+      </div>
+      <div
+        v-if="online"
+        class="qc-nav qc-nav-parent"
         :class="{ child: view === 'todo' || view === 'opt' }"
         @click="taskOpen = !taskOpen; view = 'todo'"
       >
@@ -660,6 +691,8 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
       />
       <!-- 评价列表：看板（指标/问题类型占比/星级分布）＋扁平评价明细列表两级结构 -->
       <QcReviewList v-else-if="view === 'appeal'" />
+      <!-- 违规监控：看板（违规总览/类型占比/处置分布/趋势+TOP）＋违规记录列表两级结构（单实例保留筛选态） -->
+      <QcViolation v-else-if="view === 'violation'" :sub="vioView" @nav="(v: VioView) => (vioView = v)" />
       <QcTodoList v-else-if="view === 'todo'" @jump-goods="onTodoJumpGoods" />
       <QcOptTaskList v-else-if="view === 'opt'" />
       <QcHitManage v-else-if="view === 'hit'" />
@@ -670,6 +703,7 @@ const onTrendStat = (st: PlatformStat, label: string, seriesCode: string) => {
         :on-jump-after="jumpAfterList"
         :on-jump-goods="jumpGoodsList"
         :on-jump-review="jumpReviewList"
+        :on-jump-opt="jumpOptList"
         :on-shop-opt="online ? (s: OnlineShop) => (optShop = s) : undefined"
         :on-shop-view-opt="online ? (s: OnlineShop) => (optTodoId = shopOptOf(s)?.task.todoId ?? null) : undefined"
       />

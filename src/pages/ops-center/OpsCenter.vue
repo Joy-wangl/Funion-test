@@ -3,6 +3,7 @@ import { provide, ref, watch } from 'vue';
 import './OpsCenter.css';
 import DashboardPage from './DashboardPage.vue';
 import InternalPage from './InternalPage.vue';
+import RecommendPage from './RecommendPage.vue';
 import MotherLinkPage from './MotherLinkPage.vue';
 import MarketPage from './MarketPage.vue';
 import BiddingPage from './BiddingPage.vue';
@@ -13,6 +14,8 @@ import CreateProductPage from './CreateProductPage.vue';
 import TaskCenterPage from './TaskCenterPage.vue';
 import StrategyPage from './StrategyPage.vue';
 import StrategyDrawer from './StrategyDrawer.vue';
+import CouponPage from './CouponPage.vue';
+import FlashSalePage from './FlashSalePage.vue';
 import type { StStrategy } from './strategyData';
 import MovePage from './MovePage.vue';
 import AiAssistantPage from './AiAssistantPage.vue';
@@ -33,10 +36,12 @@ import BlacklistPage from '../permission/BlacklistPage.vue';
 import ReviewAppealPage from './ReviewAppealPage.vue';
 import CodeKbMaterial from '../code-kb/CodeKbMaterial.vue';
 import VideoStudio from '../code-kb/VideoStudio.vue';
+import SmartImageStudio from '../code-kb/SmartImageStudio.vue';
 
 type PageKey =
   | 'dashboard'
   | 'internal'
+  | 'recommend'
   | 'motherLink'
   | 'market'
   | 'bidding'
@@ -50,6 +55,8 @@ type PageKey =
   | 'move'
   | 'strategy'
   | 'strategyForm'
+  | 'coupon'
+  | 'flashSale'
   | 'permMember'
   | 'permShop'
   | 'permAcct'
@@ -61,6 +68,7 @@ type PageKey =
   | 'aiAssistant'
   | 'reviewAppeal'
   | 'codeKbMaterial'
+  | 'smartImage'
   | 'videoStudio';
 
 /** 智能运营中心外壳：侧边栏 + 页面切换（与 preview.html 行为一致） */
@@ -86,6 +94,7 @@ const permissionOpen = ref(false);
 const automationOpen = ref(false);
 const appealOpen = ref(false);
 const codeKbOpen = ref(false);
+const marketingOpen = ref(false);
 
 /* 切到商品创建子页时自动展开菜单（原版 showCreateTaobao / showCreateVideo） */
 const showCreate = (key: 'createTaobao' | 'createVideo' | 'createJm') => {
@@ -126,8 +135,8 @@ const navCls = (key: PageKey) => `nav ${active.value === key ? 'active' : ''}`;
 const pageCls = (key: PageKey) => `page ${page.value === key ? 'show' : ''}`;
 
 /* 收起态点击分组：展开侧边栏并打开该组；展开态：正常收合切换 */
-const toggleGroup = (key: 'product' | 'create' | 'permission' | 'automation' | 'appeal' | 'codeKb') => {
-  const open = key === 'product' ? productOpen : key === 'create' ? createOpen : key === 'automation' ? automationOpen : key === 'appeal' ? appealOpen : key === 'codeKb' ? codeKbOpen : permissionOpen;
+const toggleGroup = (key: 'product' | 'create' | 'permission' | 'automation' | 'appeal' | 'codeKb' | 'marketing') => {
+  const open = key === 'product' ? productOpen : key === 'create' ? createOpen : key === 'automation' ? automationOpen : key === 'appeal' ? appealOpen : key === 'codeKb' ? codeKbOpen : key === 'marketing' ? marketingOpen : permissionOpen;
   if (collapsed.value) {
     open.value = true;
     toggleCollapsed();
@@ -152,15 +161,16 @@ interface RailSub { name: string; target?: PageKey; create?: 'createTaobao' | 'c
 const railMenus: Record<string, { title: string; subs: RailSub[] }> = {
   dashboard: { title: '运营驾驶舱', subs: [{ name: '运营驾驶舱', target: 'dashboard' }] },
   operationManage: { title: '运营管理', subs: [{ name: '运营管理', target: 'operationManage' }] },
-  product: { title: '商机中心', subs: [{ name: '全网搜索', target: 'search' }, { name: '内部商机', target: 'internal' }, { name: '竞对商机', target: 'motherLink' }, { name: '市场商机', target: 'market' }, { name: '竞价商品', target: 'bidding' }] },
+  product: { title: '商机中心', subs: [{ name: '全网搜索', target: 'search' }, { name: '内部商机', target: 'internal' }, { name: '上品推荐', target: 'recommend' }, { name: '竞对商机', target: 'motherLink' }, { name: '市场商机', target: 'market' }, { name: '竞价商品', target: 'bidding' }] },
   shopGoods: { title: '店铺商品', subs: [{ name: '店铺商品', target: 'shopGoods' }] },
   create: { title: '商品创建', subs: [{ name: '淘宝', create: 'createTaobao' }, { name: '视频号', create: 'createVideo' }, { name: '京麦', create: 'createJm' }] },
   taskCenter: { title: '任务中心', subs: [{ name: '任务中心', target: 'taskCenter' }] },
   strategy: { title: '商品策略', subs: [{ name: '商品策略', target: 'strategy' }] },
+  marketing: { title: '商品营销', subs: [{ name: '优惠券', target: 'coupon' }, { name: '限时抢购', target: 'flashSale' }] },
   aiAssistant: { title: 'AI助手', subs: [{ name: 'AI助手', target: 'aiAssistant' }] },
   automation: { title: '自动化中心', subs: [{ name: '自动化配置', target: 'move' }] },
   appeal: { title: '申诉中心', subs: [{ name: '评价申诉', target: 'reviewAppeal' }] },
-  codeKb: { title: '系列编码知识库', subs: [{ name: '系列编码素材库', target: 'codeKbMaterial' }, { name: '素材中心', target: 'videoStudio' }] },
+  codeKb: { title: '系列编码知识库', subs: [{ name: '系列编码素材库', target: 'codeKbMaterial' }, { name: '智能作图', target: 'smartImage' }, { name: '素材中心', target: 'videoStudio' }] },
   permission: { title: '设置', subs: permItems.map((p) => ({ name: p.name, target: p.target })) },
 };
 const railPop = ref<{ key: string; x: number; y: number } | null>(null);
@@ -222,6 +232,9 @@ const onMsgJump = (id: string) => {
             <div class="subnav" :class="active === 'internal' ? 'active' : ''" @click.stop="onSubnav('internal', 'internal')">
               内部商机
             </div>
+            <div class="subnav" :class="active === 'recommend' ? 'active' : ''" @click.stop="onSubnav('recommend', 'recommend')">
+              上品推荐
+            </div>
             <div class="subnav" :class="active === 'motherLink' ? 'active' : ''" @click.stop="onSubnav('motherLink', 'motherLink')">
               竞对商机
             </div>
@@ -252,6 +265,22 @@ const onMsgJump = (id: string) => {
           <div :class="navCls('taskCenter')" @click="onSubnav('taskCenter', 'taskCenter')" @mouseenter="railEnter('taskCenter', $event)" @mouseleave="railLeave()">
             <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="m9 13 2 2 4-4" /></svg></span>
             <span class="nav-text">任务中心</span>
+          </div>
+          <!-- 商品营销：一级路由列表＝优惠券（点击父级同时进入优惠券页） -->
+          <div class="nav nav-parent" :class="marketingOpen ? 'open' : ''" @click.stop="toggleGroup('marketing'); onSubnav('coupon', 'coupon')" @mouseenter="railEnter('marketing', $event)" @mouseleave="railLeave()">
+            <div class="nav-left">
+              <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7.2-7.2a2 2 0 0 1-.6-1.4V4a1 1 0 0 1 1-1h8a2 2 0 0 1 1.4.6l7.4 7.4a2 2 0 0 1 0 2.4Z" /><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor" stroke="none" /></svg></span>
+              <span class="nav-text">商品营销</span>
+            </div>
+            <span class="nav-arrow">▶</span>
+          </div>
+          <div class="subnav-wrap" :class="marketingOpen ? 'show' : ''">
+            <div class="subnav" :class="active === 'coupon' ? 'active' : ''" @click.stop="onSubnav('coupon', 'coupon')">
+              优惠券
+            </div>
+            <div class="subnav" :class="active === 'flashSale' ? 'active' : ''" @click.stop="onSubnav('flashSale', 'flashSale')">
+              限时抢购
+            </div>
           </div>
           <div :class="navCls('strategy')" @click="onSubnav('strategy', 'strategy')" @mouseenter="railEnter('strategy', $event)" @mouseleave="railLeave()">
             <span class="nav-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" /><path d="m7 14 4-4 3 3 5-6" /></svg></span>
@@ -296,6 +325,9 @@ const onMsgJump = (id: string) => {
           <div class="subnav-wrap" :class="codeKbOpen ? 'show' : ''">
             <div class="subnav" :class="page === 'codeKbMaterial' ? 'active' : ''" @click.stop="onSubnav('codeKbMaterial', 'codeKbMaterial')">
               系列编码素材库
+            </div>
+            <div class="subnav" :class="page === 'smartImage' ? 'active' : ''" @click.stop="onSubnav('smartImage', 'smartImage')">
+              智能作图
             </div>
             <div class="subnav" :class="page === 'videoStudio' ? 'active' : ''" @click.stop="onSubnav('videoStudio', 'videoStudio')">
               素材中心
@@ -349,6 +381,9 @@ const onMsgJump = (id: string) => {
           <section :class="pageCls('internal')">
             <InternalPage />
           </section>
+          <section :class="pageCls('recommend')">
+            <RecommendPage />
+          </section>
           <section :class="pageCls('motherLink')">
             <MotherLinkPage />
           </section>
@@ -381,6 +416,12 @@ const onMsgJump = (id: string) => {
           </section>
           <section :class="pageCls('strategyForm')">
             <StrategyDrawer :edit-data="editStrategy" @back="onSubnav('strategy', 'strategy')" />
+          </section>
+          <section :class="pageCls('coupon')">
+            <CouponPage />
+          </section>
+          <section :class="pageCls('flashSale')">
+            <FlashSalePage />
           </section>
           <section :class="pageCls('aiAssistant')">
             <AiAssistantPage />
@@ -438,6 +479,9 @@ const onMsgJump = (id: string) => {
           </section>
           <section :class="pageCls('codeKbMaterial')">
             <CodeKbMaterial />
+          </section>
+          <section :class="pageCls('smartImage')">
+            <SmartImageStudio />
           </section>
           <section :class="pageCls('videoStudio')">
             <VideoStudio />

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /* ---------- 主图外露标签（插件 demo） ----------
-   真实使用场景是浮在浏览器其它平台页之上，故不做页内直出：全局悬浮球（跨顶部 tab 常驻）点开编辑弹窗，
+   真实使用场景是浮在浏览器其它平台页之上，故不做页内直出：悬浮球（仅「主图外露标签」tab 展示）点开编辑弹窗，
    弹窗内预览合成主图并编辑；Ctrl+V 粘贴图片、Ctrl+Z 撤销（输入框内聚焦时让位原生行为）。
    画布按 1000 单位归一化绘制，预览与导出同一份逻辑；选中层蓝虚线框仅预览有，导出图不带。 */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -396,8 +396,8 @@ onBeforeUnmount(() => {
 
 <template>
   <Teleport to="body">
-    <!-- 插件悬浮球：跨顶部 tab 常驻，任意平台页上均可唤起 -->
-    <div class="mip-fab-wrap" :style="fabPos ? { left: `${fabPos.x}px`, top: `${fabPos.y}px`, right: 'auto', bottom: 'auto' } : null">
+    <!-- 插件悬浮球：仅「主图外露标签」tab 展示，其它顶部 tab（含客服工作台）不渲染 -->
+    <div v-if="activeTab === 'main-img-plugin'" class="mip-fab-wrap" :style="fabPos ? { left: `${fabPos.x}px`, top: `${fabPos.y}px`, right: 'auto', bottom: 'auto' } : null">
       <button type="button" class="mip-fab" :class="{ on: open }" title="主图外露标签" @pointerdown="onFabDown" @click="onFabClick">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
         <i class="mip-fab-dot" />

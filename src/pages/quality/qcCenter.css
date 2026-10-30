@@ -1969,16 +1969,13 @@
 .qc-center-page .qc-sl-tswitch button.on { background: #fff; color: var(--color-text-1); font-weight: var(--fw-semibold); box-shadow: 0 1px 4px rgba(26, 34, 56, 0.08); }
 /* 页首平台切换（店铺列表）：下划线 tab 行容器（同任务中心 .tc-typerow/.tc-typeitem 语言），仅留外边距；不设「全部」跨平台态 */
 .qc-center-page .qc-sl-platbar { display: flex; align-items: center; margin: 0 0 12px; }
-/* 分布卡行（店铺数＋S/A/B/C/D 各评级店铺数）：整卡可点入二级列表，卡头评级字母色片沿用表格 .qc-sl-grade 的分色语言（色值内联自 GRADE_COLOR 单一出口） */
-.qc-center-page .qc-sl-grades .flat-card { cursor: pointer; }
-.qc-center-page .qc-sl-grades .flat-card .k { display: flex; align-items: center; gap: 6px; }
 /* 数据总览可点卡（订单/聊天/评价/问题命中）：整卡可点跳对应列表，指针手型；hover 底色沿用 .qc-ov-panel .flat-card:hover */
 .qc-center-page .qc-sl-ov .flat-card.link { cursor: pointer; }
-.qc-center-page .qc-sl-gchip { font-style: normal; width: 18px; height: 18px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: var(--fw-semibold); flex: none; }
 /* 店铺列表看板：总览卡子行直接复用「售后订单数卡」的 .after-card + .after-sess 语言（虚线上边框＋灰标签＋加粗值，比率靠右），
-   仅补两处本页特有：子行比率字重同预警徽章、三维均值子行三段左对齐等距 */
+   仅补一处本页特有：子行比率字重同预警徽章 */
 .qc-center-page .qc-sl-ov .after-sess .rate { font-weight: var(--fw-semibold); }
-.qc-center-page .qc-sl-ov .qc-sl-ov-dims { display: flex; align-items: center; gap: 14px; }
+/* 评级字母色片（体验分下钻等级卡＋TOP 问题店铺榜共用）：18px 圆角方块，档位色内联自 GRADE_COLOR 单一出口 */
+.qc-center-page .qc-sl-gchip { font-style: normal; width: 18px; height: 18px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: var(--fw-semibold); flex: none; }
 /* 店铺列表看板饼图带数值图例：基础层 104px 列wrap 规格仅适无值图例，带值须单列不折行、数值右对齐成列；
    盒宽放宽到容纳 190px 环图＋单列图例（pie-wrap 默认 flex-start，环图贴左不随图例宽窄抖动） */
 .qc-center-page .qc-sl-ov .qc-share-pie { width: 460px; }
@@ -2396,23 +2393,21 @@
 .qc-center-page .qc-todo-detail-drawer .drawer-body { scrollbar-width: none; }
 .qc-center-page .qc-todo-detail-drawer .drawer-body::-webkit-scrollbar { display: none; }
 .qc-center-page .qdh-rail { flex: none; width: 300px; padding: 16px; border-right: 1px solid var(--color-border-2); overflow-y: auto; scrollbar-width: none; }
-/* 历史优化任务入口：详情区右上角（消息id灰带下方），点击展开/收起左轨＋任务详情；同 SKU 导轨收起钮描边语言 */
+/* 历史优化任务入口：详情区右上角（消息id灰带下方），点击展开/收起左轨＋任务详情；选中态填充胶囊（非下拉，无箭头避免层级问题） */
 .qc-center-page .drawer.qc-todo-detail-drawer .qdh-toggle {
   position: absolute; top: 56px; right: 20px; z-index: 4;
-  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px;
-  border: 1px solid #e6e9ef; border-radius: 8px; background: #fff;
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px;
+  border: 0; border-radius: 8px; background: none;
   font-size: var(--fs-base); color: var(--color-text-2); cursor: pointer;
 }
-.qc-center-page .drawer.qc-todo-detail-drawer .qdh-toggle:hover { color: var(--primary); border-color: var(--primary); }
-.qc-center-page .drawer.qc-todo-detail-drawer .qdh-toggle.on { color: var(--primary); border-color: var(--primary); font-weight: var(--fw-medium); }
+.qc-center-page .drawer.qc-todo-detail-drawer .qdh-toggle:hover { color: var(--primary); background: var(--color-fill-2); }
+.qc-center-page .drawer.qc-todo-detail-drawer .qdh-toggle.on { color: var(--primary); background: #e8f3ff; font-weight: var(--fw-medium); }
 .qc-center-page .drawer.qc-todo-detail-drawer .qdh-toggle .qt-cnt {
   min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
   background: var(--color-fill-2); color: var(--color-text-3);
   font-size: 12px; line-height: 18px; text-align: center; font-variant-numeric: tabular-nums;
 }
-.qc-center-page .drawer.qc-todo-detail-drawer .qdh-toggle.on .qt-cnt { background: #e8f3ff; color: var(--primary); }
-.qc-center-page .drawer.qc-todo-detail-drawer .qdh-toggle .qt-ar { flex: none; transition: transform 0.18s ease; }
-.qc-center-page .drawer.qc-todo-detail-drawer .qdh-toggle.on .qt-ar { transform: rotate(180deg); }
+.qc-center-page .drawer.qc-todo-detail-drawer .qdh-toggle.on .qt-cnt { background: #fff; color: var(--primary); }
 /* 入口占位：标题行右侧留白，长标题不与入口重叠 */
 .qc-center-page .drawer.qc-todo-detail-drawer:has(.qdh-toggle) .qd-title { padding-right: 150px; }
 .qc-center-page .qdh-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; font-weight: var(--fw-medium); color: var(--color-text-1); line-height: 18px; margin-bottom: 6px; }
@@ -2464,7 +2459,7 @@
 .qc-center-page .qhd-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
 
 /* ---------- 售后列表·商品信息复合列（平台列后）：主图＋商品名称/SKU 规格两行（订单商品瓦片口径） ---------- */
-/* 售后列表筛选：六个条件（含是否有会话）四列排布，查询/重置与末排条件同排右对齐（三列会挤出不含条件的按钮独行） */
+/* 售后列表筛选：五个条件（关键词/平台/售后类型/问题类型/申请时间/静默售后）四列排布，查询/重置与末排条件同排右对齐（三列会挤出不含条件的按钮独行） */
 .qc-center-page .qc-as-filter .sg-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .qc-center-page .qc-as-page .ao-prod-th { width: 256px; }
 .qc-center-page .qc-as-page .ao-prod .qc-sg-prod { min-width: 0; gap: 10px; align-items: flex-start; }

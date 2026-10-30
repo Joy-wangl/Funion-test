@@ -3,12 +3,23 @@
      创建任务复用发起抽屉（提交后周期写回商品挂标签），详情复用待办详情抽屉 -->
 <template>
   <section class="qc-opt-page">
+    <!-- 优化类型页签：三型分段胶囊（色点+计数）区分，无「全部」档，默认商品优化 -->
+    <div class="qo-tabs qc-range-toggle">
+      <button
+        v-for="k in KIND_TABS"
+        :key="k"
+        type="button"
+        :class="{ active: f.kind === k }"
+        @click="f.kind = k"
+      >
+        <i class="qo-dot" :style="{ background: KIND_COLOR[k] }"></i>
+        {{ k }}
+        <b class="qo-cnt">{{ kindCount[k] }}</b>
+      </button>
+    </div>
+
     <div class="sg-filter">
       <div class="sg-grid">
-        <div class="sg-field">
-          <label>优化类型</label>
-          <BubbleSelect class-name="sg-select" :value="f.kind" :options="KIND_OPTS" @change="(v: string) => (f.kind = v)" />
-        </div>
         <div class="sg-field">
           <label>状态</label>
           <BubbleSelect class-name="sg-select" :value="f.st" :options="ST_OPTS" @change="(v: string) => (f.st = v)" />
@@ -115,7 +126,8 @@ import { metricTrend, type ScopeTotals } from './qcCenterData';
 
 type Kind = '商品优化' | '编码优化' | '店铺优化';
 type St = '优化中' | '已结束' | '未开始';
-const KIND_OPTS = ['全部', '商品优化', '编码优化', '店铺优化'];
+/* 页签三型（无「全部」档）：分段胶囊区分，默认商品优化 */
+const KIND_TABS: Kind[] = ['商品优化', '编码优化', '店铺优化'];
 const ST_OPTS = ['全部', '优化中', '已结束', '未开始'];
 const KIND_COLOR: Record<Kind, string> = { 商品优化: '#4f7cff', 编码优化: '#9b6bff', 店铺优化: '#2ec7a5' };
 const ST_CLS: Record<St, string> = { 优化中: 'run', 已结束: 'done', 未开始: 'wait' };
@@ -232,8 +244,9 @@ const metricsOf = (t: QcTodo, c: Cycle): Mx[] => {
   ];
 };
 
-const f = ref({ kind: '全部', st: '全部', kw: '' });
-const rows = computed(() => {
+const f = ref<{ kind: Kind; st: string; kw: string }>({ kind: '商品优化', st: '全部', kw: '' });
+/* 基线行：仅按状态+搜索过滤（不含类型），供页签计数与当前页签行共用，保证计数与列表同源 */
+const baseRows = computed(() => {
   const kw = f.value.kw.trim();
   return QC_TODOS
     .map((t) => ({ t, kind: kindOf(t), cycle: cycleOf(t) }))
@@ -255,10 +268,16 @@ const rows = computed(() => {
       const owner = x.t.handlers?.[0]?.name ?? x.t.to ?? x.t.toList?.[0] ?? '—';
       return { t: x.t, kind: x.kind, cycle: x.cycle, status, subject, subjectSub, owner, metrics: metricsOf(x.t, x.cycle) };
     })
-    .filter((r) => (f.value.kind === '全部' || r.kind === f.value.kind))
     .filter((r) => (f.value.st === '全部' || r.status === f.value.st))
     .filter((r) => !kw || r.t.title.includes(kw) || r.subject.includes(kw));
 });
+/* 页签计数：当前状态+搜索口径下各型条数 */
+const kindCount = computed(() => {
+  const c: Record<Kind, number> = { 商品优化: 0, 编码优化: 0, 店铺优化: 0 };
+  for (const r of baseRows.value) c[r.kind]++;
+  return c;
+});
+const rows = computed(() => baseRows.value.filter((r) => r.kind === f.value.kind));
 
 /* 创建任务：提交后生成待办并把优化周期写回关联商品（挂「优化中」标签），与店铺商品入口同闭环 */
 const createOpen = ref(false);
@@ -316,6 +335,11 @@ const openTrend = (r: { t: QcTodo; kind: Kind; cycle: Cycle }) => {
 
 <style scoped>
 .qc-opt-page { padding: 4px 0 24px; }
+/* 优化类型页签：复用分段胶囊（.qc-range-toggle）语言，段内色点+计数；置于筛选卡上方 */
+.qo-tabs { display: inline-flex; margin: 0 0 12px; }
+.qo-tabs button { display: inline-flex; align-items: center; gap: 6px; }
+.qo-tabs .qo-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.qo-tabs .qo-cnt { font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums; opacity: 0.85; }
 .qo-title { font-size: 13px; font-weight: 500; color: var(--color-text-1); line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qo-sub { font-size: 12px; color: var(--color-text-3); line-height: 18px; margin-top: 2px; }
 /* 数据指标对比：与其它列表复合列同口径（标签定宽＋值紧随，行间 8px） */

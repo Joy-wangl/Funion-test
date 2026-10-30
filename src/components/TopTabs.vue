@@ -17,9 +17,12 @@ const readOrder = (): string[] => {
   try {
     const saved = JSON.parse(localStorage.getItem(ORDER_KEY) ?? '[]') as string[];
     const order = saved.filter((k) => keys.includes(k));
-    /* 本地排序里没有的新增 tab 按默认配置的相对位置插入，避免统一追加到末尾 */
+    /* 本地排序里没有的新增 tab：默认紧随其配置前驱（如 AI作图中心 紧随 智能运营中心），其余按配置相对位置插入 */
     keys.forEach((k) => {
       if (order.includes(k)) return;
+      const prev = keys[keys.indexOf(k) - 1];
+      const atPrev = prev ? order.indexOf(prev) : -1;
+      if (atPrev >= 0) { order.splice(atPrev + 1, 0, k); return; }
       const at = order.findIndex((x) => keys.indexOf(x) > keys.indexOf(k));
       order.splice(at < 0 ? order.length : at, 0, k);
     });

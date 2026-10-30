@@ -1431,6 +1431,8 @@ export interface PubStrategy {
   pubMethod: string;
   /** 策略定义的发布方式：蜂联发布 / 插件发布 */
   pubWay: string;
+  /** 策略是否使用优惠券：是则在发布到第二步按店铺选择对应券 */
+  useCoupon: '是' | '否';
   profitMode: string;
   profitRate: string;
   promote: string;
@@ -1442,10 +1444,10 @@ export interface PubStrategy {
 }
 export const PUB_NO_STRATEGY = '不使用策略发布';
 export const PUB_STRATEGIES: PubStrategy[] = [
-  { name: '13245', platform: '淘宝', pubMethod: '放入仓库', pubWay: '插件发布', profitMode: '控利润率', profitRate: '1%', promote: '-', bidMode: '-', bidTarget: '-', roi: '-', budgetType: '-', dailyBudget: '-' },
-  { name: '8801', platform: '淘宝', pubMethod: '直接上架', pubWay: '蜂联发布', profitMode: '控利润率', profitRate: '5%', promote: '是', bidMode: '控投产比', bidTarget: '点击量', roi: '2.5', budgetType: '每日预算', dailyBudget: '100元' },
-  { name: '6603', platform: '视频号', pubMethod: '直接上架', pubWay: '蜂联发布', profitMode: '控利润率', profitRate: '3%', promote: '-', bidMode: '-', bidTarget: '-', roi: '-', budgetType: '-', dailyBudget: '-' },
-  { name: '5508', platform: '京麦', pubMethod: '放入仓库', pubWay: '插件发布', profitMode: '控利', profitRate: '6元', promote: '-', bidMode: '-', bidTarget: '-', roi: '-', budgetType: '-', dailyBudget: '-' },
+  { name: '13245', platform: '淘宝', pubMethod: '放入仓库', pubWay: '插件发布', useCoupon: '否', profitMode: '控利润率', profitRate: '1%', promote: '-', bidMode: '-', bidTarget: '-', roi: '-', budgetType: '-', dailyBudget: '-' },
+  { name: '8801', platform: '淘宝', pubMethod: '直接上架', pubWay: '蜂联发布', useCoupon: '是', profitMode: '控利润率', profitRate: '5%', promote: '是', bidMode: '控投产比', bidTarget: '点击量', roi: '2.5', budgetType: '每日预算', dailyBudget: '100元' },
+  { name: '6603', platform: '视频号', pubMethod: '直接上架', pubWay: '蜂联发布', useCoupon: '否', profitMode: '控利润率', profitRate: '3%', promote: '-', bidMode: '-', bidTarget: '-', roi: '-', budgetType: '-', dailyBudget: '-' },
+  { name: '5508', platform: '京麦', pubMethod: '放入仓库', pubWay: '插件发布', useCoupon: '是', profitMode: '控利', profitRate: '6元', promote: '-', bidMode: '-', bidTarget: '-', roi: '-', budgetType: '-', dailyBudget: '-' },
 ];
 
 export interface PubShop {

@@ -31,7 +31,7 @@ const setMetric = (key: string, raw: number) => {
 };
 
 const DIMS: AuditDim[] = ['商品', '物流', '服务'];
-const dimCn: Record<AuditDim, string> = { 商品: '商品分', 物流: '物流分', 服务: '服务分' };
+const dimCn: Record<AuditDim, string> = { 商品: '商品分', 物流: '物流分', 发货: '发货服务分', 服务: '服务分' };
 
 const dimCalc = computed(() => DIMS.map((d) => {
   const score = dimScoreOf(weights.value, d, metrics.value) ?? 0;

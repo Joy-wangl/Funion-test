@@ -19,10 +19,10 @@ import QcDateRangePicker from './QcDateRangePicker.vue';
 import QcSeriesDrawer from './QcSeriesDrawer.vue';
 import QcTypeShuttle from './QcTypeShuttle.vue';
 
-const ALL = { type: '全部类型', platform: '全部平台', sess: '全部' };
-const SESS_OPTS = ['全部', '有会话', '无会话'];
+const ALL = { type: '全部类型', platform: '全部平台', sess: '全部', silent: '全部' };
+const SILENT_OPTS = ['全部', '静默售后', '非静默售后'];
 const GO_DEFAULT = '全部组别 / 全部运维';
-const blank = () => ({ go: GO_DEFAULT, type: ALL.type, platform: ALL.platform, sess: ALL.sess, ptype: null as string | null, sub: null as string | null, dept: '全部部门', from: '', to: '', kw: '' });
+const blank = () => ({ go: GO_DEFAULT, type: ALL.type, platform: ALL.platform, sess: ALL.sess, silent: ALL.silent, ptype: null as string | null, sub: null as string | null, dept: '全部部门', from: '', to: '', kw: '' });
 const applied = ref(blank());
 
 /* 问题大类占比下钻态：null＝大类视图，值＝当前下钻的问题大类（与监控列表/评价列表同交互） */
@@ -43,16 +43,16 @@ const backToOv = () => {
   tier.value = 'ov';
 };
 
-/* 二级列表页查询条件（按列表列内容配置）：单号/编码关键词、平台、售后类型、问题类型、问题小类（随类型级联）、申请时间、是否有会话；查询/重置同排右对齐。
-   草稿态独立于生效条件：概览入口代入的维度（大类/部门/组别运维）不被查询/重置覆盖；是否有会话已落为可见条件，代入后回显草稿可查可清 */
-const blankDraft = () => ({ kw: '', platform: ALL.platform, type: ALL.type, ptype: null as string | null, sub: null as string | null, sess: ALL.sess, from: '', to: '' });
+/* 二级列表页查询条件（按列表列内容配置）：单号/编码关键词、平台、售后类型、问题类型、问题小类（随类型级联）、申请时间、是否静默售后；查询/重置同排右对齐。
+   草稿态独立于生效条件：概览入口代入的维度（大类/部门/组别运维）不被查询/重置覆盖 */
+const blankDraft = () => ({ kw: '', platform: ALL.platform, type: ALL.type, ptype: null as string | null, sub: null as string | null, sess: ALL.sess, silent: ALL.silent, from: '', to: '' });
 const draft = ref(blankDraft());
 const syncDraft = () => {
   const a = applied.value;
-  draft.value = { kw: a.kw, platform: a.platform, type: a.type, ptype: a.ptype, sub: a.sub, sess: a.sess, from: a.from, to: a.to };
+  draft.value = { kw: a.kw, platform: a.platform, type: a.type, ptype: a.ptype, sub: a.sub, sess: a.sess, silent: a.silent, from: a.from, to: a.to };
 };
 const onAsQuery = () => {
-  applied.value = { ...applied.value, kw: draft.value.kw.trim(), platform: draft.value.platform, type: draft.value.type, ptype: draft.value.ptype, sub: draft.value.sub, sess: draft.value.sess, from: draft.value.from, to: draft.value.to };
+  applied.value = { ...applied.value, kw: draft.value.kw.trim(), platform: draft.value.platform, type: draft.value.type, ptype: draft.value.ptype, sub: draft.value.sub, sess: draft.value.sess, silent: draft.value.silent, from: draft.value.from, to: draft.value.to };
 };
 const onAsReset = () => { draft.value = blankDraft(); onAsQuery(); };
 
@@ -69,7 +69,7 @@ watch(afterJumpSeed, (s) => {
 const toQuery = (f: ReturnType<typeof blank>) => {
   const [g, o] = f.go.split(' / ');
   /* 状态/关键词筛选已下线，但查询口径仍需显式传「全部状态」/空串，否则 matchAfter 会按未定义状态过滤掉全部售后单 */
-  return { group: g, operator: o, type: f.type, platform: f.platform, status: '全部状态', kw: f.kw, sess: f.sess, ptype: f.ptype, sub: f.sub, dept: f.dept, from: f.from, to: f.to };
+  return { group: g, operator: o, type: f.type, platform: f.platform, status: '全部状态', kw: f.kw, sess: f.sess, silent: f.silent, ptype: f.ptype, sub: f.sub, dept: f.dept, from: f.from, to: f.to };
 };
 
 /* 查询生效时全量扫描一次：累计命中数 / 小类计数 / 每系列命中数，分页切片再回生成取行 */
@@ -260,6 +260,9 @@ const platPieItems = computed(() => ov.value.plats.map((p) => ({ label: p.label,
 const ptypeOfSub = (s: string) => QC_PROBLEM_TYPES.find((t) => subsOfType(t).includes(s)) ?? null;
 const listAll = () => openList({ platform: ovPlat.value });
 const listSess = () => openList({ sess: '有会话', platform: ovPlat.value });
+/* 静默卡两数值各自下钻：静默＝无会话或会话晚于售后；非静默＝有聊天会话且会话时间早于售后单时间 */
+const listSilent = () => openList({ silent: '静默售后', platform: ovPlat.value });
+const listNonSilent = () => openList({ silent: '非静默售后', sess: '有会话', platform: ovPlat.value });
 const listTopType = () => { if (topType.value) openList({ type: topType.value.label, platform: ovPlat.value }); };
 const listTopSub = () => {
   const s = topSub.value;
@@ -433,7 +436,7 @@ const exportSession = () => {
           <!-- 平台切换：与其它模块一致的下拉（BubbleSelect），选项同问题大类占比卡平台下拉 -->
           <BubbleSelect class-name="sg-select" :value="ovPlat" :options="OV_PLAT_OPTS" @change="onOvPlat" />
         </QcSectionHead>
-        <div class="qc-flat-grid cols-4">
+        <div class="qc-flat-grid cols-5">
           <div class="flat-card clickable" title="点击查看售后列表" @click="listAll">
             <div class="k">售后单量</div>
             <div class="v">{{ ovScan.total.toLocaleString() }}</div>
@@ -448,6 +451,18 @@ const exportSession = () => {
             <div class="after-sess sess-row">
               <span>风险会话数量 <b>{{ ovScan.ov.riskSess.toLocaleString() }}</b></span>
               <span class="sess-warn" title="风险会话占比 = 风险会话 ÷ 关联会话"><i class="sess-warn-ico">!</i>{{ ovScan.ov.sess ? `${((ovScan.ov.riskSess / ovScan.ov.sess) * 100).toFixed(1)}%` : '0.0%' }}</span>
+            </div>
+          </div>
+          <!-- 静默售后卡：静默/非静默二分恒等于售后单量；两数值各自可点下钻；口径解释走 hover title，不落可见副标 -->
+          <div class="flat-card clickable" title="静默售后 = 发起售后前未先咨询：无关联会话，或会话进入时间晚于售后发起时间 · 点击查看静默售后单" @click="listSilent">
+            <div class="k">静默售后单量</div>
+            <div class="v">
+              {{ ovScan.ov.silent.toLocaleString() }}
+              <span class="dept-pct">{{ pctOf(ovScan.ov.silent) }}</span>
+            </div>
+            <div class="after-sess sess-row qc-as-drill-sub" title="非静默 = 有聊天会话且会话进入时间早于售后单时间（先咨询后发起） · 点击查看该部分售后单" @click.stop="listNonSilent">
+              <span>非静默售后单量 <b>{{ (ovScan.total - ovScan.ov.silent).toLocaleString() }}</b></span>
+              <span title="非静默占比 = 非静默售后单量 ÷ 售后单量">{{ pctOf(ovScan.total - ovScan.ov.silent) }}</span>
             </div>
           </div>
           <div class="flat-card clickable" title="单量最高的售后类型 · 点击查看该类型售后单" @click="listTopType">
@@ -636,10 +651,11 @@ const exportSession = () => {
               :on-change="(d: DateRange) => { draft.from = d.start; draft.to = d.end; }"
             />
           </div>
-          <!-- 是否有会话：数据层售后单挂 sessionId 即由会话发起；有会话行操作列露「查看会话」直开聊天全屏弹窗 -->
+          <!-- 是否静默售后：同概览静默卡口径（无关联会话或会话进入晚于售后发起＝静默）；查询/重置同排右对齐不变。
+               是否有会话与静默售后语义冲突（有会话即非静默、无会话即静默），只保留静默售后一个查询条件 -->
           <div class="sg-field">
-            <label>是否有会话</label>
-            <BubbleSelect class-name="sg-select" :value="draft.sess" :options="SESS_OPTS" @change="(v: string) => (draft.sess = v)" />
+            <label>是否静默售后</label>
+            <BubbleSelect class-name="sg-select" :value="draft.silent" :options="SILENT_OPTS" @change="(v: string) => (draft.silent = v)" />
           </div>
           <div class="sg-field-actions">
             <button class="sg-btn" @click="onAsReset">重置</button>

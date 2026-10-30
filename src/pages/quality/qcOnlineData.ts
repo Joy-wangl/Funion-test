@@ -614,6 +614,8 @@ export interface OnlineAfterOrder {
   csTag?: string;
   /** 售后起因会话（存在时会话卡右侧展示关联售后） */
   sessionId?: string;
+  /** 静默售后：发起售后前未先咨询（无关联会话，或会话进入时间晚于售后发起时间） */
+  silent: boolean;
 }
 export const AFTER_TYPES = ['退货退款/退款', '换货', '补发'];
 export const AFTER_STATUSES: AfterOrderStatus[] = ['已处理', '已拒绝', '待处理'];
@@ -691,6 +693,7 @@ const genAfterOrders = (series: QcCenterSeries): OnlineAfterOrder[] => {
       appliedAt: `2026-08-${dd} ${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`,
       ptype: pt,
       psub: ss.length ? ss[i % ss.length] : undefined,
+      silent: true,
     });
   }
   /* 售后起因会话：约四成会话由售后发起（同平台同订单），会话卡据此展示关联售后 */
@@ -701,6 +704,8 @@ const genAfterOrders = (series: QcCenterSeries): OnlineAfterOrder[] => {
     if (!o) return;
     o.sessionId = sess.id;
     o.orderNo = sess.orderId;
+    /* 静默口径：会话进入时间晚于售后发起时间＝发起售后前未先咨询 */
+    o.silent = sess.startedAt > o.appliedAt;
     /* 客服打标仅有关联会话的售后单才有（取同大类小类词表、与命中小类错位一轮） */
     const ss = subsOfType(o.ptype);
     if (ss.length) o.csTag = ss[(i + 1) % ss.length];
@@ -728,6 +733,8 @@ export interface AfterOrderQuery {
   status: string;
   /** 是否有会话：全部/有会话/无会话（售后单是否由会话发起） */
   sess: string;
+  /** 是否静默售后：全部/静默售后/非静默售后（同概览静默卡口径） */
+  silent: string;
   /** 问题大类（未选小类时按大类口径过滤） */
   ptype: string | null;
   sub: string | null;
@@ -746,6 +753,8 @@ export interface AfterOv {
   sess: number;
   /** 风险会话单量（关联会话中命中问题者，同数据概览问题会话口径：会话索引 i%3<=1） */
   riskSess: number;
+  /** 静默售后单量（发起售后前未先咨询：无关联会话，或会话进入时间晚于售后发起时间）；非静默 = total - silent */
+  silent: number;
   /** 平台分布（AFTER_PLATFORMS 序） */
   plats: AfterOvEntry[];
   /** 售后类型分布（AFTER_TYPES 序） */
@@ -780,6 +789,8 @@ const matchAfter = (o: OnlineAfterOrder, f: AfterOrderQuery, seriesCode: string,
   if (f.status !== '全部状态' && o.status !== f.status) return false;
   if (f.sess === '有会话' && !o.sessionId) return false;
   if (f.sess === '无会话' && o.sessionId) return false;
+  if (f.silent === '静默售后' && !o.silent) return false;
+  if (f.silent === '非静默售后' && o.silent) return false;
   if (f.sub) { if (o.psub !== f.sub) return false; }
   else if (f.ptype && o.ptype !== f.ptype) return false;
   if (f.dept && f.dept !== '全部部门' && !hitSubDepts(o.psub ?? '').includes(f.dept)) return false;
@@ -814,6 +825,7 @@ export const scanAfterOrders = (f: AfterOrderQuery): AfterScan => {
   let total = 0;
   let sess = 0;
   let riskSess = 0;
+  let silent = 0;
   for (const s of onlineSeries()) {
     const ow = onlineOwnerOf(s.seriesCode);
     const g = ow?.group ?? '—';
@@ -831,6 +843,7 @@ export const scanAfterOrders = (f: AfterOrderQuery): AfterScan => {
         if (!probIds) probIds = new Set(onlineSessionsOf(s).filter((_, i) => i % 3 <= 1).map((x) => x.id));
         if (probIds.has(o.sessionId)) riskSess += 1;
       }
+      if (o.silent) silent += 1;
       bump(plats, o.platform);
       bump(types, o.type);
       bump(psubs, o.psub || o.ptype);
@@ -863,6 +876,7 @@ export const scanAfterOrders = (f: AfterOrderQuery): AfterScan => {
     ov: {
       sess,
       riskSess,
+      silent,
       plats: ordered(plats, AFTER_PLATFORMS),
       types: ordered(types, AFTER_TYPES),
       psubs: desc(psubs),
@@ -1482,6 +1496,8 @@ export interface ShopTask { id: string; name: string; status: ShopTaskStatus; }
 export interface OnlineShop {
   id: string; name: string; platform: ShopPlat; score: number; resp: string;
   goods: number; logistics: number; service: number;
+  /** 发货体验分（仅拼多多平台有该维度；其余平台无） */
+  deliver?: number;
   openAt: string; handle: ShopHandle; endedAt?: string; endReason?: string; endScore?: number;
   isNew?: boolean; tasks: ShopTask[];
 }
@@ -1503,10 +1519,10 @@ export const qcShops = ref<OnlineShop[]>([
   { id: 'KS-5028', name: '风羽家居', platform: '快手', score: 4.8, resp: '', goods: 4.9, logistics: 4.9, service: 4.6, openAt: '2024-07-07', handle: '结束监控', endedAt: '10-07', endReason: '评分回升至 A 级', endScore: 4.7, tasks: [] },
   { id: 'KS-5036', name: '蓝悦日记', platform: '快手', score: 4.65, resp: '', goods: 4.7, logistics: 4.7, service: 4.4, openAt: '2025-09-01', handle: '优化中', tasks: [{ id: 'ST-05', name: '物流体验优化·发货时效', status: '优化中' }] },
   { id: 'KS-5042', name: '山茶工作室', platform: '快手', score: 4.2, resp: '小额打款', goods: 4.3, logistics: 4.3, service: 4.0, openAt: '2024-01-19', handle: '紧急处理', tasks: [{ id: 'ST-06', name: '服务体验紧急优化专项', status: '待启动' }] },
-  { id: 'PDD-6012', name: '暮野', platform: '拼多多', score: 4.9, resp: '', goods: 4.9, logistics: 4.8, service: 5.0, openAt: '2024-06-11', handle: '结束监控', endedAt: '10-04', endReason: '评分回升至 S 级', endScore: 4.8, tasks: [] },
-  { id: 'PDD-6025', name: '澜庭优选', platform: '拼多多', score: 4.8, resp: '', goods: 4.8, logistics: 4.7, service: 4.9, openAt: '2023-10-09', handle: '结束监控', endedAt: '09-29', endReason: '人工确认结案', endScore: 4.8, tasks: [] },
-  { id: 'PDD-6033', name: '柚白', platform: '拼多多', score: 4.62, resp: '', goods: 4.7, logistics: 4.5, service: 4.6, openAt: '2025-05-16', handle: '优化中', tasks: [{ id: 'ST-07', name: '物流体验优化·揽收时效', status: '优化中' }] },
-  { id: 'PDD-6047', name: '霜序工作室', platform: '拼多多', score: 4.35, resp: '退货退款', goods: 4.4, logistics: 4.3, service: 4.2, openAt: '2024-02-27', handle: '紧急处理', tasks: [{ id: 'ST-08', name: '退货退款纠纷紧急专项', status: '待启动' }] },
+  { id: 'PDD-6012', name: '暮野', platform: '拼多多', score: 4.9, resp: '', goods: 4.9, logistics: 4.8, service: 5.0, deliver: 4.9, openAt: '2024-06-11', handle: '结束监控', endedAt: '10-04', endReason: '评分回升至 S 级', endScore: 4.8, tasks: [] },
+  { id: 'PDD-6025', name: '澜庭优选', platform: '拼多多', score: 4.8, resp: '', goods: 4.8, logistics: 4.7, service: 4.9, deliver: 4.8, openAt: '2023-10-09', handle: '结束监控', endedAt: '09-29', endReason: '人工确认结案', endScore: 4.8, tasks: [] },
+  { id: 'PDD-6033', name: '柚白', platform: '拼多多', score: 4.62, resp: '', goods: 4.7, logistics: 4.5, service: 4.6, deliver: 4.5, openAt: '2025-05-16', handle: '优化中', tasks: [{ id: 'ST-07', name: '物流体验优化·揽收时效', status: '优化中' }] },
+  { id: 'PDD-6047', name: '霜序工作室', platform: '拼多多', score: 4.35, resp: '退货退款', goods: 4.4, logistics: 4.3, service: 4.2, deliver: 4.2, openAt: '2024-02-27', handle: '紧急处理', tasks: [{ id: 'ST-08', name: '退货退款纠纷紧急专项', status: '待启动' }] },
   /* 新店：评分观察期，不计入评级分布/占比/均值口径，单独以「新店」卡呈现 */
   { id: 'TB-2095', name: '栖迟家居', platform: '淘宝', score: 4.8, resp: '', goods: 4.8, logistics: 4.8, service: 4.7, openAt: '2026-08-18', handle: '待处理', isNew: true, tasks: [] },
   { id: 'KS-5058', name: '南屿优选', platform: '快手', score: 4.7, resp: '', goods: 4.7, logistics: 4.7, service: 4.6, openAt: '2026-09-02', handle: '待处理', isNew: true, tasks: [] },

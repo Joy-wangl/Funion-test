@@ -21,18 +21,23 @@
 .qc-center-page .qc-au-sum.bad { color: var(--color-danger); }
 /* 总分权重三列 */
 .qc-center-page .qc-au-dims { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+/* 拼多多含发货服务分：四维四列 */
+.qc-center-page .qc-au-dims.cols4 { grid-template-columns: repeat(4, 1fr); }
 .qc-center-page .qc-au-dim { padding: 12px 14px; background: #f8fafc; border: 1px solid #eef1f6; border-radius: 10px; }
 .qc-center-page .qc-au-dim-name { font-size: var(--fs-base); font-weight: var(--fw-medium); color: var(--color-text); margin-bottom: 10px; }
 .qc-center-page .qc-au-dim-ctrl { display: flex; align-items: center; gap: 6px; }
 .qc-center-page .qc-au-num { width: 76px; height: 32px; padding: 0 10px; border: 1px solid #e0e5ee; border-radius: 8px; background: #fff; font-size: var(--fs-base); color: var(--color-text-2); text-align: left; font-variant-numeric: tabular-nums; transition: border-color 0.15s; }
 .qc-center-page .qc-au-num:hover, .qc-center-page .qc-au-num:focus { border-color: #c7d6fb; outline: none; }
 .qc-center-page .qc-au-num.sm { width: 64px; height: 28px; }
-/* 页头：标题与编辑入口一行；默认只读态仅一个编辑动作，进入编辑后底部出操作条 */
+/* 页头：标题与操作一行；默认只读态仅一个编辑动作，编辑态动作组（恢复默认/取消/保存）同位切换 */
 .qc-center-page .qc-au-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-/* 只读态：输入件去盒感呈纯数值、不可点；编辑态恢复输入盒（功能与校验不变） */
-.qc-center-page .qc-au-num:disabled { border-color: transparent; background: transparent; color: var(--color-text); font-weight: var(--fw-medium); }
-.qc-center-page .qc-au-pill:disabled { cursor: default; }
-.qc-center-page .qc-au-pill:disabled:not(.on) { background: #f6f7f9; color: #9aa2b1; }
+.qc-center-page .qc-au-headops { display: flex; align-items: center; gap: 8px; }
+/* 查看态：数值以纯文本呈现（区别于编辑态输入盒），单位次级色小一号 */
+.qc-center-page .qc-au-dimval { font-size: 18px; font-weight: 600; color: var(--color-text); font-variant-numeric: tabular-nums; line-height: 32px; }
+.qc-center-page .qc-au-dimval i { font-style: normal; font-size: var(--fs-base); font-weight: 400; color: var(--color-text-3); margin-left: 2px; }
+.qc-center-page .qc-au-gval { font-size: var(--fs-base); font-weight: var(--fw-medium); color: var(--color-text); font-variant-numeric: tabular-nums; }
+/* 编辑态横幅：置于平台切换与总分卡之间 */
+.qc-center-page .qc-au-editbar { margin: 12px 0 0; background: #f4f8ff; border-color: #dbe6ff; }
 .qc-center-page .qc-au-unit { font-size: var(--fs-base); color: var(--color-text-3); }
 /* 计算说明：实际值手动输入（输入＋% 单位同行） */
 .qc-center-page .qc-au-vcell { display: flex; align-items: center; gap: 4px; }
@@ -42,8 +47,9 @@
 .qc-center-page .qc-au-gate { margin-top: 16px; padding-top: 14px; border-top: 1px solid #f2f4f8; }
 /* 出分门槛归属维度 tab：卡内浅底面板承接，去掉旧顶部卡的分割线样式 */
 .qc-center-page .qc-au-gate-in { margin: 0 0 14px; padding: 12px 14px; background: #f7f9fc; border: 1px solid #eef1f6; border-top: 1px solid #eef1f6; border-radius: 10px; }
-.qc-center-page .qc-au-gate-in .qc-au-gate-t { margin-bottom: 8px; }
-.qc-center-page .qc-au-gate-t { font-size: var(--fs-base); font-weight: var(--fw-medium); color: var(--color-text); margin-bottom: 10px; }
+/* 门槛带首段归属标：色点＋维度名，右发丝线与门槛字段分隔，切页签随之换名 */
+.qc-center-page .qc-au-gate-t { flex: none; display: inline-flex; align-items: center; gap: 6px; margin: 0; padding-right: 12px; border-right: 1px solid #e3e8f0; font-size: var(--fs-base); font-weight: var(--fw-medium); color: var(--color-text); }
+.qc-center-page .qc-au-gate-t i { flex: none; width: 7px; height: 7px; border-radius: 50%; }
 .qc-center-page .qc-au-gate-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .qc-center-page .qc-au-lab { flex: none; font-size: var(--fs-base); color: var(--color-text-3); }
 /* 分段胶囊 */

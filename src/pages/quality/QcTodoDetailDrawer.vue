@@ -176,7 +176,6 @@ const HA_CLS: Record<string, string> = { 转: 'zf', 驳: 'bh', 撤: 'yx' };
     >
       <span class="qt-tx">历史优化任务</span>
       <span class="qt-cnt">{{ histTasks.length }}</span>
-      <svg class="qt-ar" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
     </button>
     <!-- 历史优化任务：最左侧全高选择轨（图二结构），点卡切换右侧任务详情 -->
     <div v-if="histOpen && selHist" class="qdh-rail">
