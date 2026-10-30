@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import type { Ref } from 'vue';
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import type { CSSProperties, Ref } from 'vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import DateRangePicker from '../../components/DateRangePicker.vue';
 import Ellipsis from '../../components/Ellipsis.vue';
@@ -40,10 +40,11 @@ interface MkMatch {
   sku: number;
 }
 
-/* 市场商机：顶 tab 淘宝顺买 / 视频号商机；视频号商机聚合小店商机＋推荐商机两模块，下方子 tab 切换 */
+/* 市场商机：顶 tab 淘宝顺买 / 视频号商机 / 竞店商品；视频号商机聚合小店商机＋推荐商机两模块，下方子 tab 切换 */
 const TABS = [
   { key: 'taobao', label: '淘宝顺买' },
   { key: 'shunmai', label: '视频号商机' },
+  { key: 'jd', label: '竞店商品' },
 ] as const;
 type TabKey = (typeof TABS)[number]['key'];
 const tab = ref<TabKey>('taobao');
@@ -57,6 +58,25 @@ const subTab = ref<SubTabKey>('xiaodian');
 /* 视图判定：视频号模式＝顺买商机＋视频号子 tab；小店模式＝顺买商机＋小店子 tab */
 const isVh = computed(() => tab.value === 'shunmai' && subTab.value === 'shipinhao');
 const isXd = computed(() => tab.value === 'shunmai' && subTab.value === 'xiaodian');
+/* 竞店商品子 tab：竞店任务 / 店铺商品 两模块各自一套筛选＋列表 */
+const JD_SUBS = [
+  { key: 'task', label: '竞店任务' },
+  { key: 'goods', label: '店铺商品' },
+] as const;
+type JdSubKey = (typeof JD_SUBS)[number]['key'];
+const jdSub = ref<JdSubKey>('task');
+const jdPaneRef = ref<HTMLElement | null>(null);
+/* 切 tab 后列表高度变化，滚回内容区顶部，避免停在上一个 tab 的半截列表中间 */
+const jdScrollTop = () => {
+  const sc = jdPaneRef.value?.closest('.app-content') as HTMLElement | null;
+  if (sc) sc.scrollTo({ top: 0, behavior: 'smooth' });
+  else window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+const switchJdSub = (k: JdSubKey) => {
+  if (jdSub.value === k) return;
+  jdSub.value = k;
+  nextTick(jdScrollTop);
+};
 
 /* 列表字段管理：非视频号（淘宝顺买/小店）与视频号推荐两表独立 scope；百分比宽表 sticky=false；小店独有列随 tab 动态增删 */
 const cf = useColField('market', {
@@ -120,7 +140,8 @@ const salesTxt = (n: number) => (n >= 10000 ? `已售${Math.floor(n / 10000)}万
 /* 内部匹配列表态命中数：match 为高置信度内部商品命中清单，命中计清单长度（列表仅展示 命中：N / 无命中） */
 const hitCount = (r: MkRow) => r.match.length;
 /* 查看内部商品：抽屉展示命中内部商品清单 */
-const matchDrawer = ref<MkRow | null>(null);
+type MatchDrawerPayload = { name: string; match: MkMatch[] };
+const matchDrawer = ref<MatchDrawerPayload | null>(null);
 
 /* 视频号推荐商机：热度指数为近30日区间值（如 51-55）；top 为同类目近期推荐排名，null 未上榜 */
 interface VhRow {
@@ -453,6 +474,216 @@ const taskActs = (t: SmTask): MkTaskAct[] => {
   return acts;
 };
 
+/* ── 竞店商品：外部数据 tab；竞店任务＋店铺商品同页上下两段（不再分子 tab，只保留顶栏一级 tab） ── */
+
+/* 竞店任务：任务＝输入店铺名称后到该店监控商品销量；状态/最近更新时间给监控链路状态感 */
+type JdTaskStatus = '监控中' | '已停止';
+interface JdTaskRow {
+  id: string;
+  name: string;
+  count: number;
+  status: JdTaskStatus;
+  updated: string;
+  creator: string;
+  time: string;
+}
+const jdTaskRows = ref<JdTaskRow[]>([
+  { id: 'jt01', name: '义乌居家日用源头直供旗舰', count: 0, status: '监控中', updated: '2026-10-29 09:02:11', creator: '大侠', time: '2026-10-27 17:52:27' },
+  { id: 'jt02', name: '果奇旗舰店', count: 3, status: '监控中', updated: '2026-10-29 09:12:44', creator: '大侠', time: '2026-10-27 17:52:12' },
+  { id: 'jt03', name: '爱摩尼旗舰店', count: 3, status: '监控中', updated: '2026-10-29 08:57:03', creator: '大侠', time: '2026-10-27 17:51:58' },
+  { id: 'jt04', name: '米卡博旗舰店', count: 46, status: '监控中', updated: '2026-10-29 09:10:26', creator: '大侠', time: '2026-10-27 17:51:33' },
+  { id: 'jt05', name: '好管家旗舰店', count: 58, status: '监控中', updated: '2026-10-29 09:05:52', creator: '大侠', time: '2026-10-27 17:51:15' },
+  { id: 'jt06', name: '小鹿家生活馆', count: 37, status: '已停止', updated: '2026-10-28 22:40:19', creator: '大侠', time: '2026-10-27 17:21:04' },
+  { id: 'jt07', name: '万宝绿旗舰店', count: 25, status: '监控中', updated: '2026-10-29 08:49:37', creator: '大侠', time: '2026-10-27 17:20:51' },
+  { id: 'jt08', name: '蘑菇小队日用百货创意小商品', count: 61, status: '监控中', updated: '2026-10-29 09:11:08', creator: '大侠', time: '2026-10-27 17:20:35' },
+  { id: 'jt09', name: '俏俏家居精品日用百货小商品', count: 0, status: '已停止', updated: '2026-10-26 18:03:45', creator: '大侠', time: '2026-10-27 17:20:17' },
+  { id: 'jt10', name: '可可尚佳家居旗舰店', count: 44, status: '监控中', updated: '2026-10-29 09:08:15', creator: '大侠', time: '2026-10-27 17:19:51' },
+  { id: 'jt11', name: '诠艺旗舰店', count: 19, status: '监控中', updated: '2026-10-29 08:36:59', creator: '大侠', time: '2026-10-27 17:10:22' },
+]);
+const jdTaskEmpty = { name: '', creator: '', from: '', to: '' };
+const jdTaskFilter = ref({ ...jdTaskEmpty });
+const jdTaskApplied = ref({ ...jdTaskEmpty });
+/* 筛选区收起/展开：收起态仅留操作行（参考图「收起^」） */
+const jdTaskFold = ref(false);
+const jdTaskList = computed(() => jdTaskRows.value.filter((r) => {
+  if (jdTaskApplied.value.name && !r.name.includes(jdTaskApplied.value.name)) return false;
+  if (jdTaskApplied.value.creator && !r.creator.includes(jdTaskApplied.value.creator)) return false;
+  if (jdTaskApplied.value.from && r.time.slice(0, 10) < jdTaskApplied.value.from) return false;
+  if (jdTaskApplied.value.to && r.time.slice(0, 10) > jdTaskApplied.value.to) return false;
+  return true;
+}));
+/* 删除任务：不可逆，统一二次确认 */
+const jdDeleteTask = (r: JdTaskRow) => askConfirm('删除任务', `删除竞店任务「${r.name}」？删除后不可恢复`, () => {
+  jdTaskRows.value = jdTaskRows.value.filter((x) => x.id !== r.id);
+  pushToast('任务已删除');
+});
+
+/* 创建竞店任务：筛选操作行主入口；弹窗仅店铺名称（必填）＋备注（选填） */
+const jdCreateModal = ref(false);
+const jdCreateForm = ref({ shop: '', note: '' });
+const openJdCreate = () => { jdCreateForm.value = { shop: '', note: '' }; jdCreateModal.value = true; };
+const confirmJdCreate = () => {
+  const name = jdCreateForm.value.shop.trim();
+  if (!name) { pushToast('请输入店铺名称', 'error'); return; }
+  if (jdTaskRows.value.some((r) => r.name === name)) { pushToast(`竞店任务「${name}」已存在`, 'error'); return; }
+  jdTaskRows.value.unshift({ id: `jt${Date.now()}`, name, count: 0, status: '监控中', updated: nowTime(), creator: '大侠', time: nowTime() });
+  jdCreateModal.value = false;
+  pushToast(`竞店任务「${name}」已创建，监控中`);
+};
+
+/* 店铺商品：售价红数 / 近两日销量（前日→当日＋涨幅）/ 更新时间 / 店铺副行按截图口径；种子均未完善 */
+interface JdGoodsRow {
+  id: string;
+  name: string;
+  img: string;
+  shop: string;
+  complete: boolean;
+  price: number;
+  /** 前一日销量 */
+  salesPrev: number;
+  /** 当日销量；涨幅＝当日－前日（筛选与排序同口径） */
+  salesToday: number;
+  /* 内部匹配命中清单（空数组=无命中），列表态仅暴露计数 */
+  match: MkMatch[];
+  time: string;
+  /** 竞品链接（外部商品详情页），空=不展示 */
+  link?: string;
+}
+const jdGrowth = (r: JdGoodsRow) => r.salesToday - r.salesPrev;
+const fmtSales = (n: number) => n.toLocaleString('en-US');
+const jdGoodsRows: JdGoodsRow[] = [
+  { id: 'jg01', name: '哈兰德擦手巾挂式世界足球赛周边擦手帕卫生间厨房吸水速干毛巾', img: ecMain(0), shop: '嘉晨日用百货', complete: false, price: 12.9, salesPrev: 1200, salesToday: 7200, match: [
+    { img: ecMain(7), plat: '抖音', shop: '锦致生活旗舰店', title: '休闲宽松连帽卫衣女秋季新款外套上衣 百搭通勤', goodsId: 'SP-10284752', series: 'ZH-LMWD-0921', fuse: 86.4, sku: 72.1 },
+    { img: ecMain(8), plat: '抖音', shop: '轻享好物旗舰店', title: '便携式迷你榨汁杯家用小型果汁机', goodsId: 'SP-10763211', series: 'ZH-ZBJ-0331', fuse: 74.6, sku: 58.9 },
+  ], time: '2026-10-28 21:09:10', link: 'https://detail.tmall.com/item.htm?id=809971029607&template=ML20260813-01' },
+  { id: 'jg02', name: '煤气灶防滑支架厨房锅炉架通用防风罩炒锅加高灶台架托燃气灶支架', img: ecMain(1), shop: '嘉晨日用百货', complete: false, price: 14.3, salesPrev: 1800, salesToday: 7800, match: [], time: '2026-10-28 21:09:10', link: 'https://detail.tmall.com/item.htm?id=809971029608&template=ML20260813-01' },
+  { id: 'jg03', name: '冰箱贴磁贴置物架侧面可爱磁吸收纳盒厨房壁挂免打孔多功能磁力贴', img: ecMain(2), shop: '嘉晨日用百货', complete: false, price: 12.9, salesPrev: 2000, salesToday: 8000, match: [
+    { img: ecMain(6), plat: '拼多多', shop: '谷麦甄选旗舰店', title: '坚果燕麦片早餐代餐冲饮 500g×2袋 无蔗糖', goodsId: 'SP-10451263', series: 'ZH-JGYM-0512', fuse: 78.2, sku: 61.5 },
+  ], time: '2026-10-28 21:09:10', link: 'https://detail.tmall.com/item.htm?id=809971029609&template=ML20260813-01' },
+  { id: 'jg04', name: '葡萄香皂整串纯手工串香薰皂家用洗手持久留香肥皂伴手礼生日礼物', img: ecMain(3), shop: '嘉晨日用百货', complete: false, price: 18.8, salesPrev: 950, salesToday: 6950, match: [], time: '2026-10-28 21:09:10', link: 'https://detail.tmall.com/item.htm?id=809971029610&template=ML20260813-01' },
+  { id: 'jg05', name: '新款升级版高颜值山型凸面宽头软毛牙刷护眼清洁情侣家用学生清洁', img: ecMain(4), shop: '嘉晨日用百货', complete: false, price: 11.9, salesPrev: 1400, salesToday: 7400, match: [
+    { img: ecMain(9), plat: '淘宝', shop: '云朵优品旗舰店', title: '连帽卫衣女宽松bf风长袖上衣 慵懒风外套', goodsId: 'SP-10284509', series: 'ZH-LMWD-0921', fuse: 65.3, sku: 51.8 },
+  ], time: '2026-10-28 21:09:10', link: 'https://detail.tmall.com/item.htm?id=809971029611&template=ML20260813-01' },
+  { id: 'jg06', name: '果奇不锈钢厨房置物架台面调料收纳架多功能刀架砧板架一体收纳架', img: ecMain(5), shop: '果奇旗舰店', complete: true, price: 39.9, salesPrev: 2100, salesToday: 3300, match: [
+    { img: ecMain(0), plat: '淘宝', shop: '白屿家居小铺', title: '【10A抗菌】桂枫3.0Pro玻尿酸凉感深睡重力被 夏凉被', goodsId: 'SP-10284001', series: 'ZH-ZLBT-0823', fuse: 88.5, sku: 76.3 },
+    { img: ecMain(2), plat: '淘宝', shop: '臻品厨具专营店', title: '316不锈钢保温杯大容量车载水杯男女便携直饮', goodsId: 'SP-10284023', series: 'ZH-BWB-0618', fuse: 71.2, sku: 64.8 },
+  ], time: '2026-10-29 09:12:44', link: 'https://detail.tmall.com/item.htm?id=809971029612&template=ML20260813-01' },
+  { id: 'jg07', name: '果奇壁挂式厨房垃圾桶家用橱柜门挂式厨余垃圾筒折叠带盖收纳桶', img: ecMain(6), shop: '果奇旗舰店', complete: true, price: 25.8, salesPrev: 640, salesToday: 1500, match: [], time: '2026-10-29 09:12:44', link: 'https://detail.tmall.com/item.htm?id=809971029613&template=ML20260813-01' },
+  { id: 'jg08', name: '果奇密封罐食品级塑料储物罐五谷杂粮收纳盒厨房干货咖啡豆保存罐', img: ecMain(7), shop: '果奇旗舰店', complete: false, price: 19.9, salesPrev: 410, salesToday: 840, match: [
+    { img: ecMain(4), plat: '视频号', shop: '暖光照明工厂店', title: '智能感应夜灯人体感应小夜灯卧室床头起夜灯', goodsId: 'SP-10764004', series: 'ZH-YD-0315', fuse: 82.1, sku: 69.4 },
+  ], time: '2026-10-29 09:12:44', link: 'https://detail.tmall.com/item.htm?id=809971029614&template=ML20260813-01' },
+  { id: 'jg09', name: '爱摩尼轻奢浴室地垫吸水速干卫生间门口防滑脚垫家用厕所卫浴地毯', img: ecMain(8), shop: '爱摩尼旗舰店', complete: true, price: 29.9, salesPrev: 900, salesToday: 3000, match: [
+    { img: ecMain(5), plat: '视频号', shop: '朵拉优选日用', title: '【秋冬养护】玻尿酸补水修护精华液 30ml 保湿面部 serum', goodsId: 'SP-10765005', series: 'ZH-JHS-0928', fuse: 79.8, sku: 66.7 },
+  ], time: '2026-10-29 08:57:03', link: 'https://detail.tmall.com/item.htm?id=809971029615&template=ML20260813-01' },
+  { id: 'jg10', name: '爱摩尼马桶刷无死角家用洗厕所神器壁挂式洁厕刷套装卫生间清洁刷', img: ecMain(9), shop: '爱摩尼旗舰店', complete: true, price: 15.8, salesPrev: 520, salesToday: 1500, match: [], time: '2026-10-29 08:57:03', link: 'https://detail.tmall.com/item.htm?id=809971029616&template=ML20260813-01' },
+  { id: 'jg11', name: '爱摩尼淋浴花洒软管防爆加厚热水器出水管子卫生间洗澡莲蓬头配件', img: ecMain(10), shop: '爱摩尼旗舰店', complete: false, price: 12.5, salesPrev: 230, salesToday: 580, match: [
+    { img: ecMain(3), plat: '视频号', shop: '朵拉优选日用', title: '叶黄素艾草蒸汽眼罩 20贴 缓解眼疲劳热敷', goodsId: 'SP-10763003', series: 'ZH-YZ-0420', fuse: 68.5, sku: 55.2 },
+  ], time: '2026-10-29 08:57:03', link: 'https://detail.tmall.com/item.htm?id=809971029617&template=ML20260813-01' },
+];
+const jdGoodsEmpty = { name: '', shop: '', from: '', to: '', gmin: '', gmax: '', complete: '全部' };
+const jdGoodsFilter = ref({ ...jdGoodsEmpty });
+const jdGoodsApplied = ref({ ...jdGoodsEmpty });
+/* 售价 / 销量涨幅 单列排序：三态循环（降 → 升 → 取消），单列激活 */
+const jdGoodsSortKey = ref<'price' | 'growth' | ''>('');
+const jdGoodsSortDir = ref<'none' | 'asc' | 'desc'>('none');
+const onJdGoodsSort = (k: 'price' | 'growth') => {
+  if (jdGoodsSortKey.value !== k) { jdGoodsSortKey.value = k; jdGoodsSortDir.value = 'desc'; }
+  else if (jdGoodsSortDir.value === 'desc') jdGoodsSortDir.value = 'asc';
+  else if (jdGoodsSortDir.value === 'asc') { jdGoodsSortKey.value = ''; jdGoodsSortDir.value = 'none'; }
+  else jdGoodsSortDir.value = 'desc';
+};
+const jdGoodsSortState = (k: string) => (jdGoodsSortKey.value === k ? jdGoodsSortDir.value : 'none');
+const jdGoodsList = computed(() => {
+  const arr = jdGoodsRows.filter((r) => {
+    if (jdGoodsApplied.value.name && !r.name.includes(jdGoodsApplied.value.name)) return false;
+    if (jdGoodsApplied.value.shop && !r.shop.includes(jdGoodsApplied.value.shop)) return false;
+    if (jdGoodsBlockedShops.value.includes(r.shop)) return false;
+    if (jdGoodsApplied.value.from && r.time.slice(0, 10) < jdGoodsApplied.value.from) return false;
+    if (jdGoodsApplied.value.to && r.time.slice(0, 10) > jdGoodsApplied.value.to) return false;
+    if (jdGoodsApplied.value.gmin && jdGrowth(r) < Number(jdGoodsApplied.value.gmin)) return false;
+    if (jdGoodsApplied.value.gmax && jdGrowth(r) > Number(jdGoodsApplied.value.gmax)) return false;
+    if (jdGoodsApplied.value.complete === '已完善' && !r.complete) return false;
+    if (jdGoodsApplied.value.complete === '未完善' && r.complete) return false;
+    return true;
+  });
+  if (jdGoodsSortKey.value && jdGoodsSortDir.value !== 'none') {
+    const dir = jdGoodsSortDir.value === 'asc' ? 1 : -1;
+    arr.sort((a, b) => (jdGoodsSortKey.value === 'growth' ? jdGrowth(a) - jdGrowth(b) : a.price - b.price) * dir);
+  }
+  return arr;
+});
+/* 查询/重置：任务与商品两段各自独立生效 */
+const jdTaskApply = () => { jdTaskApplied.value = { ...jdTaskFilter.value }; };
+const jdTaskReset = () => {
+  jdTaskFilter.value = { ...jdTaskEmpty };
+  jdTaskApplied.value = { ...jdTaskEmpty };
+};
+const jdGoodsApply = () => { jdGoodsApplied.value = { ...jdGoodsFilter.value }; };
+const jdGoodsReset = () => {
+  jdGoodsFilter.value = { ...jdGoodsEmpty };
+  jdGoodsApplied.value = { ...jdGoodsEmpty };
+  jdGoodsBlockedShops.value = [];
+};
+
+/* 屏蔽店铺：在筛选区提供店铺多选入口，选中店铺从当前商品列表排除 */
+const jdGoodsBlockedShops = ref<string[]>([]);
+const jdGoodsShopOpts = computed(() => Array.from(new Set(jdGoodsRows.map((r) => r.shop))).sort());
+const toggleBlockShop = (shop: string) => {
+  jdGoodsBlockedShops.value = jdGoodsBlockedShops.value.includes(shop)
+    ? jdGoodsBlockedShops.value.filter((s) => s !== shop)
+    : [...jdGoodsBlockedShops.value, shop];
+};
+const jdShopBlockOpen = ref(false);
+const shopBlockRef = ref<HTMLDivElement | null>(null);
+const shopBlockMenuRef = ref<HTMLDivElement | null>(null);
+const shopBlockPos = ref<{ top: number; left: number; width: number; up: boolean } | null>(null);
+const updateShopBlockPos = () => {
+  const el = shopBlockRef.value;
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  const rows = jdGoodsShopOpts.value.length;
+  const contentH = rows * 33 + 52 + 12;
+  const spaceBelow = window.innerHeight - r.bottom - 6;
+  const spaceAbove = r.top - 6;
+  const up = contentH > spaceBelow && spaceAbove > spaceBelow;
+  shopBlockPos.value = { top: up ? r.top - 6 : r.bottom + 6, left: r.left, width: Math.max(r.width, 160), up };
+};
+const onShopBlockDocDown = (e: MouseEvent) => {
+  const t = e.target as Node;
+  if (shopBlockRef.value?.contains(t) || shopBlockMenuRef.value?.contains(t)) return;
+  jdShopBlockOpen.value = false;
+};
+const shopBlockMenuStyle = computed<CSSProperties>(() => (shopBlockPos.value
+  ? {
+      position: 'fixed',
+      top: `${shopBlockPos.value.top}px`,
+      left: `${shopBlockPos.value.left}px`,
+      minWidth: `${shopBlockPos.value.width}px`,
+      zIndex: 4100,
+      transform: shopBlockPos.value.up ? 'translateY(-100%)' : undefined,
+    }
+  : { position: 'fixed', visibility: 'hidden' }));
+watch(jdShopBlockOpen, (v) => {
+  if (!v) { shopBlockPos.value = null; return; }
+  requestAnimationFrame(updateShopBlockPos);
+  window.addEventListener('resize', updateShopBlockPos);
+  window.addEventListener('scroll', updateShopBlockPos, true);
+  document.addEventListener('mousedown', onShopBlockDocDown);
+}, { flush: 'post' });
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateShopBlockPos);
+  window.removeEventListener('scroll', updateShopBlockPos, true);
+  document.removeEventListener('mousedown', onShopBlockDocDown);
+});
+
+/* 任务行「店铺商品」：切到店铺商品子 tab 并按该店过滤 */
+const jdViewGoods = (r: JdTaskRow) => {
+  jdGoodsFilter.value = { ...jdGoodsEmpty, shop: r.name };
+  jdGoodsApplied.value = { ...jdGoodsFilter.value };
+  jdSub.value = 'goods';
+  nextTick(jdScrollTop);
+};
+
 /* 全网搜索：跳转商机中心-全网搜索页 */
 const opsGo = inject<(target: 'search') => void>('opsGo');
 /* 前往顺买商机应用：跨应用切换顶层 tab（App 层 provide） */
@@ -461,12 +692,12 @@ const goApp = inject<(key: string) => void>('goApp');
 
 <template>
   <div class="sg-page mk-page">
-    <div class="mk2-top" :class="{ solo: tab !== 'shunmai' }">
+    <div class="mk2-top" :class="{ solo: tab === 'taobao' }">
       <div class="mk2-seg">
         <div v-for="t in TABS" :key="t.key" class="mk2-tab" :class="{ active: tab === t.key }" @click="switchTab(t.key)">{{ t.label }}</div>
       </div>
       <div class="mk2-top-acts">
-        <button class="sg-btn" @click="goApp?.('shunmai')">前往顺买商机应用</button>
+        <button v-if="tab !== 'jd'" class="sg-btn" @click="goApp?.('shunmai')">前往顺买商机应用</button>
         <button class="sg-btn primary" @click="pushToast('列表已刷新')">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" /></svg>
           刷新
@@ -479,7 +710,13 @@ const goApp = inject<(key: string) => void>('goApp');
       <div v-for="s in SUB_TABS" :key="s.key" class="mk2-subtab" :class="{ active: subTab === s.key }" @click="subTab = s.key">{{ s.label }}</div>
     </div>
 
-    <div class="sg-filter">
+    <!-- 竞店商品子 tab：同款药丸 chip，切换竞店任务 / 店铺商品两模块（各自一套筛选＋列表） -->
+    <div v-if="tab === 'jd'" class="mk2-subseg">
+      <div v-for="s in JD_SUBS" :key="s.key" class="mk2-subtab" :class="{ active: jdSub === s.key }" @click="switchJdSub(s.key)">{{ s.label }}</div>
+    </div>
+
+    <template v-if="tab !== 'jd'">
+      <div class="sg-filter">
       <div class="sg-grid" :class="{ 'mk-vh-grid': isVh }">
         <template v-if="!isVh">
           <div class="sg-field">
@@ -666,7 +903,250 @@ const goApp = inject<(key: string) => void>('goApp');
         </div>
       </div>
     </div>
+    </template>
 
+    <!-- 竞店商品：竞店任务 / 店铺商品 双 tab 切换（两模块各自一套筛选＋列表＋分页，保留全部原有功能） -->
+    <template v-else>
+      <div ref="jdPaneRef" class="mk-jd-pane">
+        <!-- 竞店任务 -->
+        <template v-if="jdSub === 'task'">
+          <div class="sg-filter">
+            <div class="sg-grid">
+              <template v-if="!jdTaskFold">
+                <div class="sg-field">
+                  <label>竞店名称</label>
+                  <input class="sg-input" placeholder="请输入竞店名称" :value="jdTaskFilter.name" @input="jdTaskFilter = { ...jdTaskFilter, name: ($event.target as HTMLInputElement).value }" />
+                </div>
+                <div class="sg-field">
+                  <label>创建人</label>
+                  <input class="sg-input" placeholder="请输入创建人" :value="jdTaskFilter.creator" @input="jdTaskFilter = { ...jdTaskFilter, creator: ($event.target as HTMLInputElement).value }" />
+                </div>
+                <div class="sg-field">
+                  <label>创建时间</label>
+                  <DateRangePicker v-model:from="jdTaskFilter.from" v-model:to="jdTaskFilter.to" placeholder="请选择日期范围" />
+                </div>
+              </template>
+              <div class="sg-actions">
+                <button type="button" class="mk-jd-fold" @click="jdTaskFold = !jdTaskFold">{{ jdTaskFold ? '展开' : '收起' }}<svg :class="{ up: !jdTaskFold }" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
+                <button class="sg-btn primary" @click="openJdCreate">创建任务</button>
+                <button class="sg-btn" @click="jdTaskReset">重置</button>
+                <button class="sg-btn primary" @click="jdTaskApply">查询</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="sg-card">
+            <div :style="{ overflow: 'auto' }">
+              <!-- 竞店任务表：监控商品数蓝数；操作＝店铺商品（切到商品 tab 并按该店过滤）·编辑·删除任务（红） -->
+              <table class="sg-table mk-table mk-jd-table">
+                <thead>
+                  <tr>
+                    <th :style="{ width: '4%' }"><input type="checkbox" /></th>
+                    <th :style="{ width: '28%' }">竞店名称</th>
+                    <th :style="{ width: '18%' }">监控商品数</th>
+                    <th :style="{ width: '15%' }">创建人</th>
+                    <th :style="{ width: '23%' }">创建时间</th>
+                    <th :style="{ width: '12%' }">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="r in jdTaskList" :key="r.id">
+                    <td><input type="checkbox" /></td>
+                    <td :title="r.name">{{ r.name }}</td>
+                    <td><span class="mk-jd-count">{{ r.count }}</span></td>
+                    <td>{{ r.creator }}</td>
+                    <td>{{ r.time }}</td>
+                    <td class="actions-col">
+                      <a href="#" @click.prevent="jdViewGoods(r)">店铺商品</a>
+                      <a href="#" @click.prevent="pushToast('编辑：演示环境暂不可用')">编辑</a>
+                      <a href="#" class="danger" @click.prevent="jdDeleteTask(r)">删除任务</a>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <div v-if="jdTaskList.length === 0" class="sg-empty">
+                <div class="sg-empty-wrap">
+                  <div class="sg-empty-icon">◌</div>
+                  <div>暂无数据，请调整筛选条件</div>
+                </div>
+              </div>
+            </div>
+            <!-- 分页按截图口径静态呈现（外部数据池） -->
+            <div class="ib-pagination">
+              <div class="ib-pageinfo">共 22 条</div>
+              <BubbleSelect class-name="ib-page-size" default-value="20" :options="['10', '20', '50']" />
+              <div class="ib-pages">
+                <button class="ib-pagebtn nav">‹</button>
+                <button class="ib-pagebtn active">1</button>
+                <button class="ib-pagebtn">2</button>
+                <button class="ib-pagebtn nav">›</button>
+              </div>
+              <div class="ib-jump">
+                <span>前往</span>
+                <input class="ib-jump-input" value="1" />
+                <span>页</span>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- 店铺商品 -->
+        <template v-else>
+          <div class="sg-filter">
+            <div class="sg-grid">
+              <div class="sg-field">
+                <label>商品名称</label>
+                <input class="sg-input" placeholder="请输入商品名称" :value="jdGoodsFilter.name" @input="jdGoodsFilter = { ...jdGoodsFilter, name: ($event.target as HTMLInputElement).value }" />
+              </div>
+              <div class="sg-field">
+                <label>店铺名称</label>
+                <input class="sg-input" placeholder="请输入店铺名称" :value="jdGoodsFilter.shop" @input="jdGoodsFilter = { ...jdGoodsFilter, shop: ($event.target as HTMLInputElement).value }" />
+              </div>
+              <div class="sg-field">
+                <label>更新时间</label>
+                <DateRangePicker v-model:from="jdGoodsFilter.from" v-model:to="jdGoodsFilter.to" placeholder="请选择日期范围" />
+              </div>
+              <div class="sg-field">
+                <label>销量涨幅</label>
+                <div class="sg-range">
+                  <input class="sg-input" placeholder="最小值" :value="jdGoodsFilter.gmin" @input="jdGoodsFilter = { ...jdGoodsFilter, gmin: ($event.target as HTMLInputElement).value }" />
+                  <span>至</span>
+                  <input class="sg-input" placeholder="最大值" :value="jdGoodsFilter.gmax" @input="jdGoodsFilter = { ...jdGoodsFilter, gmax: ($event.target as HTMLInputElement).value }" />
+                </div>
+              </div>
+              <div class="sg-field">
+                <label>是否完善</label>
+                <BubbleSelect class-name="sg-select" :value="jdGoodsFilter.complete" :options="['全部', '已完善', '未完善']" @change="(v) => jdGoodsFilter = { ...jdGoodsFilter, complete: v }" />
+              </div>
+              <div class="sg-actions">
+                <div ref="shopBlockRef" class="mk-shop-block">
+                  <button type="button" class="mk-shop-block-btn" :class="{ active: jdGoodsBlockedShops.length > 0 }" title="屏蔽店铺" @click="jdShopBlockOpen = !jdShopBlockOpen">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                      <path d="M1 1l22 22" />
+                    </svg>
+                    <span v-if="jdGoodsBlockedShops.length" class="mk-shop-block-count">{{ jdGoodsBlockedShops.length }}</span>
+                  </button>
+                  <Teleport to="body">
+                    <div v-if="jdShopBlockOpen" ref="shopBlockMenuRef" class="msel-menu mk-shop-block-menu" :style="shopBlockMenuStyle" @click.stop>
+                      <div class="msel-head">
+                        <span class="msel-head-btn" @click="jdGoodsBlockedShops = [...jdGoodsShopOpts]">全选</span>
+                        <span class="msel-head-btn" @click="jdGoodsBlockedShops = []">清空</span>
+                      </div>
+                      <div v-for="shop in jdGoodsShopOpts" :key="shop" class="msel-opt" :class="{ on: jdGoodsBlockedShops.includes(shop) }" @click="toggleBlockShop(shop)">
+                        <span class="msel-check">{{ jdGoodsBlockedShops.includes(shop) ? '✓' : '' }}</span>
+                        <span class="msel-label">{{ shop }}</span>
+                      </div>
+                    </div>
+                  </Teleport>
+                </div>
+                <button class="sg-btn" disabled>一键匹配</button>
+                <button class="sg-btn" @click="jdGoodsReset">重置</button>
+                <button class="sg-btn primary" @click="jdGoodsApply">查询</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="sg-card">
+            <div :style="{ overflow: 'auto' }">
+              <!-- 店铺商品表：售价/销量涨幅可排序；内部匹配仅暴露命中计数；操作随完善态分发（已完善=详情+添加到，未完善=全网搜索），竖排展示 -->
+              <table class="sg-table mk-table mk-jd-table mk-jd-goods-table">
+                <thead>
+                  <tr>
+                    <th :style="{ width: '4%' }"><input type="checkbox" /></th>
+                    <th :style="{ width: '30%' }">商品信息</th>
+                    <th :style="{ width: '8%' }">是否完善</th>
+                    <SortTh label="售价" width="10%" :state="jdGoodsSortState('price')" @sort="onJdGoodsSort('price')" />
+                    <SortTh label="销量涨幅" width="11%" tip="前一日 → 当日销量，下方为两日涨量" :state="jdGoodsSortState('growth')" @sort="onJdGoodsSort('growth')" />
+                    <th :style="{ width: '10%' }">内部匹配</th>
+                    <th :style="{ width: '17%' }">更新时间</th>
+                    <th :style="{ width: '10%' }">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="r in jdGoodsList" :key="r.id">
+                    <td><input type="checkbox" /></td>
+                    <td>
+                      <div class="sg-goods">
+                        <img class="sg-thumb" :src="r.img" alt="" />
+                        <div class="sg-ginfo">
+                          <div class="sg-gtitle mk-gtitle"><Ellipsis :text="r.name" /></div>
+                          <div class="ib-meta">{{ r.shop }}</div>
+                          <div v-if="r.link" class="mk-link-row">
+                            <span class="mk-link-label">竞品链接：</span>
+                            <a class="mk-link" :href="r.link" target="_blank" rel="noopener noreferrer">{{ r.link }}</a>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td><span class="mk-cmp-tag" :class="r.complete ? 'ok' : 'off'">{{ r.complete ? '已完善' : '未完善' }}</span></td>
+                    <td><span class="mk-price">{{ r.price.toFixed(2) }}</span></td>
+                    <td>
+                      <div class="mk-sales">
+                        <div class="mk-sales-row">
+                          <span class="mk-sales-label">前日</span>
+                          <span class="mk-sales-value">{{ fmtSales(r.salesPrev) }}</span>
+                        </div>
+                        <div class="mk-sales-row">
+                          <span class="mk-sales-label">当日</span>
+                          <span class="mk-sales-value mk-sales-now">{{ fmtSales(r.salesToday) }}</span>
+                        </div>
+                        <div class="mk-sales-row">
+                          <span class="mk-sales-label">涨幅</span>
+                          <span class="mk-sales-delta" :class="{ down: jdGrowth(r) < 0 }">
+                            {{ jdGrowth(r) >= 0 ? '↑' : '↓' }} {{ fmtSales(Math.abs(jdGrowth(r))) }}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span v-if="r.match.length > 0" class="mk-hits">命中：{{ r.match.length }}</span>
+                      <span v-else class="mk-nomatch">无命中</span>
+                    </td>
+                    <td>{{ r.time }}</td>
+                    <td class="actions-col">
+                      <template v-if="r.complete">
+                        <a href="#" @click.prevent="pushToast('商品详情：演示环境暂不可用')">详情</a>
+                        <a href="#" @click.prevent="pushToast('已添加到商品创建')">添加到</a>
+                      </template>
+                      <a v-else href="#" @click.prevent="opsGo?.('search')">全网搜索</a>
+                      <a v-if="r.match.length > 0" href="#" @click.prevent="matchDrawer = { name: r.name, match: r.match }">查看内部商品</a>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <div v-if="jdGoodsList.length === 0" class="sg-empty">
+                <div class="sg-empty-wrap">
+                  <div class="sg-empty-icon">◌</div>
+                  <div>暂无数据，请调整筛选条件</div>
+                </div>
+              </div>
+            </div>
+            <div class="ib-pagination">
+              <div class="ib-pageinfo">共 6872 条</div>
+              <BubbleSelect class-name="ib-page-size" default-value="50条/页" :options="['10条/页', '20条/页', '50条/页']" />
+              <div class="ib-pages">
+                <button class="ib-pagebtn nav">‹</button>
+                <button class="ib-pagebtn active">1</button>
+                <button class="ib-pagebtn">2</button>
+                <button class="ib-pagebtn">3</button>
+                <button class="ib-pagebtn">4</button>
+                <button class="ib-pagebtn">5</button>
+                <button class="ib-pagebtn">6</button>
+                <button class="ib-pagebtn">…</button>
+                <button class="ib-pagebtn">138</button>
+                <button class="ib-pagebtn nav">›</button>
+              </div>
+              <div class="ib-jump">
+                <span>前往</span>
+                <input class="ib-jump-input" value="1" />
+                <span>页</span>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </template>
     <!-- 设备状态：整页悬浮球＋展开面板（fixed 悬浮不占页面布局、可拖拽定位；Teleport 到 body） -->
     <Teleport to="body">
       <div v-if="opsPage === 'market'" class="mk-dev-fab-wrap" :style="fabPos ? { left: `${fabPos.x}px`, top: `${fabPos.y}px`, right: 'auto', bottom: 'auto' } : null">
@@ -743,6 +1223,29 @@ const goApp = inject<(key: string) => void>('goApp');
           <div class="mk-create-foot">
             <button class="sg-btn" @click="createModal = false">取消</button>
             <button class="sg-btn primary" @click="confirmCreate">创建</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- 创建竞店任务弹窗：店铺名称必填＋备注选填；确认后任务进列表并置为监控中 -->
+    <Teleport to="body">
+      <div v-if="jdCreateModal" class="mk-create-mask" @click.self="jdCreateModal = false">
+        <div class="mk-create-modal">
+          <div class="mk-create-head">创建竞店任务</div>
+          <div class="mk-create-body">
+            <div class="sg-field">
+              <label>店铺名称</label>
+              <input class="sg-input" placeholder="请输入要监控的竞店名称" :value="jdCreateForm.shop" @input="jdCreateForm = { ...jdCreateForm, shop: ($event.target as HTMLInputElement).value }" />
+            </div>
+            <div class="sg-field">
+              <label>备注</label>
+              <input class="sg-input" placeholder="选填，如监控目的/关注品类" :value="jdCreateForm.note" @input="jdCreateForm = { ...jdCreateForm, note: ($event.target as HTMLInputElement).value }" />
+            </div>
+          </div>
+          <div class="mk-create-foot">
+            <button class="sg-btn" @click="jdCreateModal = false">取消</button>
+            <button class="sg-btn primary" @click="confirmJdCreate">创建</button>
           </div>
         </div>
       </div>

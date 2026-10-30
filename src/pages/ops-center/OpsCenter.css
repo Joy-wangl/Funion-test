@@ -3095,6 +3095,10 @@
   border-collapse: separate;
   border-spacing: 0;
 }
+/* 店铺商品列表列宽均分落地：fixed 布局让各列按声明宽（均分 260）生效，不被内容撑开 */
+.ops-center .sg-page .sg-table {
+  table-layout: fixed;
+}
 .ops-center .sg-table th {
   background: #fbfcfe;
   color: #5b6475;
@@ -3310,6 +3314,43 @@
 /* 内部匹配列表态：仅命中计数（命中绿色 / 无命中灰色），匹配明细不再直接展示于列表 */
 .ops-center .mk-hits { font-size: var(--fs-aux); color: var(--color-success); white-space: nowrap; }
 .ops-center .mk-nomatch { font-size: var(--fs-aux); color: var(--color-text-3); }
+/* 筛选收起/展开：纯文字＋chevron（参考图「收起^」态） */
+.ops-center .mk-jd-fold { display: inline-flex; align-items: center; gap: 4px; border: 0; padding: 0; background: none; color: var(--color-text-2); font-size: var(--fs-base); cursor: pointer; }
+.ops-center .mk-jd-fold:hover { color: var(--color-primary); }
+.ops-center .mk-jd-fold svg { transition: transform 0.15s; }
+.ops-center .mk-jd-fold svg.up { transform: rotate(180deg); }
+/* 监控商品数：蓝数 */
+.ops-center .mk-jd-count { color: var(--color-primary); }
+/* 竞店表删除类红链（点击走二次确认弹窗） */
+.ops-center .mk-table .actions-col a.danger { color: var(--color-danger); }
+/* 竞店表操作列横排一行（覆盖全局 actions-col 子元素 block 竖排） */
+.ops-center .mk-jd-table .actions-col a { display: inline-block; margin-right: 10px; }
+.ops-center .mk-jd-table .actions-col a:last-child { margin-right: 0; }
+/* 店铺商品表操作列恢复竖排展示（与淘宝/小店表一致），链接行行内块换行 */
+.ops-center .mk-jd-table.mk-jd-goods-table .actions-col a { display: block; margin-right: 0; line-height: 1.9; }
+/* 店铺商品竞品链接：标签灰色 + 链接主色，超长截断 */
+.ops-center .mk-link-row { display: flex; align-items: baseline; gap: 2px; min-width: 0; margin-top: 2px; font-size: var(--fs-aux); line-height: 1.5; }
+.ops-center .mk-link-label { flex: none; color: var(--color-text-3); }
+.ops-center .mk-link { color: var(--color-primary); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.ops-center .mk-link:hover { text-decoration: underline; }
+/* 店铺商品屏蔽店铺：icon 按钮位于一键匹配左侧，点击弹出店铺多选气泡 */
+.ops-center .mk-shop-block { position: relative; display: inline-flex; vertical-align: middle; }
+.ops-center .mk-shop-block-btn { width: 40px; height: 40px; padding: 0; border-radius: 10px; border: 1px solid var(--color-border); background: #fff; color: var(--color-text-2); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.ops-center .mk-shop-block-btn:hover { color: var(--color-primary); border-color: var(--color-primary); }
+.ops-center .mk-shop-block-btn.active { color: var(--color-primary); border-color: var(--color-primary); background: var(--color-primary-light-2); }
+.ops-center .mk-shop-block-count { position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--color-primary); color: #fff; font-size: 11px; line-height: 16px; text-align: center; }
+.ops-center .mk-shop-block-menu { min-width: 160px; }
+/* 销量涨幅：三行结构（前日/当日/涨幅），对标销量趋势列的清晰标签布局 */
+.ops-center .mk-sales { display: flex; flex-direction: column; gap: 4px; line-height: 1.4; }
+.ops-center .mk-sales-row { display: flex; align-items: baseline; gap: 8px; font-size: var(--fs-base); }
+.ops-center .mk-sales-label { flex: none; color: var(--color-text-3); font-size: var(--fs-aux); min-width: 32px; }
+.ops-center .mk-sales-value { color: var(--color-text-2); font-variant-numeric: tabular-nums; }
+.ops-center .mk-sales-value.mk-sales-now { color: var(--color-text); font-weight: var(--fw-semibold); }
+.ops-center .mk-sales-delta { font-size: var(--fs-aux); color: var(--color-success); font-variant-numeric: tabular-nums; font-weight: var(--fw-medium); }
+.ops-center .mk-sales-delta.down { color: var(--color-danger); }
+/* 竞店商品同页两段的分段标题：无边框纯文字，靠字重与间距建立层级 */
+.ops-center .mk-jd-sec { margin: 0 0 10px 2px; font-size: 14px; font-weight: 600; color: var(--color-text); }
+.ops-center .mk-jd-sec-gap { margin-top: 20px; scroll-margin-top: 72px; }
 /* 内部商品命中抽屉：查看内部商品打开（右侧 fixed 面板，层级同 cw-drawer 1001）；表头/内容左对齐，分值与操作链接主色 */
 .ops-center .mk-hit-mask {
   position: fixed;
@@ -3389,6 +3430,10 @@
 }
 .ops-center .sg-gid span {
   color: #59627a;
+  /* 列宽固定 260，视频号行还有「详」芯片占位：数字超长省略，禁止溢出压到芯片上 */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .ops-center .sg-copy {
   border: 0;
@@ -3405,7 +3450,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: var(--fs-base);
+  font-size: var(--fs-aux);
 }
 .ops-center .sg-dot {
   width: 8px;
@@ -3422,7 +3467,7 @@
   border: 1px solid #ffcdd0;
   background: #fff3f3;
   color: #f05b5e;
-  font-size: 11px;
+  font-size: var(--fs-aux);
   border-radius: 6px;
   padding: 3px 8px;
   cursor: pointer;
@@ -3453,7 +3498,8 @@
   border: 1px solid #f05b5e;
   color: #f05b5e;
   font-style: normal;
-  font-size: 10px;
+  font-size: var(--fs-aux);
+  line-height: 1;
   display: inline-grid;
   place-items: center;
   cursor: help;
@@ -3499,6 +3545,7 @@
 }
 .ops-center .sg-dash {
   color: #b3bac6;
+  font-size: var(--fs-aux);
 }
 /* 销量趋势合并列：三层＝今日销量＋涨跌 / 近7日迷你曲线＋时刻入口 / 前7日均·近20日销量·总销量灰字行；每行自带标签自解释 */
 .ops-center .sg-sales { display: flex; flex-direction: column; gap: 6px; }
@@ -3517,9 +3564,9 @@
 .ops-center .sg-s7-moment:hover { opacity: 0.7; }
 /* 今日销量行：销量值＋涨跌标识同行；升绿/降红/持平灰无图标 */
 .ops-center .sg-moment-top { display: flex; align-items: center; gap: 6px; }
-.ops-center .sg-moment-top > b { font-weight: 600; color: var(--color-text); }
+.ops-center .sg-moment-top > b { font-size: var(--fs-aux); font-weight: 500; color: var(--color-text); }
 .ops-center .sg-moment-delta { font-size: var(--fs-aux); white-space: nowrap; }
-.ops-center .sg-moment-ico { font-style: normal; font-size: 10px; line-height: 1; margin-right: 2px; }
+.ops-center .sg-moment-ico { font-style: normal; font-size: var(--fs-aux); line-height: 1; margin-right: 2px; }
 .ops-center .sg-moment-delta.up { color: var(--color-success); }
 .ops-center .sg-moment-delta.down { color: var(--color-danger); }
 .ops-center .sg-moment-delta.flat { color: var(--color-text-3); }
@@ -3555,6 +3602,28 @@
 .ops-center .sg-kv-store .store-logo {
   margin: 0 4px 0 0;
 }
+/* 商品策略列-优惠策略：行内气泡选择器，与.sg-kv行高对齐 */
+.ops-center .sg-kv-coupon {
+  display: flex;
+  align-items: center;
+}
+.ops-center .sg-kv-coupon .sg-cp-select {
+  display: inline-flex;
+  width: auto;
+  min-width: 96px;
+  height: 22px;
+  vertical-align: middle;
+}
+.ops-center .sg-kv-coupon .sg-cp-select .bselect-trigger {
+  padding: 0 4px;
+  font-size: 12px;
+}
+.ops-center .sg-kv-coupon .sg-cp-select .bselect-text {
+  color: #465064;
+}
+.ops-center .sg-kv-coupon .sg-cp-select .bselect-arrow {
+  margin-left: 2px;
+}
 .ops-center .sg-acts {
   display: flex;
   flex-direction: column;
@@ -3562,7 +3631,7 @@
 }
 .ops-center .sg-link {
   color: #4f7cff;
-  font-size: var(--fs-base);
+  font-size: var(--fs-aux);
   text-decoration: none;
   white-space: nowrap;
 }
@@ -3577,7 +3646,7 @@
 .ops-center .sg-acts > a:not(.sg-link),
 .ops-center .jm-acts > a:not(.sg-link) {
   color: var(--color-primary);
-  font-size: var(--fs-base);
+  font-size: var(--fs-aux);
   text-decoration: none;
   white-space: nowrap;
 }
@@ -3674,15 +3743,14 @@
   width: 60px;
   flex: none;
 }
+/* 优惠券信息列标签更长：定宽贴本列最长标签「是否使用优惠券：」，两行值左缘对齐 */
+.ops-center .st-kv.st-kv-lg span {
+  width: 96px;
+}
 .ops-center .st-kv b {
   color: #465064;
   font-weight: 400;
 }
-/* 策略表主体以次级行（12px）为主：状态列降档同层，避免共享 .sg-status 的 13px 在此表特立独行 */
-.ops-center .st-table .sg-status {
-  font-size: var(--fs-aux);
-}
-
 /* ----- 店铺商品：详情页 ----- */
 .ops-center .sgd-hero {
   background: #fff;
@@ -6469,7 +6537,13 @@
 .cp-pubg-body { padding: 10px 14px 12px; }
 .cp-pub-shop.taken { cursor: not-allowed; opacity: 0.55; }
 .cp-pub-shop.taken:hover { background: none; }
+.cp-pub-shop.nocoupon { cursor: not-allowed; opacity: 0.55; }
+.cp-pub-shop.nocoupon:hover { background: none; }
 .cp-pub-taken { margin-left: auto; flex: none; font-size: var(--fs-aux); color: var(--color-warning); }
+/* 按店铺选择优惠券 */
+.cp-pub-coupon { margin-left: auto; flex: none; display: flex; align-items: center; gap: 8px; }
+.cp-pub-coupon-sel { width: 180px; }
+.cp-pub-nocoupon { margin-left: auto; flex: none; font-size: var(--fs-aux); color: var(--color-text-3); }
 /* 离线店铺（卖家账号离线）：禁选、图标与名称降灰，右侧离线徽章＋前往登录入口 */
 .cp-pub-shop.offline { cursor: not-allowed; }
 .cp-pub-shop.offline:hover { background: none; }
