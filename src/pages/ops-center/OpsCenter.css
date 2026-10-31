@@ -6585,6 +6585,11 @@
 .ops-center .content:has(.page.show > .vs-home),
 .ops-center .main:has(.page.show > .vs-home),
 .ops-center .page.show:has(> .vs-home) { min-height: 0; }
+/* 智能作图工作台同范式：祖先 flex 链补 min-height:0 并定高外壳，左配置/右创作中心各自内滚 */
+.ops-center.app:has(.page.show > .si-studio) { height: 100%; min-height: 0; }
+.ops-center .content:has(.page.show > .si-studio),
+.ops-center .main:has(.page.show > .si-studio),
+.ops-center .page.show:has(> .si-studio) { min-height: 0; }
 .ops-center .mc-page { display: flex; flex-direction: column; flex: 1; min-height: 0; background: var(--color-bg); }
 /* 页级头部卡：单行工具条范式（返回 + 下划线 tab + 右侧操作），底边线即 tab 轨道线 */
 .ops-center .mc-headcard { flex: none; background: #fff; border-radius: var(--radius-xl); box-shadow: var(--shadow-md); overflow: hidden; }
