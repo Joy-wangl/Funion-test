@@ -3,8 +3,8 @@
    看板：违规数据总览（违规总数/封店清退店铺/受限冻结店铺/累计扣分/累计违约金）
         ＋违规类型占比（大类→小类下钻，环形）＋处置结果分布（7 档）＋违规趋势（按处置严重度）与 TOP 违规店铺；
    列表：违规记录明细（店铺/编号/时间/类型/处置/扣分违约金/状态/商品/运营组/操作），操作列「详情」打开整改建议抽屉。
-   口径来源：拼多多/淘系/抖音三份违规梳理文档 ＋各平台规则中心，归一为 9 大类 × 小类、7 档处置。 ---------- */
-import { computed, ref, watch } from 'vue';
+   口径来源：拼多多/淘系/抖音三份违规梳理文档 ＋各平台规则中心，归一为 10 大类 × 小类、7 档处置。 ---------- */
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import PieChart from './PieChart.vue';
 import ProblemTrendChart from './ProblemTrendChart.vue';
@@ -48,36 +48,66 @@ const STATUS_OPTIONS = ['全部', ...VIO_STATUS] as string[];
 /* 平台条件：值＝平台组（淘系合并天猫/淘宝；抖音、拼多多各自一组） */
 const platMatch = (r: VioRecord, v: string) => v === '全部' || vioPlatGroup(r.platform) === v;
 
-const filtered = computed(() => {
+/* 除时间外的公共筛选条件：月度环比与区间总量共用同一口径 */
+const matchBase = (r: VioRecord) => {
   const f = applied.value;
-  return QC_VIOLATIONS.filter((r) => {
-    if (!platMatch(r, f.platform)) return false;
-    if (f.shopName && !r.shopName.includes(f.shopName)) return false;
-    if (f.sub) { if (r.sub !== f.sub) return false; }
-    else if (f.ptype) { if (r.type !== f.ptype) return false; }
-    if (f.severity !== '全部' && r.severity !== f.severity) return false;
-    if (f.status !== '全部' && r.status !== f.status) return false;
-    if (f.productId && !(r.productId ?? '').includes(f.productId)) return false;
-    if (f.seriesCode && !(r.seriesCode ?? '').includes(f.seriesCode)) return false;
-    if (r.time !== '--' && (r.time < f.range.start || r.time > f.range.end)) return false;
-    return true;
-  });
-});
+  if (!platMatch(r, f.platform)) return false;
+  if (f.shopName && !r.shopName.includes(f.shopName)) return false;
+  if (f.sub) { if (r.sub !== f.sub) return false; }
+  else if (f.ptype) { if (r.type !== f.ptype) return false; }
+  if (f.severity !== '全部' && r.severity !== f.severity) return false;
+  if (f.status !== '全部' && r.status !== f.status) return false;
+  if (f.productId && !(r.productId ?? '').includes(f.productId)) return false;
+  if (f.seriesCode && !(r.seriesCode ?? '').includes(f.seriesCode)) return false;
+  return true;
+};
+const inRange = (r: VioRecord, range: DateRange) => r.time === '--' || (r.time >= range.start && r.time <= range.end);
+const filtered = computed(() => QC_VIOLATIONS.filter((r) => matchBase(r) && inRange(r, applied.value.range)));
 
 /* ---------- 看板指标 ---------- */
-const distinctShops = (list: VioRecord[]) => new Set(list.map((r) => r.shopId)).size;
-const banList = computed(() => filtered.value.filter((r) => r.severity === '封店/清退'));
-const restrictList = computed(() => filtered.value.filter((r) => r.severity === '店铺限制/冻结'));
-const kpi = computed(() => {
-  const list = filtered.value;
+type VioKpi = { total: number; banShops: number; restrictShops: number; pts: number; fine: number };
+const computeKpi = (list: VioRecord[]): VioKpi => {
+  const banShops = new Set<string>();
+  const restrictShops = new Set<string>();
+  let pts = 0;
+  let fine = 0;
+  for (const r of list) {
+    pts += r.deductPts;
+    fine += r.fineAmt;
+    if (r.severity === '封店/清退') banShops.add(r.shopId);
+    if (r.severity === '店铺限制/冻结') restrictShops.add(r.shopId);
+  }
+  return { total: list.length, banShops: banShops.size, restrictShops: restrictShops.size, pts, fine };
+};
+const kpi = computed(() => computeKpi(filtered.value));
+
+/* ---------- 较上月：所选区间末月 vs 上一自然月（其余筛选条件一致） ---------- */
+const monthShift = (key: string, n: number) => {
+  const d = new Date(Date.UTC(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1 + n, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+};
+const curMonth = computed(() => applied.value.range.end.slice(0, 7));
+const prevMonth = computed(() => monthShift(curMonth.value, -1));
+const monthKpi = computed(() => computeKpi(QC_VIOLATIONS.filter((r) => matchBase(r) && r.time !== '--' && r.time.slice(0, 7) === curMonth.value)));
+const prevMonthKpi = computed(() => computeKpi(QC_VIOLATIONS.filter((r) => matchBase(r) && r.time !== '--' && r.time.slice(0, 7) === prevMonth.value)));
+const momOf = (key: keyof VioKpi) => {
+  const cur = monthKpi.value[key];
+  const prev = prevMonthKpi.value[key];
+  const delta = cur - prev;
   return {
-    total: list.length,
-    banShops: distinctShops(banList.value),
-    restrictShops: distinctShops(restrictList.value),
-    pts: list.reduce((s, r) => s + r.deductPts, 0),
-    fine: list.reduce((s, r) => s + r.fineAmt, 0),
+    delta,
+    pct: prev === 0 ? null : (delta / prev) * 100,
+    dir: delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat',
   };
-});
+};
+const moms = computed(() => ({
+  total: momOf('total'),
+  banShops: momOf('banShops'),
+  restrictShops: momOf('restrictShops'),
+  pts: momOf('pts'),
+  fine: momOf('fine'),
+}));
+const momTip = computed(() => `较上月：${curMonth.value} 与 ${prevMonth.value} 对比（与当前其余筛选条件同口径）`);
 
 /* ---------- 违规类型占比：大类 → 小类下钻 ---------- */
 const vioDetailType = ref<string | null>(null);
@@ -138,10 +168,17 @@ const TREND_BUCKETS = [
   { key: '其他处置', color: '#86909c' },
 ];
 const monthOf = (r: VioRecord) => (r.time === '--' ? '' : r.time.slice(0, 7));
+/* 趋势时间轴：固定至少 6 个自然月（区间更长时按区间月数），以所选区间末月为终点；趋势只受其余筛选条件约束 */
+const trendMonths = computed(() => {
+  const endKey = applied.value.range.end.slice(0, 7);
+  const len = Math.max(6, monthsOf(applied.value.range).length);
+  return Array.from({ length: len }, (_, i) => monthShift(endKey, i - (len - 1)));
+});
 const trend = computed(() => {
-  const months = monthsOf(applied.value.range);
+  const months = trendMonths.value;
   const series = TREND_BUCKETS.map((b) => ({ type: b.key, color: b.color, points: months.map(() => 0) }));
-  for (const r of filtered.value) {
+  for (const r of QC_VIOLATIONS) {
+    if (!matchBase(r)) continue;
     const mi = months.indexOf(monthOf(r));
     if (mi < 0) continue;
     const bucket = r.severity === '封店/清退' || r.severity === '店铺限制/冻结' || r.severity === '店铺降权' ? r.severity : '其他处置';
@@ -150,6 +187,24 @@ const trend = computed(() => {
   }
   return { months, series };
 });
+
+/* 右侧 TOP 榜单高度跟随趋势卡：左列自然高度为基准（行等分填充，避免榜单反向撑高整行） */
+const trendPanelRef = ref<HTMLElement | null>(null);
+const topPanelH = ref(0);
+let trendRo: ResizeObserver | null = null;
+const bindTrendRo = () => {
+  trendRo?.disconnect();
+  trendRo = null;
+  const el = trendPanelRef.value;
+  if (!el) { topPanelH.value = 0; return; }
+  const sync = () => { topPanelH.value = Math.round(el.getBoundingClientRect().height); };
+  trendRo = new ResizeObserver(sync);
+  trendRo.observe(el);
+  sync();
+};
+onMounted(() => nextTick(bindTrendRo));
+watch([tier, () => kpi.value.total], () => nextTick(bindTrendRo));
+onBeforeUnmount(() => trendRo?.disconnect());
 
 /* ---------- TOP 违规店铺：按违规条数降序（并列按受限/封店条数） ---------- */
 const shopRank = computed(() => {
@@ -239,22 +294,47 @@ const statusColor = (s: string) => VIO_STATUS_COLOR[s] ?? '#86909c';
           <div class="flat-card clickable" title="当前筛选下的违规记录总数 · 点击查看全部" @click="gotoList({})">
             <div class="k">违规总数</div>
             <div class="v">{{ kpi.total.toLocaleString() }}</div>
+            <div class="qc-mom" :class="moms.total.dir" :title="momTip">
+              <span class="qc-mom-lb">较上月</span>
+              <span v-if="moms.total.dir === 'flat'" class="qc-mom-val">持平</span>
+              <span v-else class="qc-mom-val">{{ moms.total.dir === 'up' ? '↑' : '↓' }} {{ Math.abs(moms.total.delta).toLocaleString() }}<template v-if="moms.total.pct !== null">（{{ moms.total.pct > 0 ? '+' : '' }}{{ moms.total.pct.toFixed(1) }}%）</template></span>
+            </div>
           </div>
           <div class="flat-card clickable" title="被封店/清退的去重店铺数 · 点击查看" @click="gotoList({ severity: '封店/清退' })">
             <div class="k">封店/清退店铺</div>
             <div class="v" style="color: #a8071a">{{ kpi.banShops.toLocaleString() }}</div>
+            <div class="qc-mom" :class="moms.banShops.dir" :title="momTip">
+              <span class="qc-mom-lb">较上月</span>
+              <span v-if="moms.banShops.dir === 'flat'" class="qc-mom-val">持平</span>
+              <span v-else class="qc-mom-val">{{ moms.banShops.dir === 'up' ? '↑' : '↓' }} {{ Math.abs(moms.banShops.delta).toLocaleString() }}<template v-if="moms.banShops.pct !== null">（{{ moms.banShops.pct > 0 ? '+' : '' }}{{ moms.banShops.pct.toFixed(1) }}%）</template></span>
+            </div>
           </div>
           <div class="flat-card clickable" title="被限制/冻结的去重店铺数 · 点击查看" @click="gotoList({ severity: '店铺限制/冻结' })">
             <div class="k">受限/冻结店铺</div>
             <div class="v" style="color: #f5222d">{{ kpi.restrictShops.toLocaleString() }}</div>
+            <div class="qc-mom" :class="moms.restrictShops.dir" :title="momTip">
+              <span class="qc-mom-lb">较上月</span>
+              <span v-if="moms.restrictShops.dir === 'flat'" class="qc-mom-val">持平</span>
+              <span v-else class="qc-mom-val">{{ moms.restrictShops.dir === 'up' ? '↑' : '↓' }} {{ Math.abs(moms.restrictShops.delta).toLocaleString() }}<template v-if="moms.restrictShops.pct !== null">（{{ moms.restrictShops.pct > 0 ? '+' : '' }}{{ moms.restrictShops.pct.toFixed(1) }}%）</template></span>
+            </div>
           </div>
           <div class="flat-card" title="当前筛选下累计违规扣分">
             <div class="k">累计扣分</div>
             <div class="v">{{ kpi.pts.toLocaleString() }}<span class="dept-pct">分</span></div>
+            <div class="qc-mom" :class="moms.pts.dir" :title="momTip">
+              <span class="qc-mom-lb">较上月</span>
+              <span v-if="moms.pts.dir === 'flat'" class="qc-mom-val">持平</span>
+              <span v-else class="qc-mom-val">{{ moms.pts.dir === 'up' ? '↑' : '↓' }} {{ Math.abs(moms.pts.delta).toLocaleString() }}<template v-if="moms.pts.pct !== null">（{{ moms.pts.pct > 0 ? '+' : '' }}{{ moms.pts.pct.toFixed(1) }}%）</template></span>
+            </div>
           </div>
           <div class="flat-card" title="当前筛选下累计违约金/罚款">
             <div class="k">累计违约金</div>
             <div class="v">{{ kpi.fine.toLocaleString() }}<span class="dept-pct">元</span></div>
+            <div class="qc-mom" :class="moms.fine.dir" :title="momTip">
+              <span class="qc-mom-lb">较上月</span>
+              <span v-if="moms.fine.dir === 'flat'" class="qc-mom-val">持平</span>
+              <span v-else class="qc-mom-val">{{ moms.fine.dir === 'up' ? '↑' : '↓' }} {{ Math.abs(moms.fine.delta).toLocaleString() }}<template v-if="moms.fine.pct !== null">（{{ moms.fine.pct > 0 ? '+' : '' }}{{ moms.fine.pct.toFixed(1) }}%）</template></span>
+            </div>
           </div>
         </div>
 
@@ -327,10 +407,10 @@ const statusColor = (s: string) => VIO_STATUS_COLOR[s] ?? '#86909c';
           </div>
         </div>
         <div class="qc-trend-row">
-          <div class="qc-trend-panel">
+          <div ref="trendPanelRef" class="qc-trend-panel">
             <ProblemTrendChart :labels="trend.months" :series="trend.series" />
           </div>
-          <div class="qc-panel qc-rv-top-panel">
+          <div class="qc-panel qc-rv-top-panel" :style="topPanelH ? { height: `${topPanelH}px` } : undefined">
             <div class="p-title top-head">TOP 违规店铺</div>
             <div
               v-for="(s, i) in shopRank"
@@ -537,9 +617,31 @@ const statusColor = (s: string) => VIO_STATUS_COLOR[s] ?? '#86909c';
 </template>
 
 <style scoped>
+/* 违规趋势与 TOP 榜单：左列（趋势卡）自然高度为准，右列等高；榜单行等分填充、字号/间距对齐看板规范 */
+.qc-vio-page .qc-trend-row { align-items: start; }
+.qc-vio-page .qc-rv-top-panel { overflow-y: auto; scrollbar-width: none; }
+.qc-vio-page .qc-rv-top-panel::-webkit-scrollbar { display: none; }
+.qc-vio-page .qc-rv-top-panel .p-title { margin-bottom: 8px; }
+.qc-vio-page .qc-rv-top-panel .top-row { flex: 1 1 0; min-height: 40px; padding: 6px 0; gap: 10px; }
+.qc-vio-page .qc-rv-top-panel .top-rank { width: 20px; height: 20px; font-size: 12px; }
+.qc-vio-page .qc-rv-top-panel .top-info { flex: 1; min-width: 0; max-width: none; }
+.qc-vio-page .qc-rv-top-panel .top-info .n { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500; line-height: 1.4; }
+.qc-vio-page .qc-rv-top-panel .top-info .m { margin-top: 2px; font-size: 12px; line-height: 1.4; }
+.qc-vio-page .qc-rv-top-panel .top-val { margin-left: auto; justify-content: flex-end; min-width: 46px; }
+.qc-vio-page .qc-rv-top-panel .top-val b { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.qc-vio-page .qc-rv-top-panel .top-val i { font-size: 12px; }
+
+/* 违规数据总览 KPI 卡「较上月」：数量 + 比例；上涨=红（不利）、下降=绿（有利）、持平=灰 */
+.qc-mom { display: flex; align-items: baseline; gap: 6px; margin-top: 6px; font-size: 12px; line-height: 1.4; }
+.qc-mom-lb { color: #98a0ae; }
+.qc-mom-val { font-weight: 600; }
+.qc-mom.up .qc-mom-val { color: #f5484d; }
+.qc-mom.down .qc-mom-val { color: #00b42a; }
+.qc-mom.flat .qc-mom-val { color: #98a0ae; font-weight: 500; }
+
 .qc-vio-sev-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; }
 .qc-vio-sev-grid .flat-card .v { font-size: 22px; }
-/* 违规大类共 9 项，图例列多于评价看板：环形面板改为「环上 + 图例横排换行于下」，避免图例列溢出白卡 */
+/* 违规大类共 10 项，图例列多于评价看板：环形面板改为「环上 + 图例横排换行于下」，避免图例列溢出白卡 */
 .qc-vio-page .qc-share-pie { width: 620px; }
 .qc-vio-page :deep(.pie-wrap) { flex-direction: column; gap: 12px; }
 .qc-vio-page :deep(.pie-legend) { flex-direction: row; flex-wrap: wrap; justify-content: center; width: auto; max-height: none; gap: 6px 16px; }

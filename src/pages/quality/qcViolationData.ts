@@ -1,6 +1,6 @@
 /* ---------- 品控-线上 · 违规监控 数据模块 ----------
    口径来源：拼多多问题梳理.xlsx / 问题梳理-淘系10.16.xlsx / 抖音.xlsx ＋各平台规则中心。
-   三平台违规规则高度共通，此处归一为 9 个违规大类 × 小类，处置结果 7 档，供看板与列表统一消费。 ---------- */
+   三平台违规规则高度共通，此处归一为 10 个违规大类 × 小类，处置结果 7 档，供看板与列表统一消费。 ---------- */
 import type { Platform } from './data';
 
 export interface VioRecord {
@@ -45,6 +45,7 @@ export const VIO_TYPES = [
   '违禁与禁售信息',
   '滥发信息',
   '资质合规',
+  '营业执照异常',
   '客服违规',
   '扰乱市场秩序',
 ] as const;
@@ -57,6 +58,7 @@ export const VIO_TYPE_COLOR: Record<string, string> = {
   违禁与禁售信息: '#a8071a',
   滥发信息: '#faad14',
   资质合规: '#2f54eb',
+  营业执照异常: '#b37feb',
   客服违规: '#eb2f96',
   扰乱市场秩序: '#86909c',
 };
@@ -70,6 +72,7 @@ export const VIO_SUBS: Record<string, string[]> = {
   违禁与禁售信息: ['发布违禁品', '危险化学品', '禁售信息', '非法用途信息'],
   滥发信息: ['滥发信息', '规避平台规则', '混淆信息', '错误描述信息'],
   资质合规: ['营业执照异常', '执照注吊销', '信息未更新', '资质缺失'],
+  营业执照异常: ['法人变更', '主体关联'],
   客服违规: ['辱骂买家', '超时不回复', '引导站外交易', '骚扰威胁'],
   扰乱市场秩序: ['违背承诺', '不正当获取资源', '扰乱市场秩序'],
 };
@@ -160,6 +163,10 @@ export const VIO_FIX_ADVICE: Record<string, string[]> = {
     '营业执照异常/注吊销尽快完成工商变更并同步平台。',
     '主体信息、经营资质到期前更新，避免限制提现与经营。',
   ],
+  营业执照异常: [
+    '法人变更须同步更新平台营业执照及法人身份信息，避免主体不一致触发限制。',
+    '排查关联主体历史违规记录，及时剥离高风险主体，降低连带处罚概率。',
+  ],
   客服违规: [
     '规范客服话术，禁止辱骂、威胁、引导站外交易。',
     '设置超时未回复预警，保障响应时效。',
@@ -200,6 +207,8 @@ export const QC_VIOLATIONS: VioRecord[] = [
   { id: 'TM-2026072224', shopName: '真子旗舰店', shopId: 'TM-2057', platform: '天猫', time: '2026-07-22', type: '客服违规', sub: '辱骂买家', severity: '违规扣分', degree: '违规扣分', deductPts: 12, fineAmt: 5000, status: '处罚中', reason: '客服辱骂买家，服务违规扣分。', opsGroup: '淘系一组', opsSpecialist: '李婧', opsAssistant: '王雪' },
   { id: 'TB-2026071525', shopName: '寻悦坊', shopId: 'TB-2088', platform: '淘宝', time: '2026-07-15', type: '资质合规', sub: '营业执照异常', severity: '店铺限制/冻结', degree: '严重违规', deductPts: 0, fineAmt: 0, status: '处罚中', restrict: '限制提现', reason: '营业执照列入异常经营名录，限制店铺资金提现。', opsGroup: '淘系二组', opsSpecialist: '赵启', opsAssistant: '孙宁' },
   { id: 'TM-2026070826', shopName: '朋意旗舰店', shopId: 'TM-2063', platform: '天猫', time: '2026-07-08', type: '扰乱市场秩序', sub: '不正当获取资源', severity: '店铺降权', degree: '市场管理', deductPts: 0, fineAmt: 1000, status: '处罚完成', reason: '不正当获取平台资源，活动坑位作弊被降权。', opsGroup: '淘系二组', opsSpecialist: '赵启', opsAssistant: '孙宁' },
+  { id: 'TM-2026070127', shopName: '真子旗舰店', shopId: 'TM-2057', platform: '天猫', time: '2026-07-01', type: '营业执照异常', sub: '法人变更', severity: '店铺限制/冻结', degree: '严重违规', deductPts: 0, fineAmt: 0, status: '处罚中', restrict: '限制主体变更', reason: '店铺法人变更后未在平台更新营业执照信息，触发主体变更限制。', opsGroup: '淘系一组', opsSpecialist: '李婧', opsAssistant: '王雪' },
+  { id: 'TB-2026062828', shopName: '青野家居', shopId: 'TB-2041', platform: '淘宝', time: '2026-06-28', type: '营业执照异常', sub: '主体关联', severity: '店铺限制/冻结', degree: '严重违规', deductPts: 0, fineAmt: 0, status: '待处罚', restrict: '限制提现', reason: '关联主体存在历史严重违规，店铺被判定主体关联风险。', opsGroup: '淘系一组', opsSpecialist: '李婧', opsAssistant: '王雪' },
 
   /* ===== 拼多多——按「店铺受限档位」口径 ===== */
   { id: 'PDD-2026101501', shopName: '暮野', shopId: 'PDD-6012', platform: '拼多多', time: '2026-10-15', type: '发货物流违规', sub: '欺诈发货', severity: '店铺限制/冻结', degree: '严重违规', deductPts: 0, fineAmt: 0, status: '处罚中', restrict: '一级限制7天', productId: 'P-300115', seriesCode: 'XL-家居收纳', reason: '欺诈发货，上传单号无真实物流轨迹，触发一级限制。', opsGroup: '拼多多组', opsSpecialist: '周琳', opsAssistant: '吴桐' },
@@ -211,6 +220,7 @@ export const QC_VIOLATIONS: VioRecord[] = [
   { id: 'PDD-2026081507', shopName: '柚白', shopId: 'PDD-6033', platform: '拼多多', time: '2026-08-15', type: '发货物流违规', sub: '缺货未履约', severity: '店铺限制/冻结', degree: '一般违规', deductPts: 0, fineAmt: 0, status: '处罚完成', restrict: '二级限制3天', productId: 'P-301833', seriesCode: 'XL-家居收纳', reason: '缺货未履约，触发二级限制3天。', opsGroup: '拼多多组', opsSpecialist: '周琳', opsAssistant: '吴桐' },
   { id: 'PDD-2026080208', shopName: '霜序工作室', shopId: 'PDD-6047', platform: '拼多多', time: '2026-08-02', type: '商品品质与描述不符', sub: '抽检不合格', severity: '店铺降权', degree: '一般违规', deductPts: 0, fineAmt: 0, status: '处罚中', restrict: '降权3个月', productId: 'P-302109', seriesCode: 'XL-厨房用品', reason: '品质指标异常，抽检不合格降权3个月。', opsGroup: '拼多多组', opsSpecialist: '周琳', opsAssistant: '吴桐' },
   { id: 'PDD-2026071809', shopName: '暮野', shopId: 'PDD-6012', platform: '拼多多', time: '2026-07-18', type: '虚假交易与信誉', sub: '刷单炒信', severity: '商品处置', degree: '一般违规', deductPts: 0, fineAmt: 0, status: '处罚完成', productId: 'P-302455', seriesCode: 'XL-清洁工具', reason: '虚假交易，商品推广受限并扣罚保证金。', opsGroup: '拼多多组', opsSpecialist: '周琳', opsAssistant: '吴桐' },
+  { id: 'PDD-2026071010', shopName: '澜庭优选', shopId: 'PDD-6025', platform: '拼多多', time: '2026-07-10', type: '营业执照异常', sub: '法人变更', severity: '店铺限制/冻结', degree: '严重违规', deductPts: 0, fineAmt: 0, status: '处罚中', restrict: '三级限制', reason: '法人变更后未及时在平台备案，触发三级限制。', opsGroup: '拼多多组', opsSpecialist: '周琳', opsAssistant: '吴桐' },
 
   /* ===== 抖音——按「冻结/封禁/停业整顿」口径 ===== */
   { id: 'DY-2026101501', shopName: '初晴日记', shopId: 'DY-3012', platform: '抖音', time: '2026-10-15', type: '发货物流违规', sub: '虚假发货', severity: '店铺限制/冻结', degree: '严重违规', deductPts: 0, fineAmt: 0, status: '处罚中', restrict: '店铺冻结', productId: 'P-400118', seriesCode: 'XL-家居收纳', reason: '批量违规发货（拍A发B/空包），店铺货款冻结。', opsGroup: '抖音组', opsSpecialist: '陈曦', opsAssistant: '林悦' },
@@ -221,4 +231,5 @@ export const QC_VIOLATIONS: VioRecord[] = [
   { id: 'DY-2026082506', shopName: '半山优选', shopId: 'DY-3026', platform: '抖音', time: '2026-08-25', type: '发货物流违规', sub: '延迟发货', severity: '商品处置', degree: '一般违规', deductPts: 0, fineAmt: 0, status: '处罚中', restrict: '每日限单', productId: 'P-401955', seriesCode: 'XL-厨房用品', reason: '发货超时，链接每日限单受限。', opsGroup: '抖音组', opsSpecialist: '陈曦', opsAssistant: '林悦' },
   { id: 'DY-2026081007', shopName: '明野', shopId: 'DY-3039', platform: '抖音', time: '2026-08-10', type: '客服违规', sub: '骚扰威胁', severity: '店铺限制/冻结', degree: '严重违规', deductPts: 0, fineAmt: 0, status: '待处罚', restrict: '店铺冻结', reason: '客服骚扰辱骂威胁买家，店铺冻结。', opsGroup: '抖音组', opsSpecialist: '陈曦', opsAssistant: '林悦' },
   { id: 'DY-2026072008', shopName: '风屿工作室', shopId: 'DY-3051', platform: '抖音', time: '2026-07-20', type: '资质合规', sub: '执照注吊销', severity: '封店/清退', degree: '严重违规', deductPts: 0, fineAmt: 0, status: '处罚中', restrict: '清退封店', reason: '关联主体营业执照注销/吊销，清退封店。', opsGroup: '抖音组', opsSpecialist: '陈曦', opsAssistant: '林悦' },
+  { id: 'DY-2026071509', shopName: '初晴日记', shopId: 'DY-3012', platform: '抖音', time: '2026-07-15', type: '营业执照异常', sub: '主体关联', severity: '店铺限制/冻结', degree: '严重违规', deductPts: 0, fineAmt: 0, status: '待处罚', restrict: '店铺冻结', reason: '店铺关联主体存在营业执照异常记录，触发店铺冻结。', opsGroup: '抖音组', opsSpecialist: '陈曦', opsAssistant: '林悦' },
 ];
