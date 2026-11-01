@@ -88,9 +88,8 @@ const onDocClick = (e: MouseEvent) => {
 onMounted(() => document.addEventListener('click', onDocClick));
 onBeforeUnmount(() => document.removeEventListener('click', onDocClick));
 
-/* 关联商品：仅保留商品编码打标（系列编码/商品编码粒度切换已按需求移除）；当前订单商品仅售后单时作为可切换目标
+/* 关联商品：仅保留商品编码打标，默认直接展示商品编码分组
    商品编码按所属系列编码分组展示：系列编码为组标题，组内为该系列的商品编码；组内编码数大于一时提供「全部」快选 */
-const gran = ref<'code' | 'order'>('code');
 const fixedSeries = computed(() => kbV2Products.find((p) => p.id === props.session.productId) ?? kbV2Products[0]);
 interface CodeGroup { key: string; title: string; codes: { value: string; label: string }[] }
 const codeGroups = computed<CodeGroup[]>(() => {
@@ -113,13 +112,8 @@ const pickAllOf = (g: CodeGroup) => {
     ? selCodes.value.filter((v) => !vals.includes(v))
     : [...new Set([...selCodes.value, ...vals])];
 };
-/* 订单类型：仅售后单才展示「当前订单商品」目标 */
-const orderKind = ref<'after' | 'normal'>('after');
-const showOrderGran = computed(() => orderKind.value === 'after');
-/* 当前打标目标：商品编码模式＝当前选中的编码；当前订单模式＝当前订单（作为已选标签分组标题） */
-const targetKeys = computed(() => gran.value === 'order'
-  ? [{ code: 'ORDER', title: '当前订单' }]
-  : codeGroups.value.flatMap((g) => g.codes.filter((c) => selCodes.value.includes(c.value)).map((c) => ({ code: c.value, title: c.value }))));
+/* 当前打标目标：仅商品编码模式 */
+const targetKeys = computed(() => codeGroups.value.flatMap((g) => g.codes.filter((c) => selCodes.value.includes(c.value)).map((c) => ({ code: c.value, title: c.value }))));
 
 interface TagEntry { id: number; cat: string; sub: string; code: string; codeTitle: string; }
 let tagSeq = 0;
@@ -679,13 +673,8 @@ const optGoods = computed(() => ({ name: sessionProduct.value?.name ?? '', ...(G
         <!-- 三个子块纵向叠放（关联商品 → 已选标签 → 标签·问题类型） -->
         <div class="cwb-sec">
           <div class="cwb-sec-t">关联商品</div>
-          <!-- 关联目标二选一（同层互斥）：当前订单 / 商品编码；选商品编码时展开系列编码组 chips -->
-          <div class="cwb-gran">
-            <button v-if="showOrderGran" type="button" :class="{ on: gran === 'order' }" @click="gran = 'order'">当前订单</button>
-            <button type="button" :class="{ on: gran === 'code' }" @click="gran = 'code'">商品编码</button>
-          </div>
           <!-- 商品编码按系列编码分组：系列编码为组标题，组内为该系列商品编码；组内编码数大于一时提供「全部」 -->
-          <div v-if="gran === 'code'" class="cwb-code-groups">
+          <div class="cwb-code-groups">
             <div v-for="g in codeGroups" :key="g.key" class="cwb-code-group">
               <div class="cwb-code-gt" :title="g.title">{{ g.title }}</div>
               <div class="cwb-code-tags">
@@ -713,7 +702,7 @@ const optGoods = computed(() => ({ name: sessionProduct.value?.name ?? '', ...(G
 
         <div class="cwb-sec">
           <div class="cwb-sec-t">已选标签</div>
-          <!-- 已选标签按打标目标（商品编码/当前订单）分组：组标题＋标签 chips，点 × 快速清除；无其它描述文案 -->
+          <!-- 已选标签按商品编码分组：组标题＋标签 chips，点 × 快速清除；无其它描述文案 -->
           <div v-for="g in taggedGroups" :key="g.key" class="cwb-sel-group">
             <div class="cwb-code-gt" :title="g.title">{{ g.title }}</div>
             <div class="cwb-sel-tags">
