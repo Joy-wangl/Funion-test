@@ -52,18 +52,20 @@ interface CsSessionSeed {
   optKind: 'shop' | 'exp';
   /* 订单商品清单（商品粒度＝商品ID）：一单可含多个商品，首位＝本会话正在咨询的商品；缺省视为单商品订单 */
   orderItemIds?: string[];
+  /* 浏览足迹商品清单（商品粒度＝商品ID）：用户进入会话前浏览过的商品 */
+  browseItemIds?: string[];
 }
 const sessions: CsSessionSeed[] = [
-  { id: 1, name: '人***', code: '5996', stage: '售中', overdue: '已超时 47 分钟', unread: 1, time: '读秒', preview: '质量问题包路费呢亲', plat: '拼多多', shopId: 'PDD-6033', productId: 'K001', skuName: '32码', optKind: 'shop', orderItemIds: ['7261558803412', '7261558803458', '4410276650033'] },
-  { id: 2, name: '蔡*喵', code: '4069', stage: '售中', time: '07:41', preview: '好的，谢谢', plat: '淘宝', shopId: 'TB-2063', productId: 'K002', skuName: '31码', optKind: 'shop' },
-  { id: 3, name: '红**动', code: '4387', stage: '售中', time: '07:38', preview: '[图片]', plat: '抖音', shopId: 'DY-3039', productId: 'K003', skuName: '40码', optKind: 'exp' },
-  { id: 4, name: '吃*C', code: '4072', stage: '售中', time: '07:30', preview: '什么时候发货呀', plat: '快手', shopId: 'KS-5036', productId: 'K004', skuName: '两支礼盒装', optKind: 'shop', orderItemIds: ['4410276650033', '3398745512076'] },
+  { id: 1, name: '人***', code: '5996', stage: '售中', overdue: '已超时 47 分钟', unread: 1, time: '读秒', preview: '质量问题包路费呢亲', plat: '拼多多', shopId: 'PDD-6033', productId: 'K001', skuName: '32码', optKind: 'shop', orderItemIds: ['7261558803412', '7261558803458', '4410276650033'], browseItemIds: ['6688012345901', '5523098771204'] },
+  { id: 2, name: '蔡*喵', code: '4069', stage: '售中', time: '07:41', preview: '好的，谢谢', plat: '淘宝', shopId: 'TB-2063', productId: 'K002', skuName: '31码', optKind: 'shop', browseItemIds: ['7261558803412', '6688012345902'] },
+  { id: 3, name: '红**动', code: '4387', stage: '售中', time: '07:38', preview: '[图片]', plat: '抖音', shopId: 'DY-3039', productId: 'K003', skuName: '40码', optKind: 'exp', browseItemIds: ['5523098771288', '8871203344590'] },
+  { id: 4, name: '吃*C', code: '4072', stage: '售中', time: '07:30', preview: '什么时候发货呀', plat: '快手', shopId: 'KS-5036', productId: 'K004', skuName: '两支礼盒装', optKind: 'shop', orderItemIds: ['4410276650033', '3398745512076'], browseItemIds: ['8871203344591'] },
   { id: 5, name: '刘***', code: '13882', stage: '售前', time: '07:21', preview: '退款成功通知', plat: '淘宝', shopId: 'TB-2088', productId: 'K005', skuName: '单支装', optKind: 'shop' },
   { id: 6, name: '雪***', code: '8464', stage: '售前', time: '07:15', preview: '收货地址修改成功', plat: '视频号', shopId: 'SP-4033', productId: 'K006', skuName: '42码', optKind: 'exp' },
-  { id: 7, name: '******', code: '4070', stage: '售中', time: '昨天', preview: '质量问题包路费呢亲', plat: '拼多多', shopId: 'PDD-6012', productId: 'K001', skuName: '33码', optKind: 'exp' },
+  { id: 7, name: '******', code: '4070', stage: '售中', time: '昨天', preview: '质量问题包路费呢亲', plat: '拼多多', shopId: 'PDD-6012', productId: 'K001', skuName: '33码', optKind: 'exp', orderItemIds: ['7261558803412'] },
   { id: 8, name: '桃**主', code: '4086', stage: '售前', time: '昨天', preview: '动作', plat: '抖音', shopId: 'DY-3012', productId: 'K002', skuName: '30码', optKind: 'exp' },
   { id: 9, name: '小**呀', code: '8512', stage: '售前', time: '昨天', preview: '上架要白底图，能发我一张吗', plat: '视频号', shopId: 'SP-4033', productId: 'K002', skuName: '30码', optKind: 'shop' },
-  { id: 10, name: '阿**7', code: '4127', stage: '售中', time: '昨天', preview: '轮播图首图必须白底吗', plat: '拼多多', shopId: 'PDD-6012', productId: 'K004', skuName: '单支装', optKind: 'exp' },
+  { id: 10, name: '阿**7', code: '4127', stage: '售中', time: '昨天', preview: '轮播图首图必须白底吗', plat: '拼多多', shopId: 'PDD-6012', productId: 'K004', skuName: '单支装', optKind: 'exp', browseItemIds: ['3398745512077'] },
   { id: 11, name: '奶**盖', code: '13905', stage: '售中', time: '前天', preview: '详情页图片直接发我一份', plat: '抖音', shopId: 'DY-3039', productId: 'K005', skuName: '两支装', optKind: 'shop' },
   { id: 12, name: '青***', code: '4102', stage: '售前', time: '前天', preview: '有透明底图吗，要做主图', plat: '淘宝', shopId: 'TB-2063', productId: 'K006', skuName: '41码', optKind: 'exp' },
 ];

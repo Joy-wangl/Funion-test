@@ -554,6 +554,34 @@
 
 /* 多商品订单横向商品卡片切换条（主图＋名称＋商品ID，商品粒度）；选中主色描边；本会话角标；超出横向滚动藏滚动条 */
 /* 多商品切换条：体验分下方独立白卡，等宽两列自适应不裁切（禁横向滚动） */
+/* 商品来源分段胶囊（用户订单 / 浏览足迹）：体验分卡正下方；类型下无数据不展示对应入口 */
+.cwb-prod-source-tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  margin-bottom: 12px;
+  background: #f2f4f8;
+  border-radius: 10px;
+}
+.cwb-prod-source-tabs button {
+  border: none;
+  background: transparent;
+  padding: 0 12px;
+  height: 28px;
+  line-height: 28px;
+  font-size: 12px;
+  color: #5a6372;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cwb-prod-source-tabs button:hover { color: #33405c; }
+.cwb-prod-source-tabs button.on {
+  background: #fff;
+  color: #1f2735;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(20, 26, 40, .08);
+}
 .cwb-prod-cards {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -10,7 +10,7 @@ import './CsWorkBoard.css';
 /* ============ 客服工作台右侧看板：优化提示 + 商品知识 + 标记会话（支持收起为三 icon） ============ */
 
 /* 当前会话（父组件传入）：看板三页签内容随会话切换——商品知识/标记会话绑定会话商品，优化提示绑定会话店铺 */
-interface CsSession { id: number; shopId: string; plat: string; productId: string; skuName?: string; optKind: 'shop' | 'exp'; orderItemIds?: string[]; }
+interface CsSession { id: number; shopId: string; plat: string; productId: string; skuName?: string; optKind: 'shop' | 'exp'; orderItemIds?: string[]; browseItemIds?: string[]; }
 const props = defineProps<{ session: CsSession }>();
 
 /* 媒体悬浮气泡：查看＝预览弹窗；发送到当前会话＝回投客服工作台聊天区（父组件监听追加卖家消息） */
@@ -163,16 +163,26 @@ const idBase = ref<Record<string, Record<string, BaseRow[]>>>({});
 
 /* 本会话正在咨询的商品所属系列（稳定绑定 session.productId）：模块一优化提示、模块三关联商品打标始终以它为准 */
 const sessionProduct = computed(() => kbV2Products.find((p) => p.id === props.session.productId) ?? kbV2Products[0]);
-/* 订单商品清单（商品粒度＝ID 维度 item，非系列）：一单可含多个商品；缺省退化为仅本会话系列首商品的单商品订单 */
+/* 订单商品清单（商品粒度＝ID 维度 item，非系列）：一单可含多个商品；无订单数据时为空 */
 const ALL_ENTRIES = kbV2Products.flatMap((p) => p.items.map((it) => ({ it, series: p })));
-const orderEntries = computed(() => {
-  const ids = props.session.orderItemIds?.length ? props.session.orderItemIds : [sessionProduct.value?.items[0]?.id ?? ''];
-  return ids.map((id) => ALL_ENTRIES.find((e) => e.it.id === id)).filter((e): e is NonNullable<typeof e> => !!e);
+const rawOrderEntries = computed(() => (props.session.orderItemIds?.length ? props.session.orderItemIds.map((id) => ALL_ENTRIES.find((e) => e.it.id === id)).filter((e): e is NonNullable<typeof e> => !!e) : []));
+const rawBrowseEntries = computed(() => (props.session.browseItemIds?.length ? props.session.browseItemIds.map((id) => ALL_ENTRIES.find((e) => e.it.id === id)).filter((e): e is NonNullable<typeof e> => !!e) : []));
+const hasOrder = computed(() => rawOrderEntries.value.length > 0);
+const hasBrowse = computed(() => rawBrowseEntries.value.length > 0);
+/* 商品来源切换：用户订单 / 浏览足迹；缺省退化到本会话系列首商品 */
+type ProdSource = 'order' | 'browse';
+const prodSource = ref<ProdSource>('order');
+const prodEntries = computed(() => {
+  if (prodSource.value === 'browse' && hasBrowse.value) return rawBrowseEntries.value;
+  if (hasOrder.value) return rawOrderEntries.value;
+  if (hasBrowse.value) return rawBrowseEntries.value;
+  const fallback = sessionProduct.value?.items[0];
+  return fallback ? [{ it: fallback, series: sessionProduct.value }] : [];
 });
-/* 本会话商品＝订单清单首位；模块二当前展示商品 selItemId 默认即它 */
-const sessionItemId = computed(() => orderEntries.value[0]?.it.id ?? '');
+/* 本会话商品＝订单清单首位（无订单时取当前来源首位）；模块二当前展示商品 selItemId 默认即它 */
+const sessionItemId = computed(() => rawOrderEntries.value[0]?.it.id ?? prodEntries.value[0]?.it.id ?? '');
 const selItemId = ref(sessionItemId.value);
-const itemEntry = computed(() => orderEntries.value.find((e) => e.it.id === selItemId.value) ?? orderEntries.value[0]);
+const itemEntry = computed(() => prodEntries.value.find((e) => e.it.id === selItemId.value) ?? prodEntries.value[0]);
 const item = computed(() => itemEntry.value?.it);
 const selSku = ref(item.value?.skus[0]?.id ?? '');
 const sku = computed(() => item.value?.skus.find((s) => s.id === selSku.value) ?? item.value?.skus[0]);
@@ -189,6 +199,7 @@ const baseI = computed(() => {
 
 /* 切换会话后重置各选择 ref 到新会话商品的首项（避免残留上一会话的编码/商品/SKU 选中） */
 watch(() => props.session.id, () => {
+  prodSource.value = hasOrder.value ? 'order' : 'browse';
   selCodes.value = allCodes();
   selItemId.value = sessionItemId.value;
   selSku.value = item.value?.skus[0]?.id ?? '';
@@ -477,10 +488,14 @@ const optGoods = computed(() => ({ name: sessionProduct.value?.name ?? '', ...(G
 
       <!-- ============ 模块二：商品知识 ============ -->
       <section class="cwb-mod" data-mod="kb">
-        <!-- 多商品订单切换条：商品知识模块卡内顶部（体验分卡正下方），与知识内容同属一张卡；等宽两列不裁切；单商品订单不渲染 -->
-        <div v-if="orderEntries.length > 1" class="cwb-prod-cards">
+        <!-- 多商品来源切换条：商品知识模块卡内顶部（体验分卡正下方），与知识内容同属一张卡；等宽两列不裁切；单商品来源不渲染 -->
+        <div v-if="hasOrder && hasBrowse" class="cwb-prod-source-tabs">
+          <button type="button" :class="{ on: prodSource === 'order' }" @click="prodSource = 'order'">用户订单</button>
+          <button type="button" :class="{ on: prodSource === 'browse' }" @click="prodSource = 'browse'">浏览足迹</button>
+        </div>
+        <div v-if="prodEntries.length > 1" class="cwb-prod-cards">
           <button
-            v-for="e in orderEntries"
+            v-for="e in prodEntries"
             :key="e.it.id"
             type="button"
             class="cwb-prod-card"
