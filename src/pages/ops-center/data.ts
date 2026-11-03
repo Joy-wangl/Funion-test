@@ -66,7 +66,139 @@ export const EC_MAINS: string[] = Array.from({ length: 24 }, (_, i) => `/materia
 /** 顺取电商主图（索引可为任意整数，自动取模回绕） */
 export const ecMain = (i: number): string => EC_MAINS[((i % EC_MAINS.length) + EC_MAINS.length) % EC_MAINS.length];
 
-/* ---------- 驾驶舱：亏损商品 ---------- */
+/* ---------- 视频号实时数据 ---------- */
+export interface VideoKpiRatio {
+  label: string;
+  value: string;
+}
+export interface VideoKpiItem {
+  metric: string;
+  value: string;
+  /** 上期/昨日参考值 */
+  prev: string;
+  /** 变动百分比绝对值（如 1.26 / 16.78） */
+  delta: number;
+  /** 趋势方向：up=红涨 ▲ / down=绿跌 ▼ */
+  trend: 'up' | 'down';
+  /** 卡片副标题 */
+  sub?: string;
+  /** 支付金额专属：首购/复购占比 */
+  ratios?: VideoKpiRatio[];
+}
+
+export const videoKpiItems: VideoKpiItem[] = [
+  {
+    metric: '支付金额',
+    value: '144,933.32',
+    prev: '213,066',
+    delta: 1.26,
+    trend: 'up',
+    sub: '昨日全天',
+    ratios: [
+      { label: '首购占比', value: '78.01%' },
+      { label: '复购占比', value: '21.99%' },
+    ],
+  },
+  {
+    metric: '净支付金额',
+    value: '135,452.08',
+    prev: '195,744.83',
+    delta: 3.29,
+    trend: 'up',
+    sub: '昨日全天',
+  },
+  {
+    metric: '退款金额（完结时间）',
+    value: '20,365.85',
+    prev: '34,397.88',
+    delta: 16.78,
+    trend: 'down',
+    sub: '昨日全天',
+  },
+  {
+    metric: '金额退款率',
+    value: '6.54%',
+    prev: '8.12%',
+    delta: 21.96,
+    trend: 'down',
+    sub: '昨日全天',
+  },
+  {
+    metric: '出单链接数',
+    value: '280',
+    prev: '297',
+    delta: 5.72,
+    trend: 'up',
+    sub: '昨日全天',
+  },
+];
+
+/** 视频号实时数据：今日/昨日 24 小时支付金额趋势（00:00~23:00） */
+export const videoTrendHours: string[] = ['00:00', '03:00', '05:00', '07:00', '09:00', '11:00', '13:00', '15:00', '17:00', '19:00', '21:00', '23:00'];
+export const videoTrendToday = [2.2, 2.2, 2.3, 3.2, 4.8, 6.2, 7.5, 9.1, 11.2, 13.5, 16.2, 19.2];
+export const videoTrendYesterday = [2.1, 2.2, 2.4, 3.0, 4.5, 6.0, 7.2, 8.8, 10.8, 13.2, 15.8, 18.5];
+
+/** 出单链接排行：当前周期内按销售额降序，默认每页展示前 10 名 */
+export interface VideoLinkRankRow {
+  title: string;
+  /** 商品ID：与店铺商品同源，点图可按该 ID 定位 */
+  linkId: string;
+  img: string;
+  /** 销售额（已格式化） */
+  amount: string;
+  /** 出单件数 */
+  orders: number;
+}
+export const videoLinkRank: VideoLinkRankRow[] = [
+  { title: '纯棉加厚四件套 床品套装 四季通用', linkId: '3720194821', img: '/materials/ec-16.webp', amount: '14,286.50', orders: 32 },
+  { title: '厨房免打孔置物架 壁挂式收纳架', linkId: '3720194835', img: '/materials/ec-17.webp', amount: '12,905.00', orders: 41 },
+  { title: '便携折叠收纳箱 车载后备箱整理箱', linkId: '3720194812', img: '/materials/ec-18.webp', amount: '11,632.80', orders: 28 },
+  { title: '四季通用乳胶枕 护颈助眠枕头', linkId: '3720194867', img: '/materials/ec-19.webp', amount: '9,874.20', orders: 22 },
+  { title: '家用多功能清洁刷 浴室长柄刷', linkId: '3720194803', img: '/materials/ec-20.webp', amount: '8,965.60', orders: 35 },
+  { title: '女生宿舍遮光床帘 上下铺专用', linkId: '3720194859', img: '/materials/ec-21.webp', amount: '7,842.00', orders: 19 },
+  { title: '不锈钢保温杯 500ml 大容量', linkId: '3720194871', img: '/materials/ec-22.webp', amount: '6,930.40', orders: 24 },
+  { title: '桌面分层收纳盒 办公文具整理架', linkId: '3720194828', img: '/materials/ec-23.webp', amount: '5,986.00', orders: 30 },
+  { title: '加厚棉麻沙发套 全包防滑沙发巾', linkId: '3720194843', img: '/materials/ec-24.webp', amount: '5,124.80', orders: 16 },
+  { title: '便携运动水壶 大容量健身水瓶', linkId: '3720194856', img: '/materials/ec-01.webp', amount: '4,308.60', orders: 21 },
+  { title: '加厚防滑浴室地垫 吸水速干门口垫', linkId: '3720194808', img: '/materials/ec-02.webp', amount: '3,986.40', orders: 18 },
+  { title: '伸缩晾衣杆 免打孔阳台晾衣架', linkId: '3720194877', img: '/materials/ec-03.webp', amount: '3,642.00', orders: 26 },
+  { title: '家用抽纸巾盒 客厅桌面收纳盒', linkId: '3720194816', img: '/materials/ec-04.webp', amount: '3,280.50', orders: 33 },
+  { title: '便携旅行洗漱包 大容量防水收纳袋', linkId: '3720194838', img: '/materials/ec-05.webp', amount: '2,914.80', orders: 15 },
+  { title: '厨房硅胶铲勺套装 不粘锅专用', linkId: '3720194852', img: '/materials/ec-06.webp', amount: '2,586.00', orders: 23 },
+  { title: '折叠护眼台灯 宿舍学习阅读灯', linkId: '3720194862', img: '/materials/ec-07.webp', amount: '2,148.20', orders: 12 },
+  { title: '加厚防尘衣柜罩 全包衣物防尘袋', linkId: '3720194879', img: '/materials/ec-08.webp', amount: '1,732.40', orders: 9 },
+  { title: '简约陶瓷马克杯 办公室咖啡杯', linkId: '3720194885', img: '/materials/ec-09.webp', amount: '1,296.00', orders: 14 },
+];
+
+/** 销售成员排行榜：发布人维度，按销售额降序，默认每页展示前 10 名 */
+export interface VideoSellerRankRow {
+  name: string;
+  /** 所属运营组组长（运营组管理 · 视频号） */
+  leader: string;
+  /** 出单链接数 */
+  links: number;
+  /** 销售额（已格式化） */
+  amount: string;
+}
+export const videoSellerRank: VideoSellerRankRow[] = [
+  { name: '张敏', leader: '黄亚芳', links: 46, amount: '32,486.20' },
+  { name: '李静', leader: '黄亚芳', links: 39, amount: '27,913.50' },
+  { name: '王芳', leader: '黄亚芳', links: 35, amount: '24,680.00' },
+  { name: '陈晨', leader: '黄亚芳', links: 31, amount: '19,845.60' },
+  { name: '刘洋', leader: '黄亚芳', links: 28, amount: '16,930.40' },
+  { name: '赵磊', leader: '黄亚芳', links: 24, amount: '12,486.00' },
+  { name: '周婷', leader: '黄亚芳', links: 21, amount: '9,860.20' },
+  { name: '吴昊', leader: '黄亚芳', links: 18, amount: '7,240.80' },
+  { name: '郑雪', leader: '黄亚芳', links: 15, amount: '5,930.00' },
+  { name: '孙悦', leader: '黄亚芳', links: 13, amount: '4,206.50' },
+  { name: '郑婷', leader: '黄亚芳', links: 12, amount: '3,684.20' },
+  { name: '高翔', leader: '黄亚芳', links: 10, amount: '3,120.00' },
+  { name: '陈晓', leader: '黄亚芳', links: 9, amount: '2,486.50' },
+  { name: '何静', leader: '黄亚芳', links: 8, amount: '1,894.00' },
+  { name: '罗彬', leader: '黄亚芳', links: 6, amount: '1,320.40' },
+  { name: '孙倩', leader: '黄亚芳', links: 5, amount: '986.00' },
+];
+/* ---------- 驾驶舱：亏损商品 ---------- */
 export interface LossRow {
   thumb: string;
   title: string;

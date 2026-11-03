@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { kpiItems, lossRows, metricNames, stockRows } from './data';
+import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { kpiItems, lossRows, metricNames, stockRows, videoKpiItems, videoLinkRank, videoSellerRank, videoTrendHours, videoTrendToday, videoTrendYesterday } from './data';
 import type { LossRow, StockRow } from './data';
 import { formatChartValue, isRateMetric, parseNumberText } from './trendChart';
 import { SG_STATUS_META } from './shopGoodsData';
@@ -12,8 +12,8 @@ import BubbleSelect from '../../components/BubbleSelect.vue';
 import SortTh from '../../components/SortTh.vue';
 import { pushToast } from '../../components/toast';
 
-/* Tab 切换：商品数据（运营驾驶舱）/ 发布数据（店铺商品） */
-const dashTab = ref<'product' | 'publish'>('product');
+/* Tab 切换：视频号实时数据 / 商品数据（运营驾驶舱）/ 发布数据（店铺商品） */
+const dashTab = ref<'video' | 'product' | 'publish'>('product');
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -151,8 +151,32 @@ const onDocClick = (e: MouseEvent) => {
   if (metricWrapRef.value && !metricWrapRef.value.contains(t)) metricOpen.value = false;
   if (profitRef.value && !profitRef.value.contains(t)) profitOpen.value = false;
 };
-onMounted(() => document.addEventListener('click', onDocClick));
-onBeforeUnmount(() => document.removeEventListener('click', onDocClick));
+/* 趋势图按容器实际像素出图，避免 viewBox 拉伸导致轴文字被横向放大/挤压 */
+const chartSvgRef = ref<SVGSVGElement | null>(null);
+const chartW = ref(660);
+const chartH = ref(280);
+let chartRo: ResizeObserver | null = null;
+/* 视频页签按需渲染，svg 出现后再挂观察器 */
+watch(chartSvgRef, (el) => {
+  chartRo?.disconnect();
+  chartRo = null;
+  if (!el || typeof ResizeObserver === 'undefined') return;
+  chartRo = new ResizeObserver(() => {
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) {
+      chartW.value = Math.round(r.width);
+      chartH.value = Math.round(r.height);
+    }
+  });
+  chartRo.observe(el);
+});
+onMounted(() => {
+  document.addEventListener('click', onDocClick);
+});
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocClick);
+  chartRo?.disconnect();
+});
 
 function pickDate(d: Date) {
   let s = start.value;
@@ -343,6 +367,125 @@ const trendKpi = computed(() => (trendMetric.value ? kpiItems.find((k) => k.metr
 /* 弹窗左侧对比指标选项源：当前可见的 KPI 卡片列表 */
 const visibleKpis = computed(() => kpiItems.filter((k) => selectedMetrics.value.includes(k.metric)).map((k) => ({ metric: k.metric, value: k.value })));
 
+/* ----- 视频号实时数据：上期/上一周期标签（随选中时间变化） ----- */
+/* 排行榜成员头像底色：按名次取色，保证同一成员在不同周期颜色稳定 */
+const AVATAR_COLORS = ['#4f7cff', '#22a06b', '#f0a020', '#8b5cf6', '#e6455c', '#0ea5e9', '#d946ef', '#14b8a6', '#f97316', '#6366f1'];
+const avatarBg = (i: number) => AVATAR_COLORS[i % AVATAR_COLORS.length];
+/* 出单链接点图：跳店铺商品并按商品ID代入查询（与消息通知同一桥） */
+const opsGoodsLocate = inject<((id: string) => void) | null>('opsGoodsLocate', null);
+const goLinkGoods = (id: string) => opsGoodsLocate?.(id);
+/* 两个榜单默认展示前 10 名，分页查看全部有数据的商品/成员；页面高度固定 10 行 */
+const rankRowH = 52;
+const RANK_PAGE_SIZE = 10;
+const rankListStyle = { height: `${RANK_PAGE_SIZE * rankRowH}px` };
+const linkPage = ref(1);
+const sellerPage = ref(1);
+/* 双榜表头排序：默认按销售额降序，点击切换升/降序 */
+type LinkSortKey = 'amount' | 'orders';
+type SellerSortKey = 'amount' | 'links';
+const linkSort = ref<{ key: LinkSortKey; dir: 'asc' | 'desc' }>({ key: 'amount', dir: 'desc' });
+const sellerSort = ref<{ key: SellerSortKey; dir: 'asc' | 'desc' }>({ key: 'amount', dir: 'desc' });
+const rankNum = (v: string) => Number(v.replace(/,/g, '')) || 0;
+const sortedLinks = computed(() => {
+  const { key, dir } = linkSort.value;
+  return videoLinkRank.slice().sort((a, b) => {
+    const av = key === 'amount' ? rankNum(a.amount) : a.orders;
+    const bv = key === 'amount' ? rankNum(b.amount) : b.orders;
+    return (av - bv) * (dir === 'asc' ? 1 : -1);
+  });
+});
+const sortedSellers = computed(() => {
+  const { key, dir } = sellerSort.value;
+  return videoSellerRank.slice().sort((a, b) => {
+    const av = key === 'amount' ? rankNum(a.amount) : a.links;
+    const bv = key === 'amount' ? rankNum(b.amount) : b.links;
+    return (av - bv) * (dir === 'asc' ? 1 : -1);
+  });
+});
+const toggleLinkSort = (key: LinkSortKey) => {
+  linkSort.value = linkSort.value.key === key
+    ? { key, dir: linkSort.value.dir === 'desc' ? 'asc' : 'desc' }
+    : { key, dir: 'desc' };
+  linkPage.value = 1;
+};
+const toggleSellerSort = (key: SellerSortKey) => {
+  sellerSort.value = sellerSort.value.key === key
+    ? { key, dir: sellerSort.value.dir === 'desc' ? 'asc' : 'desc' }
+    : { key, dir: 'desc' };
+  sellerPage.value = 1;
+};
+const linkSortState = (key: LinkSortKey) => (linkSort.value.key === key ? linkSort.value.dir : 'none');
+const sellerSortState = (key: SellerSortKey) => (sellerSort.value.key === key ? sellerSort.value.dir : 'none');
+const linkPages = computed(() => Math.max(1, Math.ceil(sortedLinks.value.length / RANK_PAGE_SIZE)));
+const sellerPages = computed(() => Math.max(1, Math.ceil(sortedSellers.value.length / RANK_PAGE_SIZE)));
+const pagedLinks = computed(() => sortedLinks.value.slice((linkPage.value - 1) * RANK_PAGE_SIZE, linkPage.value * RANK_PAGE_SIZE));
+const pagedSellers = computed(() => sortedSellers.value.slice((sellerPage.value - 1) * RANK_PAGE_SIZE, sellerPage.value * RANK_PAGE_SIZE));
+const rankNo = (page: number, i: number) => (page - 1) * RANK_PAGE_SIZE + i + 1;
+/* 前五名奖牌样式：按名次取不同金属质感；行底色同步渐染 */
+const medalCls = (n: number) => (n <= 5 ? `medal-${n}` : '');
+const rowTone = (n: number) => (n <= 5 ? `tone-${n}` : '');
+/* 卡片标题过长时仅在口径后缀前换行（如「退款金额」/「（完结时间）」），避免断在词中 */
+const splitMetricLabel = (m: string) => {
+  const i = m.indexOf('（');
+  return i > 0 ? { main: m.slice(0, i), qual: m.slice(i) } : { main: m, qual: '' };
+};
+const videoPrevLabel = computed(() => {
+  if (mode.value === 'realtime' || mode.value === 'day') return '昨日全天';
+  if (mode.value === 'week') return '上周同期';
+  if (mode.value === 'month') return '上月同期';
+  if (mode.value === '7') return '前7天';
+  if (mode.value === '30') return '前30天';
+  return '上一周期';
+});
+
+/* 视频号实时数据：今日/昨日 24 小时支付金额趋势图（静态样例） */
+const videoHover = ref<number | null>(null);
+const videoChart = computed(() => {
+  const W = Math.max(360, chartW.value);
+  const H = Math.max(200, chartH.value);
+  const L = 48;
+  const R = 20;
+  const T = 34;
+  const B = 44;
+  const labels = videoTrendHours;
+  const s1 = videoTrendToday;
+  const s2 = videoTrendYesterday;
+  const n = labels.length;
+  const max = 22;
+  const min = 0;
+  const plotW = W - L - R;
+  const plotH = H - T - B;
+  const x = (i: number) => L + (i / (n - 1)) * plotW;
+  const y = (v: number) => T + ((max - v) / (max - min)) * plotH;
+  const toPath = (arr: number[]) => arr.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const path1 = toPath(s1);
+  const path2 = toPath(s2);
+  const area1 = `${path1} L${x(n - 1).toFixed(1)},${(H - B).toFixed(1)} L${x(0).toFixed(1)},${(H - B).toFixed(1)} Z`;
+  const yTicks = [0, max * 0.25, max * 0.5, max * 0.75, max].map((v) => ({ value: v.toFixed(2) + '万', y: y(v) }));
+  const xTicks = labels.map((l, i) => ({ label: l, x: x(i) }));
+  const points1 = s1.map((v, i) => ({ x: x(i), y: y(v), v }));
+  const points2 = s2.map((v, i) => ({ x: x(i), y: y(v), v }));
+  return { W, H, path1, path2, area1, yTicks, xTicks, points1, points2 };
+});
+const onVideoMove = (e: MouseEvent) => {
+  const svg = e.currentTarget as SVGSVGElement;
+  const rect = svg.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const plotX = x - 48;
+  const plotW = rect.width - 48 - 20;
+  const n = videoTrendHours.length;
+  const idx = Math.max(0, Math.min(n - 1, Math.round((plotX / plotW) * (n - 1))));
+  videoHover.value = idx;
+};
+const onVideoLeave = () => {
+  videoHover.value = null;
+};
+const videoTipStyle = computed(() => {
+  if (videoHover.value === null) return {};
+  const x = videoChart.value.points1[videoHover.value].x;
+  return { left: `${(x / videoChart.value.W) * 100}%` };
+});
+
 /* ----- 列表模式：维度切换（平台/店铺/主管/组长/运营/助理）× 指标列矩阵 ----- */
 /* 行维度选项卡：店铺=平台×店铺行；平台=平台汇总行（含店铺数）；人维度=人×平台汇总行 */
 const DIM_TABS = ['平台', '店铺', '主管', '组长', '运营', '助理'] as const;
@@ -433,10 +576,22 @@ const visibleDimRows = computed(() => {
 </script>
 
 <template>
-  <!-- Tab 切换：商品数据 / 发布数据 -->
-  <div class="dash-tabs">
-    <button class="dash-tab" :class="{ active: dashTab === 'product' }" @click="dashTab = 'product'">商品数据</button>
-    <button class="dash-tab" :class="{ active: dashTab === 'publish' }" @click="dashTab = 'publish'">发布数据</button>
+  <!-- Tab 切换：视频号实时数据 / 商品数据 / 发布数据；一键分析随 Tab 同行右对齐 -->
+  <div class="dash-tabs-row">
+    <div class="dash-tabs">
+      <button class="dash-tab" :class="{ active: dashTab === 'video' }" @click="dashTab = 'video'">视频号实时数据</button>
+      <button class="dash-tab" :class="{ active: dashTab === 'product' }" @click="dashTab = 'product'">商品数据</button>
+      <button class="dash-tab" :class="{ active: dashTab === 'publish' }" @click="dashTab = 'publish'">发布数据</button>
+    </div>
+    <button v-if="dashTab === 'video'" type="button" class="vc-btn vc-btn-green vc-ai-btn">
+      <span class="vc-ai-ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 3.2l1.9 5.2 5.2 1.9-5.2 1.9L12 17.4l-1.9-5.2-5.2-1.9 5.2-1.9L12 3.2z" fill="currentColor" />
+          <path d="M18.4 14.6l.8 2.1 2.1.8-2.1.8-.8 2.1-.8-2.1-2.1-.8 2.1-.8.8-2.1z" fill="currentColor" opacity=".85" />
+        </svg>
+      </span>
+      一键分析
+    </button>
   </div>
 
   <!-- 商品数据：原运营驾驶舱内容 -->
@@ -982,6 +1137,291 @@ const visibleDimRows = computed(() => {
     :kpis="visibleKpis"
     @close="trendMetric = null"
   />
+  </template>
+
+  <!-- 视频号实时数据：按图二样式还原，已删除框选指标（访客数/支付买家数/支付转化率/加购人数） -->
+  <template v-else-if="dashTab === 'video'">
+    <div class="vc-board card">
+      <div class="vc-head">
+        <div class="vc-title-row">
+          <div class="vc-title">
+            <span class="vc-title-icon" />
+            数据概览
+          </div>
+        </div>
+      </div>
+
+      <div class="vc-toolbar">
+        <div ref="timebarRef" class="timebar">
+          <span class="label">统计时间</span>
+          <span class="date">{{ dateText }} 17:54:48</span>
+          <button class="tb" :class="{ active: mode === 'realtime' }" @click="onMode('realtime')">实时</button>
+          <button class="tb" :class="{ active: gran === 'd' && mode !== 'realtime' }" @click="onGran('d')">日</button>
+          <button class="tb" :class="{ active: gran === 'w' }" @click="onGran('w')">周</button>
+          <button class="tb" :class="{ active: gran === 'm' }" @click="onGran('m')">月</button>
+          <button class="tb" :class="{ active: calType === 'range' }" @click="calType = calType === 'range' ? '' : 'range'">自定义</button>
+          <button class="tb" @click="shift(-1)">‹</button>
+          <button class="tb" @click="shift(1)">›</button>
+          <div class="calendar" :class="{ show: !!calType, narrow: calType !== '' && calType !== 'range' }">
+            <div v-if="calType === 'day'" class="cal-panel">
+              <div class="chead">
+                <div>
+                  <button class="cnav" @click.stop="cursor = new Date(cursor.getFullYear() - 1, cursor.getMonth(), 1)">«</button>
+                  <button class="cnav" @click.stop="cursor = new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1)">‹</button>
+                </div>
+                <div class="ctitle">
+                  <span>{{ cursor.getFullYear() }}年</span>
+                  <span>{{ cursor.getMonth() + 1 }}月</span>
+                </div>
+                <div>
+                  <button class="cnav" @click.stop="cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)">›</button>
+                  <button class="cnav" @click.stop="cursor = new Date(cursor.getFullYear() + 1, cursor.getMonth(), 1)">»</button>
+                </div>
+              </div>
+              <div class="week">
+                <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+              </div>
+              <div class="days">
+                <button v-for="cell in cursorDays" :key="cell.key" :class="cell.cls" @click="pickDay(cell.date)">
+                  {{ cell.label }}
+                </button>
+              </div>
+            </div>
+            <div v-else-if="calType === 'week'" class="cal-panel">
+              <div class="chead">
+                <div>
+                  <button class="cnav" @click.stop="cursor = new Date(cursor.getFullYear() - 1, cursor.getMonth(), 1)">«</button>
+                  <button class="cnav" @click.stop="cursor = new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1)">‹</button>
+                </div>
+                <div class="ctitle">
+                  <span>{{ cursor.getFullYear() }}年</span>
+                  <span>{{ cursor.getMonth() + 1 }}月</span>
+                </div>
+                <div>
+                  <button class="cnav" @click.stop="cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)">›</button>
+                  <button class="cnav" @click.stop="cursor = new Date(cursor.getFullYear() + 1, cursor.getMonth(), 1)">»</button>
+                </div>
+              </div>
+              <div class="week">
+                <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+              </div>
+              <div class="days" @mouseleave="hoverWeek = 0">
+                <button v-for="cell in cursorDays" :key="cell.key" :class="weekCellCls(cell.date)" @mouseenter="hoverWeek = +mondayOf(cell.date)" @click="pickWeek(cell.date)">
+                  {{ cell.label }}
+                </button>
+              </div>
+            </div>
+            <div v-else-if="calType === 'month'" class="cal-panel">
+              <div class="chead">
+                <div>
+                  <button class="cnav" @click.stop="yearCursor = new Date(yearCursor.getFullYear() - 1, 0, 1)">«</button>
+                  <button class="cnav" @click.stop="yearCursor = new Date(yearCursor.getFullYear() - 1, 0, 1)">‹</button>
+                </div>
+                <div class="ctitle">
+                  <span>{{ yearCursor.getFullYear() }}年</span>
+                </div>
+                <div>
+                  <button class="cnav" @click.stop="yearCursor = new Date(yearCursor.getFullYear() + 1, 0, 1)">›</button>
+                  <button class="cnav" @click.stop="yearCursor = new Date(yearCursor.getFullYear() + 1, 0, 1)">»</button>
+                </div>
+              </div>
+              <div class="months">
+                <button
+                  v-for="mi in 12" :key="mi"
+                  :class="{ on: !!selMonth && selMonth.getFullYear() === yearCursor.getFullYear() && selMonth.getMonth() === mi - 1 }"
+                  @click="pickMonth(mi - 1)"
+                >{{ mi }}月</button>
+              </div>
+            </div>
+            <template v-else>
+              <div class="calendar-panels">
+                <div class="cal-panel">
+                  <div class="chead">
+                    <div>
+                      <button class="cnav" @click.stop="cursor = new Date(cursor.getFullYear() - 1, cursor.getMonth(), 1)">«</button>
+                      <button class="cnav" @click.stop="cursor = new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1)">‹</button>
+                    </div>
+                    <div class="ctitle">
+                      <span>{{ cursor.getFullYear() }}年</span>
+                      <span>{{ cursor.getMonth() + 1 }}月</span>
+                    </div>
+                    <div />
+                  </div>
+                  <div class="week">
+                    <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+                  </div>
+                  <div class="days">
+                    <button v-for="cell in cursorDays" :key="cell.key" :class="cell.cls" @click="pickDate(cell.date)">
+                      {{ cell.label }}
+                    </button>
+                  </div>
+                </div>
+                <div class="cal-panel">
+                  <div class="chead">
+                    <div />
+                    <div class="ctitle">
+                      <span>{{ nextMonthBase.getFullYear() }}年</span>
+                      <span>{{ nextMonthBase.getMonth() + 1 }}月</span>
+                    </div>
+                    <div>
+                      <button class="cnav" @click.stop="cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)">›</button>
+                      <button class="cnav" @click.stop="cursor = new Date(cursor.getFullYear() + 1, cursor.getMonth(), 1)">»</button>
+                    </div>
+                  </div>
+                  <div class="week">
+                    <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+                  </div>
+                  <div class="days">
+                    <button v-for="cell in nextMonthDays" :key="cell.key" :class="cell.cls" @click="pickDate(cell.date)">
+                      {{ cell.label }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="cnote">* 最少选择 1 天 最多选择 31 天</div>
+              <div class="cfoot">
+                <div class="rangeText">{{ rangeText }}</div>
+                <div>
+                  <button class="smallBtn" @click.stop="start = null; end = null">清除</button>
+                  <button class="smallBtn primary" @click.stop="onApply()">确定</button>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+        <div class="vc-spacer" />
+        <button class="vc-btn">自定义指标</button>
+        <button class="vc-btn vc-btn-blue">全部指标</button>
+      </div>
+
+      <div class="vc-body">
+        <div class="vc-cards">
+          <div v-for="kpi in videoKpiItems" :key="kpi.metric" class="vc-card" :class="[kpi.ratios ? 'vc-card-large' : '', kpi.metric === '出单链接数' ? 'vc-card-below-refund' : '']">
+            <div class="vc-klabel">
+              <span class="vc-kname">{{ splitMetricLabel(kpi.metric).main }}<span v-if="splitMetricLabel(kpi.metric).qual" class="vc-kqual">{{ splitMetricLabel(kpi.metric).qual }}</span></span>
+              <i class="vc-info">ⓘ</i>
+            </div>
+            <div class="vc-kmain">
+              <div class="vc-kleft">
+                <div class="vc-kval">{{ kpi.value }}</div>
+                <div class="vc-ktrend" :class="kpi.trend === 'up' ? 'trend-up' : 'trend-down'">
+                  {{ kpi.trend === 'up' ? '▲' : '▼' }} {{ kpi.delta }}%
+                  <span class="vc-prev">
+                    <template v-if="kpi.metric !== '支付金额'">{{ videoPrevLabel }}&nbsp;</template>{{ kpi.prev }}
+                  </span>
+                </div>
+                <div class="vc-ksub">{{ videoPrevLabel }}</div>
+              </div>
+              <div v-if="kpi.ratios" class="vc-kright">
+                <div v-for="r in kpi.ratios" :key="r.label" class="vc-ratio">
+                  <span>{{ r.label }}</span>
+                  <b>{{ r.value }}</b>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="vc-right">
+          <div class="vc-chart">
+            <div class="vc-chart-head">
+              <span class="vc-legend today"><i /> 今日支付金额</span>
+              <span class="vc-legend yesterday"><i /> 昨日支付金额</span>
+            </div>
+          <svg ref="chartSvgRef" :viewBox="`0 0 ${videoChart.W} ${videoChart.H}`" @mousemove="onVideoMove" @mouseleave="onVideoLeave">
+            <g v-for="(t, i) in videoChart.yTicks" :key="`y-${i}`">
+              <line :x1="48" :y1="t.y" :x2="videoChart.W - 20" :y2="t.y" stroke="#f0f2f5" stroke-width="1" />
+              <text :x="42" :y="t.y + 4" text-anchor="end" font-size="11" fill="#98a0ae">{{ t.value }}</text>
+            </g>
+            <template v-for="(t, i) in videoChart.xTicks" :key="`x-${i}`">
+              <text :x="t.x" :y="videoChart.H - 16" text-anchor="middle" font-size="11" fill="#98a0ae">{{ t.label }}</text>
+            </template>
+            <path :d="videoChart.area1" fill="rgba(79,124,255,0.08)" />
+            <path :d="videoChart.path2" fill="none" stroke="#a8c5ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path :d="videoChart.path1" fill="none" stroke="#4f7cff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <template v-if="videoHover !== null">
+              <line :x1="videoChart.points1[videoHover].x" :y1="34" :x2="videoChart.points1[videoHover].x" :y2="videoChart.H - 44" stroke="#e0e4ec" stroke-width="1" stroke-dasharray="3 3" />
+              <circle :cx="videoChart.points1[videoHover].x" :cy="videoChart.points1[videoHover].y" r="4" fill="#4f7cff" stroke="#fff" stroke-width="2" />
+              <circle :cx="videoChart.points2[videoHover].x" :cy="videoChart.points2[videoHover].y" r="4" fill="#a8c5ff" stroke="#fff" stroke-width="2" />
+            </template>
+            <rect x="48" y="34" :width="videoChart.W - 68" :height="videoChart.H - 78" fill="transparent" />
+          </svg>
+          <div v-if="videoHover !== null" class="vc-chart-tip" :style="videoTipStyle">
+            <div class="vc-tip-time">{{ videoTrendHours[videoHover] }}</div>
+            <div class="vc-tip-row today"><i /> 今日 {{ videoTrendToday[videoHover].toFixed(2) }}万</div>
+            <div class="vc-tip-row yesterday"><i /> 昨日 {{ videoTrendYesterday[videoHover].toFixed(2) }}万</div>
+          </div>
+        </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 看板下方：出单链接排行 / 销售成员排行榜（当前时间周期全量，默认每页前 10 名） -->
+    <div class="vc-ranks">
+      <div class="vc-rank-card card">
+        <div class="vc-rank-head">
+          <span class="vc-rank-title">出单链接排行</span>
+        </div>
+        <div class="vc-rank-thead link">
+          <span class="vc-rank-th-main">出单链接</span>
+          <SortTh as="span" label="销售额" :state="linkSortState('amount')" @sort="toggleLinkSort('amount')" />
+          <SortTh as="span" label="出单件数" :state="linkSortState('orders')" @sort="toggleLinkSort('orders')" />
+        </div>
+        <div class="vc-rank-list" :style="rankListStyle">
+          <div v-for="(row, i) in pagedLinks" :key="row.linkId" class="vc-rank-row link" :class="rowTone(rankNo(linkPage, i))">
+            <span class="vc-rank-no" :class="medalCls(rankNo(linkPage, i))">{{ rankNo(linkPage, i) }}</span>
+            <button type="button" class="vc-rank-imgbtn" :title="`查看商品 ${row.linkId}`" @click="goLinkGoods(row.linkId)">
+              <img class="vc-rank-img" :src="row.img" :alt="row.title" />
+            </button>
+            <div class="vc-rank-main">
+              <div class="vc-rank-name" :title="row.title">{{ row.title }}</div>
+              <div class="vc-rank-sub">商品ID {{ row.linkId }}</div>
+            </div>
+            <span class="vc-rank-val">¥{{ row.amount }}</span>
+            <span class="vc-rank-num">{{ row.orders }}</span>
+          </div>
+        </div>
+        <div v-if="linkPages > 1" class="vc-rank-foot">
+          <span class="vc-rank-total">共 {{ videoLinkRank.length }} 条</span>
+          <div class="vc-rank-pager">
+            <button type="button" class="vc-rank-pgbtn" :disabled="linkPage === 1" aria-label="上一页" @click="linkPage--">‹</button>
+            <span class="vc-rank-pgtext">{{ linkPage }} / {{ linkPages }}</span>
+            <button type="button" class="vc-rank-pgbtn" :disabled="linkPage === linkPages" aria-label="下一页" @click="linkPage++">›</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="vc-rank-card card">
+        <div class="vc-rank-head">
+          <span class="vc-rank-title">销售成员排行榜</span>
+        </div>
+        <div class="vc-rank-thead member">
+          <span class="vc-rank-th-main">发布人</span>
+          <span>组长</span>
+          <SortTh as="span" label="出单链接数" :state="sellerSortState('links')" @sort="toggleSellerSort('links')" />
+          <SortTh as="span" label="销售额" :state="sellerSortState('amount')" @sort="toggleSellerSort('amount')" />
+        </div>
+        <div class="vc-rank-list" :style="rankListStyle">
+          <div v-for="(row, i) in pagedSellers" :key="row.name" class="vc-rank-row member" :class="rowTone(rankNo(sellerPage, i))">
+            <span class="vc-rank-no" :class="medalCls(rankNo(sellerPage, i))">{{ rankNo(sellerPage, i) }}</span>
+            <div class="vc-rank-main">
+              <span class="vc-rank-ava" :style="{ background: avatarBg(rankNo(sellerPage, i)) }">{{ row.name.slice(0, 1) }}</span>
+              <span class="vc-rank-name">{{ row.name }}</span>
+            </div>
+            <span class="vc-rank-leader" :title="`${row.leader}大组`">{{ row.leader }}</span>
+            <span class="vc-rank-num">{{ row.links }}</span>
+            <span class="vc-rank-val">¥{{ row.amount }}</span>
+          </div>
+        </div>
+        <div v-if="sellerPages > 1" class="vc-rank-foot">
+          <span class="vc-rank-total">共 {{ videoSellerRank.length }} 条</span>
+          <div class="vc-rank-pager">
+            <button type="button" class="vc-rank-pgbtn" :disabled="sellerPage === 1" aria-label="上一页" @click="sellerPage--">‹</button>
+            <span class="vc-rank-pgtext">{{ sellerPage }} / {{ sellerPages }}</span>
+            <button type="button" class="vc-rank-pgbtn" :disabled="sellerPage === sellerPages" aria-label="下一页" @click="sellerPage++">›</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </template>
 
   <!-- 发布数据：原概览页内容 -->

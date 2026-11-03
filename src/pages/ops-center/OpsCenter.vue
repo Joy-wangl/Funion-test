@@ -197,6 +197,8 @@ const onMsgJump = (id: string) => {
   onSubnav('shopGoods', 'shopGoods');
   msgLocate.value = { id, ts: Date.now() };
 };
+/* 驾驶舱出单链接点图：同一桥跳店铺商品并按商品ID定位 */
+provide('opsGoodsLocate', onMsgJump);
 </script>
 
 <template>
