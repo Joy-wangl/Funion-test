@@ -509,8 +509,7 @@ const openSerTip = (e: MouseEvent, s: VioSeries) => {
             </td>
             <td class="qc-vio-type">
               <div class="prob-tags">
-                <span class="tag" :style="{ background: `${typeColor(r.type)}1a`, color: typeColor(r.type) }">{{ r.type }}</span>
-                <span class="tag sub" :style="{ background: `${typeColor(r.type)}14`, color: typeColor(r.type) }">{{ r.sub }}</span>
+                <span class="tag" :style="{ background: `${typeColor(r.type)}1a`, color: typeColor(r.type) }" :title="r.type">{{ r.sub }}</span>
               </div>
               <div class="qc-vio-degree">{{ r.degree }}</div>
             </td>
@@ -694,7 +693,6 @@ const openSerTip = (e: MouseEvent, s: VioSeries) => {
 .qc-vio-page .qc-vio-table th:nth-child(7) { width: 12%; }
 .qc-vio-page .qc-vio-table th:nth-child(8) { width: 6%; }
 .qc-vio-type .prob-tags { display: flex; flex-wrap: wrap; gap: 4px; }
-.qc-vio-type .prob-tags .tag.sub { font-weight: 400; }
 .qc-vio-degree { margin-top: 4px; font-size: 11px; color: var(--text-3); }
 .qc-vio-sev .qc-vio-restrict { margin-top: 4px; font-size: 11px; color: var(--text-3); }
 .qc-vio-sev .qc-vio-status { display: block; width: fit-content; margin-top: 4px; }
