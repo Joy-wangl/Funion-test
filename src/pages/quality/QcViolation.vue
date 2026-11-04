@@ -17,7 +17,7 @@ import {
   QC_VIOLATIONS, VIO_TYPES, VIO_TYPE_COLOR, VIO_SUB_BIG, vioSubsOf,
   VIO_SEVERITY, VIO_SEVERITY_COLOR, VIO_BLOCK_SEVERITY,
   VIO_STATUS, VIO_STATUS_COLOR, VIO_PLAT_GROUPS, vioPlatGroup,
-  VIO_FIX_ADVICE, type VioRecord,
+  VIO_FIX_ADVICE, vioSeriesOf, type VioRecord, type VioSeries,
 } from './qcViolationData';
 
 const props = defineProps<{ sub: 'board' | 'list' }>();
@@ -58,7 +58,7 @@ const matchBase = (r: VioRecord) => {
   if (f.severity !== '全部' && r.severity !== f.severity) return false;
   if (f.status !== '全部' && r.status !== f.status) return false;
   if (f.productId && !(r.productId ?? '').includes(f.productId)) return false;
-  if (f.seriesCode && !(r.seriesCode ?? '').includes(f.seriesCode)) return false;
+  if (f.seriesCode && !vioSeriesOf(r).some((s) => s.code.includes(f.seriesCode))) return false;
   return true;
 };
 const inRange = (r: VioRecord, range: DateRange) => r.time === '--' || (r.time >= range.start && r.time <= range.end);
@@ -274,6 +274,13 @@ const fixAdvice = computed(() => (detail.value ? VIO_FIX_ADVICE[detail.value.typ
 const sevColor = (s: string) => VIO_SEVERITY_COLOR[s] ?? '#86909c';
 const typeColor = (t: string) => VIO_TYPE_COLOR[t] ?? '#8891a2';
 const statusColor = (s: string) => VIO_STATUS_COLOR[s] ?? '#86909c';
+
+/* 系列编码标签悬浮气泡：列出该商品ID下属于此系列的商品编码，锚定标签上方居中 */
+const serTip = ref<{ x: number; y: number; code: string; goods: string[] } | null>(null);
+const openSerTip = (e: MouseEvent, s: VioSeries) => {
+  const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  serTip.value = { x: r.left + r.width / 2, y: r.top - 8, code: s.code, goods: s.goods };
+};
 </script>
 
 <template>
@@ -408,7 +415,7 @@ const statusColor = (s: string) => VIO_STATUS_COLOR[s] ?? '#86909c';
         </div>
         <div class="qc-trend-row">
           <div ref="trendPanelRef" class="qc-trend-panel">
-            <ProblemTrendChart :labels="trend.months" :series="trend.series" />
+            <ProblemTrendChart :labels="trend.months" :series="trend.series" :height="420" />
           </div>
           <div class="qc-panel qc-rv-top-panel" :style="topPanelH ? { height: `${topPanelH}px` } : undefined">
             <div class="p-title top-head">TOP 违规店铺</div>
@@ -422,7 +429,7 @@ const statusColor = (s: string) => VIO_STATUS_COLOR[s] ?? '#86909c';
               <span class="top-rank" :class="i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''">{{ i + 1 }}</span>
               <div class="top-info">
                 <div class="n"><PlatLogo :platform="s.platform" />{{ s.shop }}</div>
-                <div class="m">违规 {{ s.total }} 条 · 受限/封店 {{ s.block }} 条</div>
+                <div class="m"><span class="m-total">违规 {{ s.total }} 条 · </span>受限/封店 {{ s.block }} 条</div>
               </div>
               <span class="top-val"><b>{{ s.total }}</b><i>条</i></span>
             </div>
@@ -519,7 +526,16 @@ const statusColor = (s: string) => VIO_STATUS_COLOR[s] ?? '#86909c';
             <td class="qc-vio-goods">
               <template v-if="r.productId">
                 <div class="qc-vio-goods-id mono">商品ID：{{ r.productId }}</div>
-                <div v-if="r.seriesCode" class="qc-vio-goods-code mono">系列编码：{{ r.seriesCode }}</div>
+                <div v-if="vioSeriesOf(r).length" class="qc-vio-goods-ser">
+                  <span
+                    v-for="s in vioSeriesOf(r)"
+                    :key="s.code"
+                    class="tag ser-tag"
+                    :title="`${s.code}：该商品ID下 ${s.goods.length} 个商品编码`"
+                    @mouseenter="openSerTip($event, s)"
+                    @mouseleave="serTip = null"
+                  >{{ s.code }}</span>
+                </div>
               </template>
               <span v-else class="qc-vio-none">—</span>
             </td>
@@ -613,6 +629,15 @@ const statusColor = (s: string) => VIO_STATUS_COLOR[s] ?? '#86909c';
         </div>
       </div>
     </template>
+
+    <!-- 系列编码悬浮气泡：该商品ID下属于此系列的商品编码 -->
+    <Teleport to="body">
+      <div v-if="serTip" class="qc-seg-tip qc-vio-ser-tip" :style="{ left: `${serTip.x}px`, top: `${serTip.y}px` }">
+        <span class="hd">{{ serTip.code }}（{{ serTip.goods.length }}）</span>
+        <span v-for="g in serTip.goods" :key="g" class="ln">{{ g }}</span>
+        <span v-if="!serTip.goods.length" class="ln empty">该系列下暂无商品编码</span>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -630,6 +655,17 @@ const statusColor = (s: string) => VIO_STATUS_COLOR[s] ?? '#86909c';
 .qc-vio-page .qc-rv-top-panel .top-val { margin-left: auto; justify-content: flex-end; min-width: 46px; }
 .qc-vio-page .qc-rv-top-panel .top-val b { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .qc-vio-page .qc-rv-top-panel .top-val i { font-size: 12px; }
+/* 趋势图坐标系字号（viewBox 单位，随卡宽等比缩放）：本页列宽较窄，按 12 号字保证可读 */
+.qc-vio-page .qc-trend-panel :deep(.trend-svg .ax) { font-size: 12px; }
+/* 窄屏：趋势卡随列宽变矮，榜单行改单行（总数已在右侧，隐藏重复片段）避免挤出滚动 */
+@media (max-width: 1500px) {
+  .qc-vio-page .qc-trend-panel :deep(.trend-svg .ax) { font-size: 15px; }
+  .qc-vio-page .qc-rv-top-panel .top-row { min-height: 0; padding: 4px 0; }
+  .qc-vio-page .qc-rv-top-panel .top-info { display: flex; align-items: baseline; gap: 8px; }
+  .qc-vio-page .qc-rv-top-panel .top-info .n { display: block; flex: 0 1 auto; }
+  .qc-vio-page .qc-rv-top-panel .top-info .m { margin-top: 0; flex: 0 0 auto; white-space: nowrap; }
+  .qc-vio-page .qc-rv-top-panel .top-info .m .m-total { display: none; }
+}
 
 /* 违规数据总览 KPI 卡「较上月」：数量 + 比例；上涨=红（不利）、下降=绿（有利）、持平=灰 */
 .qc-mom { display: flex; align-items: baseline; gap: 6px; margin-top: 6px; font-size: 12px; line-height: 1.4; }
@@ -664,8 +700,13 @@ const statusColor = (s: string) => VIO_STATUS_COLOR[s] ?? '#86909c';
 .qc-vio-sev .qc-vio-status { display: block; width: fit-content; margin-top: 4px; }
 .qc-vio-penalty { font-size: 12px; color: var(--text-2); white-space: nowrap; }
 .qc-vio-penalty .lb { display: inline-block; width: 48px; color: var(--text-3); }
-.qc-vio-goods { font-size: 12px; color: var(--text-2); white-space: nowrap; }
-.qc-vio-goods .qc-vio-goods-code { margin-top: 2px; color: var(--text-3); }
+.qc-vio-goods { font-size: 12px; color: var(--text-2); }
+/* 系列编码＝蓝色标签（同系列详情导轨芯片规格），一个商品可挂多个系列，超出列宽换行 */
+.qc-vio-goods .qc-vio-goods-ser { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.qc-vio-goods .ser-tag {
+  height: 18px; padding: 0 6px; font-size: 11px; font-weight: var(--fw-medium); white-space: nowrap; cursor: default;
+  background: var(--color-primary-light); color: var(--color-primary);
+}
 .qc-vio-none { color: var(--text-4, #c9cdd4); }
 .qc-vio-ops { font-size: 12px; white-space: nowrap; }
 .qc-vio-ops .qc-vio-ops-group { color: var(--text-2); }
@@ -688,4 +729,8 @@ const statusColor = (s: string) => VIO_STATUS_COLOR[s] ?? '#86909c';
 .qc-vio-fix li { font-size: 13px; line-height: 1.9; color: var(--text-2); }
 .qc-vio-btn { height: 32px; padding: 0 18px; border: 1px solid var(--border-2); background: #fff; border-radius: 8px; font-size: 13px; color: var(--text-2); cursor: pointer; }
 .qc-vio-btn:hover { color: var(--text-1); border-color: var(--border-3, #c9cdd4); }
+
+/* 系列编码气泡（Teleport 到 body，基础盒 .qc-seg-tip 在 qcCenter.css）：商品编码逐行列出 */
+.qc-vio-ser-tip .ln { color: #1d2129; font-variant-numeric: tabular-nums; }
+.qc-vio-ser-tip .ln.empty { color: #8a92a1; }
 </style>

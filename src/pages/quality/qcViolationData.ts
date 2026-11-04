@@ -3,6 +3,12 @@
    三平台违规规则高度共通，此处归一为 10 个违规大类 × 小类，处置结果 7 档，供看板与列表统一消费。 ---------- */
 import type { Platform } from './data';
 
+/** 系列编码 ＋ 该系列在此商品ID下的商品编码 */
+export interface VioSeries {
+  code: string;
+  goods: string[];
+}
+
 export interface VioRecord {
   /** 违规编号（平台处罚单号） */
   id: string;
@@ -29,6 +35,8 @@ export interface VioRecord {
   restrict?: string;
   productId?: string;
   seriesCode?: string;
+  /** 该商品ID关联的全部系列编码，及各系列在此ID下的商品编码（一个商品可挂多个系列） */
+  seriesList?: VioSeries[];
   /** 违规原因（平台原文摘要） */
   reason: string;
   opsGroup: string;
@@ -233,3 +241,50 @@ export const QC_VIOLATIONS: VioRecord[] = [
   { id: 'DY-2026072008', shopName: '风屿工作室', shopId: 'DY-3051', platform: '抖音', time: '2026-07-20', type: '资质合规', sub: '执照注吊销', severity: '封店/清退', degree: '严重违规', deductPts: 0, fineAmt: 0, status: '处罚中', restrict: '清退封店', reason: '关联主体营业执照注销/吊销，清退封店。', opsGroup: '抖音组', opsSpecialist: '陈曦', opsAssistant: '林悦' },
   { id: 'DY-2026071509', shopName: '初晴日记', shopId: 'DY-3012', platform: '抖音', time: '2026-07-15', type: '营业执照异常', sub: '主体关联', severity: '店铺限制/冻结', degree: '严重违规', deductPts: 0, fineAmt: 0, status: '待处罚', restrict: '店铺冻结', reason: '店铺关联主体存在营业执照异常记录，触发店铺冻结。', opsGroup: '抖音组', opsSpecialist: '陈曦', opsAssistant: '林悦' },
 ];
+
+/* ---------- 商品ID → 关联的多个系列编码（含该系列在此ID下的商品编码）
+   首个系列与记录上的 seriesCode 一致，作为该记录的主系列。 ---------- */
+export const VIO_PRODUCT_SERIES: Record<string, VioSeries[]> = {
+  'P-100231': [{ code: 'XL-家居收纳', goods: ['SP-20101', 'SP-20102', 'SP-20118'] }, { code: 'XL-厨房用品', goods: ['SP-20355'] }],
+  'P-100884': [{ code: 'XL-厨房用品', goods: ['SP-20402', 'SP-20417'] }, { code: 'XL-清洁工具', goods: ['SP-20688'] }],
+  'P-101220': [{ code: 'XL-家纺布艺', goods: ['SP-20733'] }, { code: 'XL-家居收纳', goods: ['SP-20141', 'SP-20160'] }],
+  'P-101566': [{ code: 'XL-清洁工具', goods: ['SP-20801', 'SP-20809'] }],
+  'P-102013': [{ code: 'XL-家居收纳', goods: ['SP-20205', 'SP-20226', 'SP-20233'] }, { code: 'XL-家纺布艺', goods: ['SP-20770'] }, { code: 'XL-清洁工具', goods: ['SP-20844'] }],
+  'P-102477': [{ code: 'XL-厨房用品', goods: ['SP-20460'] }, { code: 'XL-家居收纳', goods: ['SP-20288', 'SP-20291'] }],
+  'P-103102': [{ code: 'XL-家纺布艺', goods: ['SP-20905', 'SP-20913'] }, { code: 'XL-厨房用品', goods: ['SP-20477'] }],
+  'P-103588': [{ code: 'XL-清洁工具', goods: ['SP-20960'] }, { code: 'XL-家纺布艺', goods: ['SP-20928', 'SP-20934'] }],
+  'P-103920': [{ code: 'XL-家居收纳', goods: ['SP-21002', 'SP-21015'] }],
+  'P-104255': [{ code: 'XL-家纺布艺', goods: ['SP-21066', 'SP-21071', 'SP-21080'] }, { code: 'XL-清洁工具', goods: ['SP-20990'] }],
+  'P-104610': [{ code: 'XL-厨房用品', goods: ['SP-21120'] }, { code: 'XL-家居收纳', goods: ['SP-21044'] }],
+  'P-105022': [{ code: 'XL-清洁工具', goods: ['SP-21188', 'SP-21193'] }, { code: 'XL-厨房用品', goods: ['SP-21155'] }],
+  'P-105388': [{ code: 'XL-家居收纳', goods: ['SP-21240'] }, { code: 'XL-家纺布艺', goods: ['SP-21102', 'SP-21109'] }],
+  'P-105744': [{ code: 'XL-家纺布艺', goods: ['SP-21301', 'SP-21318'] }],
+  'P-200118': [{ code: 'XL-家居收纳', goods: ['SP-21366', 'SP-21372'] }, { code: 'XL-清洁工具', goods: ['SP-21225'] }],
+  'P-200733': [{ code: 'XL-家纺布艺', goods: ['SP-21410'] }, { code: 'XL-家居收纳', goods: ['SP-21388', 'SP-21395'] }],
+  'P-201402': [{ code: 'XL-清洁工具', goods: ['SP-21455', 'SP-21461'] }, { code: 'XL-厨房用品', goods: ['SP-21430'] }],
+  'P-201777': [{ code: 'XL-家纺布艺', goods: ['SP-21502'] }],
+  'P-300115': [{ code: 'XL-家居收纳', goods: ['SP-21560', 'SP-21566'] }, { code: 'XL-厨房用品', goods: ['SP-21540'] }],
+  'P-300620': [{ code: 'XL-厨房用品', goods: ['SP-21611', 'SP-21618', 'SP-21625'] }, { code: 'XL-清洁工具', goods: ['SP-21590'] }],
+  'P-300988': [{ code: 'XL-家纺布艺', goods: ['SP-21670'] }, { code: 'XL-家居收纳', goods: ['SP-21655'] }],
+  'P-301244': [{ code: 'XL-清洁工具', goods: ['SP-21722', 'SP-21730'] }],
+  'P-301570': [{ code: 'XL-清洁工具', goods: ['SP-21788'] }, { code: 'XL-家纺布艺', goods: ['SP-21701', 'SP-21706'] }],
+  'P-301833': [{ code: 'XL-家居收纳', goods: ['SP-21840', 'SP-21845'] }, { code: 'XL-清洁工具', goods: ['SP-21810'] }],
+  'P-302109': [{ code: 'XL-厨房用品', goods: ['SP-21902'] }],
+  'P-302455': [{ code: 'XL-清洁工具', goods: ['SP-21966', 'SP-21971'] }, { code: 'XL-家居收纳', goods: ['SP-21930'] }],
+  'P-400118': [{ code: 'XL-家居收纳', goods: ['SP-22015', 'SP-22020', 'SP-22031'] }, { code: 'XL-家纺布艺', goods: ['SP-22060'] }],
+  'P-400522': [{ code: 'XL-厨房用品', goods: ['SP-22104'] }, { code: 'XL-清洁工具', goods: ['SP-22088'] }],
+  'P-400933': [{ code: 'XL-家纺布艺', goods: ['SP-22160', 'SP-22166'] }],
+  'P-401287': [{ code: 'XL-清洁工具', goods: ['SP-22210'] }, { code: 'XL-厨房用品', goods: ['SP-22185', 'SP-22192'] }],
+  'P-401640': [{ code: 'XL-家居收纳', goods: ['SP-22266', 'SP-22271'] }, { code: 'XL-厨房用品', goods: ['SP-22240'] }],
+  'P-401955': [{ code: 'XL-厨房用品', goods: ['SP-22320', 'SP-22327'] }],
+};
+
+for (const r of QC_VIOLATIONS) {
+  if (!r.productId) continue;
+  r.seriesList = VIO_PRODUCT_SERIES[r.productId] ?? (r.seriesCode ? [{ code: r.seriesCode, goods: [] }] : []);
+}
+
+/** 记录的系列编码清单（无多系列数据时回退单系列） */
+export const vioSeriesOf = (r: VioRecord): VioSeries[] =>
+  r.seriesList?.length ? r.seriesList : r.seriesCode ? [{ code: r.seriesCode, goods: [] }] : [];
+
