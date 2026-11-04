@@ -14,7 +14,7 @@ import QcTypeShuttle from './QcTypeShuttle.vue';
 import type { DateRange } from './qcCenterData';
 import { qcGet } from './qcApi';
 import {
-  QC_VIOLATIONS, VIO_TYPES, VIO_TYPE_COLOR, VIO_SUB_BIG, vioSubsOf,
+  QC_VIOLATIONS, VIO_TYPES, VIO_TYPE_COLOR, VIO_SUB_BIG, vioSubsOf, vioSubColor,
   VIO_SEVERITY, VIO_SEVERITY_COLOR, VIO_BLOCK_SEVERITY,
   VIO_STATUS, VIO_STATUS_COLOR, VIO_PLAT_GROUPS, vioPlatGroup,
   VIO_FIX_ADVICE, vioSeriesOf, type VioRecord, type VioSeries,
@@ -127,7 +127,7 @@ const subTypeItems = computed(() => {
   const m = countBy(filtered.value.filter((r) => r.type === vioDetailType.value), (r) => r.sub);
   return vioSubsOf(vioDetailType.value)
     .filter((s) => m[s])
-    .map((s) => ({ label: s, value: m[s], color: VIO_TYPE_COLOR[vioDetailType.value!] ?? '#8891a2' }));
+    .map((s) => ({ label: s, value: m[s], color: vioSubColor(vioDetailType.value!, s) }));
 });
 const displayItems = computed(() => subTypeItems.value ?? bigTypeItems.value);
 const pieItems = computed(() => displayItems.value);

@@ -93,6 +93,16 @@ export const VIO_SUB_BIG: Record<string, string> = (() => {
 
 export const vioSubsOf = (big: string): string[] => VIO_SUBS[big] ?? [];
 
+/* 二级小类下钻配色：一级为大类单色，进入二级后各小类取独立色相以便区分（按小类序循环取色） */
+export const VIO_SUB_PALETTE = [
+  '#1890ff', '#13c2c2', '#fa8c16', '#eb2f96', '#52c41a',
+  '#722ed1', '#fa541c', '#2f54eb', '#faad14', '#86909c',
+] as const;
+export const vioSubColor = (big: string, sub: string): string => {
+  const idx = vioSubsOf(big).indexOf(sub);
+  return VIO_SUB_PALETTE[(idx < 0 ? 0 : idx) % VIO_SUB_PALETTE.length];
+};
+
 /* ---------- 处置结果 7 档（按严重度从重到轻） ---------- */
 export const VIO_SEVERITY = [
   '封店/清退',
