@@ -490,10 +490,10 @@ const openSerTip = (e: MouseEvent, s: VioSeries) => {
             <th>店铺信息</th>
             <th>违规编号 / 时间</th>
             <th>违规类型</th>
-            <th>处置结果 / 状态</th>
             <th>扣分 / 违约金</th>
             <th>商品信息</th>
             <th>运营组 / 专员</th>
+            <th>处置结果</th>
             <th>操作</th>
           </tr>
         </thead>
@@ -512,11 +512,6 @@ const openSerTip = (e: MouseEvent, s: VioSeries) => {
                 <span class="tag" :style="{ background: `${typeColor(r.type)}1a`, color: typeColor(r.type) }" :title="r.type">{{ r.sub }}</span>
               </div>
               <div class="qc-vio-degree">{{ r.degree }}</div>
-            </td>
-            <td class="qc-vio-sev">
-              <span class="tag" :style="{ background: `${sevColor(r.severity)}1a`, color: sevColor(r.severity) }">{{ r.severity }}</span>
-              <div v-if="r.restrict" class="qc-vio-restrict">{{ r.restrict }}</div>
-              <span class="tag qc-vio-status" :style="{ background: `${statusColor(r.status)}1a`, color: statusColor(r.status) }">{{ r.status }}</span>
             </td>
             <td class="qc-vio-penalty">
               <div><span class="lb">扣分</span>{{ r.deductPts ? `${r.deductPts} 分` : '无扣分' }}</div>
@@ -541,6 +536,10 @@ const openSerTip = (e: MouseEvent, s: VioSeries) => {
             <td class="qc-vio-ops">
               <div class="qc-vio-ops-group">{{ r.opsGroup }}</div>
               <div class="qc-vio-ops-sub">专员 {{ r.opsSpecialist }} · 助理 {{ r.opsAssistant }}</div>
+            </td>
+            <td class="qc-vio-sev">
+              <span class="tag" :style="{ background: `${sevColor(r.severity)}1a`, color: sevColor(r.severity) }">{{ r.severity }}</span>
+              <div v-if="r.restrict" class="qc-vio-restrict">{{ r.restrict }}</div>
             </td>
             <td class="qc-rv-op">
               <div class="qc-op-col">
@@ -686,16 +685,15 @@ const openSerTip = (e: MouseEvent, s: VioSeries) => {
 /* 违规列表为 8 列，覆盖 .qc-rv-table 面向评价列表的 7 列定宽（fixed 布局下末列会被挤没） */
 .qc-vio-page .qc-vio-table th:nth-child(1) { width: 16%; }
 .qc-vio-page .qc-vio-table th:nth-child(2) { width: 12%; }
-.qc-vio-page .qc-vio-table th:nth-child(3) { width: 16%; }
-.qc-vio-page .qc-vio-table th:nth-child(4) { width: 13%; }
-.qc-vio-page .qc-vio-table th:nth-child(5) { width: 10%; }
-.qc-vio-page .qc-vio-table th:nth-child(6) { width: 15%; }
-.qc-vio-page .qc-vio-table th:nth-child(7) { width: 12%; }
+.qc-vio-page .qc-vio-table th:nth-child(3) { width: 15%; }
+.qc-vio-page .qc-vio-table th:nth-child(4) { width: 10%; }
+.qc-vio-page .qc-vio-table th:nth-child(5) { width: 16%; }
+.qc-vio-page .qc-vio-table th:nth-child(6) { width: 12%; }
+.qc-vio-page .qc-vio-table th:nth-child(7) { width: 13%; }
 .qc-vio-page .qc-vio-table th:nth-child(8) { width: 6%; }
 .qc-vio-type .prob-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 .qc-vio-degree { margin-top: 4px; font-size: 11px; color: var(--text-3); }
 .qc-vio-sev .qc-vio-restrict { margin-top: 4px; font-size: 11px; color: var(--text-3); }
-.qc-vio-sev .qc-vio-status { display: block; width: fit-content; margin-top: 4px; }
 .qc-vio-penalty { font-size: 12px; color: var(--text-2); white-space: nowrap; }
 .qc-vio-penalty .lb { display: inline-block; width: 48px; color: var(--text-3); }
 .qc-vio-goods { font-size: 12px; color: var(--text-2); }
