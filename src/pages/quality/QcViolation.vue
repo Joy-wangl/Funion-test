@@ -185,7 +185,12 @@ const trend = computed(() => {
     const s = series.find((x) => x.type === bucket);
     if (s) s.points[mi] += 1;
   }
-  return { months, series };
+  /* 全部违规合计虚线：各处置档按月求和，叠加在分档曲线之上便于看总量走势 */
+  const total = {
+    type: '违规总数', color: '#232b3a', dash: true,
+    points: months.map((_, i) => series.reduce((sum, b) => sum + b.points[i], 0)),
+  };
+  return { months, series: [total, ...series] };
 });
 
 /* 右侧 TOP 榜单高度跟随趋势卡：左列自然高度为基准（行等分填充，避免榜单反向撑高整行） */

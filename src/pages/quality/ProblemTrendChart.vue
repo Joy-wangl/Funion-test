@@ -4,9 +4,11 @@ import { computed, ref } from 'vue';
 
 const props = defineProps<{
   labels: string[];
-  series: { type: string; color: string; points: number[] }[];
+  series: { type: string; color: string; points: number[]; dash?: boolean }[];
   /** 订单量对照序列（与 labels 对齐，右轴刻度） */
   orders?: number[];
+  /** 绘图区高度（viewBox 高，宽度占满时按比例缩放），默认 300 */
+  height?: number;
 }>();
 
 const hidden = ref<Set<string>>(new Set());
@@ -21,7 +23,7 @@ const toggle = (type: string) => {
   hidden.value = next;
 };
 const W = 960;
-const H = 300;
+const H = computed(() => props.height ?? 300);
 const L = 48;
 const R = 48;
 const T = 14;
@@ -32,8 +34,8 @@ const showOrders = computed(() => !!props.orders && !hideOrders.value);
 const yMax = computed(() => niceMax(Math.max(...visible.value.flatMap((s) => s.points), 1) * 1.05));
 const oMax = computed(() => (showOrders.value && props.orders ? niceMax(Math.max(...props.orders, 1) * 1.05) : 0));
 const x = (i: number) => L + (i * (W - L - R)) / Math.max(n.value - 1, 1);
-const y = (v: number) => T + (1 - v / yMax.value) * (H - T - B);
-const yO = (v: number) => T + (1 - v / oMax.value) * (H - T - B);
+const y = (v: number) => T + (1 - v / yMax.value) * (H.value - T - B);
+const yO = (v: number) => T + (1 - v / oMax.value) * (H.value - T - B);
 const ticks = computed(() => [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(f * yMax.value)));
 const oTicks = computed(() => [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(f * oMax.value)));
 const step = computed(() => Math.max(1, Math.ceil(n.value / 7)));
@@ -104,11 +106,18 @@ function niceMax(v: number): number {
       </template>
       <g v-for="s in visible" :key="s.type">
         <path
+          v-if="!s.dash"
           :d="`${smoothPath(s.points.map((v, i) => ({ x: x(i), y: y(v) })))} L${x(n - 1).toFixed(1)},${(H - B).toFixed(1)} L${x(0).toFixed(1)},${(H - B).toFixed(1)} Z`"
           :fill="s.color"
           opacity="0.12"
         />
-        <path :d="smoothPath(s.points.map((v, i) => ({ x: x(i), y: y(v) })))" fill="none" :stroke="s.color" stroke-width="2" />
+        <path
+          :d="smoothPath(s.points.map((v, i) => ({ x: x(i), y: y(v) })))"
+          fill="none"
+          :stroke="s.color"
+          :stroke-width="s.dash ? 1.8 : 2"
+          :stroke-dasharray="s.dash ? '6 4' : undefined"
+        />
       </g>
       <line
         v-if="hover"
@@ -163,7 +172,7 @@ function niceMax(v: number): number {
         :title="hidden.has(s.type) ? `显示「${s.type}」` : `隐藏「${s.type}」`"
         @click="toggle(s.type)"
       >
-        <i :style="{ background: hidden.has(s.type) ? '#d5d9e0' : s.color }" />
+        <i :class="s.dash ? 'dash' : ''" :style="{ background: hidden.has(s.type) ? '#d5d9e0' : s.color }" />
         {{ s.type }}
       </span>
     </div>
