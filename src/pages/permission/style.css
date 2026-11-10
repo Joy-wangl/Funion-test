@@ -31,12 +31,12 @@
   --fill-3: #e5e6eb;
   --white: #FFFFFF;
 
-  /* 尺寸 */
-  --radius-sm: var(--radius-xs);
+  /* 尺寸：--radius / --shadow 为本模块私有短名（全局无同名 token），保留；
+     圆角与阴影取值一律直引全局 token（--radius-xs…2xl / --shadow-sm…lg），不再设同名别名。
+     旧别名把全局值改写成本模块私有值（--radius-sm 4px、--radius-lg 8px），同一 token 在
+     .pm-page 内外取值不同；--shadow-lg 自引用成环，导致弹窗/抽屉阴影恒为 none */
   --radius: var(--radius-sm);
-  --radius-lg: var(--radius-md);
   --shadow: var(--shadow-sm);
-  --shadow-lg: var(--shadow-lg);
 
   display: flex;
   flex-direction: column;
@@ -1190,8 +1190,8 @@
 .smg-shop { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .ops-center .smg-shop .store-logo { width: 28px; height: 28px; border-radius: 8px; flex: none; }
 .smg-shop-info { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.smg-shop-name { font-size: var(--fs-base); font-weight: 600; color: var(--color-text); }
-.smg-shop-login { font-size: 12px; color: var(--color-text-3); }
+.smg-shop-name { font-size: var(--fs-base); font-weight: var(--fw-semibold); color: var(--color-text); }
+.smg-shop-login { font-size: var(--fs-aux); color: var(--color-text-3); }
 /* 空值占位破折号 */
 .smg-dash { color: var(--color-text-3); }
 /* 可用成员单元格：≤2 人逐人「头像+姓名」对；>2 人叠放头像组（后枚压前枚）+ 等N人文案 */
@@ -1199,7 +1199,7 @@
 .smg-mpair { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .smg-mname { font-size: var(--fs-base); color: var(--color-text-2); white-space: nowrap; }
 .smg-avas { display: inline-flex; flex: none; }
-.smg-ava { width: 28px; height: 28px; border-radius: 50%; color: #fff; font-size: 12px; display: flex; align-items: center; justify-content: center; border: 1px solid #fff; flex-shrink: 0; }
+.smg-ava { width: 28px; height: 28px; border-radius: 50%; color: #fff; font-size: var(--fs-aux); display: flex; align-items: center; justify-content: center; border: 1px solid #fff; flex-shrink: 0; }
 .smg-ava + .smg-ava { margin-left: -10px; }
 .smg-member-text { font-size: var(--fs-base); color: var(--color-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* 两层展开（品控监控列表样式）：灰底展开行内嵌白底账号子表；店铺行首列箭头＋勾选垂直居中 */
@@ -1211,6 +1211,12 @@
 /* 主表首列（箭头＋勾选）垂直居中：仅限主表直属行单元格（直接子选择器），
    防后代选择器泄漏到嵌套账号子表首列（约定：列表字段一律顶部对齐） */
 .smg-table > tbody > tr > td:first-child { vertical-align: middle; white-space: nowrap; }
+/* 状态胶囊行（图一）：选中=浅蓝实底胶囊、未选=纯文字；与平台行下划线 tab 形成两级层次 */
+.smg-status-row { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; }
+/* 选择器加 .smg-status-row / .ops-center 前缀：.ops-center button{font:inherit} 为 (0,1,1)，单类字号会被其覆盖 */
+.smg-status-row .smg-spill { border: 0; background: transparent; padding: 5px 12px; border-radius: 999px; font-size: var(--fs-base); color: var(--color-text-2); cursor: pointer; }
+.smg-status-row .smg-spill:hover { color: var(--color-primary); }
+.smg-status-row .smg-spill.active { background: var(--color-primary-light); color: var(--color-primary); font-weight: var(--fw-medium); }
 
 /* 右侧抽屉（管理账号 / 分组管理 / 发布设置）：遮罩点击与 ESC 均可关 */
 .smg-drawer-mask { position: fixed; inset: 0; background: rgba(31, 35, 41, 0.45); z-index: 1200; display: flex; justify-content: flex-end; }
@@ -1220,26 +1226,227 @@
   to { transform: translateX(0); opacity: 1; }
 }
 .smg-dr-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--color-border-2); }
-.smg-dr-title { font-size: 15px; font-weight: 600; color: var(--color-text); }
-.smg-dr-x { display: inline-flex; padding: 4px; border: none; background: transparent; border-radius: 6px; color: var(--color-text-3); cursor: pointer; }
+.smg-dr-title { font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--color-text); }
+.smg-dr-x { display: inline-flex; padding: 4px; border: none; background: transparent; border-radius: var(--radius-sm); color: var(--color-text-3); cursor: pointer; }
 .smg-dr-x:hover { background: var(--color-fill-2); color: var(--color-text); }
 .smg-dr-body { flex: 1; min-height: 0; overflow-y: auto; padding: 20px; }
-.smg-dr-field { margin-bottom: 20px; }
+.smg-dr-field { margin-bottom: 24px; }
 .smg-dr-label { display: flex; align-items: center; font-size: var(--fs-base); color: var(--color-text-2); margin-bottom: 8px; }
 .smg-req { font-style: normal; color: var(--color-danger); margin-right: 4px; }
-.smg-dr-input { width: 100%; height: 36px; border: 1px solid var(--color-border); border-radius: 8px; padding: 0 12px; font-size: var(--fs-base); color: var(--color-text); background: #fff; }
+/* 表单控件统一走全局控件规格（同 .sg-input/.sg-select）：40px 高 / 10px 圆角 / #fbfcfe 底 / #e4e8ef 边 */
+.smg-dr-input { width: 100%; height: 40px; border: 1px solid #e4e8ef; border-radius: var(--radius-lg); padding: 0 12px; font-size: var(--fs-base); color: #465064; background: var(--color-fill); }
 .smg-dr-input:disabled { border-color: transparent; background: var(--color-fill-2); color: var(--color-text-3); cursor: not-allowed; }
-/* 抽屉内气泡下拉：外框与 .smg-dr-input 同规格，触发器透明内嵌 */
-.smg-dr-select { width: 100%; height: 36px; border: 1px solid var(--color-border); border-radius: 8px; padding: 0 12px; color: var(--color-text); background: #fff; }
+/* 气泡下拉：外框同控件规格，触发器透明内嵌 */
+.smg-dr-select { width: 100%; height: 40px; border: 1px solid #e4e8ef; border-radius: var(--radius-lg); padding: 0 12px; font-size: var(--fs-base); color: #465064; background: var(--color-fill); }
+/* 店铺配置二级页：返回+标题头行；白卡承载三页签表单（同列表卡语言：描边＋柔和阴影＋大圆角） */
+.smg-set-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.smg-set-title { font-size: var(--fs-md); font-weight: var(--fw-semibold); color: var(--color-text); }
+/* 操作按钮组（编辑/取消＋保存）置头行右端，替代原卡底 footer */
+.smg-set-ops { margin-left: auto; display: flex; gap: 8px; }
+.smg-set-card { background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-2xl); box-shadow: var(--shadow-md); padding: 20px; }
+/* 类目申请：入口区（选择类目 + 已选清单）／选择类目弹窗（查询条件 + 级联穿梭列 + 已选列）／我的类目四态 */
+.smg-cat-sec { margin-bottom: 24px; }
+.smg-cat-sec:last-of-type { margin-bottom: 0; }
+.smg-cat-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: var(--fs-base); color: var(--color-text); margin-bottom: 12px; }
+/* 标题字重只挂 span：行内 .sg-btn 不继承 600，保持全局按钮常规字重 */
+.smg-cat-h > span { font-weight: var(--fw-semibold); }
+/* 标题行入口钮走紧凑档（32px/6px），避免压过同行 14px 标题 */
+.smg-cat-h .sg-btn { height: 32px; padding: 0 14px; border-radius: var(--radius-sm); }
+.smg-cat-picked { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: #fff; padding: 4px 14px; }
+.smg-cat-prow { display: flex; align-items: center; gap: 8px; padding: 10px 0; font-size: var(--fs-base); color: var(--color-text); border-bottom: 1px solid var(--color-border-2); }
+.smg-cat-prow:last-child { border-bottom: 0; }
+.smg-cat-prow .smg-cat-name { flex: 1; min-width: 0; }
+.smg-cat-dep { flex: none; font-size: var(--fs-aux); color: var(--color-text-3); }
+.smg-cat-q { flex: none; font-size: var(--fs-aux); color: var(--color-text-2); background: var(--color-fill-2); border-radius: var(--radius-xs); padding: 2px 6px; }
+.smg-cat-del { flex: none; border: 0; background: none; padding: 0; display: inline-flex; color: var(--color-text-3); cursor: pointer; }
+.smg-cat-del:hover { color: var(--color-danger); }
+.smg-cat-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+/* 弹窗两步共用定高体：切换步骤不改变弹窗大小；列体与确认清单各自内滚 */
+.smg-cat-mbody { height: 470px; display: flex; flex-direction: column; }
+/* 第二步确认及提交：清单为唯一依据，可逐行移除或清空 */
+.smg-cat-confirm { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+.smg-cat-confirm .smg-cat-picked { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
+.smg-cat-confirm .smg-cat-picked::-webkit-scrollbar { display: none; }
+.smg-cat-confirm .smg-cat-bar { margin-top: 0; }
+.smg-cat-sum { font-size: var(--fs-base); color: var(--color-text-2); }
+.smg-cat-ops { display: flex; gap: 8px; }
+/* 弹窗查询条件带：保证金区间（最小—最大）＋申请状态＋资质限制 */
+/* 弹窗查询带：对齐全局条件卡范式（白卡+边框、三列等分、label 上控件下且走 --fs-aux、控件满宽 40px） */
+.smg-cat-pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 16px; padding: 16px; background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
+.smg-cat-pf { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.smg-cat-pf > label { font-size: var(--fs-aux); color: var(--color-text-2); }
+/* 保证金区间：最小—最大同排等分 */
+.smg-cat-range { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.smg-cat-pf .smg-cat-depwrap { position: relative; flex: 1; min-width: 0; }
+.smg-cat-pf .smg-cat-depinput { width: 100%; padding-right: 26px; }
+.smg-cat-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: inline-flex; border: 0; padding: 0; background: none; color: var(--color-text-3); cursor: pointer; }
+.smg-cat-clear:hover { color: var(--color-text-2); }
+.smg-cat-dash { font-style: normal; flex: none; color: var(--color-text-3); }
+/* 级联穿梭列：点行载入下一列，命中行浅底＋右向箭头；末列固定为已选类目 */
+.smg-cat-casc { display: flex; gap: 12px; margin-top: 16px; flex: 1; min-height: 0; }
+.smg-cat-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: #fff; overflow: hidden; }
+/* 列头同全局表头语言：12px/500＋浅填充＋发丝线，弱于列内正文 */
+.smg-cat-colh { flex: none; padding: 9px 12px; background: var(--color-fill); border-bottom: 1px solid var(--color-border); font-size: var(--fs-aux); font-weight: var(--fw-medium); color: var(--color-text-2); }
+.smg-cat-colb { flex: 1; min-height: 0; overflow-y: auto; padding: 8px; scrollbar-width: none; }
+.smg-cat-colb::-webkit-scrollbar { display: none; }
+.smg-cat-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--radius-md); font-size: var(--fs-base); color: var(--color-text); cursor: pointer; }
+.smg-cat-row:hover { background: var(--color-fill-2); }
+.smg-cat-row.on { background: var(--color-primary-light); }
+.smg-cat-row.sel .smg-cat-name { color: var(--color-primary); }
+.smg-cat-row.dis { cursor: default; }
+.smg-cat-row.dis:hover { background: none; }
+.smg-cat-row .smg-cat-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.smg-cat-row input[type="checkbox"] { flex: none; accent-color: var(--color-primary); width: 15px; height: 15px; cursor: pointer; }
+.smg-cat-more { flex: none; font-style: normal; font-size: var(--fs-aux); color: var(--color-text-3); }
+.smg-cat-row.on .smg-cat-more { color: var(--color-primary); }
+.smg-cat-empty { padding: 24px 8px; text-align: center; font-size: var(--fs-aux); color: var(--color-text-3); }
+/* 状态胶囊同列表页 .smg-spill 语言（无边框＋浅底激活）；前缀抬特异性防 .ops-center button{font:inherit} 覆盖字号 */
+.smg-cat-chips { display: flex; gap: 8px; margin-bottom: 12px; }
+.smg-cat-chips .smg-cat-chip { border: 0; background: transparent; border-radius: 999px; padding: 5px 12px; font-size: var(--fs-aux); color: var(--color-text-2); cursor: pointer; }
+.smg-cat-chips .smg-cat-chip:hover { color: var(--color-primary); }
+.smg-cat-chips .smg-cat-chip.on { background: var(--color-primary-light); color: var(--color-primary); font-weight: var(--fw-medium); }
+.smg-cat-st { display: inline-block; flex: none; border-radius: 999px; padding: 2px 8px; font-size: var(--fs-aux); font-weight: var(--fw-medium); }
+/* 已申请=浅蓝底蓝字；审核中=浅橙底橙字 */
+.smg-cat-st.applied { color: var(--color-primary); background: var(--color-primary-light); }
+.smg-cat-st.auditing { color: var(--color-warning); background: var(--color-warning-light); }
+.smg-cat-st.failed { color: var(--color-danger); background: var(--color-danger-light); }
+.smg-cat-st.canceled { color: var(--color-text-3); background: var(--color-fill-2); }
+/* 小表不继承列表表 1200px 最小宽；列宽按内容配比（类目路径最长） */
+.ops-center .sg-table.smg-cat-table { min-width: 0; }
+.ops-center .smg-cat-table th:nth-child(1) { width: 26%; }
+.ops-center .smg-cat-table th:nth-child(2) { width: 10%; }
+.ops-center .smg-cat-table th:nth-child(3) { width: 14%; }
+.ops-center .smg-cat-table th:nth-child(4) { width: 10%; }
+.ops-center .smg-cat-table th:nth-child(5) { width: 18%; }
+.ops-center .smg-cat-table th:nth-child(6) { width: 22%; }
+.smg-cat-table .sg-link + .sg-link { margin-left: 12px; }
+/* ---------- 店铺黑品限制（店铺配置第四页签）：分段胶囊子 tab ＋ 搜索/添加同排右置 ＋ 三列清单 ---------- */
+.smg-bl-sec { min-width: 0; }
+.smg-bl-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+/* 子 tab 用一体化分段胶囊（对标 .ov-member-seg 语言）：容器描边、选中段浅蓝底主色字 */
+.smg-bl-seg { display: inline-flex; align-items: center; padding: 2px; border: 1px solid var(--color-border); border-radius: 8px; background: #fff; }
+.smg-set-card .smg-bl-seg button { height: 26px; padding: 0 12px; border: 0; border-radius: 6px; background: none; font-size: var(--fs-aux); color: var(--color-text-2); cursor: pointer; white-space: nowrap; }
+.smg-set-card .smg-bl-seg button.on { background: var(--color-primary-light); color: var(--color-primary); font-weight: var(--fw-medium); }
+.smg-bl-ops { display: flex; align-items: center; gap: 8px; }
+.smg-bl-ops .sg-btn.primary { height: 32px; padding: 0 14px; border-radius: var(--radius-sm); }
+.smg-bl-kw { width: 240px; }
+.smg-bl-kw > .sg-input { width: 100%; height: 32px; }
+/* 清单：商品信息（图＋名称＋标识值副行）/ 添加人·添加时间 / 操作三链平铺 */
+.ops-center .sg-table.smg-bl-table { min-width: 0; table-layout: fixed; }
+.ops-center .smg-bl-table th:nth-child(1) { width: 52%; }
+.ops-center .smg-bl-table th:nth-child(2) { width: 26%; }
+.ops-center .smg-bl-table th:nth-child(3) { width: 22%; }
+.ops-center .smg-bl-table .ib-product { min-width: 0; }
+.ops-center .smg-bl-table .ib-pname { max-width: none; margin-bottom: 4px; }
+.ops-center .smg-bl-table .bl-pinfo { min-width: 0; flex: 1; }
+.ops-center .smg-bl-table .bl-who { font-size: var(--fs-base); color: var(--color-text-2); line-height: 1.6; }
+.smg-bl-table .sg-link + .sg-link { margin-left: 12px; }
+/* 商品编码两级树：系列父行 caret 垂直居中；展开灰底子表固定布局；限制来源单一浅蓝胶囊（随系列 / 单独添加靠文案区分） */
+.ops-center .smg-bl-table .smg-bl-grow > td:first-child { vertical-align: middle; }
+.ops-center .smg-bl-table .ib-expand-row > td { background: #f7f8fa; padding: 12px 16px; }
+.ops-center .smg-bl-table .ib-subtable { table-layout: fixed; }
+.smg-bl-src { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--color-primary-light); color: var(--color-primary); font-size: var(--fs-aux); white-space: nowrap; }
+/* 系列编码为纯文字标识（非商品、不可点）：主行名称用正文色 medium，区别于商品名称的链接蓝 */
+.ops-center .smg-bl-table .smg-bl-series .ib-pname { color: var(--color-text); font-weight: var(--fw-medium); }
+/* 添加/编辑弹窗：编码＝输入即模糊检索命中列表；商品ID＝标签式多值输入（回车/查询入列、× 删除） */
+.ops-center .smg-bl-qbox { width: 100%; }
+.ops-center .smg-bl-qhits { margin-top: 6px; max-height: 184px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: #fff; }
+.ops-center .smg-bl-qhit { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 10px; border: 0; background: none; text-align: left; cursor: pointer; font-size: var(--fs-base); color: var(--color-text); }
+.ops-center .smg-bl-qhit + .smg-bl-qhit { border-top: 1px solid var(--color-fill); }
+.ops-center .smg-bl-qhit:hover { background: var(--color-fill); }
+.ops-center .smg-bl-qhit.on { background: var(--color-primary-light); }
+.ops-center .smg-bl-qv { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ops-center .smg-bl-qs { margin-left: auto; flex: none; font-size: var(--fs-aux); color: var(--color-text-3); }
+.ops-center .smg-bl-qnone { margin-top: 6px; padding: 8px 10px; border: 1px dashed var(--color-border); border-radius: var(--radius-md); font-size: var(--fs-aux); color: var(--color-text-3); }
+.ops-center .smg-bl-picked { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: var(--fs-base); color: var(--color-text-2); }
+.ops-center .smg-bl-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 40px; padding: 6px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: #fbfcfe; }
+.ops-center .smg-bl-tag { display: inline-flex; align-items: center; gap: 2px; max-width: 100%; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--color-primary-light); color: var(--color-primary); font-size: var(--fs-aux); }
+.ops-center .smg-bl-tagname { font-style: normal; margin-left: 6px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-3); }
+.ops-center .smg-bl-tagx { flex: none; border: 0; background: none; padding: 0 4px; color: inherit; font-size: 13px; line-height: 1; cursor: pointer; opacity: .7; }
+.ops-center .smg-bl-tagx:hover { opacity: 1; }
+.ops-center .smg-bl-taginput { flex: 1; min-width: 150px; height: 26px; border: 0; background: none; outline: none; font-size: var(--fs-base); color: var(--color-text); }
+.ops-center .smg-bl-qbtn { flex: none; height: 26px; padding: 0 12px; border-radius: var(--radius-sm); font-size: var(--fs-aux); }
+/* 抽屉纯文本值（详情/编辑）：与输入框同节奏但不带盒 */
+.ops-center .smg-dr-static { font-size: var(--fs-base); color: var(--color-text); line-height: 22px; }
+/* 黑品限制抽屉编码标签流：同知识库打标签 kb-scene-tag 形态；字号走正文 token、字重统一 medium（选中态不加粗，仅换色）；详情态不可点无悬浮反馈 */
+.ops-center .smg-bl-codes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ops-center .smg-bl-codes .kb-scene-tag { display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border: 1px solid transparent; border-radius: var(--radius-sm); background: var(--color-fill-2); color: var(--color-text-3); font-size: var(--fs-base); font-weight: var(--fw-medium); line-height: 20px; cursor: default; }
+.ops-center .smg-bl-codes:not(.edit) .kb-scene-tag:hover { color: var(--color-text-3); border-color: transparent; }
+.ops-center .smg-bl-codes.edit .kb-scene-tag { cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+.ops-center .smg-bl-codes.edit .kb-scene-tag:hover { color: var(--color-text-2); border-color: var(--color-border); }
+.ops-center .smg-bl-codes.edit .kb-scene-tag.on { background: var(--color-primary-light); color: var(--color-primary); border-color: var(--color-primary-10); font-weight: var(--fw-medium); }
+/* 抽屉查看态：与编辑态同形控件但禁选，选中值保持满对比不置灰（有效态禁灰） */
+.ops-center .smg-drawer .bselect.disabled { opacity: 1; }
+.ops-center .smg-drawer .bselect.disabled .bselect-trigger { cursor: default; }
+.ops-center .smg-drawer .bselect.disabled .bselect-arrow { color: #c3c9d4; }
+/* 查看态受限编码：选中项同编辑态主色浅底，禁选且无悬浮反馈 */
+.ops-center .smg-bl-codes:not(.edit) .kb-scene-tag.on,
+.ops-center .smg-bl-codes:not(.edit) .kb-scene-tag.on:hover { background: var(--color-primary-light); color: var(--color-primary); border-color: var(--color-primary-10); font-weight: var(--fw-medium); }
+.ops-center .smg-bl-codes .kb-scene-tag:disabled { cursor: default; }
+/* 添加人/添加时间：名正文、时间辅字号灰，替全角空格避免基线参差 */
+.ops-center .smg-dr-static .smg-dr-time { margin-left: 12px; font-size: var(--fs-aux); color: var(--color-text-3); }
+/* 抽屉内提示条：复用限制编码页签警示条语言，去掉其页级下间距，由 .smg-dr-field 统一节奏 */
+.ops-center .smg-dr-body .smg-pub-notice { margin-bottom: 0; }
+/* 资质材料上传槽：未传=虚线槽＋主色「上传」；已传=浅蓝实底＋文件名＋移除；槽 title 显示材料提交要求 */
+.smg-cat-prow.stack { flex-wrap: wrap; }
+.smg-cat-mats { flex-basis: 100%; min-width: 0; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.smg-cat-mat { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; border: 1px dashed var(--color-border); border-radius: var(--radius-md); padding: 4px 10px; font-size: var(--fs-aux); color: var(--color-text-2); }
+.smg-cat-mat.on { border-style: solid; border-color: transparent; background: var(--color-primary-light); color: var(--color-primary); }
+.smg-cat-matname { flex: none; }
+.smg-cat-matfile { min-width: 0; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.smg-cat-matup { display: inline-flex; align-items: center; color: var(--color-primary); cursor: pointer; }
+.smg-cat-matup input { display: none; }
+.smg-cat-mat .smg-cat-del { color: inherit; }
+.smg-cat-matmiss { font-size: var(--fs-aux); color: var(--color-warning); }
+.smg-cat-dl { display: flex; flex-direction: column; gap: 12px; }
+.smg-cat-drow { display: flex; gap: 12px; font-size: var(--fs-base); }
+/* 标签定宽贴最长标签（4 字＝56px），禁标签与值之间留大空白 */
+.smg-cat-drow > span { flex: none; width: 56px; color: var(--color-text-3); }
+.smg-cat-drow > b { font-weight: var(--fw-regular); color: var(--color-text); }
+/* 店铺配置页签组：下划线式（透明底＋主色 medium＋底部 3px 主色横条），容器不带灰底盒；
+   选择器带 .smg-drawer / .smg-set-card 前缀抬特异性，防 .ops-center button{font:inherit}(0,1,1) 覆盖字号 */
+.smg-dr-tabs { display: flex; gap: 24px; border-bottom: 1px solid var(--color-border-2); margin-bottom: 20px; }
+.smg-drawer .smg-dr-tabs button, .smg-set-card .smg-dr-tabs button { position: relative; border: 0; background: none; padding: 8px 2px; font-size: var(--fs-base); color: var(--color-text-2); cursor: pointer; }
+.smg-dr-tabs button.on { color: var(--color-primary); font-weight: var(--fw-medium); }
+.smg-dr-tabs button.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; border-radius: 2px; background: var(--color-primary); }
+/* 限制编码配置警示条（页签下首行）：同 .cpd-spec-notice 语言——浅橙底＋橙字＋三角叹号，图标与首行文字居中 */
+.smg-pub-notice { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 16px; padding: 8px 12px; border-radius: var(--radius-md); background: var(--color-warning-light); color: var(--color-warning); font-size: var(--fs-base); line-height: 20px; }
+.smg-pub-notice svg { flex: none; margin-top: 3px; }
+/* 限制方向说明（已配置品牌/品类不可发布，非白名单） */
+.smg-dr-tip { margin-top: 8px; font-size: var(--fs-aux); color: var(--color-text-3); }
+/* 限制项标签云：品牌/商品品类两组上下区分；点选＝主色浅底实心感、再点取消＝白底空心 */
+/* 标签云等分五列：每行左右边缘逐行对齐，标签文字居中（列宽随承载卡自适应，长品牌名超出省略） */
+.smg-tagbox { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.smg-tag { width: 100%; border: 1px solid var(--color-border); background: #fff; border-radius: var(--radius-sm); padding: 3px 8px; font-size: var(--fs-aux); color: var(--color-text-2); cursor: pointer; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.smg-tag:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.smg-tag.on { border-color: var(--color-primary); background: var(--color-primary-light); color: var(--color-primary); }
+/* 只读态（查看模式）：标签保持常态配色不置灰（有效态禁灰），仅去悬浮反馈与手型 */
+.smg-tag:disabled { cursor: default; }
+.smg-tag:disabled:hover { border-color: var(--color-border); background: #fff; color: var(--color-text-2); }
+.smg-tag.on:disabled, .smg-tag.on:disabled:hover { border-color: var(--color-primary); background: var(--color-primary-light); color: var(--color-primary); }
+/* 同上：双类抬特异性，保证标签字号落 --fs-aux */
+.smg-tagbox .smg-tag { font-size: var(--fs-aux); }
+/* 自定义品牌：标签位内联增删改（悬浮显现无边框纯图标）；只读态与视频号店铺不渲染操作与新增位 */
+.smg-tagwrap { position: relative; display: block; min-width: 0; }
+.smg-tag.custom.mg { padding: 3px 24px; }
+.smg-tagops { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); display: none; align-items: center; gap: 4px; }
+.smg-tagwrap:hover .smg-tagops { display: flex; }
+.smg-tagop { display: inline-flex; border: 0; background: none; padding: 0; color: var(--color-text-3); cursor: pointer; }
+.smg-tagop:hover { color: var(--color-primary); }
+.smg-tagops .smg-tagop:last-child:hover { color: var(--color-danger); }
+.smg-tag-add { border-style: dashed; color: var(--color-primary); }
+.smg-tag-add:hover { border-color: var(--color-primary); background: var(--color-primary-light); }
+.smg-tag-input { width: 100%; height: 25px; box-sizing: border-box; border: 1px solid var(--color-primary); border-radius: var(--radius-sm); padding: 0 8px; line-height: 23px; font-size: var(--fs-aux); color: var(--color-text); background: #fff; outline: none; }
+.smg-tag-input::placeholder { color: var(--color-placeholder); font-weight: 400; }
 .smg-dr-grow { display: flex; align-items: center; gap: 8px; }
 .ops-center .smg-dr-grow .sg-select { flex: 1; min-width: 0; width: auto; }
-.smg-dr-gear { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex: none; border: none; background: transparent; border-radius: 8px; color: var(--color-primary); cursor: pointer; }
+.smg-dr-gear { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex: none; border: none; background: transparent; border-radius: var(--radius-md); color: var(--color-primary); cursor: pointer; }
 .smg-dr-gear:hover { background: var(--color-fill-2); }
 .smg-dr-mhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .smg-dr-mtitle { font-size: var(--fs-base); color: var(--color-text-2); }
 .ops-center .smg-dr-add { display: inline-flex; align-items: center; gap: 4px; border: none; background: transparent; padding: 0; color: var(--color-primary); font-size: var(--fs-base); cursor: pointer; }
 .ops-center .smg-dr-add:hover { text-decoration: underline; }
-.smg-dr-mbox { border: 1px dashed var(--color-border); border-radius: 10px; padding: 4px 12px; min-height: 76px; display: flex; flex-direction: column; justify-content: center; }
+.smg-dr-mbox { border: 1px dashed var(--color-border); border-radius: var(--radius-lg); padding: 4px 12px; min-height: 76px; display: flex; flex-direction: column; justify-content: center; }
 .smg-dr-mempty { text-align: center; color: var(--color-text-3); font-size: var(--fs-base); padding: 20px 0; }
 .smg-dr-mrow { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: var(--fs-base); color: var(--color-text); }
 .smg-dr-mrow .smg-ava { width: 32px; height: 32px; font-size: var(--fs-base); }
@@ -1252,11 +1459,11 @@
 .smg-top-host { position: relative; z-index: 1250; }
 
 /* 分组清单弹窗：分组行（默认项标「默认」）+ 添加分组 */
-.smg-gp-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--color-fill-2); border-radius: 8px; padding: 9px 14px; margin-bottom: 8px; font-size: var(--fs-base); color: var(--color-text); }
-.smg-gp-def { color: var(--color-text-3); font-size: 12px; }
+.smg-gp-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--color-fill-2); border-radius: var(--radius-md); padding: 9px 14px; margin-bottom: 8px; font-size: var(--fs-base); color: var(--color-text); }
+.smg-gp-def { color: var(--color-text-3); font-size: var(--fs-aux); }
 .ops-center .smg-gp-rm { border: none; background: transparent; padding: 0; color: var(--color-danger); font-size: var(--fs-base); cursor: pointer; }
 .ops-center .smg-gp-rm:hover { text-decoration: underline; }
-.smg-gp-input { flex: 1; height: 30px; border: 1px solid var(--color-border); border-radius: 6px; padding: 0 10px; font-size: var(--fs-base); color: var(--color-text); background: #fff; }
+.smg-gp-input { flex: 1; height: 30px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 0 10px; font-size: var(--fs-base); color: var(--color-text); background: #fff; }
 .ops-center .smg-gp-add { display: inline-flex; align-items: center; gap: 4px; border: none; background: transparent; padding: 4px 0; color: var(--color-primary); font-size: var(--fs-base); cursor: pointer; }
 
 /* ---------- 账号管理：添加买家账号主按钮 + 平台气泡菜单（官方图标，点选直达） ---------- */
@@ -1344,7 +1551,7 @@
 .ops-center .smg-gp-add:hover { text-decoration: underline; }
 
 /* =========================================================
-   设置 › 数据导入：新建上传弹窗文件选择区与列表文件单元格
+   .di-form / .di-field / .di-val：原数据导入页表单语言，现由店铺黑品限制查询区与详情复用
    ========================================================= */
 .ops-center .di-form { display: flex; flex-direction: column; gap: 16px; }
 
@@ -1354,72 +1561,13 @@
 
 .ops-center .di-val { font-size: var(--fs-base); color: var(--color-text); }
 
-/* 文件选择区：虚线框提示可点选；选中后实线 + 文件名回显 */
-.ops-center .di-filezone {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 76px;
-  padding: 0 16px;
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-fill);
-  color: var(--color-text-3);
-  font-size: var(--fs-base);
-  cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
-}
-
-.ops-center .di-filezone:hover { border-color: var(--color-primary); color: var(--color-primary); }
-
-.ops-center .di-filezone.on { border-style: solid; border-color: var(--color-primary); background: #fff; color: var(--color-text); }
-
-.ops-center .di-filename { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-.ops-center .di-filesite { flex: none; font-size: var(--fs-aux); color: var(--color-text-3); }
-
-/* 列表文件单元格：文件名 + 大小副行 */
-.ops-center .di-filecell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-
-.ops-center .di-filecell .name { font-size: var(--fs-base); color: var(--color-text); }
-
-.ops-center .di-filecell .size { font-size: var(--fs-aux); color: var(--color-text-3); }
-
-/* 列表列宽：五列先等分（各 20%）再按内容占比微调——文件列内容最长加宽、上传人/类型列收窄，固定布局防单列吞噬剩余宽度 */
-.ops-center .di-table { table-layout: fixed; }
-.ops-center .di-table th:nth-child(1) { width: 18%; }
-.ops-center .di-table th:nth-child(2) { width: 34%; }
-.ops-center .di-table th:nth-child(3) { width: 14%; }
-.ops-center .di-table th:nth-child(4) { width: 16%; }
-.ops-center .di-table th:nth-child(5) { width: 18%; }
-
 /* ---------- 店铺配置抽屉：单选 radio 组（对齐 StrategyDrawer 的 st-radios 样式） ---------- */
 .smg-radios { display: flex; gap: 24px; }
 .smg-radio { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: var(--fs-base); color: var(--color-text); }
 .smg-radio input[type="radio"] { accent-color: var(--color-primary); width: 16px; height: 16px; cursor: pointer; }
-.smg-radio input[type="radio"]:disabled { cursor: not-allowed; opacity: 0.5; }
+/* 只读态单选不置灰（有效态禁灰）：仅去手型，选中值保持满对比 */
+.smg-radio input[type="radio"]:disabled { cursor: default; }
 .smg-radio span { user-select: none; }
 
-/* ---------- 黑品库（设置 › 黑品库） ---------- */
-/* 类型芯片：三类各一色，浅底深字 */
-.ops-center .bl-type { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 6px; font-size: var(--fs-aux); font-weight: var(--fw-medium); }
-.ops-center .bl-type.t-code { background: var(--primary-light-2); color: var(--primary); }
-.ops-center .bl-type.t-series { background: #f3eefe; color: #7a5af8; }
-.ops-center .bl-type.t-opp { background: #fff3e8; color: #d4761a; }
-
-/* 列表列宽：六列固定布局，编码列与名称列加宽 */
-.ops-center .bl-table { table-layout: fixed; }
-.ops-center .bl-table th:nth-child(1) { width: 42%; }
-.ops-center .bl-table th:nth-child(2) { width: 14%; }
-.ops-center .bl-table th:nth-child(3) { width: 24%; }
-.ops-center .bl-table th:nth-child(4) { width: 20%; }
-/* 商品信息单元格：复用内部商机 .ib-product 三行语言（图 + 名称 + 商品ID + 店铺平台标），列内不撑最小宽 */
-.ops-center .bl-table .ib-product,
-.ops-center .bl-detail-prod { min-width: 0; }
-.ops-center .bl-table .ib-pname,
-.ops-center .bl-detail-prod .ib-pname { max-width: none; margin-bottom: 4px; }
-/* 无商品回显（编码类未命中商品行）：灰底占位图块保持单元格同构 */
+/* 无商品回显（编码类未命中商品行）：灰底占位图块保持单元格同构（店铺黑品限制复用） */
 .ops-center .bl-thumb-ph { background: var(--color-fill); border-color: var(--color-border); }
-.ops-center .bl-pinfo { min-width: 0; flex: 1; }
-/* 添加人 / 添加时间合并列：人名正文 + 时间次级灰行 */
-.ops-center .bl-who { font-size: var(--fs-base); color: var(--color-text-2); line-height: 1.6; }

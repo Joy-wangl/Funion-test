@@ -3,10 +3,14 @@ import { computed, ref, watch } from 'vue';
 import { internalProducts, platformOfStore, toSgProduct } from './data';
 import type { ProductRow } from './data';
 import ProductTable from './ProductTable.vue';
+import Modal from '../../components/Modal.vue';
 import BubbleSelect from '../../components/BubbleSelect.vue';
 import DateRangePicker from '../../components/DateRangePicker.vue';
 import SgDetailPage from './SgDetailPage.vue';
 import { PERM_PLAT_SHOPS, effectiveShops, scopeOf } from '../permission/permScope';
+import { BL_SHOP_OPTIONS } from '../permission/shopData';
+import type { BlShopOption } from '../permission/shopData';
+import { addShopBlacklist, shopBlacklistOf } from '../permission/shopBlacklistData';
 import { pushToast } from '../../components/toast';
 import ColFieldPop from './ColFieldPop.vue';
 import { useColField } from './colFields';
@@ -42,6 +46,45 @@ const onAction = (row: ProductRow, action: string) => {
   if (action === '添加到' && manageDenied(row)) {
     pushToast(`当前角色无店铺「${row.storeMeta.text}」的管理权限`, 'warning');
   }
+};
+
+/* 黑品库（店铺级限制）：弹窗展示该商品已添加到的店铺，并按 全部店铺/指定店铺 选择范围写入各店铺黑品限制 */
+const blTarget = ref<ProductRow | null>(null);
+const blScope = ref<'all' | 'some'>('some');
+const blSel = ref<Set<string>>(new Set());
+const openBlTarget = (row: ProductRow) => {
+  blTarget.value = row;
+  blScope.value = 'some';
+  blSel.value = new Set();
+};
+const blAddedShops = computed(() => {
+  const r = blTarget.value;
+  if (!r) return [] as BlShopOption[];
+  return BL_SHOP_OPTIONS.filter((s) => shopBlacklistOf(s.shopId).some((e) => e.dim === '商品ID' && e.value === r.pid));
+});
+const blPickableShops = computed(() => {
+  const added = new Set(blAddedShops.value.map((s) => s.shopId));
+  return BL_SHOP_OPTIONS.filter((s) => !added.has(s.shopId));
+});
+const toggleBlShop = (shopId: string) => {
+  const next = new Set(blSel.value);
+  if (next.has(shopId)) next.delete(shopId);
+  else next.add(shopId);
+  blSel.value = next;
+};
+const submitBlAdd = () => {
+  const r = blTarget.value;
+  if (!r) return;
+  const targets = blScope.value === 'all'
+    ? blPickableShops.value
+    : blPickableShops.value.filter((s) => blSel.value.has(s.shopId));
+  if (!targets.length) {
+    pushToast(blScope.value === 'all' ? '该商品已在全部店铺黑品限制中' : '请选择要添加的店铺', 'warning');
+    return;
+  }
+  targets.forEach((s) => addShopBlacklist(s.shopId, '商品ID', r.pid, { name: r.pname, goodsId: r.pid }));
+  pushToast(`已添加到黑品库（${targets.length} 家店铺）`);
+  blTarget.value = null;
 };
 
 /* 列表字段管理：▦ 气泡勾选显隐＋拖拽排序＋左/右钉住（ProductTable 列驱动同步） */
@@ -195,8 +238,44 @@ const sortedRows = computed(() => {
       :sort-state="sortState"
       :on-detail="(row: ProductRow) => (detail = row)"
       :manage-denied="manageDenied"
+      :on-blacklist="openBlTarget"
       @sort="toggleSort"
       @action="onAction"
     />
   </template>
+
+  <!-- 黑品库（店铺级限制）：已添加店铺回显＋添加范围 全部店铺/指定店铺；Modal 基础样式挂 .pm-page 作用域，需 pm-host 宿主层 -->
+  <div v-if="blTarget" class="pm-page pm-host">
+    <Modal title="添加到黑品库" size="lg" sub="黑品限制为店铺级：命中限制的商品发布到对应店铺时，发布任务将自动失败" @close="blTarget = null">
+    <div class="ib-bl-prod">
+      <div class="ib-bl-pname">{{ blTarget.pname }}</div>
+      <div class="ib-bl-pid">母链接：{{ blTarget.pid }}</div>
+    </div>
+    <div class="ib-bl-field">
+      <div class="ib-bl-label">已添加店铺</div>
+      <div v-if="blAddedShops.length" class="ib-bl-shops static">
+        <span v-for="s in blAddedShops" :key="s.shopId" class="ib-bl-shop added">{{ s.name }}</span>
+      </div>
+      <div v-else class="ib-bl-none">未添加到任何店铺</div>
+    </div>
+    <div class="ib-bl-field">
+      <div class="ib-bl-label">添加范围</div>
+      <div class="ib-bl-seg">
+        <button type="button" :class="{ on: blScope === 'all' }" @click="blScope = 'all'">全部店铺</button>
+        <button type="button" :class="{ on: blScope === 'some' }" @click="blScope = 'some'">指定店铺</button>
+      </div>
+    </div>
+    <div v-if="blScope === 'some'" class="ib-bl-field">
+      <div class="ib-bl-label">选择店铺</div>
+      <div v-if="blPickableShops.length" class="ib-bl-shops">
+        <button v-for="s in blPickableShops" :key="s.shopId" type="button" class="ib-bl-shop" :class="{ on: blSel.has(s.shopId) }" @click="toggleBlShop(s.shopId)">{{ s.name }}</button>
+      </div>
+      <div v-else class="ib-bl-none">该商品已在全部店铺黑品限制中</div>
+    </div>
+      <template #foot>
+        <button class="lightBtn" @click="blTarget = null">取消</button>
+        <button class="primaryBtn" @click="submitBlAdd">确认添加</button>
+      </template>
+    </Modal>
+  </div>
 </template>
